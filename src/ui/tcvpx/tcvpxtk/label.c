@@ -85,13 +85,17 @@ alpha_render_text(unsigned char *src, unsigned char *dest, int width,
 
     for(y=0;y<s_height;y++){
 	for(x=0;x<w;x++){
-	    int spos = (x+y*s_width)*4;
-	    int dpos = (x+xoff+(y+yoff)*width)*4;
-	    int b = src[spos];
-	    int a = 256-b;
-	    dest[dpos+0] = (dest[dpos+0]*a + red*b)/256;
-	    dest[dpos+1] = (dest[dpos+1]*a + green*b)/256;
-	    dest[dpos+2] = (dest[dpos+2]*a + blue*b)/256;
+	    if(x < width && y < height) {
+		int spos = (x+y*s_width)*4;
+		int dpos = (x+xoff+(y+yoff)*width)*4;
+		int b = src[spos];
+		int a = 256-b;
+		dest[dpos+0] = (dest[dpos+0]*a + red*b)/256;
+		dest[dpos+1] = (dest[dpos+1]*a + green*b)/256;
+		dest[dpos+2] = (dest[dpos+2]*a + blue*b)/256;
+	    } else {
+		fprintf(stderr, "ERROR: Attempted to draw outside widget\n");
+	    }
 	}
     }
     
