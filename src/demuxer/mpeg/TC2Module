@@ -23,4 +23,6 @@ option		pts_interval%i=500
 option		ts_max_skip%i=10
 option		default_video_rate%i=2000000
 option		default_audio_rate%i=128000
-option		ts_pcr_delay%i=1000;
+option		ts_pcr_delay%i=1000
+option		ts_start_pid%i=0x100
+option		ts_psi_interval%i=1000
