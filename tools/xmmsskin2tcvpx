@@ -386,7 +386,6 @@ sub numbers {
 
     my $th = $tb - $tt + 1;
     my $pxs = floor($th * 1.4);
-    my $yoff = $pxs + $tt - 3;
     my $asp = 1 + 0.9 / $pxs;
 
     $skinconf .= <<END_TCCONF;
