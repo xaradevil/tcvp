@@ -102,13 +102,14 @@ static void
 show_help(void)
 {
     /* FIXME: better helpscreen */
-    printf("TCVP helpscreen\n"
-	   "   -h, --help          This helpscreen\n"
-	   "   -A, --audio-device  Select audio device\n"
-	   "   -V, --video-device  Select video device\n"
-	   "   -a, --audio-stream  Select audio stream\n"
-	   "   -v, --video-stream  Select video stream\n"
-	   "   -C, --validate      Check file integrity\n");
+    printf("TCVP help\n"
+	   "   -h      --help              This helpscreen\n"
+	   "   -A dev  --audio-device=dev  Select audio device\n"
+	   "   -V dev  --video-device=dev  Select video device\n"
+	   "   -a #    --audio-stream=#    Select audio stream\n"
+	   "   -v #    --video-stream=#    Select video stream\n"
+	   "   -C      --validate          Check file integrity\n"
+	   "   -s t    --seek=t            Seek t seconds at start\n");
 }
 
 static int
@@ -121,13 +122,14 @@ parse_options(int argc, char **argv)
 	{"video-device", required_argument, 0, 'V'},
 	{"video-stream", required_argument, 0, 'v'},
 	{"validate", no_argument, 0, 'C'},
+	{"seek", required_argument, 0, 's'},
 	{0, 0, 0, 0}
     };
 
     for(;;){
 	int c, option_index = 0;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:C",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -157,6 +159,10 @@ parse_options(int argc, char **argv)
 
 	case 'C':
 	    validate = 1;
+	    break;
+
+	case 's':
+	    conf_setvalue(cf, "start_time", "%i", strtol(optarg, NULL, 0));
 	    break;
 	}
     }

@@ -195,6 +195,7 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     tcvp_player_t *tp;
     player_t *pl;
     int ac = -1, vc = -1;
+    int start;
 
     if((stream = stream_open(name, cs)) == NULL)
 	return NULL;
@@ -254,6 +255,13 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     }
 
     stream_probe(stream, codecs);
+
+    if(conf_getvalue(cs, "start_time", "%i", &start) == 1){
+	uint64_t spts = (uint64_t) start * 1000000LL;
+	if(stream->seek){
+	    stream->seek(stream, spts);
+	}
+    }
 
     print_info(stream);
 

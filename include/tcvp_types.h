@@ -44,7 +44,8 @@ struct packet {
     int stream_type;				\
     char *codec;				\
     void *codec_data;				\
-    int codec_data_size
+    int codec_data_size;			\
+    uint64_t start_time
 
 typedef struct video_stream {
     STREAM_COMMON;
@@ -82,6 +83,7 @@ struct muxed_stream {
     int *used_streams;
     packet_t *(*next_packet)(muxed_stream_t *, int stream);
     int (*close)(muxed_stream_t *);
+    int (*seek)(muxed_stream_t *, uint64_t);
     void *private;
 };
 
