@@ -152,7 +152,6 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     aff = afOpenVirtualFile(vf, "r", AF_NULL_FILESETUP);
     if(!aff){
-	af_virtual_file_destroy(vf);
 	return NULL;
     }
 
