@@ -31,14 +31,14 @@ s_open(char *name)
     char *m;
     char *ext;
 
-    ext=strrchr(name,'.')+1;
-    if(ext==(void *)1L)
+    ext = strrchr(name, '.') + 1;
+    if(ext == (void *)1L)
 	return NULL;
 
-    if(strcmp(ext,"ogg")==0) {
-	m="audio/ogg";
+    if(strcmp(ext,"ogg") == 0) {
+	m = "audio/ogg";
     } else {
-	m="video/mpeg";
+	m = "video/mpeg";
     }
 
     stream_open_t sopen = tc2_get_symbol(m, "open");
@@ -175,7 +175,7 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out)
 	    vp_thread_t *th = malloc(sizeof(*th));
 	    th->stream = i;
 	    th->vp = vp;
-	    vp->pipes[i] = out[j];
+	    vp->pipes[i] = out[i];
 	    pthread_create(&vp->threads[j], NULL, play_stream, th);
 	    j++;
 	}
@@ -189,4 +189,22 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out)
     p->private = vp;
 
     return p;
+}
+
+extern int
+s_probe(muxed_stream_t *ms, tcvp_pipe_t **codecs)
+{
+    int i;
+
+    for(i = 0; i < ms->n_streams; i++){
+	if(ms->used_streams[i] && codecs[i]->probe){
+	    int p;
+	    do {
+		packet_t *pk = ms->next_packet(ms, i);
+		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
+	    } while(p == PROBE_AGAIN);
+	}
+    }
+
+    return PROBE_OK;
 }

@@ -1,4 +1,4 @@
-symbol	"new"	tcvp_pipe_t *(*%s)(stream_t *, int mode, tcvp_pipe_t *)
+symbol	"new"	tcvp_pipe_t *(*%s)(stream_t *, int mode)
 include
 #include <tcvp_types.h>
 

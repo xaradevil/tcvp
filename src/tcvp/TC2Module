@@ -6,7 +6,8 @@ sources		tcvp.c
 implement	"tcvp"		"open"	t_open
 import		"stream"	"open"
 import		"stream"	"play"
+import		"stream"	"probe"
 import		"output/audio"	"open"
 import		"output/video"	"open"
-require		"codec"
+import		"codec"		"new"
 require		"timer"

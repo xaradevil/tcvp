@@ -29,7 +29,6 @@ typedef struct {
     vorbis_comment vc;
     vorbis_dsp_state vd;
     vorbis_block vb;
-    tcvp_pipe_t *out;
     char *buf;
 } VorbisContext_t;
 
@@ -106,7 +105,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
 	out->pts = 0;
 	out->free = vorbis_free_packet;
 	out->private = vc->buf;
-	vc->out->input(vc->out, out);
+	p->next->input(p->next, out);
     }
     pk->free(pk);
 
@@ -134,7 +133,7 @@ vorbis_free_pipe(tcvp_pipe_t *p)
 
 
 extern tcvp_pipe_t *
-vorbis_new(stream_t *s, int mode, tcvp_pipe_t *out)
+vorbis_new(stream_t *s, int mode)
 {
     tcvp_pipe_t *p = NULL;
     VorbisContext_t *vc;
@@ -147,8 +146,6 @@ vorbis_new(stream_t *s, int mode, tcvp_pipe_t *out)
     vorbis_info_init(&vc->vi) ;
     vorbis_comment_init(&vc->vc) ;
 
-    vc->out=out;
-
     vc->buf=malloc(131072);
 
     p = malloc(sizeof(*p));
@@ -157,6 +154,7 @@ vorbis_new(stream_t *s, int mode, tcvp_pipe_t *out)
     p->start = NULL;
     p->stop = NULL;
     p->free = vorbis_free_pipe;
+    p->probe = NULL;
     p->private = vc;
 
     return p;

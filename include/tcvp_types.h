@@ -37,16 +37,18 @@ struct packet {
 
 typedef struct video_stream {
     int stream_type;
+    char *codec;
     float frame_rate;
     int width, height;
-    char *codec;
+    u_long frames;
 } video_stream_t;
 
 typedef struct audio_stream {
     int stream_type;
+    char *codec;
     int sample_rate;
     int channels;
-    char *codec;
+    u_long samples;
 } audio_stream_t;
 
 typedef union stream {
@@ -71,7 +73,13 @@ struct tcvp_pipe {
     int (*start)(tcvp_pipe_t *);
     int (*stop)(tcvp_pipe_t *);
     int (*free)(tcvp_pipe_t *);
+    int (*probe)(tcvp_pipe_t *, packet_t *, stream_t *);
+    tcvp_pipe_t *next;
     void *private;
 };
+
+#define PROBE_OK    1
+#define PROBE_FAIL  2
+#define PROBE_AGAIN 3
 
 #endif

@@ -26,6 +26,12 @@
 #include <pcm_tc2.h>
 
 static int
+pcm_input(tcvp_pipe_t *p, packet_t *pk)
+{
+    return p->next->input(p->next, pk);
+}
+
+static int
 pcm_free_pipe(tcvp_pipe_t *p)
 {
     free(p);
@@ -33,14 +39,11 @@ pcm_free_pipe(tcvp_pipe_t *p)
 }
 
 extern tcvp_pipe_t *
-pcm_new(stream_t *s, int mode, tcvp_pipe_t *p)
+pcm_new(stream_t *s, int mode)
 {
-    tcvp_pipe_t *np = malloc(sizeof(*np));
-    np->input = p->input;
-    np->start = p->start;
-    np->stop = p->stop;
+    tcvp_pipe_t *np = calloc(1, sizeof(*np));
+    np->input = pcm_input;
     np->free = pcm_free_pipe;
-    np->private = p->private;
 
     return np;
 }
