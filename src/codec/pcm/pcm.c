@@ -16,12 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <tcstring.h>
-#include <tctypes.h>
-#include <tclist.h>
-#include <pthread.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <pcm_tc2.h>
 
@@ -29,13 +24,6 @@ static int
 pcm_input(tcvp_pipe_t *p, packet_t *pk)
 {
     return p->next->input(p->next, pk);
-}
-
-static int
-pcm_free_pipe(tcvp_pipe_t *p)
-{
-    free(p);
-    return 0;
 }
 
 static int
@@ -53,9 +41,8 @@ pcm_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 extern tcvp_pipe_t *
 pcm_new(stream_t *s, conf_section *cs, timer__t **t)
 {
-    tcvp_pipe_t *np = calloc(1, sizeof(*np));
+    tcvp_pipe_t *np = tcallocz(sizeof(*np));
     np->input = pcm_input;
-    np->free = pcm_free_pipe;
     np->flush = pcm_flush;
     np->probe = pcm_probe;
 

@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <vorbis/vorbisfile.h>
 #include <vorbis_tc2.h>
@@ -134,10 +135,11 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return PROBE_FAIL;
 }
 
-static int
-vorbis_free_pipe(tcvp_pipe_t *p)
+static void
+vorbis_free_pipe(void *p)
 {
-    VorbisContext_t *vc = p->private;
+    tcvp_pipe_t *tp = p;
+    VorbisContext_t *vc = tp->private;
 
     vorbis_block_clear(&vc->vb);
     vorbis_dsp_clear(&vc->vd);
@@ -147,9 +149,6 @@ vorbis_free_pipe(tcvp_pipe_t *p)
     if(vc->buf)
 	free(vc->buf);
     free(vc);
-    free(p);
-
-    return 0;
 }
 
 
@@ -172,11 +171,8 @@ vorbis_new(stream_t *s, conf_section *cs, timer__t **t)
 
     vc->buf=malloc(131072);
 
-    p = malloc(sizeof(*p));
+    p = tcallocdz(sizeof(*p), NULL, vorbis_free_pipe);
     p->input = vorbis_decode;
-    p->start = NULL;
-    p->stop = NULL;
-    p->free = vorbis_free_pipe;
     p->probe = vorbis_read_header;
     p->flush = vorbis_flush;
     p->private = vc;

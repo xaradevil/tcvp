@@ -21,7 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <assert.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <mad.h>
 #include <mad_tc2.h>
@@ -321,11 +321,17 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     mad_dec_t *md = p->private;
     mp3_frame_t mf;
     u_char *d = pk->data[0];
+    int ds = pk->sizes[0];
 
-    if(mp3_header(d, &mf)){
-	md->pc += pk->sizes[0];
+    while(mp3_header(d, &mf) && ds > 4){
+	d++;
+	ds--;
+	md->pc++;
+    }
+
+    if(ds <= 4){
 	pk->free(pk);
-	return md->pc > 8065? PROBE_FAIL: PROBE_AGAIN;
+	return md->pc > tcvp_codec_mad_conf_probe_max? PROBE_FAIL: PROBE_AGAIN;
     }
 
     p->format = *s;
@@ -361,19 +367,16 @@ mad_flush(tcvp_pipe_t *p, int drop)
     return p->next->flush(p->next, drop);
 }
 
-static int
-mad_free(tcvp_pipe_t *p)
+static void
+mad_free(void *p)
 {
-    mad_dec_t *md = p->private;
+    tcvp_pipe_t *tp = p;
+    mad_dec_t *md = tp->private;
 
     mad_synth_finish(&md->synth);
     mad_frame_finish(&md->frame);
     mad_stream_finish(&md->stream);
-
     free(md);
-    free(p);
-
-    return 0;
 }
 
 extern tcvp_pipe_t *
@@ -389,10 +392,9 @@ mad_new(stream_t *s, conf_section *cs, timer__t **t)
     md->bufsize = BUFFER_SIZE;
     md->buf = malloc(BUFFER_SIZE);
 
-    p = calloc(1, sizeof(*p));
+    p = tcallocdz(sizeof(*p), NULL, mad_free);
     p->input = decode;
     p->probe = probe;
-    p->free = mad_free;
     p->flush = mad_flush;
     p->private = md;
 

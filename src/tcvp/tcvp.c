@@ -87,7 +87,7 @@ close_pipe(tcvp_pipe_t *p)
 {
     while(p){
 	tcvp_pipe_t *np = p->next;
-	p->free(p);
+	tcfree(p);
 	p = np;
     }
 }
@@ -100,7 +100,7 @@ t_close(player_t *pl)
     pthread_mutex_lock(&tp->tmx);
 
     if(tp->demux){
-	tp->demux->free(tp->demux);
+	tcfree(tp->demux);
 	tp->demux = NULL;
     }
 
@@ -392,24 +392,39 @@ t_open(player_t *pl, char *name)
 
     tp->open = 1;
 
+    if(!tp->timer){
+	tp->timer = timer_new(10000);
+    }
+
+    demux = stream_play(stream, codecs, tp->conf);
+    print_info(stream, codecs);
+
     if(!stream->time){
 	for(i = 0; i < stream->n_streams; i++){
 	    if(stream->used_streams[i]){
-		stream_t *st = &stream->streams[i];
+		tcvp_pipe_t *p = codecs[i];
 		uint64_t len = 0;
-		if(st->stream_type == STREAM_TYPE_VIDEO){
-		    int frames = st->video.frames;
-		    int frn = st->video.frame_rate.num;
-		    int frd = st->video.frame_rate.den;
-		    if(frn > 0 && frd > 0 && frames > 0){
-			len = (uint64_t) frames * 1000000LL * frd / frn;
+		while(p){
+		    stream_t *st = &p->format;
+		    if(st->stream_type == STREAM_TYPE_VIDEO){
+			int frames = st->video.frames;
+			int frn = st->video.frame_rate.num;
+			int frd = st->video.frame_rate.den;
+			if(frn > 0 && frd > 0 && frames > 0){
+			    len = (uint64_t) frames * 1000000LL * frd / frn;
+			    break;
+			}
+		    } else if(st->stream_type == STREAM_TYPE_AUDIO){
+			int samples = st->audio.samples;
+			int srate = st->audio.sample_rate;
+			if(srate > 0 && samples > 0){
+			    len = (uint64_t) samples *1000000LL / srate;
+			    stream->streams[i].audio.sample_rate = 
+				st->audio.sample_rate;
+			    break;
+			}
 		    }
-		} else if(st->stream_type == STREAM_TYPE_AUDIO){
-		    int samples = st->audio.samples;
-		    int srate = st->audio.sample_rate;
-		    if(srate > 0 && samples > 0){
-			len = (uint64_t) samples *1000000LL / srate;
-		    }
+		    p = p->next;
 		}
 		if(len > stream->time){
 		    stream->time = len;
@@ -417,13 +432,6 @@ t_open(player_t *pl, char *name)
 	    }
 	}
     }
-
-    if(!tp->timer){
-	tp->timer = timer_new(10000);
-    }
-
-    demux = stream_play(stream, codecs, tp->conf);
-    print_info(stream, codecs);
 
     tp->state = TCVP_STATE_STOPPED;
     if(stream->used_streams[vc]){
@@ -469,7 +477,7 @@ t_open(player_t *pl, char *name)
 err:
     printf("No supported streams found.\n");
     if(demux)
-	demux->free(demux);
+	tcfree(demux);
     tcfree(stream);
     return -1;
 }

@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <mpeg2dec/mpeg2.h>
 #include <mpeg2_tc2.h>
@@ -44,8 +45,6 @@ mpeg_free_pk(packet_t *p)
     free(p);
 }
 
-static char pictypes[] = {0, 'I', 'P', 'B', 'D'};
-
 static int
 mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 {
@@ -62,8 +61,6 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	mpd->info = mpeg2_info(mpd->mpeg2);
 
     if((pk->flags & TCVP_PKT_FLAG_PTS) && !mpd->ptsc){
-	uint64_t pts = mpd->pts / 27;
-	uint64_t ptsdiff = pk->pts>pts? pk->pts-pts: pts-pk->pts;
 	mpd->npts = pk->pts * 27;
 	mpd->ptsc = mpd->info->sequence->flags & SEQ_FLAG_LOW_DELAY? 1:
 	    mpd->pts_delay;
@@ -149,15 +146,14 @@ mpeg_flush(tcvp_pipe_t *p, int drop)
     return p->next->flush(p->next, drop);
 }
 
-static int
-mpeg_free(tcvp_pipe_t *p)
+static void
+mpeg_free(void *p)
 {
-    mpeg_dec_t *mpd = p->private;
+    tcvp_pipe_t *tp = p;
+    mpeg_dec_t *mpd = tp->private;
 
     mpeg2_close(mpd->mpeg2);
     free(mpd);
-
-    return 0;
 }
 
 extern tcvp_pipe_t *
@@ -169,9 +165,8 @@ mpeg_new(stream_t *s, conf_section *cs, timer__t **t)
     mpd = calloc(1, sizeof(*mpd));
     mpd->mpeg2 = mpeg2_init();
 
-    p = calloc(1, sizeof(*p));
+    p = tcallocdz(sizeof(*p), NULL, mpeg_free);
     p->input = mpeg_decode;
-    p->free = mpeg_free;
     p->probe = mpeg_probe;
     p->flush = mpeg_flush;
     p->private = mpd;

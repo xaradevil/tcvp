@@ -24,6 +24,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <video_tc2.h>
 #include <vid_priv.h>
@@ -256,10 +257,11 @@ v_buffer(tcvp_pipe_t *p, float r)
     return 0;
 }
 
-static int
-v_free(tcvp_pipe_t *p)
+static void
+v_free(void *p)
 {
-    video_out_t *vo = p->private;
+    tcvp_pipe_t *tp = p;
+    video_out_t *vo = tp->private;
 
     pthread_mutex_lock(&vo->smx);
     vo->state = STOP;
@@ -282,9 +284,6 @@ v_free(tcvp_pipe_t *p)
     if(vo->pts)
 	free(vo->pts);
     free(vo);
-    free(p);
-
-    return 0;
 }
 
 static color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
@@ -355,11 +354,10 @@ v_open(stream_t *s, conf_section *cs, timer__t **timer)
     vo->conf = cs;
     pthread_create(&vo->thr, NULL, v_play, vo);
 
-    pipe = calloc(1, sizeof(*pipe));
+    pipe = tcallocdz(sizeof(*pipe), NULL, v_free);
     pipe->input = v_put;
     pipe->start = v_start;
     pipe->stop = v_stop;
-    pipe->free = v_free;
     pipe->flush = v_flush;
     pipe->buffer = v_buffer;
     pipe->probe = v_probe;

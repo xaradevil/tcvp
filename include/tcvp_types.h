@@ -86,6 +86,7 @@ typedef union stream {
     audio_stream_t audio;
 } stream_t;
 
+/* muxed_stream_t MUST be allocated with tcalloc */
 typedef struct muxed_stream muxed_stream_t;
 struct muxed_stream {
     int n_streams;
@@ -98,13 +99,13 @@ struct muxed_stream {
     void *private;
 };
 
+/* tcvp_pipe_t MUST be allocated with tcalloc */
 typedef struct tcvp_pipe tcvp_pipe_t;
 struct tcvp_pipe {
     stream_t format;
     int (*input)(tcvp_pipe_t *, packet_t *);
     int (*start)(tcvp_pipe_t *);
     int (*stop)(tcvp_pipe_t *);
-    int (*free)(tcvp_pipe_t *);
     int (*probe)(tcvp_pipe_t *, packet_t *, stream_t *);
     int (*flush)(tcvp_pipe_t *, int drop);
     int (*buffer)(tcvp_pipe_t *, float);

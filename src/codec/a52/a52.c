@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <a52dec/a52.h>
 #include <a52dec/mm_accel.h>
@@ -268,15 +269,13 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return ret;
 }
 
-static int
-a52_free_codec(tcvp_pipe_t *p)
+static void
+a52_free_codec(void *p)
 {
-    a52_decode_t *ad = p->private;
-
+    tcvp_pipe_t *tp = p;
+    a52_decode_t *ad = tp->private;
     a52_free(ad->state);
     free(ad);
-    free(p);
-    return 0;
 }
 
 static int
@@ -305,9 +304,8 @@ a52_new(stream_t *s, conf_section *cs, timer__t *t)
     ad->bias = 384;
     ad->flags = A52_STEREO | A52_ADJUST_LEVEL;
 
-    p = calloc(1, sizeof(*p));
+    p = tcallocdz(sizeof(*p), NULL, a52_free_codec);
     p->input = a52_decode;
-    p->free = a52_free_codec;
     p->probe = a52_probe;
     p->flush = a52_flush;
     p->private = ad;

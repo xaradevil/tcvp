@@ -112,16 +112,16 @@ qpk(s_play_t *vp, packet_t *pk, int s)
 
     pthread_mutex_lock(&vp->mtx);
 
-    while(pq->count == QSIZE && vp->state != STOP)
+    while(pq->count == QSIZE /* && vp->state != STOP */)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
 
-    if(vp->state != STOP){
+/*     if(vp->state != STOP){ */
 	pq->q[pq->head] = pk;
 	if(++pq->head == QSIZE)
 	    pq->head = 0;
 	pq->count++;
 	pthread_cond_broadcast(&vp->cnd);
-    }
+/*     } */
 
     pthread_mutex_unlock(&vp->mtx);
 }
@@ -187,11 +187,19 @@ read_stream(void *p)
     muxed_stream_t *ms = vp->stream;
     int i;
 
+    void qnull(void){
+	for(i = 0; i < ms->n_streams; i++)
+	    if(ms->used_streams[i])
+		qpk(vp, NULL, i);
+    }
+
     while(vp->state != STOP){
 	packet_t *pk;
 	int s;
 
 	wait_pause(vp, 0, 1);
+	if(vp->state == STOP)
+	    break;
 
 	for(i = 0, s = 0; i < ms->n_streams; i++){
 	    if(ms->used_streams[i] && vp->pq[i].count < vp->pq[s].count)
@@ -199,15 +207,15 @@ read_stream(void *p)
 	}
 
 	if(!(pk = ms->next_packet(ms, s))){
-	    for(i = 0; i < ms->n_streams; i++)
-		if(ms->used_streams[i])
-		    qpk(vp, NULL, i);
+	    qnull();
 	    vp->eof = 1;
 	    continue;
 	}
 
 	qpk(vp, pk, pk->stream);
     }
+
+    qnull();
 
     return NULL;
 }
@@ -220,13 +228,11 @@ play_stream(void *p)
     int str = vt->stream;
     packet_t *pk;
 
-    while(vp->state != STOP){
+    do {
 	wait_pause(vp, 1, 0);
 	pk = dqp(vp, str);
 	vp->pipes[str]->input(vp->pipes[str], pk);
-	if(!pk)
-	    break;
-    }
+    } while(pk);
 
     if(vp->state != STOP)
 	vp->pipes[str]->flush(vp->pipes[str], 0);
@@ -301,12 +307,15 @@ s_flush(tcvp_pipe_t *p, int drop)
     return 0;
 }
 
-static int
-s_free(tcvp_pipe_t *p)
+static void
+s_free(void *p)
 {
-    s_play_t *vp = p->private;
+    tcvp_pipe_t *tp = p;
+    s_play_t *vp = tp->private;
     int i, j;
 
+    stop(tp);
+    s_flush(tp, 1);
     pthread_mutex_lock(&vp->mtx);
     vp->state = STOP;
     pthread_cond_broadcast(&vp->cnd);
@@ -334,9 +343,6 @@ s_free(tcvp_pipe_t *p)
     free(vp->threads);
     free(vp->pq);
     free(vp);
-    free(p);
-
-    return 0;
 }
 
 static int
@@ -408,11 +414,10 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
 
     vp->streams = j;
 
-    p = calloc(1, sizeof(tcvp_pipe_t));
+    p = tcallocdz(sizeof(tcvp_pipe_t), NULL, s_free);
     p->input = NULL;
     p->start = start;
     p->stop = stop;
-    p->free = s_free;
     p->flush = s_flush;
     p->private = vp;
 

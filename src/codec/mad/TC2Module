@@ -9,3 +9,4 @@ implement	"decoder/audio/mp2"	"new"	mad_new
 implement	"decoder/audio/mp3"	"new"	mad_new
 option		output_buffer%i=4800
 option		input_buffer%i=512
+option		probe_max%i=8192

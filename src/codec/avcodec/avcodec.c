@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <ffmpeg/avcodec.h>
 #include <avcodec_tc2.h>
@@ -231,31 +232,25 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
     return do_decvideo(p, pk, 0);
 }
 
-static int
-avc_free_adpipe(tcvp_pipe_t *p)
+static void
+avc_free_apipe(void *p)
 {
-    avc_codec_t *ac = p->private;
-
+    tcvp_pipe_t *tp = p;
+    avc_codec_t *ac = tp->private;
     avcodec_close(ac->ctx);
     if(ac->buf)
 	free(ac->buf);
     free(ac);
-    free(p);
-
-    return 0;
 }
 
-static int
-avc_free_vdpipe(tcvp_pipe_t *p)
+static void
+avc_free_vpipe(void *p)
 {
-    avc_codec_t *vc = p->private;
-
+    tcvp_pipe_t *tp = p;
+    avc_codec_t *vc = tp->private;
     avcodec_close(vc->ctx);
     free(vc->frame);
     free(vc);
-    free(p);
-
-    return 0;
 }
 
 extern int
@@ -384,11 +379,8 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 	ac->ctx = avctx;
 	ac->buf = malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE);
 
-	p = calloc(1, sizeof(*p));
+	p = tcallocdz(sizeof(*p), NULL, avc_free_apipe);
 	p->input = avc_decaudio;
-	p->start = NULL;
-	p->stop = NULL;
-	p->free = avc_free_adpipe;
 	p->probe = avc_probe_audio;
 	p->private = ac;
 	break;
@@ -409,11 +401,8 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 	vc->pts = 0;
 	vc->frame = avcodec_alloc_frame();
 
-	p = calloc(1, sizeof(*p));
+	p = tcallocdz(sizeof(*p), NULL, avc_free_vpipe);
 	p->input = avc_decvideo;
-	p->start = NULL;
-	p->stop = NULL;
-	p->free = avc_free_vdpipe;
 	p->probe = avc_probe_video;
 	p->private = vc;
 	break;

@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sched.h>
+#include <tcalloc.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API 1
 #include <alsa/asoundlib.h>
@@ -97,10 +98,11 @@ alsa_stop(tcvp_pipe_t *p)
     return 0;
 }
 
-static int
-alsa_free(tcvp_pipe_t *p)
+static void
+alsa_free(void *p)
 {
-    alsa_out_t *ao = p->private;
+    tcvp_pipe_t *tp = p;
+    alsa_out_t *ao = tp->private;
 
     pthread_mutex_lock(&ao->mx);
     ao->state = STOP;
@@ -120,9 +122,6 @@ alsa_free(tcvp_pipe_t *p)
     if(ao->buf)
 	free(ao->buf);
     free(ao);
-    free(p);
-
-    return 0;
 }
 
 static int
@@ -344,8 +343,10 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     if(cs)
 	conf_getvalue(cs, "audio/device", "%s", &device);
 
-    if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK))
+    if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)){
+	fprintf(stderr, "ALSA: Can't open device '%s'\n", device);
 	return NULL;
+    }
 
     if(timer)
 	*timer = open_timer(pcm);
@@ -360,11 +361,10 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ao->ptsq = calloc(ptsqsize, sizeof(*ao->ptsq));
     pthread_create(&ao->pth, NULL, alsa_play, ao);
 
-    tp = calloc(1, sizeof(*tp));
+    tp = tcallocdz(sizeof(*tp), NULL, alsa_free);
     tp->input = alsa_input;
     tp->start = alsa_start;
     tp->stop = alsa_stop;
-    tp->free = alsa_free;
     tp->flush = alsa_flush;
     tp->buffer = alsa_buffer;
     tp->probe = alsa_probe;
