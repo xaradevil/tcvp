@@ -496,7 +496,7 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 
     snprintf(prname, 256, "TCVP/profiles/%s", profile);
     if(!(prsec = tc2_get_conf(prname))){
-	fprintf(stderr, "TCVP: No profile '%s'\n", profile);
+	tc2_print("TCVP", TC2_PRINT_ERROR, "No profile '%s'\n", profile);
 	return -1;
     }
 
