@@ -188,7 +188,7 @@ dvd_open(char *url, char *mode)
     u->close = dvd_close;
     u->private = d;
 
-    u->size = DVDFileSize(d->file) * DVD_VIDEO_LB_LEN;
+    u->size = (uint64_t) DVDFileSize(d->file) * DVD_VIDEO_LB_LEN;
 
     return u;
 }
