@@ -22,6 +22,7 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tctypes.h>
@@ -86,7 +87,8 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 	    data = 1;
 	    break;
 	default:
-	    fprintf(stderr, "WAV: unknown header %s\n", tag2str(tag, tags));
+	    fprintf(stderr, "WAV: unknown header %s, size %i\n",
+		    tag2str(tag, tags), size);
 	    u->seek(u, size, SEEK_CUR);
 	    break;
 	}
