@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -293,7 +293,7 @@ load_ser(char *name, void *event, int *ssize)
     get_attr(performer);
     get_attr(album);
 
-    /* remember to update these sizes if serilization is modified below */
+    /* remember to update these sizes if serialization is modified below */
     for(i = 0; i < te->stream->n_streams; i++){
 	stream_t *st = te->stream->streams + i;
 	size += strlen(st->common.codec) + 1 + 1 + 1 + 4;
@@ -304,7 +304,7 @@ load_ser(char *name, void *event, int *ssize)
 	}
     }
 
-    sb = malloc(size);
+    sb = malloc(size + 1);
     p = sb;
     p += sprintf(p, "%s", name);
     p++;
