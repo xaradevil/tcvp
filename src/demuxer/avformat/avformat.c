@@ -77,6 +77,7 @@ static char *codec_names[] = {
 #endif
     [CODEC_ID_AAC] = "audio/aac",
     [CODEC_ID_MPEG4AAC] = "audio/aac",
+    [CODEC_ID_TRUEMOTION1] = "video/truemotion1",
 
     [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
     [CODEC_ID_PCM_S16BE] = "audio/pcm-s16be",
