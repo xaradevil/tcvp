@@ -57,6 +57,9 @@ rm_event(void *p)
 	    continue;
 	}
 
+	if(tcattr_get(te, "addr"))
+	    continue;
+
 	se = tcvp_event_serialize(te, &size);
 	if(se){
 	    list_item *li = NULL;
@@ -66,9 +69,6 @@ rm_event(void *p)
 /* 	    fprintf(stderr, "REMOTE: serialized %i as %i bytes\n", */
 /* 		    te->type, size); */
 	    while((cl = list_next(rm->clients, &li))){
-		if(tcattr_get(te, "addr")){
-		    continue;
-		}
 		if(write(cl->socket, &s, 4) < 0 ||
 		   write(cl->socket, se, size) < 0){
 		    list_remove(rm->clients, li);
