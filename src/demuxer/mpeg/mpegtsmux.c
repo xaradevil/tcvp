@@ -28,6 +28,7 @@
 #include <tcvp_types.h>
 #include <sys/time.h>
 #include <math.h>
+#include <sched.h>
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
@@ -39,7 +40,7 @@ typedef struct mpegts_mux {
     int running;
     url_t *out;
     tcvp_timer_t **timer;
-    int bitrate, pad;
+    int bitrate, pad, fill;
     u_char *outbuf;
     int bpos, bsize;
     uint64_t pcr, pcr_int, last_pcr;
@@ -98,13 +99,13 @@ pat_packet(int pn, int pmpid)
 
     /* Program association section */
     pat[0] = 0;
-    st_unaligned16(htob_16(0x800d), pat + 1);
+    st_unaligned16(htob_16(0xb00d), pat + 1);
     st_unaligned16(0, pat + 3);
-    pat[5] = 1;
+    pat[5] = 0xc1;
     pat[6] = 0;			/* section_number */
     pat[7] = 0;			/* last_section */
     st_unaligned16(htob_16(pn), pat + 8);
-    st_unaligned16(htob_16(pmpid), pat + 10);
+    st_unaligned16(htob_16(pmpid | 0xe000), pat + 10);
 
     crc = mpeg_crc32(pat, 12);
     st_unaligned32(htob_32(crc), pat + 12);
@@ -130,11 +131,11 @@ init_pmt(mpegts_mux_t *tsm, int pid)
 
     /* Program map section */
     pmt[0] = 2;
-    pmt[1] = 0x80;
+    pmt[1] = 0xb0;
     pmt[2] = 13;
     tsm->pmt_slen = pmt + 2;
     st_unaligned16(htob_16(1), pmt + 3);
-    pmt[5] = 1;
+    pmt[5] = 0xc1;
     pmt[6] = 0;
     pmt[7] = 0;
     pmt[10] = 0;
@@ -168,6 +169,8 @@ tmx_output(void *p)
     for(i = 0; i < stat_len; i++)
 	srate[i] = -1;
 
+    if(tsm->start_time > 27000000)
+	tsm->start_time -= 27000000;
     (*tsm->timer)->reset(*tsm->timer, tsm->start_time);
 
     gettimeofday(&tv, NULL);
@@ -179,11 +182,14 @@ tmx_output(void *p)
 	    (*tsm->timer)->wait(*tsm->timer, tsm->pcr, &tsm->lock);
 	}
 
-	if((tsm->out->flags & URL_FLAG_STREAMED) && tsm->pad){
+	if((tsm->out->flags & URL_FLAG_STREAMED) && tsm->pad && !tsm->fill){
 	    ebytes += tsm->bpos;
 	    while(tsm->bpos < tsm->bsize){
 		memcpy(tsm->outbuf + tsm->bpos, tsm->null, 188);
 		tsm->bpos += 188;
+		pthread_mutex_unlock(&tsm->lock);
+		sched_yield();
+		pthread_mutex_lock(&tsm->lock);
 	    }
 	} else {
 	    while(tsm->bpos < tsm->bsize && tsm->running)
@@ -197,7 +203,7 @@ tmx_output(void *p)
 	    uint64_t pcrbase = pcr / 300 & ((1LL << 33) - 1);
 	    uint64_t pcrext = (pcr % 300) & 0x1ff;
 	    st_unaligned32(htob_32(pcrbase >> 1), tsm->pcrp);
-	    st_unaligned16(htob_16(pcrext | ((pcrbase & 1)<<15)),
+	    st_unaligned16(htob_16(pcrext | ((pcrbase & 1)<<15) | 0x7e00),
 			   tsm->pcrp + 4);
 	    tsm->pcrp = NULL;
 	    tsm->last_pcr = pcr;
@@ -228,8 +234,9 @@ tmx_output(void *p)
 		fprintf(stderr, "%lli %7i %7lli %5.0lf %8.3lf %lli %.2f\n",
 			(8 * bytes * 27000) / time,
 			mrate / 1000, rs / 1000, sqrt(rss) / 1000,
-			(double) tsm->pcr / 27000000,
-			tsm->pcr / 27 - (t2 - ts), (float) ebytes / bytes);
+			(double) (tsm->pcr - tsm->start_time) / 27000000,
+			(tsm->pcr - tsm->start_time) / 27 - (t2 - ts),
+			(float) ebytes / bytes);
 		mrate = 0;
 	    }
 	    pcrb = tsm->pcr;
@@ -301,6 +308,8 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
     int unit_start = 1;
     u_char *out;
     int psi = 0;
+    int delay;
+    int64_t time;
 
     if(!pk->data){
 	fprintf(stderr, "MPEGTS mux: stream %i end\n", pk->stream);
@@ -320,25 +329,51 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
     os->bytes += size;
 
+    time = (*tsm->timer)->read(*tsm->timer);
+
     if(pk->flags & TCVP_PKT_FLAG_PTS){
 	uint64_t bdts = os->bdts?: tsm->start_time;
+	int br;
+
 	pthread_mutex_lock(&tsm->lock);
 	if(pk->flags & TCVP_PKT_FLAG_DTS)
 	    dts = pk->dts;
 	else
 	    dts = pk->pts;
-	if(dts - bdts > 27000000 / 10){
-	    os->bitrate = (27000000LL * os->bytes * 8) / (dts - bdts);
+
+	if(dts - bdts){
+	    int dbr;
+
+	    br = (27000000LL * os->bytes * 8) / (dts - bdts);
 	    os->bdts = dts;
 	    os->bytes = 0;
+
+	    dbr = br - os->bitrate;
+
+	    if(dbr > 0)
+		os->bitrate += 4 * dbr / 5;
+	    else
+		os->bitrate += dbr / 4;
 	}
-	dts -= (27000000LL * size * 8) / (os->bitrate?: tsm->bitrate);
+
+/* 	fprintf(stderr, "%i %lli\n", pk->stream, dts); */
+
+	dts -= 300 * 27000 + 1 * (27000000LL * size * 8) /
+	    (os->bitrate?: tsm->bitrate);
 	os->dts = dts;
+
+/* 	if(dts < time) */
+/* 	    fprintf(stderr, "%i br %5i size %5i delay %8lli %s\n", */
+/* 		    pk->stream, os->bitrate / 1000, size, */
+/* 		    ((int64_t)dts - time) / 27, dts < time? "X": ""); */
 	pthread_cond_broadcast(&tsm->cnd);
 	pthread_mutex_unlock(&tsm->lock);
     } else {
 	dts = os->dts;
     }
+
+    delay = dts - time;
+    tsm->fill = delay < -50 * 27;
 
     pthread_mutex_lock(&tsm->lock);
     if(!tsm->wth)
@@ -349,7 +384,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	int pid = os->pid;
 
 	pthread_mutex_lock(&tsm->lock);
-	if(tsm->out->flags & URL_FLAG_STREAMED)
+	if(delay > 0 && (tsm->out->flags & URL_FLAG_STREAMED))
 	    (*tsm->timer)->wait(*tsm->timer, dts, &tsm->lock);
 	while(tsm->bpos == tsm->bsize || next_stream(tsm) != pk->stream)
 	    pthread_cond_wait(&tsm->cnd, &tsm->lock);
@@ -392,7 +427,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 		if(tsm->pcr - tsm->last_pcr > tsm->pcr_int &&
 		   !tsm->pcrp &&
-		   (pid & 0x1fff) == tsm->pcr_pid){
+		   os->pid == tsm->pcr_pid){
 		    afl += 6;
 		    aff |= 0x10;
 		}
@@ -447,7 +482,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    data += psize;
 	    size -= psize;
 	    tsm->bpos += 188;
-	    dts += (27000000LL * 188 * 8) / (os->bitrate?: tsm->bitrate);
+	    dts += (27000000LL * 188 * 4) / (os->bitrate?: tsm->bitrate);
 	    os->dts = dts;
 
 	    if(tsm->bpos % 188){
@@ -472,6 +507,8 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
     int pid;
     uint32_t crc;
+    int esil = 0;
+    u_char *ilp;
 
     if(!str_type)
 	return PROBE_FAIL;
@@ -479,16 +516,32 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     pid = tsm->nextpid++;
 
     *tsm->pmap++ = str_type->mpeg_stream_type;
-    st_unaligned16(htob_16(pid), tsm->pmap);
+    st_unaligned16(htob_16(pid | 0xe000), tsm->pmap);
     tsm->pmap += 2;
-    *tsm->pmap++ = 0;
-    *tsm->pmap++ = 0;
+    ilp = tsm->pmap;
+    tsm->pmap += 2;
     *tsm->pmt_slen += 5;
 
     if(!tsm->pcr_pid && s->stream_type == STREAM_TYPE_VIDEO){
 	tsm->pcr_pid = pid;
-	st_unaligned16(htob_16(pid), tsm->pmt + 13);
+	st_unaligned16(htob_16(pid | 0xe000), tsm->pmt + 13);
     }
+
+    if(s->stream_type == STREAM_TYPE_VIDEO){
+	int l;
+	l = write_mpeg_descriptor(s, VIDEO_STREAM_DESCRIPTOR,
+				  tsm->pmap, 181 - *tsm->pmt_slen);
+	tsm->pmap += l;
+	esil += l;
+
+	l = write_mpeg_descriptor(s, TARGET_BACKGROUND_GRID_DESCRIPTOR,
+				  tsm->pmap, 181 - *tsm->pmt_slen);
+	tsm->pmap += l;
+	esil += l;
+    }
+
+    st_unaligned16(htob_16(esil | 0xf000), ilp);
+    *tsm->pmt_slen += esil;
 
     crc = mpeg_crc32(tsm->pmt_slen - 2, *tsm->pmt_slen - 1);
     st_unaligned32(htob_32(crc), tsm->pmap);
