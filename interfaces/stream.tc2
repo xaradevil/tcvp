@@ -1,7 +1,9 @@
 symbol	"open"		muxed_stream_t *(*%s)(char *name, tcconf_section_t *, tcvp_timer_t *)
 symbol	"validate"	int (*%s)(char *name, tcconf_section_t *)
-symbol	"next_packet"	packet_t *(*%s)(muxed_stream_t *, int stream)
-symbol	"play"		tcvp_pipe_t *(*%s)(muxed_stream_t **, int, tcvp_pipe_t **, tcconf_section_t *)
+symbol	"play"		tcvp_pipe_t *(*%s)(stream_shared_t *, muxed_stream_t *)
+symbol	"new"		stream_shared_t *(*%s)(tcconf_section_t *profile, tcconf_section_t *conf, tcvp_timer_t *timer, char *out)
 require "timer"
 include
 #include <tcvp_types.h>
+
+typedef struct stream_shared stream_shared_t;

@@ -2,13 +2,13 @@ module		stream
 name		"TCVP/demux/stream"
 version		0.1.4
 tc2version	0.4.0
-sources		stream.c
+sources		stream.c play.c
 postinit	s_init
 shutdown	s_shdn
 implement	"stream"	"open"		s_open
-implement	"stream"	"next_packet"	s_next_packet
 implement	"stream" 	"play"		s_play
 implement	"stream" 	"validate"	s_validate
+implement	"stream"	"new"		new_shared
 implement	"mux"		"new"		s_open_mux
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
@@ -18,6 +18,11 @@ import		"tcvp/event"	"send"
 import		"tcvp/event"	"get"
 import		"URL"		"open"
 require		"demux"
+
+TCVP {
+	event TCVP_STATE
+	event TCVP_LOAD
+}
 
 option		buffer%i=64
 Number of packets to read ahead for each stream.

@@ -32,8 +32,8 @@
 #include <tcvp_core_tc2.h>
 
 typedef struct tcvp_player {
-    tcvp_pipe_t *demux, **pipes, **ends;
-    int npipes;
+    stream_shared_t *ssh;
+    tcvp_pipe_t **demux;
     muxed_stream_t **streams;
     int nstreams;
     tcvp_timer_t *timer;
@@ -44,7 +44,6 @@ typedef struct tcvp_player {
     eventq_t qs, qt;
     tcconf_section_t *conf;
     int open;
-    tchash_table_t *filters;
     char *outfile;
 } tcvp_player_t;
 
@@ -66,12 +65,9 @@ t_start(tcvp_module_t *pl, tcvp_event_t *te)
     int i;
 
     if(tp->demux)
-	tp->demux->start(tp->demux);
-
-    if(tp->ends)
-	for(i = 0; i < tp->npipes; i++)
-	    if(tp->ends[i] && tp->ends[i]->start)
-		tp->ends[i]->start(tp->ends[i]);
+	for(i = 0; i < tp->nstreams; i++)
+	    if(tp->demux[i])
+		tp->demux[i]->start(tp->demux[i]);
 
     if(tp->timer)
 	tp->timer->start(tp->timer);
@@ -89,12 +85,9 @@ t_stop(tcvp_module_t *pl, tcvp_event_t *te)
     int i;
 
     if(tp->demux)
-	tp->demux->stop(tp->demux);
-
-    if(tp->ends)
-	for(i = 0; i < tp->npipes; i++)
-	    if(tp->ends[i] && tp->ends[i]->stop)
-		tp->ends[i]->stop(tp->ends[i]);
+	for(i = 0; i < tp->nstreams; i++)
+	    if(tp->demux[i])
+		tp->demux[i]->stop(tp->demux[i]);
 
     if(tp->timer)
 	tp->timer->stop(tp->timer);
@@ -105,16 +98,6 @@ t_stop(tcvp_module_t *pl, tcvp_event_t *te)
     return 0;
 }
 
-static void
-close_pipe(tcvp_pipe_t *p)
-{
-    while(p){
-	tcvp_pipe_t *np = p->next;
-	tcfree(p);
-	p = np;
-    }
-}
-
 static int
 do_close(tcvp_player_t *tp)
 {
@@ -123,21 +106,16 @@ do_close(tcvp_player_t *tp)
     pthread_mutex_lock(&tp->tmx);
 
     if(tp->demux){
-	tcfree(tp->demux);
+	for(i = 0; i < tp->nstreams; i++)
+	    if(tp->demux[i])
+		tcfree(tp->demux[i]);
+	free(tp->demux);
 	tp->demux = NULL;
     }
 
-    if(tp->pipes){
-	for(i = 0; i < tp->npipes; i++)
-	    close_pipe(tp->pipes[i]);
-	free(tp->pipes);
-	tp->npipes = 0;
-	tp->pipes = NULL;
-    }
-
-    if(tp->ends){
-	free(tp->ends);
-	tp->ends = NULL;
+    if(tp->ssh){
+	tcfree(tp->ssh);
+	tp->ssh = 0;
     }
 
     if(tp->streams){
@@ -229,7 +207,7 @@ print_stream(stream_t *s)
 }
 
 static void
-print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes, int ss)
+print_info(muxed_stream_t *stream)
 {
     char *file = tcattr_get(stream, "file");
     char *performer = tcattr_get(stream, "performer");
@@ -251,8 +229,9 @@ print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes, int ss)
 
     for(i = 0; i < stream->n_streams; i++){
 	int u = stream->used_streams[i];
-	printf("%2i%*s: ", ss + i, 1 - u, u? "*": "");
+	printf("%2i%*s: ", i, 1 - u, u? "*": "");
 	print_stream(stream->streams + i);
+#if 0
 	if(u){
 	    tcvp_pipe_t *np = pipes[ss + i];
 	    while(np){
@@ -261,6 +240,7 @@ print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes, int ss)
 		np = np->next;
 	    }
 	}
+#endif
     }
 }
 
@@ -316,7 +296,8 @@ t_seek(tcvp_module_t *pl, int64_t time, int how)
 
     if(stime != -1LL){
 	pthread_mutex_lock(&tp->tmx);
-	tp->demux->flush(tp->demux, 1);
+	for(i = 0; i < tp->nstreams; i++)
+	    tp->demux[i]->flush(tp->demux[i], 1);
 	tp->timer->reset(tp->timer, stime);
 	tp->timer->interrupt(tp->timer);
 	pthread_mutex_unlock(&tp->tmx);
@@ -334,74 +315,6 @@ te_seek(tcvp_module_t *pl, tcvp_event_t *te)
 {
     tcvp_seek_event_t *se = (tcvp_seek_event_t *) te;
     return t_seek(pl, se->time, se->how);
-}
-
-static tcvp_pipe_t *
-new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p,
-	 muxed_stream_t *ms)
-{
-    tcvp_pipe_t *pipe = NULL, *pp = NULL, *pn = NULL;
-    tcconf_section_t *f, *mcf;
-    void *cs = NULL;
-
-    while((f = tcconf_nextsection(p, "filter", &cs))){
-	char *type, *id = NULL;
-	filter_new_t fn;
-
-	pn = NULL;
-
-	if(tcconf_getvalue(f, "type", "%s", &type) < 1)
-	    continue;
-
-	if(tcconf_getvalue(f, "id", "%s", &id) > 0)
-	    tchash_find(tp->filters, id, &pn);
-
-	if(!pn){
-	    if(!(fn = tc2_get_symbol(type, "new")))
-		break;
-
-	    mcf = tcconf_merge(NULL, f);
-	    tcconf_merge(mcf, tp->conf);
-	    if(tp->outfile)
-		tcconf_setvalue(mcf, "mux/url", "%s", tp->outfile);
-
-	    if(!(pn = fn(pp? &pp->format: s, mcf, tp->timer, ms)))
-		break;
-
-	    if(id)
-		tchash_replace(tp->filters, id, pn);
-	    tcfree(mcf);
-	}
-
-	if(id){
-	    tcref(pn);
-	    free(id);
-	}
-
-	if(!pipe)
-	    pipe = pn;
-
-	if(pp)
-	    pp->next = pn;
-	pp = pn;
-	free(type);
-	tcfree(f);
-    }
-
-    if(!pn){
-	close_pipe(pipe);
-	pipe = NULL;
-    }
-
-    return pipe;
-}
-
-static tcvp_pipe_t *
-pipe_end(tcvp_pipe_t *p)
-{
-    while(p && p->next)
-	p = p->next;
-    return p;
 }
 
 static char *
@@ -426,67 +339,28 @@ open_files(tcvp_player_t *tp, int n, char **files, tcconf_section_t *cs)
 
     tp->streams = calloc(n, sizeof(*tp->streams));
     tp->nstreams = 0;
-    tp->npipes = 0;
 
     for(i = 0; i < n; i++){
+	tc2_print("TCVP", TC2_PRINT_VERBOSE,
+		  "opening file '%s'\n", files[i]);
 	if((tp->streams[tp->nstreams] = stream_open(files[i], cs, tp->timer))){
-	    tp->npipes += tp->streams[tp->nstreams]->n_streams;
 	    tp->nstreams++;
 	}
     }
 
+    tc2_print("TCVP", TC2_PRINT_VERBOSE, "%i files opened\n", tp->nstreams);
+
     return tp->nstreams;
-}
-
-static void
-stream_time(muxed_stream_t *stream, tcvp_pipe_t **pipes)
-{
-    int i;
-
-    if(!stream->time){
-	for(i = 0; i < stream->n_streams; i++){
-	    if(stream->used_streams[i]){
-		tcvp_pipe_t *p = pipes[i];
-		uint64_t len = 0;
-		while(p){
-		    stream_t *st = &p->format;
-		    if(st->stream_type == STREAM_TYPE_VIDEO){
-			int frames = st->video.frames;
-			int frn = st->video.frame_rate.num;
-			int frd = st->video.frame_rate.den;
-			if(frn > 0 && frd > 0 && frames > 0){
-			    len = (uint64_t) frames * 27000000LL * frd / frn;
-			    break;
-			}
-		    } else if(st->stream_type == STREAM_TYPE_AUDIO){
-			int samples = st->audio.samples;
-			int srate = st->audio.sample_rate;
-			if(srate > 0 && samples > 0){
-			    len = (uint64_t) samples * 27000000LL / srate;
-			    break;
-			}
-		    }
-		    p = p->next;
-		}
-		if(len > stream->time){
-		    stream->time = len;
-		}
-	    }
-	}
-    }
 }
 
 static int
 t_open(tcvp_module_t *pl, int nn, char **names)
 {
-    tcvp_pipe_t *demux = NULL;
     tcvp_player_t *tp = pl->private;
-    int ns = 0, *us, vs = -1, as = -1;
+    int ns = 0;
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
     tcconf_section_t *prsec, *dc;
-    uint64_t start_time = -1;
-    struct { muxed_stream_t *ms; int *used; } *mstreams;
-    stream_t **streams;
+    uint64_t start_time = 0;
     char *outfile;
     int start;
     int i, j;
@@ -500,7 +374,6 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 	return -1;
     }
 
-    tp->filters = tchash_new(10, 0);
     free(profile);
 
     dc = tcconf_getsection(prsec, "demux");
@@ -542,78 +415,6 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 	free(outfile);
     }
 
-    us = alloca(tp->npipes * sizeof(*us));
-    memset(us, 0, tp->npipes * sizeof(*us));
-    streams = alloca(tp->npipes * sizeof(*streams));
-    mstreams = alloca(tp->npipes * sizeof(*mstreams));
-
-    for(i = 0, j = 0; i < tp->nstreams; i++){
-	int k;
-	for(k = 0; k < tp->streams[i]->n_streams; j++, k++){
-	    streams[j] = tp->streams[i]->streams + k;
-	    mstreams[j].ms = tp->streams[i];
-	    mstreams[j].used = tp->streams[i]->used_streams + k;
-	}
-    }
-
-    if(tp->conf){
-	void *cs = NULL;
-	int s;
-	i = 0;
-	while(tcconf_nextvalue(tp->conf, "video/stream", &cs, "%i", &s) > 0){
-	    if(s >= 0 && s < tp->npipes &&
-	       streams[s]->stream_type == STREAM_TYPE_VIDEO){
-		us[s] = 1;
-		vs = s;
-	    } else {
-		vs = -2;
-	    }
-	}
-	while(tcconf_nextvalue(tp->conf, "audio/stream", &cs, "%i", &s) > 0){
-	    if(s >= 0 && s < tp->npipes &&
-	       streams[s]->stream_type == STREAM_TYPE_AUDIO){
-		us[s] = 1;
-		as = s;
-	    } else {
-		as = -2;
-	    }
-	}
-    }
-
-    tp->pipes = calloc(tp->npipes, sizeof(*tp->pipes));
-
-    for(i = 0; i < tp->npipes; i++){
-	stream_t *st = streams[i];
-	tcconf_section_t *pc;
-
-	if(st->stream_type == STREAM_TYPE_VIDEO &&
-	   (us[i] || (vs > -2 && vs < 0))){
-	    if((pc = tcconf_getsection(prsec, "video"))){
-		if((tp->pipes[i] = new_pipe(tp, st, pc, mstreams[i].ms))){
-		    *mstreams[i].used = 1;
-		    ns++;
-		    vs = i;
-		}
-		tcfree(pc);
-	    }
-	} else if(st->stream_type == STREAM_TYPE_AUDIO &&
-		  (us[i] || (as > -2 && as < 0))){
-	    if((pc = tcconf_getsection(prsec, "audio"))){
-		if((tp->pipes[i] = new_pipe(tp, st, pc, mstreams[i].ms))){
-		    *mstreams[i].used = 1;
-		    ns++;
-		    as = i;
-		}
-		tcfree(pc);
-	    }
-	}
-    }
-
-    tchash_destroy(tp->filters, tcfree);
-
-    if(!ns)
-	goto err;
-
     tp->open = 1;
 
     if(!tp->timer->have_driver){
@@ -641,41 +442,23 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 	tcfree(mtc);
     }
 
+    tp->ssh = stream_new(prsec, tp->conf, tp->timer, tp->outfile);
+    tp->demux = calloc(tp->nstreams, sizeof(*tp->demux));
+
     tcfree(prsec);
     prsec = NULL;
 
-    demux = stream_play(tp->streams, tp->nstreams, tp->pipes, tp->conf);
-
-    for(i = 0; i < tp->npipes; i++){
-	if(streams[i]->common.start_time < start_time)
-	    start_time = streams[i]->common.start_time;
-    }
-
     for(i = 0, j = 0; i < tp->nstreams; i++){
-	stream_time(tp->streams[i], tp->pipes + j);
+	tp->demux[i] = stream_play(tp->ssh, tp->streams[i]);
+	ns += !!tp->demux[i];
 	if(tcvp_conf_verbose)
-	    print_info(tp->streams[i], tp->pipes, j);
-	j += tp->streams[i]->n_streams;
+	    print_info(tp->streams[i]);
     }
 
     tp->state = TCVP_STATE_STOPPED;
-    tp->ends = calloc(tp->npipes, sizeof(*tp->ends));
-    for(i = 0; i < tp->npipes; i++){
-	if(tp->pipes[i]){
-	    if(*mstreams[i].used){
-		tp->ends[i] = pipe_end(tp->pipes[i]);
-	    } else {
-		close_pipe(tp->pipes[i]);
-		tp->pipes[i] = NULL;
-		ns--;
-	    }
-	}
-    }
 
     if(ns <= 0)
 	goto err;
-
-    tp->demux = demux;
 
     if(tcconf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
 	start_time = (uint64_t) start * 27000000LL;
@@ -686,33 +469,20 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
-    demux->start(demux);
-    for(i = 0; i < tp->npipes; i++)
-	if(tp->ends[i] && tp->ends[i]->buffer)
-	    tp->ends[i]->buffer(tp->ends[i], 0.9);
-
     for(i = 0; i < tp->nstreams; i++){
-	tcvp_event_send(tp->qs, TCVP_LOAD, tp->streams[i]);
+	tp->demux[i]->start(tp->demux[i]);
     }
 
     return 0;
 
 err:
     printf("No supported streams found.\n");
-    if(demux)
-	tcfree(demux);
     for(i = 0; i < tp->nstreams; i++)
 	tcfree(tp->streams[i]);
     free(tp->streams);
     tp->streams = NULL;
     if(prsec)
 	tcfree(prsec);
-    free(tp->pipes);
-    tp->pipes = NULL;
-    if(tp->ends){
-	free(tp->ends);
-	tp->ends = NULL;
-    }
     return -1;
 }
 

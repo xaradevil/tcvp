@@ -6,6 +6,7 @@ sources		tcvp.c event.c
 
 import		"stream"	"open"
 import		"stream"	"play"
+import		"stream"	"new"
 import		"timer"		"new"
 import		"driver/timer"	"new"
 import		"tcvp/event"	"alloc"
