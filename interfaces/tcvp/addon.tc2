@@ -1,0 +1,9 @@
+symbol	"new"	tcvp_addon_t *(*%s)(tcconf_section_t *)
+include
+#include <tcconf.h>
+
+typedef struct tcvp_addon tcvp_addon_t;
+struct tcvp_addon {
+    int (*init)(tcvp_addon_t *);
+    void *private;
+};
