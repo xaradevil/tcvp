@@ -193,7 +193,9 @@ pl_shuffle(playlist_t *pl, int s, int n)
     if(s < 0)
 	s = 0;
 
-    n = min(tpl->nf - s, n);
+    if(n < 0)
+	n = tpl->nf + n + 1;
+    n = min(tpl->nf - s, (unsigned) n);
     gettimeofday(&tv, NULL);
     srand(tv.tv_usec);
 
@@ -282,7 +284,8 @@ pl_event(void *p)
 		break;
 	    }
 	} else if(te->type == TCVP_PL_START){
-	    pl_start(tpl);
+	    if(tpl->state != PLAYING)
+		pl_start(tpl);
 	} else if(te->type == TCVP_PL_STOP){
 	    tpl->state = STOPPED;
 	} else if(te->type == TCVP_PL_NEXT){
