@@ -372,7 +372,7 @@ set_sticky(window_t *window, int enabled)
 	unsigned long count, bytes_remain;
 	unsigned char *p = NULL;
 
-	wm_set_property(window, "_NET_WM_STATE_STICKY", enabled);
+	wm_set_property(window, "_NET_WM_STATE_STICKY", enabled?1:0);
 
 	if(enabled <= 0) {
 	    xa_cardinal = XInternAtom(xd, "CARDINAL", True);
@@ -412,7 +412,7 @@ extern int
 set_always_on_top(window_t *window, int enabled)
 {
     if(window->net_wm_support != 0) {
-	wm_set_property(window, "_NET_WM_STATE_STAYS_ON_TOP", enabled?0:1);
+	wm_set_property(window, "_NET_WM_STATE_STAYS_ON_TOP", enabled?1:0);
     }
 
     return 0;

@@ -676,12 +676,12 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 
     xtk_show_window(skin->window);
 
-    if(tcvp_ui_tcvpx_conf_sticky != 0) {
+    if((s->state & ST_STICKY) != 0) {
 	xtk_set_sticky(skin->window, 1);
 	skin->state |= ST_STICKY;
     }
 
-    if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
+    if((s->state & ST_ON_TOP) != 0) {
 	xtk_set_always_on_top(skin->window, 1);
 	skin->state |= ST_ON_TOP;
     }
