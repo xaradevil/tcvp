@@ -65,7 +65,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     return aacframe.bytesconsumed? 0: -1;
 }
 
-static int
+extern int
 faad_input(tcvp_pipe_t *p, packet_t *pk)
 {
     faad_dec_t *ad = p->private;
@@ -103,7 +103,7 @@ faad_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 faad_flush(tcvp_pipe_t *p, int drop)
 { 
     faad_dec_t *ad = p->private;
@@ -113,10 +113,10 @@ faad_flush(tcvp_pipe_t *p, int drop)
 	faacDecPostSeekReset(ad->fd, 0);
     }
 
-    return p->next->flush(p->next, drop);
+    return 0;
 }
 
-static int
+extern int
 faad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     faad_dec_t *ad = p->private;
@@ -135,43 +135,32 @@ faad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     ad->bufsize = FAAD_MIN_STREAMSIZE * channels;
     ad->buf = malloc(ad->bufsize);
 
-    p->format = *s;
     p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->format.audio.sample_rate = srate;
     p->format.audio.channels = channels;
+    p->format.audio.bit_rate = srate * channels * 16;
 
-    return p->next->probe(p->next, NULL, &p->format);
+    return PROBE_OK;
 }
 
 static void
 faad_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    faad_dec_t *ad = tp->private;
+    faad_dec_t *ad = p;
 
     faacDecClose(ad->fd);
     if(ad->buf)
 	free(ad->buf);
-    free(ad);
 }
 
-extern tcvp_pipe_t *
-faad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+faad_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p;
-    faad_dec_t *ad;
-
-    ad = calloc(1, sizeof(*ad));
+    faad_dec_t *ad = tcallocdz(sizeof(*ad), NULL, faad_free);
     ad->fd = faacDecOpen();
-
-    p = tcallocdz(sizeof(*p), NULL, faad_free);
-    p->format = *s;
     p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
-    p->input = faad_input;
-    p->flush = faad_flush;
-    p->probe = faad_probe;
     p->private = ad;
 
-    return p;
+    return 0;
 }

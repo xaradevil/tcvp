@@ -84,7 +84,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
 	vorbis_synthesis_read(&vc->vd, samples);
     }
 
-    out = tcallocd(sizeof(*out), NULL, vorbis_free_packet);
+    out = tcallocdz(sizeof(*out), NULL, vorbis_free_packet);
     out->stream = pk->stream;
     out->data = (u_char **) &out->private;
     out->sizes = malloc(sizeof(*out->sizes));

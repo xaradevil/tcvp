@@ -69,7 +69,7 @@ encode(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 faac_input(tcvp_pipe_t *p, packet_t *pk)
 {
     faac_enc_t *ae = p->private;
@@ -105,19 +105,18 @@ faac_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 faac_flush(tcvp_pipe_t *p, int drop)
 { 
     faac_enc_t *ae = p->private;
 
-    if(drop){
+    if(drop)
 	ae->bpos = 0;
-    }
 
-    return p->next->flush(p->next, drop);
+    return 0;
 }
 
-static int
+extern int
 faac_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     faac_enc_t *ae = p->private;
@@ -156,41 +155,30 @@ faac_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     ae->samples = insamples;
     ae->encbufsize = bufsize;
 
-    p->format = *s;
     p->format.common.codec = "audio/aac";
 
-    return p->next->probe(p->next, NULL, &p->format);
+    return PROBE_OK;
 }
 
 static void
 faac_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    faac_enc_t *ae = tp->private;
+    faac_enc_t *ae = p;
 
     if(ae->fe)
 	faacEncClose(ae->fe);
     if(ae->buf)
 	free(ae->buf);
-    free(ae);
 }
 
-extern tcvp_pipe_t *
-faac_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+faac_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p;
-    faac_enc_t *ae;
-
-    ae = calloc(1, sizeof(*ae));
+    faac_enc_t *ae = tcallocdz(sizeof(*ae), NULL, faac_free);
     ae->pts = -1;
-
-    p = tcallocdz(sizeof(*p), NULL, faac_free);
     p->format.common.codec = "audio/aac";
-    p->input = faac_input;
-    p->flush = faac_flush;
-    p->probe = faac_probe;
     p->private = ae;
 
-    return p;
+    return 0;
 }

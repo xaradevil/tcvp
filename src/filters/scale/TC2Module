@@ -3,4 +3,11 @@ name		"TCVP/filter/scale"
 version		0.1.0
 tc2version	0.4.0
 sources		scale.c
-implement	"filter/scale"	"new"	scale_new
+
+TCVP {
+	filter "filter/scale" {
+		new scale_new
+		packet DATA scale_input
+		probe scale_probe
+	}
+}

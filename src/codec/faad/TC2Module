@@ -1,6 +1,14 @@
 module		aac_dec
 name		"TCVP/codec/faad"
 version		0.1.0
-tc2version	0.4.0
+tc2version	0.6.0
 sources		faad.c
-implement	"decoder/audio/aac"	"new"	faad_new
+
+TCVP {
+	filter "decoder/audio/aac" {
+		new faad_new
+		packet DATA faad_input
+		probe faad_probe
+		flush faad_flush
+	}
+}

@@ -63,7 +63,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	    }
 
 	    if(mpd->info->display_fbuf){
-		mpeg_packet_t *pic = tcalloc(sizeof(*pic));
+		mpeg_packet_t *pic = tcallocz(sizeof(*pic));
 		int i;
 
 		pic->pk.stream = pk->stream;

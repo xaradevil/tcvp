@@ -33,7 +33,7 @@ scale_free_pk(void *p)
 	free(sp->data[i]);
 }
 
-static int
+extern int
 scale_input(tcvp_pipe_t *p, packet_t *pk)
 {
     scale_t *s = p->private;
@@ -73,7 +73,7 @@ scale_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 scale_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     scale_t *sc = p->private;
@@ -82,38 +82,26 @@ scale_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(!p->next)
 	return PROBE_FAIL;
 
-    p->format = *s;
-
     sc->irs = img_resample_init(sc->w, sc->h, vs->width, vs->height);
-
     vs->width = sc->w;
     vs->height = sc->h;
 
-    return p->next->probe(p->next, pk, &p->format);
-}
-
-static int
-scale_flush(tcvp_pipe_t *p, int drop)
-{
-    return p->next? p->next->flush(p->next, drop): 0;
+    return PROBE_OK;
 }
 
 static void
 scale_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    scale_t *s = tp->private;
+    scale_t *s = p;
 
     if(s->irs)
 	img_resample_close(s->irs);
-    free(s);
 }
 
-extern tcvp_pipe_t *
-scale_new(stream_t *st, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+scale_new(tcvp_pipe_t *p, stream_t *st, tcconf_section_t *cs, tcvp_timer_t *t,
 	  muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p;
     scale_t *s;
     int w, h;
 
@@ -121,18 +109,13 @@ scale_new(stream_t *st, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "height", "%i", &h);
 
     if(!(w && h))
-	return NULL;
+	return -1;
 
-    s = calloc(1, sizeof(*s));
+    s = tcallocdz(sizeof(*s), NULL, scale_free);
     s->w = w;
     s->h = h;
 
-    p = tcallocdz(sizeof(*p), NULL, scale_free);
-    p->format = *st;
-    p->input = scale_input;
-    p->probe = scale_probe;
-    p->flush = scale_flush;
     p->private = s;
 
-    return p;
+    return 0;
 }

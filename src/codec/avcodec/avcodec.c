@@ -79,6 +79,7 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    }
 
 	    out = tcallocd(sizeof(*out), NULL, avc_free_packet);
+	    out->type = TCVP_PKT_TYPE_DATA;
 	    out->stream = pk->stream;
 	    out->data = (u_char **) &out->private;
 	    out->sizes = malloc(sizeof(*out->sizes));
@@ -142,6 +143,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    }
 
 	    out = tcallocd(sizeof(*out), NULL, avc_free_packet);
+	    out->type = TCVP_PKT_TYPE_DATA;
 	    out->stream = pk->stream;
 	    out->data = vc->frame->data;
 	    out->sizes = malloc(4 * sizeof(*out->sizes));

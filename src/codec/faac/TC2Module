@@ -1,6 +1,14 @@
 module		aac_enc
 name		"TCVP/codec/faac"
 version		0.1.0
-tc2version	0.4.0
+tc2version	0.6.0
 sources		faac.c
-implement	"encoder/audio/aac"	"new"	faac_new
+
+TCVP {
+	filter "encoder/audio/aac" {
+		new faac_new
+		packet DATA faac_input
+		probe faac_probe
+		flush faac_flush
+	}
+}

@@ -208,6 +208,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    s = float_to_int(ad->out, outbuf, ad->flags);
 
 	    out = tcallocd(sizeof(*out), NULL, a52_free_pk);
+	    out->type = TCVP_PKT_TYPE_DATA;
 	    out->stream = pk->stream;
 	    out->data = (u_char **) &out->private;
 	    out->sizes = malloc(sizeof(*out->sizes));

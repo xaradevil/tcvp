@@ -3,4 +3,10 @@ name		"TCVP/filter/deinterlace"
 version		0.1.0
 tc2version	0.4.0
 sources		deinterlace.c
-implement	"filter/deinterlace"	"new"	di_new
+
+TCVP {
+	filter "filter/deinterlace" {
+		packet DATA di_input
+		probe di_probe
+	}
+}
