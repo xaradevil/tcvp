@@ -62,6 +62,21 @@ toggle_time(tcwidget_t *w, void *p)
 }
 
 extern int
+update_state(char *state)
+{
+    list_item *current=NULL;
+    skin_t *skin;
+
+    while((skin = list_next(skin_list, &current))!=NULL) {
+	if(skin->state) {
+	    change_state(skin->state, state);
+	}
+    }
+
+    return 0;
+}
+
+extern int
 update_title(char *title)
 {
     list_item *current=NULL;

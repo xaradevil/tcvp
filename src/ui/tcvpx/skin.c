@@ -301,7 +301,7 @@ create_ui(skin_t *skin)
     sec = conf_getsection(skin->config, "time");
     if(sec){
 	w = skin->time =
-	    create_skinned_label(skin, sec, "  0:00", toggle_time);
+	    create_skinned_label(skin, sec, "   0:00", toggle_time);
 	if(w) {
 	    list_push(skin->widgets, w);
 	}

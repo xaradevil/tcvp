@@ -34,6 +34,7 @@ int create_window(skin_t *);
 int destroy_window(skin_t *);
 int update_time();
 int update_title(char *title);
+int update_state(char *state);
 
 void *x11_event(void *p);
 void *tcvp_event(void *p);
