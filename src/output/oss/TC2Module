@@ -1,6 +1,0 @@
-module		oss
-name		"TCVP/output/oss"
-version		0.1.0
-tc2version	0.4.0
-sources		oss.c
-implement	"output/audio"	"new"	oss_open
