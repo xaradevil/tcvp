@@ -326,6 +326,7 @@ dvd_open(char *url, char *mode)
     u_char *block = NULL;
     int32_t event = 0;
     int32_t clen = 0;
+    int vts;
 
     if(strcmp(mode, "r"))
 	return NULL;
@@ -373,6 +374,46 @@ dvd_open(char *url, char *mode)
     dvdnav_menu_language_select(dvd, url_dvd_conf_language);
     dvdnav_audio_language_select(dvd, url_dvd_conf_language);
     dvdnav_spu_language_select(dvd, url_dvd_conf_language);
+
+    if(title < 0)
+	title = 0;
+
+    dvdr = DVDOpen(device);
+    if(!dvdr)
+	goto err;
+
+    ifoz = ifoOpen(dvdr, 0);
+    if(!ifoz)
+	goto err;
+
+    if(title < 1 && !tcvp_input_dvdnav_conf_enable_menus){
+	tt_srpt_t *tt_srpt = ifoz->tt_srpt;
+	int maxtime = 0, maxtitle = 0;
+	int i;
+
+	for(i = 0; i < tt_srpt->nr_of_srpts; i++){
+	    int tn = tt_srpt->title[i].title_set_nr;
+	    pgc_t *pgc;
+	    int pgtime;
+
+	    ifo = ifoOpen(dvdr, tn);
+	    pgc = ifo->vts_pgcit->pgci_srp[0].pgc;
+	    pgtime = pgc->playback_time.hour * 3600 +
+		pgc->playback_time.minute * 60 + pgc->playback_time.second;
+	    if(pgtime > maxtime){
+		maxtime = pgtime;
+		maxtitle = i;
+	    }
+	    ifoClose(ifo);
+	}
+
+	title = maxtitle + 1;
+	vts = tt_srpt->title[maxtitle].title_set_nr;
+    } else {
+	vts = ifoz->tt_srpt->title[title-1].title_set_nr;
+    }
+
+    ifoClose(ifoz);
 
     if(title > 0){
 	if(dvdnav_get_number_of_titles(dvd, &titles) != DVDNAV_STATUS_OK){
@@ -429,18 +470,9 @@ dvd_open(char *url, char *mode)
     df->enable = dvd_enable;
     df->menu = dvd_menu;
 
-    dvdr = DVDOpen(device);
-    if(!dvdr)
-	goto err;
+    tc2_print("DVD", TC2_PRINT_DEBUG, "VTS %i\n", vts);
 
-    ifoz = ifoOpen(dvdr, 0);
-    if(!ifoz)
-	goto err;
-    title = ifoz->tt_srpt->title[title-1].title_set_nr;
-    tc2_print("DVD", TC2_PRINT_DEBUG, "VTS %i\n", title);
-    ifoClose(ifoz);
-
-    ifo = ifoOpen(dvdr, title);
+    ifo = ifoOpen(dvdr, vts);
     if(ifo){
 	pgcit_t *pgcit = ifo->vts_pgcit;
 	vtsi_mat_t *vtsi = ifo->vtsi_mat;
@@ -479,7 +511,7 @@ dvd_open(char *url, char *mode)
 	} else if(vattr->display_aspect_ratio == 3){
 	    df->streams[0].video.aspect.num = 16;
 	    df->streams[0].video.aspect.den = 9;
-	    spushift = 16;
+	    spushift = 8;
 	}
 
 	df->streams[0].video.height = vattr->video_format? 576: 480;
