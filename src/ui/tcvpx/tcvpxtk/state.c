@@ -136,7 +136,8 @@ create_state(window_t *window, int x, int y, image_info_t *bg,
 	st->action = action;
 	st->onclick = widget_onclick;
 	list_push(click_list, st);
-	emask |= ButtonPressMask;
+	emask |= ButtonPressMask | ButtonReleaseMask | EnterWindowMask |
+	    LeaveWindowMask;
     }
 
     XSelectInput(xd, st->win, emask);

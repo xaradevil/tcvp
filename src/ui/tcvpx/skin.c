@@ -624,6 +624,13 @@ tcvp_replace_ui(xtk_widget_t *w, void *p)
 	skin_t *os = ((widget_data_t *)w->data)->skin;
 	xtk_position_t *pos = xtk_get_window_position(os->window);
 	if(pos) {
+	    xtk_size_t *ss = xtk_get_screen_size();
+	    if(pos->x + s->width > ss->w || pos->x + os->width == ss->w) {
+		pos->x = ss->w - s->width;
+	    }
+	    if(pos->y + s->height > ss->h || pos->y + os->height == ss->h) {
+		pos->y = ss->h - s->height;
+	    }
 	    xtk_set_window_position(s->window, pos);
 	    free(pos);
 	}
@@ -789,6 +796,13 @@ tcvp_sticky(xtk_widget_t *w, void *p)
 	xtk_set_sticky(s->window, 0);
 	s->state &= ~ST_STICKY;
     }
+
+    if(s->state & ST_STICKY) {
+	change_text("sticky", "set");
+    } else {
+	change_text("sticky", "unset");
+    }
+
     return 0;
 }
 
@@ -814,6 +828,13 @@ tcvp_on_top(xtk_widget_t *w, void *p)
 	xtk_set_always_on_top(s->window, 0);
 	s->state &= ~ST_ON_TOP;
     }
+
+    if(s->state & ST_ON_TOP) {
+	change_text("on_top", "set");
+    } else {
+	change_text("on_top", "unset");
+    }
+
     return 0;
 }
 

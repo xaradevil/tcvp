@@ -40,6 +40,8 @@ symbol	"set_window_position"	int (*%s)(window_t *window, xtk_position_t *positio
 symbol	"show_widget"		int (*%s)(xtk_widget_t *w)
 symbol	"hide_widget"		int (*%s)(xtk_widget_t *w)
 
+symbol	"get_screen_size"	xtk_size_t *(*%s)()
+
 
 include
 #define TCIMAGEBUTTON 0
@@ -82,3 +84,8 @@ typedef struct {
     int x;
     int y;
 } xtk_position_t;
+
+typedef struct {
+    int w;
+    int h;
+} xtk_size_t;

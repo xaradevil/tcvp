@@ -43,6 +43,7 @@ import		"xtk"		"create_box"
 import		"xtk"		"box_get_subwindow"
 import		"xtk"		"show_widget"
 import		"xtk"		"hide_widget"
+import		"xtk"		"get_screen_size"
 
 option		skin%s
 option		always_on_top%d=0

@@ -412,7 +412,7 @@ extern int
 set_always_on_top(window_t *window, int enabled)
 {
     if(window->net_wm_support != 0) {
-	wm_set_property(window, "_NET_WM_STATE_STAYS_ON_TOP", 1);
+	wm_set_property(window, "_NET_WM_STATE_STAYS_ON_TOP", enabled?0:1);
     }
 
     return 0;
@@ -672,4 +672,14 @@ set_win_pos(window_t *win, xtk_position_t *pos)
 {
     XMoveWindow(xd, win->xw, pos->x, pos->y);
     return 0;
+}
+
+
+extern xtk_size_t*
+get_screen_size()
+{
+    xtk_size_t *s = malloc(sizeof(*s));
+    s->w = root_width;
+    s->h = root_height;
+    return s;
 }

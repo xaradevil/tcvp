@@ -103,8 +103,10 @@ cd_read(void *data, size_t size, size_t count, url_t *u)
 	cdt->pos += used;
 	used = 0;
 
-	fill_buffer(cdt);
-	used = get_bufferdata(data, cdt, remain);
+	if(cdt->pos < u->size && cdt->data_length > 0){
+	    fill_buffer(cdt);
+	    used = get_bufferdata(data, cdt, remain);
+	}
     }
 
     cdt->pos += used;
@@ -160,31 +162,25 @@ cd_close(url_t *u)
     return 0;
 }
 
-extern url_t *
-cd_open(char *url, char *mode)
+static url_t *
+track_open(char *url, char *mode)
 {
+    char *trk, *tmp;
     url_t *u;
     cd_data_t *cdt;
     int track;
 
-    if(strcmp(strrchr(url, '.'), ".wav") != 0) {
+    trk = strdup(strrchr(url, '/'));
+    if(trk == NULL) {
 	fprintf(stderr, "URL not supported: %s\n", url);
 	return NULL;
-    } else {
-	char *trk, *tmp;
-
-	trk = strdup(strrchr(url, '/'));
-	if(trk == NULL) {
-	    fprintf(stderr, "URL not supported: %s\n", url);
-	    return NULL;
-	}
-	
-	tmp = strchr(trk, '.');
-	tmp[0] = 0;
-	track = strtol(trk+1, NULL, 0);
-
-	free(trk);
     }
+
+    tmp = strchr(trk, '.');
+    tmp[0] = 0;
+    track = strtol(trk+1, NULL, 0);
+
+    free(trk);
 
     u = calloc(1, sizeof(url_t));
     u->read = cd_read;
@@ -244,4 +240,65 @@ cd_open(char *url, char *mode)
     u->size = cdt->data_length + cdt->header_length;
 
     return u;
+}
+
+static url_t *
+list_open(char *url, char *mode)
+{
+    char buf[128];
+    url_t *u;
+    cd_data_t *cdt;
+    int i;
+
+    u = calloc(1, sizeof(url_t));
+    u->read = cd_read;
+    u->write = NULL;
+    u->seek = cd_seek;
+    u->tell = cd_tell;
+    u->close = cd_close;
+
+    cdt = calloc(sizeof(cd_data_t), 1);
+
+    cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
+    cdda_verbose_set(cdt->drive, CDDA_MESSAGE_PRINTIT, CDDA_MESSAGE_FORGETIT);
+
+    if(cdda_open(cdt->drive) != 0) {
+	free(cdt);
+	free(u);
+	return NULL;
+    }
+
+    cdt->pos = 0;
+    cdt->data_length = 0;
+
+    cdt->header = calloc(1, 1);
+    for(i = 1; i <= cdda_tracks(cdt->drive); i++) {
+	if(cdda_track_audiop(cdt->drive, cdt->track) != 0) {
+	    sprintf(buf, "cdda:/%d.wav\n", i);
+	    cdt->header = realloc(cdt->header, cdt->header_length +
+				  strlen(buf) + 1);
+	    cdt->header_length += strlen(buf);
+	    strcat(cdt->header, buf);
+	}
+    }
+
+
+    u->private = cdt;
+    u->size = cdt->header_length;
+
+    return u;
+}
+
+
+extern url_t *
+cd_open(char *url, char *mode)
+{
+    if(strcmp(strrchr(url, '.'), ".wav") == 0) {
+	return track_open(url, mode);
+    } else if(strcmp(strrchr(url, '.'), ".m3u") == 0) {
+	return list_open(url, mode);
+    } else {
+ 	fprintf(stderr, "URL not supported: %s\n", url);
+	return NULL;
+    }
 }
