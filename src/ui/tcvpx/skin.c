@@ -99,6 +99,25 @@ create_skinned_label(skin_t *skin, conf_section *sec, char *text,
 			color, alpha, stype, ocb));
 }
 
+static tcseek_bar_t*
+create_skinned_seek_bar(skin_t *skin, conf_section *sec, double position,
+		       onclick_cb_t ocb)
+{
+    int x, y;
+    int sp_x, sp_y;
+    int ep_x, ep_y;
+    char *bg, *indicator;
+
+    conf_getvalue(sec, "position", "%d %d", &x, &y);
+    conf_getvalue(sec, "start_position", "%d %d", &sp_x, &sp_y);
+    conf_getvalue(sec, "end_position", "%d %d", &ep_x, &ep_y);
+    conf_getvalue(sec, "background_image", "%s", &bg);
+    conf_getvalue(sec, "indicator_image", "%s", &indicator);
+
+    return(create_seek_bar(skin, x, y, sp_x, sp_y, ep_x, ep_y, bg,
+			   indicator, position, ocb));
+}
+
 extern int
 create_ui(skin_t *skin)
 {
@@ -144,6 +163,11 @@ create_ui(skin_t *skin)
     sec = conf_getsection(skin->config, "title");
     if(sec){
 	skin->title = create_skinned_label(skin, sec, "", NULL);
+    }
+
+    sec = conf_getsection(skin->config, "seek_bar");
+    if(sec){
+	skin->seek_bar = create_skinned_seek_bar(skin, sec, 0, NULL);
     }
 
     return 0;

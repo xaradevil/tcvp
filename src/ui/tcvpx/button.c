@@ -30,7 +30,7 @@ repaint_button(tcwidget_t *w)
 	alpha_render(*w->button.img->data, img->data, img->width,
 		     img->height, depth);
 	XPutImage(xd, w->button.pixmap, bgc, img, 0, 0, 0, 0,
-		  w->button.img->width, w->button.img->height);
+		  w->button.width, w->button.height);
 	XSync(xd, False);
 	XDestroyImage(img);
     }
@@ -52,6 +52,7 @@ create_button(skin_t *skin, int x, int y, char *imagefile,
     btn->img = load_image(skin->path, imagefile);
     btn->width = btn->img->width;
     btn->height = btn->img->height;
+    btn->enabled = 1;
 
     btn->win = XCreateWindow(xd, xw, btn->x, btn->y,
 			     btn->width, btn->height,

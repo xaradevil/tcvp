@@ -78,26 +78,36 @@ load_image(char *skinpath, char *file)
 
 
 extern int
-alpha_render(unsigned char *src, unsigned char *dest, int width,
-	     int height, int depth)
+alpha_render_part(unsigned char *src, unsigned char *dest,
+		  int src_x, int src_y, int dest_x, int dest_y,
+		  int src_width, int src_height, 
+		  int dest_width, int dest_height, int depth)
 {
     int x,y;
 
-    for(y=0;y<height;y++){
-	for(x=0;x<width;x++){
-	    int pos = (x+y*width)*4;
-	    int b = src[pos+3];
+    for(y=src_y;y<src_height;y++){
+	for(x=src_x;x<src_width;x++){
+	    int spos = ((x+src_x)+(y+src_y)*src_width)*4;
+	    int dpos = ((x+dest_x)+(y+dest_y)*dest_width)*4;
+	    int b = src[spos+3];
 	    int a = 256-b;
-	    dest[pos+0] = (dest[pos+0]*a + src[pos+0]*b)/256;
-	    dest[pos+1] = (dest[pos+1]*a + src[pos+1]*b)/256;
-	    dest[pos+2] = (dest[pos+2]*a + src[pos+2]*b)/256;
-	    dest[pos+3] = (dest[pos+3]*a + src[pos+3]*b)/256;
+	    dest[dpos+0] = (dest[dpos+0]*a + src[spos+0]*b)/256;
+	    dest[dpos+1] = (dest[dpos+1]*a + src[spos+1]*b)/256;
+	    dest[dpos+2] = (dest[dpos+2]*a + src[spos+2]*b)/256;
+	    dest[dpos+3] = (dest[dpos+3]*a + src[spos+3]*b)/256;
 	}
     }
     
     return 0;
 }
 
+extern int
+alpha_render(unsigned char *src, unsigned char *dest,
+	     int width, int height, int depth)
+{
+    return alpha_render_part(src, dest, 0, 0, 0, 0, width, height,
+			     width, height, depth);
+}
 
 extern int
 draw_widget(tcwidget_t *w)

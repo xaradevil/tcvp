@@ -73,7 +73,7 @@ x11_event(void *p)
 
 	    while((bt = list_next(bt_list, &current))!=NULL) {
 		if(xe.xbutton.window == bt->common.win){
-		    if(bt->common.onclick){
+		    if(bt->common.onclick && bt->common.enabled){
 			bt->common.onclick(bt, &xe);
 		    }
 		}

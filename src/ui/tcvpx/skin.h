@@ -25,6 +25,7 @@
 struct _skin_t {
     tclabel_t *time, *title;
     tcbackground_t *background;
+    tcseek_bar_t *seek_bar;
     int width, height;
     char *file;
     char *path;

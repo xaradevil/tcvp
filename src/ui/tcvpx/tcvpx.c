@@ -78,6 +78,10 @@ update_time(skin_t *skin)
 	}
     }
 
+    if(s_length > 0){
+	change_seek_bar(skin->seek_bar, (double)t/s_length);
+    }
+
     snprintf(text, 7, "%3d:%02d", t/60, t%60);
     change_label(skin->time, text);
 

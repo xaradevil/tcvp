@@ -151,6 +151,7 @@ create_background(skin_t *skin, char *imagefile)
     bg->pixmap = XCreatePixmap(xd, xw, bg->width,
 			       bg->height, depth);
     bg->win = xw;
+    bg->enabled = 1;
 
     data = calloc(bg->width * bg->height,1);
     for(y=0; y<bg->height; y++){

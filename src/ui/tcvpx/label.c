@@ -268,6 +268,7 @@ create_label(skin_t *skin, int x, int y, int width, int height,
     txt->s_max = 0;
     txt->s_space = 20;
     txt->s_dir = 1;
+    txt->enabled = 1;
 
 
     XftColorAllocValue(xd, DefaultVisual(xd, xs), DefaultColormap(xd, xs),

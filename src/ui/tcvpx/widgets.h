@@ -27,7 +27,7 @@
 #define TCIMAGEBUTTON 0
 #define TCLABEL       1
 #define TCBACKGROUND  2
-#define TCSLIDER      3
+#define TCSEEKBAR     3
 
 #define TCLABELSTANDARD   0
 #define TCLABELSCROLLING  1
@@ -48,6 +48,7 @@ typedef struct {
     void *data;
     skin_t *skin;
     int x,y;
+    int enabled;
 
     image_info_t *img;
     int transparent;
@@ -63,11 +64,14 @@ typedef struct {
     void *data;
     skin_t *skin;
     int x,y;
+    int enabled;
 
     image_info_t *background;
-    image_info_t *slider;
-    int pos;    
-} tcslider_t;
+    image_info_t *indicator;
+    int start_x, start_y;
+    int end_x, end_y;
+    double position;    
+} tcseek_bar_t;
 
 typedef struct {
     int type;
@@ -79,6 +83,7 @@ typedef struct {
     void *data;
     skin_t *skin;
     int x,y;
+    int enabled;
 
     image_info_t *img;
 } tcimage_button_t;
@@ -93,6 +98,7 @@ typedef struct {
     void *data;
     skin_t *skin;
     int x,y;
+    int enabled;
 
     char *colorname;
     uint32_t color;
@@ -124,6 +130,7 @@ typedef struct {
     void *data;
     skin_t *skin;
     int x,y;
+    int enabled;
 } tcwidget_common_t;
 
 union _tcwidget_t {
@@ -132,7 +139,7 @@ union _tcwidget_t {
     tcimage_button_t button;
     tclabel_t label;
     tcbackground_t background;
-    tcslider_t slider;
+    tcseek_bar_t seek_bar;
 };
 
 extern list *widget_list, *bt_list, *sl_list;
@@ -142,6 +149,11 @@ int draw_widgets();
 int repaint_widgets();
 int alpha_render(unsigned char *src, unsigned char *dest, int width,
 		 int height, int depth);
+int alpha_render_part(unsigned char *src, unsigned char *dest,
+		      int src_x, int src_y, int dest_x, int dest_y,
+		      int src_width, int src_height, 
+		      int dest_width, int dest_height, int depth);
+
 image_info_t* load_image(char *skinpath, char *file);
 
 int update_root(skin_t *skin);
@@ -156,5 +168,11 @@ tclabel_t* create_label(skin_t *skin, int x, int y, int width, int height,
 			char *color, short alpha, int scroll,
 			onclick_cb_t onclick);
 
+int change_seek_bar(tcseek_bar_t *sb, double position);
+tcseek_bar_t *create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
+			      int ep_x, int ep_y, char *bg, char *indicator,
+			      double position, onclick_cb_t ocb);
+int enable_seek_bar(tcseek_bar_t *sb);
+int disable_seek_bar(tcseek_bar_t *sb);
 
 #endif /* _TCWIDGETS_H */

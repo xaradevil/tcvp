@@ -2,7 +2,7 @@ module		tcvpx
 name		"TCVP/ui/tcvpx"
 version		0.1.0
 tc2version	0.4.0
-sources		background.c button.c label.c skin.c tcvpctl.c tcvpx.c widget.c window.c
+sources		background.c button.c label.c seek_bar.c skin.c tcvpctl.c tcvpx.c widget.c window.c
 postinit	tcvpx_init
 shutdown	tcvpx_shdn
 import		"Eventq"	"new"
