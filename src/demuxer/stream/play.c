@@ -40,7 +40,9 @@
 #define STOP  2
 #define PAUSE 3
 
-#define min_buffer tcvp_demux_stream_conf_buffer
+#define buffertime (tcvp_demux_stream_conf_buffer * 27000)
+#define min_packets tcvp_demux_stream_conf_min_packets
+#define max_packets tcvp_demux_stream_conf_max_packets
 
 struct stream_shared {
     int sid;
@@ -53,7 +55,7 @@ struct stream_shared {
     pthread_cond_t cond;
     eventq_t sq;
     char *outfile;
-    int nstreams;
+    int nstreams, nready;
 };
 
 typedef struct stream_play {
@@ -62,8 +64,10 @@ typedef struct stream_play {
 	tcvp_pipe_t *pipe, *end;
 	tclist_t *packets;
 	uint64_t starttime;
+	uint64_t headtime, tailtime;
 	int probe, nprobe;
 	pthread_t th;
+	int run;
 	struct stream_play *sp;
     } *streams;
     int *smap;
@@ -276,7 +280,7 @@ add_stream(stream_player_t *sp, int s)
 
     sp->smap[s] = sid;
 
-    if(!use_stream(sh, s, sp->ms->streams[s].stream_type))
+    if(!use_stream(sh, sid, sp->ms->streams[s].stream_type))
 	goto out;
     r = -2;
 
@@ -419,12 +423,17 @@ play_stream(void *p)
     packet_t *pk;
 
     tc2_print("STREAM", TC2_PRINT_DEBUG,
-	      "starting player thread for stream %i\n", shs);
+	      "[%i] starting player thread\n", shs);
 
     while(waitplay(sp, six)){
 	pthread_mutex_lock(&sp->lock);
 	pk = tclist_shift(str->packets);
-	if(tclist_items(str->packets) < min_buffer &&
+
+	if(pk && pk->flags & TCVP_PKT_FLAG_PTS)
+	    str->tailtime = pk->pts;
+
+	if((tclist_items(str->packets) < min_packets ||
+	    str->headtime - str->tailtime < buffertime) &&
 	   sp->ms->used_streams[six]){
 	    sp->nbuf |= 1 << six;
 	    pthread_cond_broadcast(&sp->cond);
@@ -470,22 +479,125 @@ waitbuf(stream_player_t *sp)
     return sp->state != STOP;
 }
 
+static int
+do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
+{
+    stream_shared_t *sh = sp->shared;
+    struct sp_stream *str;
+    int ps;
+
+    ps = pk->stream;
+
+    if(pk->stream >= sp->nstreams || sp->smap[ps] < 0){
+	if(add_stream(sp, ps)){
+	    del_stream(sp, ps);
+	    return -1;
+	}
+    }
+
+    str = sp->streams + ps;
+    pk->stream = sp->smap[ps];
+
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
+	if(sh->starttime == -1LL){
+	    pthread_mutex_lock(&sh->lock);
+	    if(sh->starttime == -1LL){
+		sh->starttime = pk->pts;
+		if(sh->playtime != -1LL)
+		    sh->endtime = sh->starttime + sh->playtime;
+		sh->timer->reset(sh->timer, sh->starttime);
+		tc2_print("STREAM", TC2_PRINT_DEBUG, "start %llu, end %llu\n",
+			  sh->starttime / 27, sh->endtime / 27);
+	    }
+	    pthread_mutex_unlock(&sh->lock);
+	}
+
+	if(pk->pts > sh->endtime){
+	    tc2_print("STREAM", TC2_PRINT_DEBUG,
+		      "[%i] end time reached\n", pk->stream);
+	    tcfree(pk);
+	    pk = NULL;
+	    pthread_mutex_lock(&sp->lock);
+	    sp->ms->used_streams[ps] = 0;
+	    sp->nbuf &= ~(1 << ps);
+	    pthread_cond_broadcast(&sp->cond);
+	    pthread_mutex_unlock(&sp->lock);
+	} else if(str->starttime == -1LL){
+	    tc2_print("STREAM", TC2_PRINT_DEBUG,
+		      "[%i] start %llu\n",
+		      pk->stream, pk->pts / 27);
+	    sp->ms->streams[ps].common.start_time = pk->pts;
+	    str->starttime = pk->pts;
+	}
+/*     } else if(str->starttime == -1){ */
+/* 	tcfree(pk); */
+/* 	return 0; */
+    }
+
+    switch(str->probe){
+    case PROBE_AGAIN:
+    case PROBE_DISCARD:
+	tc2_print("STREAM", TC2_PRINT_DEBUG, "[%i] probing\n",
+		  pk->stream);
+	tcref(pk);
+	sp->ms->streams[ps].common.index = pk->stream;
+	str->probe = str->pipe->probe(str->pipe, pk,
+				      sp->ms->streams + ps);
+	if(str->probe == PROBE_FAIL ||
+	   str->nprobe++ > tcvp_demux_stream_conf_max_probe){
+	    tc2_print("STREAM", TC2_PRINT_DEBUG,
+		      "[%i] failed probe\n", pk->stream);
+	    sp->fail++;
+	    del_stream(sp, ps);
+	    tcfree(pk);
+	    break;
+	} else if(str->probe == PROBE_OK){
+	    stream_time(sp->ms, ps, str->pipe);
+	    tcvp_event_send(sh->sq, TCVP_LOAD, sp->ms);
+	    pthread_create(&str->th, NULL, play_stream, str);
+	    pthread_mutex_lock(&sp->lock);
+	    if(str->end->start && str->run)
+		str->end->start(str->end);
+	    pthread_mutex_unlock(&sp->lock);
+	} else if(str->probe == PROBE_DISCARD){
+	    flush_stream(str, 1);
+	    tcfree(pk);
+	    break;
+	}
+    case PROBE_OK:
+	pthread_mutex_lock(&sp->lock);
+	if(str->packets){
+	    tclist_push(str->packets, pk);
+	    if(pk && pk->flags & TCVP_PKT_FLAG_PTS)
+		str->headtime = pk->pts;
+	    if(tclist_items(str->packets) > max_packets ||
+	       str->headtime - str->tailtime > buffertime)
+		sp->nbuf &= ~(1 << ps);
+	}
+	pthread_cond_broadcast(&sp->cond);
+	pthread_mutex_unlock(&sp->lock);
+	break;
+    }
+
+    return 0;
+}
+
 static void *
 read_stream(void *p)
 {
     stream_player_t *sp = p;
-    stream_shared_t *sh = sp->shared;
 
     while(waitbuf(sp)){
-	packet_t *pk = NULL;
-	struct sp_stream *str;
-	int ps;
+	tcvp_packet_t *tpk = NULL;
 
 	if(sp->pstreams)
-	    pk = sp->ms->next_packet(sp->ms, -1);
+	    tpk = (tcvp_packet_t *) sp->ms->next_packet(sp->ms, -1);
 
-	if(!pk){
+	if(!tpk){
 	    int i;
+
+	    tc2_print("STREAM", TC2_PRINT_DEBUG, "end of stream\n");
+
 	    pthread_mutex_lock(&sp->lock);
 	    for(i = 0; i < sp->nstreams; i++)
 		if(sp->streams[i].packets)
@@ -495,92 +607,24 @@ read_stream(void *p)
 	    break;
 	}
 
-	ps = pk->stream;
-
-	if(pk->stream >= sp->nstreams || sp->smap[ps] < 0){
-	    if(add_stream(sp, ps)){
-		del_stream(sp, ps);
-		continue;
-	    }
-	}
-
-	str = sp->streams + ps;
-	pk->stream = sp->smap[ps];
-
-	switch(pk->type){
+	switch(tpk->type){
 	case TCVP_PKT_TYPE_DATA:
-	    pthread_mutex_lock(&sh->lock);
-	    if(pk->flags & TCVP_PKT_FLAG_PTS && sh->starttime == -1LL){
-		sh->starttime = pk->pts;
-		if(sh->playtime != -1LL)
-		    sh->endtime = sh->starttime + sh->playtime;
-		sh->timer->reset(sh->timer, sh->starttime);
-		tc2_print("STREAM", TC2_PRINT_DEBUG, "start %llu, end %llu\n",
-			  sh->starttime / 27, sh->endtime / 27);
-	    }
-	    pthread_mutex_unlock(&sh->lock);
-
-	    if(pk->flags & TCVP_PKT_FLAG_PTS){
-		if(pk->pts > sh->endtime){
-		    tc2_print("STREAM", TC2_PRINT_DEBUG,
-			      "stream %i end time reached\n", pk->stream);
-		    tcfree(pk);
-		    pk = NULL;
-		    pthread_mutex_lock(&sp->lock);
-		    sp->ms->used_streams[ps] = 0;
-		    sp->nbuf &= ~(1 << ps);
-		    pthread_mutex_unlock(&sp->lock);
-		} else if(str->starttime == -1LL){
-		    tc2_print("STREAM", TC2_PRINT_DEBUG,
-			      "stream %i start %llu\n",
-			      pk->stream, pk->pts / 27);
-		    sp->ms->streams[ps].common.start_time = pk->pts;
-		    str->starttime = pk->pts;
-		}
-	    }
-
-	    switch(str->probe){
-	    case PROBE_AGAIN:
-	    case PROBE_DISCARD:
-		tc2_print("STREAM", TC2_PRINT_DEBUG, "probing stream %i\n",
-			  pk->stream);
-		tcref(pk);
-		sp->ms->streams[ps].common.index = pk->stream;
-		str->probe = str->pipe->probe(str->pipe, pk,
-					      sp->ms->streams + ps);
-		if(str->probe == PROBE_FAIL ||
-		   str->nprobe++ > tcvp_demux_stream_conf_max_probe){
-		    tc2_print("STREAM", TC2_PRINT_DEBUG,
-			      "stream %i failed probe\n", pk->stream);
-		    sp->fail++;
-		    del_stream(sp, ps);
-		    tcfree(pk);
-		    break;
-		} else if(str->probe == PROBE_OK){
-		    stream_time(sp->ms, ps, str->pipe);
-		    tcvp_event_send(sh->sq, TCVP_LOAD, sp->ms);
-		    pthread_create(&str->th, NULL, play_stream, str);
-		    if(str->end->start)
-			str->end->start(str->end);
-		} else if(str->probe == PROBE_DISCARD){
-		    flush_stream(str, 1);
-		    tcfree(pk);
-		    break;
-		}
-	    case PROBE_OK:
-		pthread_mutex_lock(&sp->lock);
-		if(str->packets){
-		    tclist_push(str->packets, pk);
-		    if(tclist_items(str->packets) > min_buffer)
-			sp->nbuf &= ~(1 << ps);
-		}
-		pthread_cond_broadcast(&sp->cond);
-		pthread_mutex_unlock(&sp->lock);
-		break;
-	    }
+	    do_data_packet(sp, &tpk->data);
+	    break;
+	case TCVP_PKT_TYPE_FLUSH:
+	    flush_stream(sp->streams + tpk->flush.stream, tpk->flush.discard);
+	    tcfree(tpk);
+	    break;
+	case TCVP_PKT_TYPE_TIMER:
+	    tcfree(tpk);
 	    break;
 	}
     }
+
+    pthread_mutex_lock(&sp->lock);
+    sp->nbuf = 0;
+    pthread_cond_broadcast(&sp->cond);
+    pthread_mutex_unlock(&sp->lock);
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "read_stream done\n");
 
@@ -591,17 +635,36 @@ static int
 s_start(tcvp_pipe_t *tp)
 {
     stream_player_t *sp = tp->private;
+    stream_shared_t *sh = sp->shared;
     int i;
+
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "start\n");
 
     pthread_mutex_lock(&sp->lock);
     sp->state = RUN;
     pthread_cond_broadcast(&sp->cond);
+
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "buffering\n");
+    while(sp->nbuf)
+	pthread_cond_wait(&sp->cond, &sp->lock);
+
     for(i = 0; i < sp->nstreams; i++){
+	tc2_print("STREAM", TC2_PRINT_DEBUG, "starting player %i\n", i);
 	if(sp->streams[i].probe == PROBE_OK &&
 	   sp->streams[i].end && sp->streams[i].end->start)
 	    sp->streams[i].end->start(sp->streams[i].end);
+	sp->streams[i].run = 1;
+	tc2_print("STREAM", TC2_PRINT_DEBUG, "started player %i\n", i);
     }
     pthread_mutex_unlock(&sp->lock);
+
+    pthread_mutex_lock(&sh->lock);
+    sh->nready++;
+    if(sh->nready == sh->nstreams){
+	tc2_print("STREAM", TC2_PRINT_DEBUG, "starting timer\n");
+	sh->timer->start(sh->timer);
+    }
+    pthread_mutex_unlock(&sh->lock);
 
     return 0;
 }
@@ -610,18 +673,31 @@ static int
 s_stop(tcvp_pipe_t *tp)
 {
     stream_player_t *sp = tp->private;
+    stream_shared_t *sh = sp->shared;
     int i;
+
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "stop\n");
 
     pthread_mutex_lock(&sp->lock);
     sp->state = PAUSE;
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "waiting for player threads\n");
     while(sp->waiting < sp->pstreams)
 	pthread_cond_wait(&sp->cond, &sp->lock);
     for(i = 0; i < sp->nstreams; i++){
 	if(sp->streams[i].probe == PROBE_OK &&
 	   sp->streams[i].end && sp->streams[i].end->stop)
 	    sp->streams[i].end->stop(sp->streams[i].end);
+	sp->streams[i].run = 0;
     }
     pthread_mutex_unlock(&sp->lock);
+
+    pthread_mutex_lock(&sh->lock);
+    sh->nready--;
+    if(!sh->nready){
+	tc2_print("STREAM", TC2_PRINT_DEBUG, "stopping timer\n");
+	sh->timer->stop(sh->timer);
+    }
+    pthread_mutex_unlock(&sh->lock);
 
     return 0;
 }

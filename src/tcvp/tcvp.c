@@ -69,8 +69,8 @@ t_start(tcvp_module_t *pl, tcvp_event_t *te)
 	    if(tp->demux[i])
 		tp->demux[i]->start(tp->demux[i]);
 
-    if(tp->timer)
-	tp->timer->start(tp->timer);
+/*     if(tp->timer) */
+/* 	tp->timer->start(tp->timer); */
 
     tp->state = TCVP_STATE_PLAYING;
     tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_PLAYING);
@@ -89,8 +89,8 @@ t_stop(tcvp_module_t *pl, tcvp_event_t *te)
 	    if(tp->demux[i])
 		tp->demux[i]->stop(tp->demux[i]);
 
-    if(tp->timer)
-	tp->timer->stop(tp->timer);
+/*     if(tp->timer) */
+/* 	tp->timer->stop(tp->timer); */
 
     tp->state = TCVP_STATE_STOPPED;
     tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_STOPPED);
@@ -417,6 +417,16 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 
     tp->open = 1;
 
+    tp->ssh = stream_new(prsec, tp->conf, tp->timer, tp->outfile);
+    tp->demux = calloc(tp->nstreams, sizeof(*tp->demux));
+
+    for(i = 0, j = 0; i < tp->nstreams; i++){
+	tp->demux[i] = stream_play(tp->ssh, tp->streams[i]);
+	ns += !!tp->demux[i];
+	if(tcvp_conf_verbose)
+	    print_info(tp->streams[i]);
+    }
+
     if(!tp->timer->have_driver){
 	int tres = 10;
 	char *tdrv = NULL;
@@ -442,18 +452,8 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 	tcfree(mtc);
     }
 
-    tp->ssh = stream_new(prsec, tp->conf, tp->timer, tp->outfile);
-    tp->demux = calloc(tp->nstreams, sizeof(*tp->demux));
-
     tcfree(prsec);
     prsec = NULL;
-
-    for(i = 0, j = 0; i < tp->nstreams; i++){
-	tp->demux[i] = stream_play(tp->ssh, tp->streams[i]);
-	ns += !!tp->demux[i];
-	if(tcvp_conf_verbose)
-	    print_info(tp->streams[i]);
-    }
 
     tp->state = TCVP_STATE_STOPPED;
 
@@ -467,9 +467,9 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
-    for(i = 0; i < tp->nstreams; i++){
-	tp->demux[i]->start(tp->demux[i]);
-    }
+/*     for(i = 0; i < tp->nstreams; i++){ */
+/* 	tp->demux[i]->start(tp->demux[i]); */
+/*     } */
 
     return 0;
 

@@ -26,8 +26,14 @@ TCVP {
 	event TCVP_LOAD
 }
 
-option		buffer%i=64
-Number of packets to read ahead for each stream.
+option		buffer%i=100
+Readahead in milliseconds.
+
+option		max_packets%i=200
+Maximum number of packets to buffer.
+
+option		min_packets%i=4
+Minimum number of packets to keep in buffer.
 
 option		max_probe%i=1024
 Maximum number of packets read when probing stream parameters.
