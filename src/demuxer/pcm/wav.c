@@ -34,7 +34,7 @@
 static char *aid2codec(int id, int bits);
 
 static char *
-tag2str(uint32_t tag, char *s)
+tag2str(uint32_t tag, u_char *s)
 {
     int i;
     for(i = 0; i < 5; i++){
@@ -53,7 +53,8 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     uint32_t srate, brate;
     int data_size = 0;
     int data = 0;
-    char tags[5];
+    u_char tags[5];
+    uint64_t pos;
 
     url_getu32l(u, &tag);
     if(tag != TAG('R','I','F','F'))
@@ -65,6 +66,9 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 
     while(!data && !url_getu32l(u, &tag)){
 	url_getu32l(u, &size);
+	pos = u->tell(u);
+	tc2_print("WAV", TC2_PRINT_DEBUG, "tag '%s', size %i @ %llx\n",
+		  tag2str(tag, tags), size, pos);
 	switch(tag){
 	case TAG('f','m','t',' '): {
 	    url_getu16l(u, &fmt);
@@ -80,6 +84,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 		    u->read(extra, 1, extrasize, u);
 		}
 	    }
+	    u->seek(u, pos + size, SEEK_SET);
 	    break;
 	}
 	case TAG('d','a','t','a'):
@@ -87,8 +92,10 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 	    data = 1;
 	    break;
 	default:
-	    tc2_print("WAV", TC2_PRINT_WARNING, "unknown header %s, size %i\n",
-		      tag2str(tag, tags), size);
+	    tag2str(tag, tags);
+	    tc2_print("WAV", TC2_PRINT_WARNING,
+		      "unknown tag %02x%02x%02x%02x:%s, size %i\n",
+		      tags[0], tags[1], tags[2], tags[3], tags, size);
 	    u->seek(u, size, SEEK_CUR);
 	    break;
 	}
