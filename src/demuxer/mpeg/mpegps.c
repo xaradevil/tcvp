@@ -447,6 +447,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		sp->stream_type = mpeg_stream_types[sti].stream_type;
 		sp->common.codec = mpeg_stream_types[sti].codec;
 		sp->common.index = ms->n_streams++;
+		sp->common.start_time = -1;
 
 		tc2_print("MPEGPS", TC2_PRINT_DEBUG,
 			  "stream %x type %02x\n", sid, stype);
@@ -527,6 +528,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 			    sp->audio.channels * sp->audio.sample_rate * 16;
 		    }
 		    sp->common.index = ms->n_streams++;
+		    sp->common.start_time = -1;
 		    sp++;
 		}
 	    }

@@ -278,8 +278,6 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 		}
 
 		stuffing = al - (s->tsp - afstart);
-		tc2_print("MPEGTS", TC2_PRINT_DEBUG+1,
-			  "PID %x, stuffing = %i\n", mp->pid, stuffing);
 
 		check_length(stuffing, pkstart, TS_PACKET_SIZE,
 			     "BUG: stuffing = %i\n");
@@ -634,6 +632,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		sp->stream_type = mpeg_stream_types[sti].stream_type;
 		sp->common.codec = mpeg_stream_types[sti].codec;
 		sp->common.index = ms->n_streams;
+		sp->common.start_time = -1;
 
 		for(j = 0; j < esil;){
 		    int tl = dp[1] + 2;
