@@ -773,8 +773,8 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 
     if(tcvp_ui_tcvpx_conf_change_window_title) {
 	char *default_text = malloc(1024);
-	parse_text(wd->value, default_text, 1024);
 	wd->value = tcvp_ui_tcvpx_conf_window_title;
+	parse_text(wd->value, default_text, 1024);
 	register_textwidget(skin->window, wd->value);
 	xtk_window_set_title(skin->window, default_text);
 	free(default_text);
