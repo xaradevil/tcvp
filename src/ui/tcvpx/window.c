@@ -274,7 +274,7 @@ wm_set_sticky(skin_t *skin, int enabled)
 	Atom xa_wm_desktop;
 	XEvent xev;
 
-	int current_desktop = 0;
+	int desktop = -1;
 	Atom xa_cardinal, xa_current_desktop;
 	Atom r_type;
 	int r_format, ret;
@@ -283,15 +283,20 @@ wm_set_sticky(skin_t *skin, int enabled)
 
 	wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
 
-	xa_cardinal = XInternAtom(xd, "CARDINAL", True);
-	xa_current_desktop = XInternAtom(xd, "_NET_CURRENT_DESKTOP", True);
+	if(enabled <= 0) {
+	    xa_cardinal = XInternAtom(xd, "CARDINAL", True);
+	    xa_current_desktop = XInternAtom(xd, "_NET_CURRENT_DESKTOP", True);
 
-	ret = XGetWindowProperty(xd, RootWindow(xd, xs), xa_current_desktop,
-				 0, 1, False, xa_current_desktop, &r_type, &r_format,
-				 &count, &bytes_remain, &p);
-	if(ret == Success && p && r_type == xa_cardinal && r_format == 32 &&
-	   count == 1) {
-	    current_desktop = *(long *)p;
+	    ret = XGetWindowProperty(xd, RootWindow(xd, xs), xa_current_desktop,
+				     0, 1, False, xa_current_desktop, &r_type,
+				     &r_format, &count, &bytes_remain, &p);
+
+	    if(ret == Success && p && r_type == xa_cardinal && r_format == 32 &&
+	       count == 1) {
+		desktop = *(long *)p;
+	    } else {
+		desktop = 0;
+	    }
 	}
 
 	xa_wm_desktop = XInternAtom(xd, "_NET_WM_DESKTOP", False);
@@ -301,7 +306,7 @@ wm_set_sticky(skin_t *skin, int enabled)
 	xev.xclient.window = skin->xw;
 	xev.xclient.message_type = xa_wm_desktop;
 	xev.xclient.format = 32;
-	xev.xclient.data.l[0] = (enabled>0)?-1:current_desktop;
+	xev.xclient.data.l[0] = desktop;
 
 	XSendEvent(xd, RootWindow(xd, xs), False,
 		   SubstructureNotifyMask, (XEvent *) & xev);
@@ -383,14 +388,6 @@ create_window(skin_t *skin)
 		    PROP_MWM_HINTS_ELEMENTS);
 
     check_wm(skin);
-
-    if(tcvp_ui_tcvpx_conf_sticky != 0) {
-	wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
-    }
-
-    if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
-	wm_set_property(skin, "_NET_WM_STATE_STAYS_ON_TOP", 1);
-    }
 
     prop = XInternAtom(xd, "XdndAware", False);
     XChangeProperty(xd, skin->xw, prop, xa_atom, 32,
