@@ -74,44 +74,55 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     float **pcm ;
     ogg_packet *op=(ogg_packet*)pk->data[0];
 
-    if(op->packetno < 3) {
-	vorbis_synthesis_headerin(&vc->vi, &vc->vc, op);
-    } else {
-	if(op->packetno == 3) {
-/* 	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels, */
-/* 		    vc->vi.rate); */
-	    vorbis_synthesis_init(&vc->vd, &vc->vi) ;
-	    vorbis_block_init(&vc->vd, &vc->vb); 
-	}
+    if(vorbis_synthesis(&vc->vb, op) == 0)
+	vorbis_synthesis_blockin(&vc->vd, &vc->vb) ;
 
-	if(vorbis_synthesis(&vc->vb, op) == 0)
-	    vorbis_synthesis_blockin(&vc->vd, &vc->vb) ;
-    
-	total_samples = 0;
-	total_bytes = 0;
+    total_samples = 0;
+    total_bytes = 0;
 
-	while((samples = vorbis_synthesis_pcmout(&vc->vd, &pcm)) > 0) {
-	    conv(samples, pcm, (char*)vc->buf + total_bytes, vc->vi.channels);
-	    total_bytes += samples * 2 * vc->vi.channels;
-	    total_samples += samples;
-	    vorbis_synthesis_read(&vc->vd, samples);
-	}
-
-	out = malloc(sizeof(*out));
-	out->data = (u_char **) &out->private;
-	out->sizes = malloc(sizeof(size_t));
-	out->sizes[0] = total_bytes;
-	out->planes = 1;
-	out->pts = 0;
-	out->free = vorbis_free_packet;
-	out->private = vc->buf;
-	p->next->input(p->next, out);
+    while((samples = vorbis_synthesis_pcmout(&vc->vd, &pcm)) > 0) {
+	conv(samples, pcm, (char*)vc->buf + total_bytes, vc->vi.channels);
+	total_bytes += samples * 2 * vc->vi.channels;
+	total_samples += samples;
+	vorbis_synthesis_read(&vc->vd, samples);
     }
+
+    out = malloc(sizeof(*out));
+    out->data = (u_char **) &out->private;
+    out->sizes = malloc(sizeof(size_t));
+    out->sizes[0] = total_bytes;
+    out->planes = 1;
+    out->pts = 0;
+    out->free = vorbis_free_packet;
+    out->private = vc->buf;
+    p->next->input(p->next, out);
+
     pk->free(pk);
 
     return 0;
 }
 
+static int
+vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+{
+    ogg_packet *op=(ogg_packet*)pk->data[0];
+    VorbisContext_t *vc = p->private;
+
+    if(op->packetno < 3) {
+	vorbis_synthesis_headerin(&vc->vi, &vc->vc, op);
+	return PROBE_AGAIN;
+    } else {
+	if(op->packetno == 3) {
+	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels,
+		    vc->vi.rate);
+	    s->audio.sample_rate = 44100;
+	    s->audio.channels = 2;
+	    vorbis_synthesis_init(&vc->vd, &vc->vi);
+	    vorbis_block_init(&vc->vd, &vc->vb); 
+	}
+	return 0;
+    }    
+}
 
 static int
 vorbis_free_pipe(tcvp_pipe_t *p)
@@ -154,7 +165,7 @@ vorbis_new(stream_t *s, int mode)
     p->start = NULL;
     p->stop = NULL;
     p->free = vorbis_free_pipe;
-    p->probe = NULL;
+    p->probe = vorbis_read_header;
     p->private = vc;
 
     return p;
