@@ -29,8 +29,8 @@
 #include <tctypes.h>
 #include <tcmath.h>
 
-/* packet_t MUST be allocated with tcalloc */
-typedef struct packet {
+/* tcvp_packet_* types MUST be allocated with tcalloc */
+typedef struct tcvp_data_packet {
     int type;
     int stream;
     u_char **data;
@@ -40,11 +40,37 @@ typedef struct packet {
     int flags;
     uint64_t pts, dts;
     void *private;
-} packet_t;
+} tcvp_data_packet_t, packet_t;
+
+typedef struct tcvp_flush_packet {
+    int type;
+    int stream;
+    int discard;
+} tcvp_flush_packet_t;
+
+typedef struct tcvp_still_packet {
+    int type;
+    int stream;
+    u_int timeout;
+} tcvp_still_packet_t;
+
+typedef struct tcvp_timer_packet {
+    int type;
+    uint64_t time;
+} tcvp_timer_packet_t;
+
+typedef union tcvp_packet {
+    int type;
+    tcvp_data_packet_t data;
+    tcvp_flush_packet_t flush;
+    tcvp_still_packet_t still;
+    tcvp_timer_packet_t timer;
+} tcvp_packet_t;
 
 #define TCVP_PKT_TYPE_DATA  0
 #define TCVP_PKT_TYPE_FLUSH 1
 #define TCVP_PKT_TYPE_STILL 2
+#define TCVP_PKT_TYPE_TIMER 3
 
 #define TCVP_PKT_FLAG_PTS        0x1
 #define TCVP_PKT_FLAG_DTS        0x2
