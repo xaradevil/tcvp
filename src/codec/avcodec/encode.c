@@ -40,6 +40,7 @@ typedef struct avc_encvid {
     AVCodecContext *ctx;
     AVFrame *frame;
     uint8_t *buf;
+    url_t *stats;
 } avc_encvid_t;
 
 typedef struct avc_encpacket {
@@ -79,7 +80,11 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 	f->pict_type = 0;
 
     if((size = avcodec_encode_video(enc->ctx, enc->buf, ENCBUFSIZE, f)) > 0){
-/* 	fprintf(stderr, "%lli %lli\n", pk->pts, enc->ctx->coded_frame->pts); */
+	if(enc->stats){
+	    enc->stats->write(enc->ctx->stats_out, 1,
+			      strlen(enc->ctx->stats_out), enc->stats);
+	}
+
 	ep = tcallocdz(sizeof(*ep), NULL, avc_free_pk);
 	ep->pk.stream = pk->stream;
 	ep->pk.data = &ep->data;
@@ -173,6 +178,8 @@ avc_free_encvid(void *p)
 
     free(enc->buf);
     free(enc->frame);
+    tcfree(enc->stats);
+    free(enc->ctx->stats_in);
     if(enc->ctx->codec)
 	avcodec_close(enc->ctx);
 }
@@ -185,6 +192,7 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     AVCodec *avc;
     AVCodecContext *ctx;
     avc_encvid_t *enc;
+    char *statsfile;
 
     cid = avc_codec_id(codec);
     avc = avcodec_find_encoder(cid);
@@ -310,6 +318,25 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     enc->ctx = ctx;
     enc->frame = avcodec_alloc_frame();
     enc->buf = malloc(ENCBUFSIZE);
+
+    if(tcconf_getvalue(cf, "stats", "%s", &statsfile) > 0){
+	url_t *sf = url_open(statsfile, "r");
+	if(sf){
+	    tc2_print("AVCODEC", TC2_PRINT_DEBUG, "pass 2: %s\n", statsfile);
+	    ctx->stats_in = malloc(sf->size);
+	    sf->read(ctx->stats_in, 1, sf->size, sf);
+	    tcfree(sf);
+	    ctx->flags |= CODEC_FLAG_PASS2;
+	} else if((sf = url_open(statsfile, "w"))){
+	    tc2_print("AVCODEC", TC2_PRINT_DEBUG, "pass 1: %s\n", statsfile);
+	    enc->stats = sf;
+	    ctx->flags |= CODEC_FLAG_PASS1;
+	} else {
+	    tc2_print("AVCODEC", TC2_PRINT_WARNING,
+		      "can't open stats file %s\n", statsfile);
+	}
+	free(statsfile);
+    }
 
     p->format = *s;
     p->format.common.codec = codec;
