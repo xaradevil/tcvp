@@ -84,7 +84,8 @@ pcm_seek(muxed_stream_t *ms, uint64_t time)
     pcm_t *pcm = ms->private;
     uint64_t frame = pcm->s.audio.sample_rate * time / 27000000;
     uint64_t pos = pcm->start + frame * pcm->s.audio.block_align;
-    pcm->u->seek(pcm->u, pos, SEEK_SET);
+    if(pcm->u->seek(pcm->u, pos, SEEK_SET))
+	return -1;
     pcm->pts = time;
     return time;
 }
