@@ -258,9 +258,10 @@ wstream(s_play_t *vp)
 }
 
 static void *
-read_stream(void *_p)
+read_stream(void *p_)
 {
-    s_play_t *vp = _p;
+    tcvp_pipe_t *tp = p_;
+    s_play_t *vp = tp->private;
     int s;
 
     for(;;){
@@ -273,25 +274,7 @@ read_stream(void *_p)
 	    packet_t *p = ms->next_packet(ms, s);
 	    int str;
 
-	    if(p){
-		struct sp_stream *st;
-		p->stream += vp->streams[s].soff;
-		str = p->stream;
-		st = &vp->streams[str];
-		if(p->flags & TCVP_PKT_FLAG_PTS){
-		    uint64_t pts = p->pts + st->pts_offset;
-		    if(st->pts && pts < st->pts && st->pts - pts > 27000000){
-			st->pts_offset = st->pts - pts;
-			pts = st->pts;
-		    }
-		    st->pts = pts;
-		    p->pts = pts;
-		    if(p->flags & TCVP_PKT_FLAG_DTS)
-			p->dts += st->pts_offset;
-		}
-		tclist_push(vp->streams[str].pq, p);
-		sem_post(&vp->streams[str].ps);
-	    } else {
+	    if(!p){
 		muxed_stream_t *ms = vp->streams[s].str;
 		int o = vp->streams[s].soff;
 		int n = ms->n_streams;
@@ -306,6 +289,21 @@ read_stream(void *_p)
 
 		if(++vp->eof == vp->nms)
 		    break;
+	    } else if(p->type == TCVP_PKT_TYPE_DATA){
+		p->stream += vp->streams[s].soff;
+		str = p->stream;
+		tclist_push(vp->streams[str].pq, p);
+		sem_post(&vp->streams[str].ps);
+	    } else if(p->type == TCVP_PKT_TYPE_FLUSH){
+		fprintf(stderr, "STREAM: flush %i\n", p->stream);
+		if(p->stream)
+		    vp->state = PAUSE;
+		tp->flush(tp, p->stream);
+		if(p->stream)
+		    tp->start(tp);
+		tcfree(p);
+	    } else if(p->type == TCVP_PKT_TYPE_STILL){
+		fprintf(stderr, "STREAM: still\n");
 	    }
 	}
     }
@@ -394,16 +392,31 @@ static int
 s_flush(tcvp_pipe_t *p, int drop)
 {
     s_play_t *vp = p->private;
+    pthread_t th[vp->tstreams];
     int i;
+
+    void *do_flush(void *p){
+	tcvp_pipe_t *tp = p;
+	tp->flush(tp, drop);
+	return NULL;
+    }
 
     while(!sem_trywait(&vp->rsm));
 
     for(i = 0; i < vp->tstreams; i++){
 	if(vp->streams[i].str){
-	    vp->pipes[i]->flush(vp->pipes[i], drop);
+/* 	    vp->pipes[i]->flush(vp->pipes[i], drop); */
+	    if(drop)
+		while(!sem_trywait(&vp->streams[i].ps));
+	    pthread_create(th + i, NULL, do_flush, vp->pipes[i]);
+	}
+    }
+
+    for(i = 0; i < vp->tstreams; i++){
+	if(vp->streams[i].str){
+	    pthread_join(th[i], NULL);
 	    if(drop){
 		freeq(vp, i);
-		while(!sem_trywait(&vp->streams[i].ps));
 	    }
 	    vp->streams[i].pts = 0;
 	    vp->streams[i].pts_offset = 0;
@@ -472,10 +485,21 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 	packet_t *pk = ms->next_packet(ms, -1);
 	int st, ci;
 
-	if(!pk || !pk->data ||
-	   ++packets > tcvp_demux_stream_conf_max_probe * ms->n_streams){
-	    if(pk)
-		tcfree(pk);
+	if(!pk)
+	    break;
+
+	if(pk->type != TCVP_PKT_TYPE_DATA){
+	    tcfree(pk);
+	    continue;
+	}
+
+	if(!pk->data){
+	    tcfree(pk);
+	    break;
+	}
+
+	if(++packets > tcvp_demux_stream_conf_max_probe * ms->n_streams){
+	    tcfree(pk);
 	    break;
 	}
 
@@ -574,8 +598,15 @@ s_play(muxed_stream_t **mss, int ns, tcvp_pipe_t **out, tcconf_section_t *cs)
 	j += mss[i]->n_streams;
     }
 
-    pthread_create(&vp->rth, NULL, read_stream, vp);
+    p = tcallocdz(sizeof(tcvp_pipe_t), NULL, s_free);
+    p->input = NULL;
+    p->start = start;
+    p->stop = stop;
+    p->flush = s_flush;
+    p->private = vp;
+
     vp->state = PAUSE;
+    pthread_create(&vp->rth, NULL, read_stream, p);
 
     if(tcconf_getvalue(cs, "play_time", "%i", &time) > 0){
 	int start;
@@ -598,13 +629,6 @@ s_play(muxed_stream_t **mss, int ns, tcvp_pipe_t **out, tcconf_section_t *cs)
     }
 
     vp->nstreams = j;
-
-    p = tcallocdz(sizeof(tcvp_pipe_t), NULL, s_free);
-    p->input = NULL;
-    p->start = start;
-    p->stop = stop;
-    p->flush = s_flush;
-    p->private = vp;
 
     return p;
 }
