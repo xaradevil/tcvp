@@ -12,6 +12,8 @@
 #include <tcalloc.h>
 #include <tcvp_event_tc2.h>
 
+#undef DEBUG
+
 typedef struct tcvp_event_type {
     char *name;
     int num;
@@ -119,6 +121,10 @@ send_event(eventq_t q, int type, ...)
     va_end(args);
 
     if(te){
+#ifdef DEBUG
+	if(type >= 0)
+	    fprintf(stderr, "EVENT: sending %s\n", event_tab[type]->name);
+#endif
 	ret = eventq_send(q, te);
 	tcfree(te);
     }
