@@ -39,14 +39,14 @@ typedef struct lame_enc {
 typedef struct lame_packet {
     packet_t pk;
     int size;
-    u_char *data;
+    u_char *data, *buf;
 } lame_packet_t;
 
 static void
 l_free_pk(void *p)
 {
     lame_packet_t *lp = p;
-    free(lp->data);
+    free(lp->buf);
 }
 
 extern int
@@ -83,6 +83,7 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 	lp->pk.stream = pk->stream;
 	lp->pk.data = &lp->data;
 	lp->data = buf;
+	lp->buf = buf;
 	lp->pk.sizes = &lp->size;
 	lp->size = bs;
 	lp->pk.planes = 1;
