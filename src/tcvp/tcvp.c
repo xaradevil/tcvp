@@ -125,6 +125,7 @@ t_close(player_t *pl)
 	for(i = 0; i < tp->npipes; i++)
 	    close_pipe(tp->pipes[i]);
 	free(tp->pipes);
+	tp->npipes = 0;
 	tp->pipes = NULL;
     }
 
@@ -402,6 +403,7 @@ open_files(tcvp_player_t *tp, int n, char **files, tcconf_section_t *cs)
 
     tp->streams = calloc(n, sizeof(*tp->streams));
     tp->nstreams = 0;
+    tp->npipes = 0;
 
     for(i = 0; i < n; i++){
 	if((tp->streams[tp->nstreams] = stream_open(files[i], cs, tp->timer))){
@@ -643,6 +645,8 @@ err:
 	tcfree(demux);
     for(i = 0; i < tp->nstreams; i++)
 	tcfree(tp->streams[i]);
+    free(tp->streams);
+    tp->streams = NULL;
     if(prsec)
 	tcfree(prsec);
     free(tp->pipes);
