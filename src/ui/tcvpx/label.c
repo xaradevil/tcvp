@@ -103,11 +103,11 @@ change_label(tclabel_t *txt, char *text)
 	free(txt->text);
 	txt->text = strdup((text)?text:"");
 	XGlyphInfo xgi;
-	XftTextExtents8(xd, txt->xftfont, text, strlen(text), &xgi);
+	XftTextExtents8(xd, txt->xftfont, txt->text, strlen(txt->text), &xgi);
 	txt->text_width = xgi.width+2;
 
 /* 	printf("\"%s\"\nwidth:%d height:%d x:%d y:%d xOff:%d yOff:%d\n", */
-/* 	       text, xgi.width, xgi.height, xgi.x, xgi.y, */
+/* 	       txt->text, xgi.width, xgi.height, xgi.x, xgi.y, */
 /* 	       xgi.xOff, xgi.yOff); */
 
 	if(xgi.width+2 > txt->width) {

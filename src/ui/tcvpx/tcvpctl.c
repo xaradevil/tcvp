@@ -73,10 +73,10 @@ tcvp_event(void *p)
 /* 	    printf("%s %s %s\n", st->title, st->performer, st->file); */
 	    if(st->title){
 		if(st->performer){
-		    title = alloca(strlen(st->title)+strlen(st->performer)+4);
+		    title = malloc(strlen(st->title)+strlen(st->performer)+4);
 		    sprintf(title, "%s - %s", st->performer, st->title);
 		} else {
-		    title = alloca(strlen(st->title)+1);
+		    title = malloc(strlen(st->title)+1);
 		    strcpy(title, st->title);
 		}
 	    } else {
@@ -89,6 +89,7 @@ tcvp_event(void *p)
 	    }
 
 	    update_title(title);
+	    free(title);
 
 	    /* fall through */
 
