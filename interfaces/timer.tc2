@@ -1,12 +1,13 @@
 symbol	"new"	timer__t *(*%s)(int resolution)
 include
 #include <stdint.h>
+#include <pthread.h>
 
 typedef struct timer timer__t;
 struct timer {
     int (*start)(timer__t *);
     int (*stop)(timer__t *);
-    int (*wait)(timer__t *, uint64_t);
+    int (*wait)(timer__t *, uint64_t, pthread_mutex_t *);
     uint64_t (*read)(timer__t *);
     int (*reset)(timer__t *, uint64_t);
     int (*interrupt)(timer__t *);

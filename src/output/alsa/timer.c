@@ -113,19 +113,25 @@ run_timer(void *p)
 }
 
 static int
-tm_wait(timer__t *t, uint64_t time)
+tm_wait(timer__t *t, uint64_t time, pthread_mutex_t *lock)
 {
     alsa_timer_t *at = t->private;
-    int intr = 1, wait;
+    int intr = 1, wait, l = 1;
 
     time = (time * 1000) / 27;
 
     pthread_mutex_lock(&at->mx);
     wait = ++at->wait;
-    while(at->time < time && at->state == RUN &&
-	  (intr = (wait > at->intr)))
+    while(at->time < time && at->state == RUN && (intr = (wait > at->intr))){
+	if(l && lock){
+	    pthread_mutex_unlock(lock);
+	    l = 0;
+	}
 	pthread_cond_wait(&at->cd, &at->mx);
+    }
     pthread_mutex_unlock(&at->mx);
+    if(!l && lock)
+	pthread_mutex_lock(lock);
 
     return !intr? -1: at->state == RUN? 0: -1;
 }
@@ -195,9 +201,13 @@ extern int
 tm_settimer(timer__t *t, int type)
 {
     alsa_timer_t *at = t->private;
-    snd_timer_stop(at->timer->timer);
-    at->timer = at->timers[type];
-    snd_timer_start(at->timer->timer);
+
+    if(at->timers[type]){
+	snd_timer_stop(at->timer->timer);
+	at->timer = at->timers[type];
+	snd_timer_start(at->timer->timer);
+    }
+
     return 0;
 }
 
@@ -225,7 +235,7 @@ new_timer(int class, int sclass, int card, int dev, int subdev)
 
     snd_timer_info(timer, inf);
     res = snd_timer_info_get_resolution(inf);
-    snd_timer_params_set_ticks(pm, res? 10000000 / res: 1);
+    snd_timer_params_set_ticks(pm, res? 2000000 / res: 1);
     snd_timer_params_set_auto_start(pm, 1);
     snd_timer_params(timer, pm);
 
@@ -243,26 +253,30 @@ extern timer__t *
 open_timer(snd_pcm_t *pcm)
 {
     snd_pcm_info_t *ifo;
-    snd_timer_params_t *pm;
     alsa_timer_t *at;
     timer__t *tm;
     u_int card, dev, sdev;
 
-    snd_timer_params_alloca(&pm);
-    snd_pcm_info_alloca(&ifo);
-    snd_pcm_info(pcm, ifo);
-
-    card = snd_pcm_info_get_card(ifo);
-    dev = snd_pcm_info_get_device(ifo);
-    sdev = snd_pcm_info_get_subdevice(ifo);
-
     at = calloc(1, sizeof(*at));
-    at->timers[PCM] = new_timer(SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
-				card, dev, sdev);
+
     at->timers[SYSTEM] = new_timer(SND_TIMER_CLASS_GLOBAL,
 				   SND_TIMER_SCLASS_NONE,
 				   0, SND_TIMER_GLOBAL_SYSTEM, 0);
-    at->timer = at->timers[PCM];
+    if(pcm){
+	snd_pcm_info_alloca(&ifo);
+	snd_pcm_info(pcm, ifo);
+
+	card = snd_pcm_info_get_card(ifo);
+	dev = snd_pcm_info_get_device(ifo);
+	sdev = snd_pcm_info_get_subdevice(ifo);
+
+	at->timers[PCM] = new_timer(SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
+				    card, dev, sdev);
+	at->timer = at->timers[PCM];
+    } else {
+	at->timer = at->timers[SYSTEM];
+    }
+
     at->time = 0;
     at->intr = 0;
     at->wait = 0;
@@ -283,4 +297,10 @@ open_timer(snd_pcm_t *pcm)
     pthread_create(&at->th, NULL, run_timer, tm);
 
     return tm;
+}
+
+extern timer__t *
+alsa_timer_new(int res)
+{
+    return open_timer(NULL);
 }

@@ -225,13 +225,11 @@ st_ticker(void *p)
 
     pthread_mutex_lock(&tp->tmx);
     while(tp->state != TCVP_STATE_END){
-	pthread_mutex_unlock(&tp->tmx);
 	time = tp->timer->read(tp->timer);
 	tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER, time);
 	eventq_send(tp->qt, te);
 	tcfree(te);
-	tp->timer->wait(tp->timer, time + 27000000);
-	pthread_mutex_lock(&tp->tmx);
+	tp->timer->wait(tp->timer, time + 27000000, &tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
 

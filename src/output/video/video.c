@@ -78,11 +78,11 @@ v_play(void *p)
     video_out_t *vo = p;
 /*     int64_t lpts = 0, dt, dpts, lt = 0, tm, dpt; */
 
+    pthread_mutex_lock(&vo->smx);
+
     while(vo->state != STOP){
-	pthread_mutex_lock(&vo->smx);
 	while((!vo->frames && vo->state != STOP) || vo->state == PAUSE)
 	    pthread_cond_wait(&vo->scd, &vo->smx);
-	pthread_mutex_unlock(&vo->smx);
 
 	if(vo->state == STOP)
 	    break;
@@ -99,22 +99,19 @@ v_play(void *p)
 
 /* 	fprintf(stderr, "VO: pts = %llu, dt = %lli, t = %llu pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt, tm, dpt, vo->frames); */
 
-	if(vo->timer->wait(vo->timer, vo->pts[vo->tail]) < 0)
+	if(vo->timer->wait(vo->timer, vo->pts[vo->tail], &vo->smx) < 0)
 	    continue;
 
 	vo->driver->show_frame(vo->driver, vo->tail);
 
-	pthread_mutex_lock(&vo->smx);
 	if(vo->frames > 0){
 	    if(++vo->tail == vo->driver->frames)
 		vo->tail = 0;
 	    vo->frames--;
 	    pthread_cond_broadcast(&vo->scd);
 	}
-	pthread_mutex_unlock(&vo->smx);
     }
 
-    pthread_mutex_lock(&vo->smx);
     vo->state = STOP;  
     vo->head = vo->tail = 0;
     vo->frames = 0;
