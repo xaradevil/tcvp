@@ -1,0 +1,6 @@
+module		mux
+name		"TCVP/mux"
+version		0.1.0
+tc2version	0.6.0
+sources		mux.c
+implement	"mux/sync"	"new"	mux_new
