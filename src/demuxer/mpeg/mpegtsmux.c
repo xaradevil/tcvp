@@ -65,7 +65,8 @@ typedef struct mpegts_mux {
 	uint64_t bdts;
 	uint64_t lpts;
     } *streams;
-    int psic, psifreq;
+    int psifreq;
+    uint64_t psipcr;
     u_char *pat;
     u_char *pmt, *pmt_slen;
     u_char *pmap;
@@ -176,7 +177,6 @@ static void *
 tmx_output(void *p)
 {
     mpegts_mux_t *tsm = p;
-    int op = tsm->bsize / 188;
     int brate;
     int i;
 
@@ -206,7 +206,6 @@ tmx_output(void *p)
 	   tsm->out->write(tsm->outbuf, 1, tsm->bpos, tsm->out) != tsm->bpos)
 	    tsm->running = 0;
 	tsm->bpos = 0;
-	tsm->psic -= op;
 
 	pthread_cond_broadcast(&tsm->cnd);
     }
@@ -302,9 +301,9 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	while(tsm->bpos == tsm->bsize || next_stream(tsm) != pk->stream)
 	    pthread_cond_wait(&tsm->cnd, &tsm->lock);
 
-	if(tsm->psic <= 0){
+	if(tsm->pcr - tsm->psipcr > tsm->psifreq){
 	    psi = 2;
-	    tsm->psic = tsm->psifreq;
+	    tsm->psipcr = tsm->pcr;
 	}
 
 	if(psi > 0){
@@ -427,8 +426,13 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     int esil = 0;
     u_char *ilp;
 
-    if(!str_type)
+    if(!str_type){
+	tc2_print("MPEGTS", TC2_PRINT_ERROR, "unsupported codec %s\n",
+		  s->common.codec);
 	return PROBE_FAIL;
+    }
+
+    pthread_mutex_lock(&tsm->lock);
 
     pid = tsm->nextpid++;
 
@@ -481,6 +485,7 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(s->common.start_time < tsm->start_time)
 	tsm->start_time = s->common.start_time;
 
+    pthread_mutex_unlock(&tsm->lock);
     return PROBE_OK;
 }
 
@@ -557,7 +562,7 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     init_pmt(tsm, tsm->nextpid);
     tsm->nextpid++;
     tsm->running = 1;
-    tsm->psifreq = tsm->bitrate / (8 * 188);
+    tsm->psifreq = 27000000;
     tsm->timer = t;
     tsm->null = null_packet();
     tsm->pcr_int = 27000 * mux_mpeg_ts_conf_pcr_interval * 3 / 4;
@@ -573,6 +578,7 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "rate_factor", "%lf", &tsm->rate_factor);
     tcconf_getvalue(cs, "pcr_delay", "%li", &tsm->pcr_delay);
     tcconf_getvalue(cs, "pts_interval", "%li", &tsm->pts_interval);
+    tcconf_getvalue(cs, "psi_interval", "%i", &tsm->psifreq);
 
     tsm->pcr_delay *= 27000;
     tsm->pts_interval *= 27000;
