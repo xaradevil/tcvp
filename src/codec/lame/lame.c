@@ -45,6 +45,7 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 {
     lame_enc_t *le = p->private;
     u_char *buf;
+    int delay = 0;
     int bs;
 
     if(!pk->data){
@@ -55,6 +56,7 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 	int samples = pk->sizes[0] / le->channels / 2;
 	bs = 5 * samples / 4 + 7200;
 	buf = malloc(bs);
+	delay = lame_get_mf_samples_to_encode(le->gf);
 	bs = lame_encode_buffer_interleaved(le->gf, (short *) pk->data[0],
 					    samples, buf, bs);
     }
@@ -67,7 +69,11 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 	lp->pk.sizes = &lp->size;
 	lp->size = bs;
 	lp->pk.planes = 1;
-	/* FIXME: PTS */
+	if(pk->flags & TCVP_PKT_FLAG_PTS){
+	    lp->pk.pts = pk->pts -
+		delay * 27000000LL / p->format.audio.sample_rate;
+	    lp->pk.flags |= TCVP_PKT_FLAG_PTS;
+	}
 	p->next->input(p->next, &lp->pk);
     } else {
 	free(buf);
