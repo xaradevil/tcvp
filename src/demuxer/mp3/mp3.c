@@ -260,6 +260,34 @@ mp3_packet(muxed_stream_t *ms, int str)
     return &mp->pk;
 }
 
+static packet_t *
+aac_packet(muxed_stream_t *ms, int str)
+{
+    mp3_file_t *mf = ms->private;
+    mp3_packet_t *mp;
+    int size = 1024;
+    uint64_t pos;
+
+    mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
+    mp->data = malloc(size);
+    mp->pk.stream = 0;
+    mp->pk.data = &mp->data;
+    mp->pk.sizes = &mp->size;
+    mp->pk.planes = 1;
+
+    pos = mf->file->tell(mf->file);
+    size = min(size, mf->size - pos + mf->start);
+    size = mf->file->read(mp->data, 1, size, mf->file);
+
+    if(size <= 0){
+	tcfree(mp);
+	return NULL;
+    }
+
+    mp->size = size;
+    return &mp->pk;
+}
+
 static void
 mp3_free(void *p)
 {
@@ -278,6 +306,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     muxed_stream_t *ms;
     mp3_file_t *mf;
     char *qname, *qn;
+    u_char head[4];
     int ts = 0;
 
     ms = tcallocd(sizeof(*ms), NULL, mp3_free);
@@ -300,7 +329,16 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     if(ts > 0)
 	mf->size -= ts;
 
-    if(mp3_getparams(ms)){
+    f->read(head, 1, 4, f);
+    f->seek(f, -4, SEEK_CUR);
+    if(head[0] == 0xff &&
+       (head[1] & 0xf6) == 0xf0){
+	ms->next_packet = aac_packet;
+	mf->stream.common.codec = "audio/aac";
+    } else if(!mp3_getparams(ms)){
+	ms->next_packet = mp3_packet;
+	ms->seek = mp3_seek;
+    } else {
 	tcfree(ms);
 	return NULL;
     }
@@ -316,8 +354,6 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     mf->size -= mf->start;
 
     ms->used_streams = &mf->used;
-    ms->next_packet = mp3_packet;
-    ms->seek = mp3_seek;
 
     return ms;
 }
