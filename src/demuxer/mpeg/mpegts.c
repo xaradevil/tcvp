@@ -68,6 +68,7 @@ typedef struct mpegts_stream {
     u_char *tsbuf, *tsp;
     int tsnbuf;
     int *imap;
+    int pcrpid;
     struct tsbuf {
 	int flags;
 	uint64_t pts, dts;
@@ -80,10 +81,11 @@ typedef struct mpegts_stream {
     int rate;
     uint64_t start_time;
     int end;
+    mpegts_packet_t mp;
 } mpegts_stream_t;
 
 typedef struct mpegts_pk {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *buf, *data;
     int size;
 } mpegts_pk_t;
@@ -318,7 +320,7 @@ mpegts_free_pk(void *p)
     free(mp->buf);
 }
 
-static mpegts_pk_t *
+static tcvp_packet_t *
 mpegts_mkpacket(mpegts_stream_t *s, int sx)
 {
     struct tsbuf *tb = s->streams + sx;
@@ -339,14 +341,14 @@ mpegts_mkpacket(mpegts_stream_t *s, int sx)
 	pk->pk.dts = tb->dts * 300;
     tb->buf = malloc(0x10000);
 
-    return pk;
+    return (tcvp_packet_t *) pk;
 }
 
-static packet_t *
+static tcvp_packet_t *
 mpegts_endpacket(muxed_stream_t *ms)
 {
     mpegts_stream_t *s = ms->private;
-    mpegts_pk_t *pk = NULL;
+    tcvp_packet_t *pk = NULL;
 
     if(s->end >= ms->n_streams)
 	return NULL;
@@ -355,30 +357,54 @@ mpegts_endpacket(muxed_stream_t *ms)
 	pk = mpegts_mkpacket(s, s->end);
 
     s->end++;
-    return (packet_t *) pk;
+    return pk;
 }
 
-extern packet_t *
+static tcvp_packet_t *
 mpegts_packet(muxed_stream_t *ms, int str)
 {
     mpegts_stream_t *s = ms->private;
-    mpegts_pk_t *pk = NULL;
-    mpegts_packet_t mp;
+    tcvp_packet_t *pk = NULL;
     int sx = -1;
     struct tsbuf *tb;
+#define mp s->mp
 
     if(s->end > -1)
 	return mpegts_endpacket(ms);
 
     do {
-	int ccd;
+	int ccd, pid;
 
 	do {
-	    if(mpegts_read_packet(s, &mp) < 0){
-		s->end++;
-		return mpegts_endpacket(ms);
+	    if(mp.pid < 0){
+		if(mpegts_read_packet(s, &mp) < 0){
+		    s->end++;
+		    return mpegts_endpacket(ms);
+		}
 	    }
 	    sx = s->imap[mp.pid];
+
+	    if(mp.pid == s->pcrpid &&
+	       (mp.adaptation & 2) && mp.adaptation_field.pcr_flag){
+		if(s->start_time != -1LL){
+		    uint64_t time =
+			(mp.adaptation_field.pcr - s->start_time) / 27000;
+		    if(time)
+			s->rate = s->stream->tell(s->stream) / time;
+		} else {
+		    s->start_time = mp.adaptation_field.pcr;
+		}
+
+		if(s->stream->flags & URL_FLAG_STREAMED){
+		    mp.adaptation_field.pcr_flag = 0;
+		    pk = tcallocz(sizeof(*pk));
+		    pk->type = TCVP_PKT_TYPE_TIMER;
+		    pk->timer.time = mp.adaptation_field.pcr;
+		    return pk;
+		}
+	    }
+	    pid = mp.pid;
+	    mp.pid = -1;
 	} while(sx < 0 || !ms->used_streams[sx]);
 
 	tb = &s->streams[sx];
@@ -387,13 +413,13 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    ccd = (mp.cont_counter - tb->cc + 0x10) & 0xf;
 	    if(ccd == 0){
 		tc2_print("MPEGTS", TC2_PRINT_VERBOSE,
-			  "PID %x, duplicate packet, cc = %x\n", mp.pid,
+			  "PID %x, duplicate packet, cc = %x\n", pid,
 			  mp.cont_counter);
 		continue;
 	    } else if(ccd != 1){
 		tc2_print("MPEGTS", TC2_PRINT_WARNING,
 			  "PID %x, lost %i packets: %i %i\n",
-			  mp.pid, ccd - 1, tb->cc, mp.cont_counter);
+			  pid, ccd - 1, tb->cc, mp.cont_counter);
 /* 		tb->start = 0; */
 	    }
 	}
@@ -427,20 +453,10 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    }
 	    tb->start = 1;
 	}
-
-	if((mp.adaptation & 2) && mp.adaptation_field.pcr_flag){
-	    if(s->start_time != -1LL){
-		uint64_t time =
-		    (mp.adaptation_field.pcr - s->start_time) / 27000;
-		if(time)
-		    s->rate = s->stream->tell(s->stream) / time;
-	    } else {
-		s->start_time = mp.adaptation_field.pcr;
-	    }
-	}
     } while(!pk);
 
-    return &pk->pk;
+    return pk;
+#undef mp
 }
 
 #define absdiff(a,b) ((a)>(b)?(a)-(b):(b)-(a))
@@ -450,7 +466,6 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 {
     mpegts_stream_t *s = ms->private;
     int64_t p, st;
-    packet_t *pk = NULL;
     int i, sm = SEEK_SET, c = 0;
 
     p = time / 27000 * s->rate;
@@ -472,10 +487,10 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 	st = 0;
 
 	do {
-	    pk = mpegts_packet(ms, 0);
-	    if(pk){
-		if(pk->flags & TCVP_PKT_FLAG_PTS)
-		    st = pk->pts;
+	    tcvp_packet_t *pk = mpegts_packet(ms, 0);
+	    if(pk && pk->type == TCVP_PKT_TYPE_DATA){
+		if(pk->data.flags & TCVP_PKT_FLAG_PTS)
+		    st = pk->data.pts;
 		tcfree(pk);
 	    } else {
 		return -1;
@@ -539,6 +554,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     u_char *pmt = NULL;
     int pmtsize = 0;
     int pmtpos = 0;
+    int program = -1;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
     ms->next_packet = mpegts_packet;
@@ -548,6 +564,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->stream = tcref(u);
     s->tsbuf = malloc(2 * TS_PACKET_SIZE * TS_PACKET_BUF);
     s->end = -1;
+    s->mp.pid = -1;
 
     ms->private = s;
 
@@ -595,7 +612,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     memset(s->imap, 0xff, (1 << 13) * sizeof(*s->imap));
     sp = ms->streams;
 
-    while(n){
+    while(program < 0){
 	int pi_len, prg, ip = 0, pcrpid;
 	uint32_t crc, ccrc;
 	int dsize;
@@ -657,6 +674,9 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	if(pi_len > seclen - 13)
 	    goto err;
 	dp += 12;
+
+	program = prg;
+	s->pcrpid = pcrpid;
 
 	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", prg);
 	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", pcrpid);
