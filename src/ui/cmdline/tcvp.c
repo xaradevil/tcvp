@@ -497,6 +497,7 @@ set_number_or_string(tcconf_section_t *cf, char *cn, char *v)
 #define OPT_ATTR 139
 #define OPT_ROOT 140
 #define OPT_WINDOW 141
+#define OPT_PORT 142
 
 static int
 parse_options(int argc, char **argv)
@@ -538,7 +539,7 @@ parse_options(int argc, char **argv)
 	{"title", required_argument, 0, OPT_ATTR},
 	{"artist", required_argument, 0, OPT_ATTR},
 	{"album", required_argument, 0, OPT_ATTR},
-	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
+	{"port", required_argument, 0, OPT_PORT},
 	{0, 0, 0, 0}
     };
 
@@ -712,8 +713,9 @@ parse_options(int argc, char **argv)
 	    tc2_setprint(optarg, 0, s, "default");
 	    break;
 
-	case OPT_TRACE_MALLOC:
-	    mtrace();
+	case OPT_PORT:
+	    tcconf_setvalue(cf, "remote/port", "%i", strtol(optarg, NULL, 0));
+	    break;
 	}
     }
 
