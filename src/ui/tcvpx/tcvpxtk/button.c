@@ -112,6 +112,7 @@ enter_button(xtk_widget_t *xw, void *xe)
 	    shape_button(&w->button, 1);
 	}
     }
+    XRaiseWindow(xd, w->button.win);
     repaint_button(xw);
     draw_widget(w);
     return 0;
