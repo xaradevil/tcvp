@@ -42,6 +42,6 @@ typedef struct {
     int prn_stats[13];
 } cd_data_t;
 
-extern int cdda_freedb(url_t *u, int track);
+extern int cdda_freedb(url_t *u, cd_data_t *, int track);
 
 #endif

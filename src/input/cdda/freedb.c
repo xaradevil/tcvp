@@ -89,9 +89,8 @@ cddb_cmd(char *cmd)
 }
 
 extern int
-cdda_freedb(url_t *u, int track)
+cdda_freedb(url_t *u, cd_data_t *cdt, int track)
 {
-    cd_data_t *cdt = u->private;
     cdrom_drive *d = cdt->drive;
     int tracks = cdda_tracks(d);
     int sum = 0, secs;
@@ -169,6 +168,9 @@ cdda_freedb(url_t *u, int track)
 			}
 			artist = strdup(l + 7);
 		    } else if(!strncmp(l, ttitle, ttl)){
+			char *t = strstr(l, " / ");
+			if(t)
+			    *t = 0;
 			title = strdup(l + ttl);
 		    }
 		}

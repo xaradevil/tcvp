@@ -207,7 +207,7 @@ track_open(char *url, char *mode)
 {
     stream_t s;
     char *trk;
-    url_t *u;
+    url_t *u, *vu;
     cd_data_t *cdt;
     int track;
 
@@ -278,7 +278,7 @@ track_open(char *url, char *mode)
     memset(&s, 0, sizeof(s));
     s.stream_type = STREAM_TYPE_AUDIO;
     s.audio.codec = "audio/pcm-s16le";
-    s.audio.bit_rate = 2 * 2 * 44100;
+    s.audio.bit_rate = 16 * 2 * 44100;
     s.audio.sample_rate = 44100;
     s.audio.channels = 2;
     s.audio.samples = cdt->data_length / 4;
@@ -290,10 +290,12 @@ track_open(char *url, char *mode)
     u->private = cdt;
     u->size = cdt->data_length;
 
-    if(tcvp_input_cdda_conf_cddb)
-	cdda_freedb(u, track);
+    vu = url_vheader_new(u, cdt->header, cdt->header_length);
 
-    return url_vheader_new(u, cdt->header, cdt->header_length);
+    if(tcvp_input_cdda_conf_cddb)
+	cdda_freedb(vu, cdt, track);
+
+    return vu;
 }
 
 static url_t *
@@ -306,10 +308,6 @@ list_open(char *url, char *mode)
     int i;
 
     u = tcallocz(sizeof(*u));
-    u->read = cd_read;
-    u->write = NULL;
-    u->seek = cd_seek;
-    u->tell = cd_tell;
     u->close = cd_close;
 
     cdt = calloc(sizeof(cd_data_t), 1);
