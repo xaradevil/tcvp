@@ -283,7 +283,7 @@ static tcvp_pipe_t *
 new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
 {
     tcvp_pipe_t *pipe = NULL, *pp = NULL, *pn = NULL;
-    conf_section *f;
+    conf_section *f, *mcf;
     void *cs = NULL;
 
     while((f = conf_nextsection(p, "filter", &cs))){
@@ -302,15 +302,21 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
 	    if(!(fn = tc2_get_symbol(type, "new")))
 		break;
 
-	    if(!(pn = fn(pp? &pp->format: s, tp->conf, &tp->timer)))
+	    mcf = conf_merge(NULL, f);
+	    conf_merge(mcf, tp->conf);
+
+	    if(!(pn = fn(pp? &pp->format: s, mcf, &tp->timer)))
 		break;
 
 	    if(id)
 		hash_replace(tp->filters, id, pn);
+	    tcfree(mcf);
 	}
 
-	if(id)
+	if(id){
 	    tcref(pn);
+	    free(id);
+	}
 
 	if(!pipe)
 	    pipe = pn;
@@ -318,6 +324,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
 	if(pp)
 	    pp->next = pn;
 	pp = pn;
+	free(type);
     }
 
     if(!pn){
@@ -349,7 +356,7 @@ t_open(player_t *pl, char *name)
     tcvp_load_event_t *te;
     int ac = -1, vc = -1;
     int start;
-    char *profile = tcvp_conf_default_profile, prname[256];
+    char *profile = strdup(tcvp_conf_default_profile), prname[256];
     conf_section *prsec;
 
     if(!(stream = stream_open(name, tp->conf))){
@@ -385,6 +392,7 @@ t_open(player_t *pl, char *name)
     }
 
     tp->filters = hash_new(10, 0);
+    free(profile);
 
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
