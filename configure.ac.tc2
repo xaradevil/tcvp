@@ -10,9 +10,11 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile
 		 src/demuxer/Makefile
 		 src/demuxer/avformat/Makefile
+		 src/demuxer/ogg/Makefile
 		 src/demuxer/stream/Makefile
 		 src/codec/Makefile
 		 src/codec/avcodec/Makefile
+		 src/codec/vorbis/Makefile
 		 src/codec/pcm/Makefile
 		 src/output/Makefile
 		 src/output/alsa/Makefile
