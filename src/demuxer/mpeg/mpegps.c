@@ -36,20 +36,20 @@ mpegpes_packet(url_t *u, int pedantic)
 	uint32_t stream_id;
 	int scode = 0, pklen, zc = 0, i = pedantic? 3: 0x10000;
 
-	while(i--){
+	do {
 	    scode = url_getc(u);
 	    if(scode == 0){
 		zc++;
-	    } else if(zc == 2 && scode == 1){
+	    } else if(zc >= 2 && scode == 1){
 		break;
 	    } else if(scode < 0){
 		return NULL;
 	    } else {
 		zc = 0;
 	    }
-	}
+	} while(!scode || i--);
 
-	if(zc != 2 || scode != 1){
+	if(zc < 2 || scode != 1){
 	    return NULL;
 	}
 
