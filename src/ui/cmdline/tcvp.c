@@ -32,6 +32,7 @@ static eventq_t qr, qs;
 static char *sel_ui;
 static playlist_t *pll;
 static int shuffle;
+static char *skin;
 
 static int TCVP_STATE;
 static int TCVP_LOAD;
@@ -62,6 +63,7 @@ show_help(void)
 	   "   -@ file --playlist=file       Load playlist from file\n"
 	   "   -f      --fullscreen          Fill entire screen\n"
 	   "           --aspect=a[/b]        Force video aspect ratio\n"
+	   "           --skin=file           Select skin\n"
 	);
 }
 
@@ -183,8 +185,13 @@ tcl_init(char *p)
 
     if(sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
+	char *op = alloca(strlen(qname) + 10 + (skin? (strlen(skin) + 10): 0));
+	char *p = op;
 	sprintf(ui, "TCVP/ui/%s", sel_ui);
-	tc2_request(TC2_LOAD_MODULE, 1, ui, qname);
+	p += sprintf(p, "qname '%s';", qname);
+	if(skin)
+	    sprintf(p, "skin '%s';", skin);
+	tc2_request(TC2_LOAD_MODULE, 1, ui, op);
 	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
 	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
     } else if(nfiles) {
@@ -250,6 +257,7 @@ tcl_stop(void)
 #define OPT_TC2_VERBOSE 129
 #define OPT_TRACE_MALLOC 130
 #define OPT_ASPECT 131
+#define OPT_SKIN 132
 
 static int
 parse_options(int argc, char **argv)
@@ -272,6 +280,7 @@ parse_options(int argc, char **argv)
 	{"aspect", required_argument, 0, OPT_ASPECT},
 	{"output", required_argument, 0, 'o'},
 	{"profile", required_argument, 0, 'P'},
+	{"skin", required_argument, 0, OPT_SKIN},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
@@ -359,6 +368,10 @@ parse_options(int argc, char **argv)
 
 	case 'P':
 	    tcconf_setvalue(cf, "profile", "%s", optarg);
+	    break;
+
+	case OPT_SKIN:
+	    skin = optarg;
 	    break;
 
 	case OPT_TC2_DEBUG:
