@@ -45,6 +45,9 @@ t_start(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
 
+    if(tp->demux)
+	tp->demux->start(tp->demux);
+
     if(tp->vend && tp->vend->start)
 	tp->vend->start(tp->vend);
 
@@ -66,6 +69,9 @@ static int
 t_stop(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
+
+    if(tp->demux)
+	tp->demux->stop(tp->demux);
 
     if(tp->timer)
 	tp->timer->stop(tp->timer);
@@ -245,7 +251,6 @@ t_seek(player_t *pl, int64_t time, int how)
     if(tp->stream && tp->stream->seek){
 	int s = tp->state;
 	if(s == TCVP_STATE_PLAYING){
-	    tp->demux->stop(tp->demux);
 	    t_stop(pl);
 	}
 
@@ -260,11 +265,13 @@ t_seek(player_t *pl, int64_t time, int how)
 	}
 	ntime = tp->stream->seek(tp->stream, ntime);
 	if(ntime != -1LL){
+	    pthread_mutex_lock(&tp->tmx);
 	    tp->timer->reset(tp->timer, ntime);
+	    tp->timer->interrupt(tp->timer);
+	    pthread_mutex_unlock(&tp->tmx);
 	    tp->demux->flush(tp->demux, 1);
 	}
 	if(s == TCVP_STATE_PLAYING){
-	    tp->demux->start(tp->demux);
 	    t_start(pl);
 	}
     }
