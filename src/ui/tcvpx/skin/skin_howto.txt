@@ -111,7 +111,7 @@ time {
 
 seek_bar
 
-A bar for showing and setting the current stream position
+A bar used for showing and setting the current stream position
 
 position	  The position of the seek bar, relative to the upper
 		  left corner of the window.
@@ -133,6 +133,28 @@ seek_bar {
 	indicator_image "seekindicator.png"
 	start_position 3 5
 	end_position 72 5
+}
+
+---
+
+state
+
+A indicator showning the current state.
+
+position	  The position of the seek bar, relative to the upper
+		  left corner of the window.
+image		  The state and corresponding image.
+
+Current possible states are:
+  stop
+  play
+  pause
+
+example:
+state {
+      position 10 10
+      image "play" "playing.png"
+      image "stop" "stopped.png"
 }
 
 ---
