@@ -100,7 +100,11 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     avf_write_t *avf = p->private;
     AVStream *as;
+    AVCodec *avc;
+    char *cname;
     int ai;
+
+    tcfree(pk);
 
     if(avf->astreams <= s->common.index){
 	int ns = s->common.index + 1;
@@ -110,12 +114,21 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	avf->astreams = ns;
     }
 
+    cname = avf_codec_avname(s->common.codec);
+    avc = first_avcodec;
+    while(avc && strcmp(cname, avc->name))
+	avc = avc->next;
+    free(cname);
+
+    if(!avc)
+	return PROBE_FAIL;
+
     av_new_stream(&avf->fc, s->common.index);
     ai = avf->nstreams++;
     avf->streams[s->common.index].avidx = ai;
     avf->streams[s->common.index].used = 1;
     as = avf->fc.streams[ai];
-    as->codec.codec_id = avf_codec_id(s->common.codec);
+    as->codec.codec_id = avc->id;
     as->codec.coded_frame = avcodec_alloc_frame();
     as->codec.bit_rate = s->common.bit_rate;
     if(s->stream_type == STREAM_TYPE_VIDEO){
@@ -130,7 +143,6 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	as->codec.channels = s->audio.channels;
     }
 
-    tcfree(pk);
     return PROBE_OK;
 }
 

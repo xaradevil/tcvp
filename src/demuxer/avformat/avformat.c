@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -38,70 +38,69 @@ avf_init(char *p)
     return 0;
 }
 
-static char *codec_names[] = {
-    [CODEC_ID_AAC] = "audio/aac",
-    [CODEC_ID_AC3] = "audio/ac3",
-    [CODEC_ID_ADPCM_IMA_QT] = "audio/adpcm-ima-qt",
-    [CODEC_ID_ADPCM_IMA_WAV] = "audio/adpcm-ima-wav",
-    [CODEC_ID_ADPCM_MS] = "audio/adpcm-ms",
-    [CODEC_ID_CINEPAK] = "video/cinepak",
-    [CODEC_ID_CYUV] = "video/cyuv",
-    [CODEC_ID_DVAUDIO] = "audio/dv",
-    [CODEC_ID_DVVIDEO] = "video/dv",
-    [CODEC_ID_H263I] = "video/h263i",
-    [CODEC_ID_H263P] = "video/h263p",
-    [CODEC_ID_H263] = "video/h263",
-    [CODEC_ID_H264] = "video/h264",
-    [CODEC_ID_HUFFYUV] = "video/huffyuv",
-    [CODEC_ID_INDEO3] = "video/indeo3",
-    [CODEC_ID_MACE3] = "audio/mace3",
-    [CODEC_ID_MACE6] = "audio/mace6",
-    [CODEC_ID_MJPEGB] = "video/mjpegb",
-    [CODEC_ID_MJPEG] = "video/mjpeg",
-    [CODEC_ID_MP2] = "audio/mp2",
-    [CODEC_ID_MP3] = "audio/mp3",
-    [CODEC_ID_MPEG1VIDEO] = "video/mpeg",
-    [CODEC_ID_MPEG2VIDEO] = "video/mpeg2",
-    [CODEC_ID_MPEG4AAC] = "audio/aac",
-    [CODEC_ID_MPEG4] = "video/mpeg4",
-    [CODEC_ID_MSMPEG4V1] = "video/msmpeg4v1",
-    [CODEC_ID_MSMPEG4V2] = "video/msmpeg4v2",
-    [CODEC_ID_MSMPEG4V3] = "video/msmpeg4v3",
-    [CODEC_ID_PCM_ALAW] = "audio/pcm-alaw",
-    [CODEC_ID_PCM_MULAW] = "audio/pcm-ulaw",
-    [CODEC_ID_PCM_S16BE] = "audio/pcm-s16be",
-    [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
-    [CODEC_ID_PCM_S8] = "audio/pcm-s8",
-    [CODEC_ID_PCM_U16BE] = "audio/pcm-u16be",
-    [CODEC_ID_PCM_U16LE] = "audio/pcm-u16le",
-    [CODEC_ID_PCM_U8] = "audio/pcm-u8",
-    [CODEC_ID_RAWVIDEO] = "video/rawvideo",
-    [CODEC_ID_RV10] = "video/rv10",
-    [CODEC_ID_SVQ1] = "video/svq1",
-    [CODEC_ID_SVQ3] = "video/svq3",
-    [CODEC_ID_THEORA] = "video/theora",
-    [CODEC_ID_TRUEMOTION1] = "video/truemotion1",
-    [CODEC_ID_VORBIS] = "audio/vorbis",
-    [CODEC_ID_VP3] = "video/vp3",
-    [CODEC_ID_WMAV1] = "audio/wmav1",
-    [CODEC_ID_WMAV2] = "audio/wmav2",
-    [CODEC_ID_WMV1] = "video/wmv1",
-    [CODEC_ID_WMV2] = "video/wmv2",
+static char *codec_names[][2] = {
+    { "video/mpeg", "mpeg1video" },
+    { "video/mpeg2", "mpeg2video" },
+    { "video/dv", "dvvideo" },
+    { "video/msmpeg4v3", "msmpeg4" },
+    { "audio/mpeg", "mp3" },
+    { }
 };
 
-extern enum CodecID
-avf_codec_id(char *codec)
+extern char *
+avf_codec_avname(const char *codec)
 {
+    char *cn;
     int i;
 
-    for(i = 0; i < sizeof(codec_names)/sizeof(codec_names[0]); i++){
-	if(codec_names[i] && !strcmp(codec, codec_names[i])){
-	    return i;
+    for(i = 0; codec_names[i][0]; i++){
+	if(!strcmp(codec, codec_names[i][0])){
+	    return strdup(codec_names[i][1]);
 	}
     }
 
-    return 0;
+    cn = strchr(codec, '/');
+    if(!cn)
+	return NULL;
+
+    cn = strdup(cn + 1);
+
+    for(i = 0; cn[i]; i++)
+	if(cn[i] == '-')
+	    cn[i] = '_';
+
+    return cn;
 }
+
+static char *
+avf_codec_name(int codec)
+{
+    AVCodec *avc;
+    char *cn;
+    int i;
+
+    avc = avcodec_find_decoder(codec);
+
+    for(i = 0; codec_names[i][0]; i++){
+	if(!strcmp(avc->name, codec_names[i][1])){
+	    return strdup(codec_names[i][0]);
+	}
+    }
+
+    cn = malloc(6 + strlen(avc->name) + 1);
+    if(!cn)
+	return NULL;
+
+    sprintf(cn, "%s/%s", avc->type == CODEC_TYPE_AUDIO? "audio": "video",
+	    avc->name);
+
+    for(i = 6; cn[i]; i++)
+	if(cn[i] == '_')
+	    cn[i] = '-';
+
+    return cn;
+}
+
 
 typedef struct {
     AVFormatContext *afc;
@@ -228,54 +227,58 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     ms->n_streams = afc->nb_streams;
     ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
     for(i = 0; i < ms->n_streams; i++){
+	AVStream *avs = afc->streams[i];
+	stream_t *st = ms->streams + i;
+
+	if(avs->codec.codec_id == CODEC_ID_NONE)
+	    continue;
+
 	switch(afc->streams[i]->codec.codec_type){
 	case CODEC_TYPE_VIDEO:
-	    ms->streams[i].stream_type = STREAM_TYPE_VIDEO;
-	    ms->streams[i].video.frame_rate.num =
-		afc->streams[i]->codec.frame_rate;
-	    ms->streams[i].video.frame_rate.den =
-		afc->streams[i]->codec.frame_rate_base;
-	    ms->streams[i].video.width = afc->streams[i]->codec.width;
-	    ms->streams[i].video.height = afc->streams[i]->codec.height;
+	    st->stream_type = STREAM_TYPE_VIDEO;
+	    st->video.frame_rate.num = avs->codec.frame_rate;
+	    st->video.frame_rate.den = avs->codec.frame_rate_base;
+	    st->video.width = avs->codec.width;
+	    st->video.height = avs->codec.height;
 
 	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_tag %x\n",
-		      i, afc->streams[i]->codec.codec_tag);
+		      i, avs->codec.codec_tag);
 	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG,
 		      "[%i] stream_codec_tag %x\n",
-		      i, afc->streams[i]->codec.stream_codec_tag);
+		      i, avs->codec.stream_codec_tag);
 	    break;
 
 	case CODEC_TYPE_AUDIO:
-	    ms->streams[i].stream_type = STREAM_TYPE_AUDIO;
-	    ms->streams[i].audio.sample_rate =
-		afc->streams[i]->codec.sample_rate;
-	    ms->streams[i].audio.channels = afc->streams[i]->codec.channels;
-	    ms->streams[i].audio.bit_rate = afc->streams[i]->codec.bit_rate;
+	    st->stream_type = STREAM_TYPE_AUDIO;
+	    st->audio.sample_rate =
+		avs->codec.sample_rate;
+	    st->audio.channels = avs->codec.channels;
+	    st->audio.bit_rate = avs->codec.bit_rate;
 	    break;
 
 	default:
-	    ms->streams[i].stream_type = 0;
+	    st->stream_type = 0;
+	    continue;
 	    break;
 	}
 
-	ms->streams[i].common.codec =
-	    codec_names[afc->streams[i]->codec.codec_id];
-	if(!ms->streams[i].common.codec)
+	st->common.codec = avf_codec_name(avs->codec.codec_id);
+
+	if(!st->common.codec)
 	    tc2_print("AVFORMAT", TC2_PRINT_WARNING,
 		      "[%i] unknown codec id %i\n", i,
-		      afc->streams[i]->codec.codec_id);
+		      avs->codec.codec_id);
 	else
 	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_id %x -> %s\n",
-		      i, afc->streams[i]->codec.codec_id,
-		      ms->streams[i].common.codec);
+		      i, avs->codec.codec_id,
+		      st->common.codec);
 
-	ms->streams[i].common.codec_data = afc->streams[i]->codec.extradata;
-	ms->streams[i].common.codec_data_size =
-	    afc->streams[i]->codec.extradata_size;
+	st->common.codec_data = avs->codec.extradata;
+	st->common.codec_data_size = avs->codec.extradata_size;
 	tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_data_size %i\n",
-		  i, ms->streams[i].common.codec_data_size);
+		  i, st->common.codec_data_size);
 
-	ms->streams[i].common.index = i;
+	st->common.index = i;
     }
 
     ms->time = 27000000LL * afc->duration / AV_TIME_BASE;

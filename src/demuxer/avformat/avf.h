@@ -25,6 +25,6 @@
 #ifndef _AVF_H
 #define _AVF_H
 
-extern enum CodecID avf_codec_id(char *codec);
+extern char *avf_codec_avname(const char *codec);
 
 #endif
