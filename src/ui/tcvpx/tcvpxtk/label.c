@@ -137,8 +137,8 @@ change_label(xtk_widget_t *xtxt, char *text)
 		       txt->s_width, txt->height);
 
 	XftDrawString8(txt->xftdraw, &txt->xftcolor,
-		       txt->xftfont, txt->xoff + xoff,
-		       txt->yoff, txt->text,
+		       txt->xftfont, txt->xoff + xoff + xgi.x,
+		       txt->yoff + xgi.y, txt->text,
 		       strlen(txt->text));
 
 	XSync(xd, False);
