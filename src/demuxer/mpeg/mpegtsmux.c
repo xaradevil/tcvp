@@ -609,7 +609,8 @@ tmx_free(void *p)
     free(tsm->null);
 
     for(i = 0; i < tsm->astreams; i++)
-	tclist_destroy(tsm->streams[i].packets, tcfree);
+	if(tsm->streams[i].packets)
+	    tclist_destroy(tsm->streams[i].packets, tcfree);
 
     free(tsm->streams);
     tcfree(tsm->timer);
