@@ -203,7 +203,7 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     if(ac->have_params){
 	p->format = *s;
-	p->format.audio.codec = "audio/pcm-s16" TC2_ENDIAN;
+	p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
 	p->format.audio.sample_rate = ac->ctx->sample_rate;
 	p->format.audio.channels = ac->ctx->channels;
 	ret = p->next->probe(p->next, NULL, &p->format);

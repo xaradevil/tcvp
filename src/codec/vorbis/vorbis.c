@@ -111,7 +111,7 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    ret = PROBE_AGAIN;
 	} else {
 	    p->format = *s;
-	    p->format.audio.codec = "audio/pcm-s16" TC2_ENDIAN;
+	    p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
 	    p->format.audio.sample_rate = vc->vi.rate;
 	    p->format.audio.channels = vc->vi.channels;
 	    p->format.audio.bit_rate = vc->vi.rate * vc->vi.channels * 16;

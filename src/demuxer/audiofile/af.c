@@ -16,13 +16,9 @@
 
 char *formats[] = {
     "audio/pcm-u8",
-    "audio/pcm-u8",
     "audio/pcm-s8",
-    "audio/pcm-s8",
-    "audio/pcm-u16le",
-    "audio/pcm-u16be",
-    "audio/pcm-s16le",
-    "audio/pcm-s16be"
+    "audio/pcm-u16" TCVP_ENDIAN,
+    "audio/pcm-s16" TCVP_ENDIAN,
 };
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -158,8 +154,8 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     afGetSampleFormat(aff, AF_DEFAULT_TRACK, &sampleFormat, &sampleWidth);
     byteOrder = afGetByteOrder(aff, AF_DEFAULT_TRACK);
 /*     fn += (byteOrder == AF_BYTEORDER_BIGENDIAN)?1:0; */
-    fn += (sampleFormat == AF_SAMPFMT_TWOSCOMP)?2:0;
-    fn += (sampleWidth == 16)?4:0;
+    fn += (sampleFormat == AF_SAMPFMT_TWOSCOMP);
+    fn += (sampleWidth == 16) << 1;
 
     ms = tcallocd(sizeof(*ms), NULL, af_free);
     memset(ms, 0, sizeof(*ms));

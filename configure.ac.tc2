@@ -6,8 +6,8 @@ CFLAGS=${CFLAGS--O2 -Wall -g}
 
 TC2_INIT
 
-AC_C_BIGENDIAN([AC_DEFINE([TC2_ENDIAN], ["be"])],
-	       [AC_DEFINE([TC2_ENDIAN], ["le"])])
+AC_C_BIGENDIAN([AC_DEFINE([TCVP_ENDIAN], ["be"])],
+	       [AC_DEFINE([TCVP_ENDIAN], ["le"])])
 
 AC_SUBST([CPPFLAGS], [-I\$\(top_srcdir\)/include])
 AC_CONFIG_FILES([Makefile

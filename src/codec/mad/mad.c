@@ -320,7 +320,7 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     p->format = *s;
-    p->format.audio.codec = "audio/pcm-s16" TC2_ENDIAN;
+    p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->format.audio.sample_rate = mf.sample_rate;
     p->format.audio.channels = mf.channels;
     p->format.audio.bit_rate = mf.channels * mf.sample_rate * 16;
