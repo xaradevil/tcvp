@@ -470,6 +470,19 @@ tcl_stop(void)
     return 0;
 }
 
+static void
+set_number_or_string(tcconf_section_t *cf, char *cn, char *v)
+{
+    char *t;
+    long n;
+
+    n = strtol(v, &t, 0);
+    if(*t)
+	tcconf_setvalue(cf, cn, "%i%s", -1, v);
+    else
+	tcconf_setvalue(cf, cn, "%i", n);
+}
+
 /* Identifiers for long-only options */
 #define OPT_TC2_PRINT 128
 #define OPT_TRACE_MALLOC 130
@@ -550,10 +563,7 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'a':
-	    s = strtol(optarg, &ot, 0);
-	    if(*ot)
-		s = -1;
-	    tcconf_setvalue(cf, "audio/stream", "%i", s);
+	    set_number_or_string(cf, "audio/stream", optarg);
 	    break;
 
 	case 'V':
@@ -568,10 +578,7 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'S':
-	    s = strtol(optarg, &ot, 0);
-	    if(*ot)
-		s = -1;
-	    tcconf_setvalue(cf, "subtitle/stream", "%i", s);
+	    set_number_or_string(cf, "subtitle/stream", optarg);
 	    break;
 
 	case 'C':
