@@ -31,17 +31,21 @@ static int tcvpstate=-1;
 int s_time;
 int s_length;
 static int show_time = TCTIME_ELAPSED;
+static muxed_stream_t *st = NULL;
+
 
 extern int
 tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 {
-    muxed_stream_t *st = NULL;
-
     if(te->type == TCVP_STATE) {
 	tcvpstate = ((tcvp_state_event_t *)te)->state;
 
 	switch(((tcvp_state_event_t *)te)->state) {
 	case TCVP_STATE_PL_END:
+	    if(st)
+		tcfree(st);
+	    st = NULL;
+
 	    tcvp_stop(NULL, NULL);
 	    break;
 
@@ -71,6 +75,7 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	if(te->type == TCVP_LOAD) {
 	    char *title;
 
+	    if(st) tcfree(st);
 	    st = ((tcvp_load_event_t *)te)->stream;
 	    tcref(st);
 
@@ -126,9 +131,6 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	    }
 	    if(st->time)
 		s_length = st->time / 27000000;
-
-	    tcfree(st);
-	    st = NULL;
 
 	    update_time();
 	}
