@@ -99,6 +99,7 @@ avf_codec_id(char *codec)
 
 typedef struct {
     AVFormatContext *afc;
+    url_t *file;
 } avf_stream_t;
 
 
@@ -158,6 +159,8 @@ avf_free(void *p)
     avf_stream_t *as = ms->private;
 
     av_close_input_file(as->afc);
+    if(as->file)
+	as->file->close(as->file);
 
     free(ms->streams);
     free(ms->used_streams);
@@ -173,8 +176,6 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     muxed_stream_t *ms;
     avf_stream_t *as;
     int i;
-
-    u->close(u);
 
     if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0){
 	fprintf(stderr, "Error opening %s\n", name);
@@ -229,6 +230,7 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     as = calloc(1, sizeof(*as));
     as->afc = afc;
+    as->file = u;
 
     ms->private = as;
 
