@@ -106,10 +106,10 @@ x11_event(void *p)
 		te = tcvp_alloc_event(TCVP_PAUSE);
 		break;
 	    case XK_Up:
-		te = tcvp_alloc_event(TCVP_SEEK, 60000000, TCVP_SEEK_REL);
+		te = tcvp_alloc_event(TCVP_SEEK, 60000000LL, TCVP_SEEK_REL);
 		break;
 	    case XK_Down:
-		te = tcvp_alloc_event(TCVP_SEEK, -60000000, TCVP_SEEK_REL);
+		te = tcvp_alloc_event(TCVP_SEEK, -60000000LL, TCVP_SEEK_REL);
 		break;
 	    case XK_q:
 		te = tcvp_alloc_event(TCVP_CLOSE);
