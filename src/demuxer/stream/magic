@@ -20,3 +20,4 @@
 4	string			moov		video/quicktime
 4	string			mdat		video/quicktime
 0	string			YUV4MPEG2	video/x-yuv4mpeg
+0	string			MP+		audio/x-mpc
