@@ -82,6 +82,8 @@ typedef struct mpegts_mux {
     int64_t audio_offset;
     int64_t video_offset;
     double padding;
+    int audio_rate;
+    int video_rate;
 } mpegts_mux_t;
 
 static void
@@ -554,9 +556,9 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     rate = s->common.bit_rate;
     if(!rate){
 	if(s->stream_type == STREAM_TYPE_VIDEO)
-	    rate = tcvp_demux_mpeg_conf_default_video_rate;
+	    rate = tsm->video_rate;
 	else
-	    rate = tcvp_demux_mpeg_conf_default_audio_rate;
+	    rate = tsm->audio_rate;
 
 	tc2_print("MPEGTS", TC2_PRINT_WARNING,
 		  "bitrate not specified for stream %i, using default %i\n",
@@ -638,6 +640,8 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->pts_interval = tcvp_demux_mpeg_conf_pts_interval;
     tsm->rate_lookahead = tcvp_demux_mpeg_conf_ts_rate_lookahead;
     tsm->padding = 1.05;
+    tsm->audio_rate = tcvp_demux_mpeg_conf_default_audio_rate;
+    tsm->video_rate = tcvp_demux_mpeg_conf_default_video_rate;
 
     tcconf_getvalue(cs, "realtime", "%i", &tsm->realtime);
     tcconf_getvalue(cs, "delay", "%li", &tsm->delay);
@@ -649,6 +653,8 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "audio_offset", "%li", &tsm->audio_offset);
     tcconf_getvalue(cs, "video_offset", "%li", &tsm->video_offset);
     tcconf_getvalue(cs, "padding", "%lf", &tsm->padding);
+    tcconf_getvalue(cs, "default_audio_rate", "%i", &tsm->audio_rate);
+    tcconf_getvalue(cs, "default_video_rate", "%i", &tsm->video_rate);
 
     tsm->bitrate = 8 * TS_PACKET_SIZE * 1000 / tsm->pcr_int +
 	2 * 8 * TS_PACKET_SIZE * 1000 / tsm->psi_interval;
