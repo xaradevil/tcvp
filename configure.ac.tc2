@@ -29,6 +29,7 @@ AC_CONFIG_FILES([Makefile
 		 src/codec/vorbis/Makefile
 		 src/codec/pcm/Makefile
 		 src/filters/Makefile
+		 src/filters/crop/Makefile
 		 src/filters/deinterlace/Makefile
 		 src/input/Makefile
 		 src/input/cdda/Makefile

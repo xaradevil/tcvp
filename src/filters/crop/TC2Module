@@ -1,0 +1,6 @@
+module		crop
+name		"TCVP/filter/crop"
+version		0.1.0
+tc2version	0.4.0
+sources		crop.c
+implement	"filter/crop"	"new"	crop_new
