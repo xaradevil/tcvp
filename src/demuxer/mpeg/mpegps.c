@@ -459,8 +459,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	}
     }
 
-    if(!(u->flags & URL_FLAG_STREAMED))
-	u->seek(u, u->size / 1024, SEEK_SET);
+    if(!(u->flags & URL_FLAG_STREAMED) && u->size > 1048576)
+	u->seek(u, -1048576, SEEK_END);
 
     do {
 	if(!(pk = mpegpes_packet(u, 0)))
