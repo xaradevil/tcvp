@@ -377,6 +377,7 @@ alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
     tp->probe = alsa_probe;
     tp->private = ao;
 
+    snd_config_update_free_global();
     free(device);
     return tp;
 }
