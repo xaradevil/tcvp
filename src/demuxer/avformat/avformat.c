@@ -195,7 +195,7 @@ avf_open(char *name, conf_section *cs)
 	return NULL;
     }
 
-    ms = malloc(sizeof(*ms));
+    ms = calloc(1, sizeof(*ms));
     ms->n_streams = afc->nb_streams;
     ms->streams = malloc(ms->n_streams * sizeof(stream_t));
     for(i = 0; i < ms->n_streams; i++){
