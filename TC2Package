@@ -23,6 +23,7 @@ module src/demuxer/matroska
 module src/demuxer/mp3
 module src/demuxer/mpeg
 module src/demuxer/mux
+module src/demuxer/ogg
 module src/demuxer/pcm
 module src/demuxer/stream
 module src/demuxer/yuv4mpeg

@@ -1,0 +1,10 @@
+module		ogg
+name		"TCVP/format/ogg"
+version		0.1.0
+tc2version	0.6.0
+sources		oggread.c ogg.h vorbis.c flac.c ogm.c
+implement	"audio/x-ogg"	"open"	ogg_open
+import		"URL" "getc"
+import		"audio/x-flac" "streaminfo"
+import		"video/x-msvideo" "vcodec"
+import		"video/x-msvideo" "acodec"
