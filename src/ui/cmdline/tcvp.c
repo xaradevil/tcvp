@@ -37,6 +37,21 @@ static conf_section *cf;
 static int validate;
 static player_t *pl;
 static eventq_t qr;
+static char *qname;
+
+static void
+show_help(void)
+{
+    /* FIXME: better helpscreen */
+    printf("TCVP help\n"
+	   "   -h      --help              This helpscreen\n"
+	   "   -A dev  --audio-device=dev  Select audio device\n"
+	   "   -V dev  --video-device=dev  Select video device\n"
+	   "   -a #    --audio-stream=#    Select audio stream\n"
+	   "   -v #    --video-stream=#    Select video stream\n"
+	   "   -C      --validate          Check file integrity\n"
+	   "   -s t    --seek=t            Seek t seconds at start\n");
+}
 
 static void
 sigint(int s)
@@ -75,10 +90,12 @@ tcl_event(void *p)
 static void *
 tcl_play(void *p)
 {
-    int i;
     eventq_t qs = eventq_new(NULL);
+    char qn[strlen(qname)+10];
+    int i;
 
-    eventq_attach(qs, "TCVP/control", EVENTQ_SEND);
+    sprintf(qn, "%s/control", qname);
+    eventq_attach(qs, qn, EVENTQ_SEND);
     sem_init(&psm, 0, 0);
 
     for(i = 0; i < nfiles; i++){
@@ -113,15 +130,21 @@ extern int
 tcl_init(char *p)
 {
     pl = tcvp_new(cf);
+    conf_getvalue(cf, "qname", "%s", &qname);
     if(nfiles){
+	char qn[strlen(qname)+8];
 	qr = eventq_new(tcref);
-	eventq_attach(qr, "TCVP/status", EVENTQ_RECV);
+	sprintf(qn, "%s/status", qname);
+	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
 	pthread_create(&play_thr, NULL, tcl_play, NULL);
     } else if(tcvp_ui_cmdline_conf_ui){
 	char *ui = alloca(strlen(tcvp_ui_cmdline_conf_ui) + 9);
 	sprintf(ui, "TCVP/ui/%s", tcvp_ui_cmdline_conf_ui);
-	tc2_request(TC2_LOAD_MODULE, 1, ui, NULL);
+	tc2_request(TC2_LOAD_MODULE, 1, ui, qname);
+    } else {
+	show_help();
+	tc2_request(TC2_UNLOAD_MODULE, 0, MODULE_INFO.name);
     }
 
     return 0;
@@ -143,20 +166,6 @@ tcl_stop(void)
     pl->free(pl);
 
     return 0;
-}
-
-static void
-show_help(void)
-{
-    /* FIXME: better helpscreen */
-    printf("TCVP help\n"
-	   "   -h      --help              This helpscreen\n"
-	   "   -A dev  --audio-device=dev  Select audio device\n"
-	   "   -V dev  --video-device=dev  Select video device\n"
-	   "   -a #    --audio-stream=#    Select audio stream\n"
-	   "   -v #    --video-stream=#    Select video stream\n"
-	   "   -C      --validate          Check file integrity\n"
-	   "   -s t    --seek=t            Seek t seconds at start\n");
 }
 
 /* Identifiers for long-only options */

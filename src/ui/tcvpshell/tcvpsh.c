@@ -23,6 +23,7 @@
 #include <tcvp_types.h>
 #include <tcvpsh_tc2.h>
 
+player_t *pl;
 static eventq_t qs;
 
 static int
@@ -65,8 +66,20 @@ static command *play_cmd, *pause_cmd, *stop_cmd;
 extern int
 tcvpsh_init(char *p)
 {
+    char *qname, *qn;
+
+    if(p){
+	qname = p;
+    } else {
+	conf_section *cs = conf_new(NULL);
+	pl = tcvp_new(cs);
+	conf_getvalue(cs, "qname", "%s", &qname);
+    }
+
     qs = eventq_new(NULL);
-    eventq_attach(qs, "TCVP/control", EVENTQ_SEND);
+    qn = alloca(strlen(qname) + 10);
+    sprintf(qn, "%s/control", qname);
+    eventq_attach(qs, qn, EVENTQ_SEND);
 
     play_cmd = malloc(sizeof(command));
     play_cmd->name = strdup("play");
@@ -92,9 +105,13 @@ extern int
 tcvpsh_shdn(void)
 {
     eventq_delete(qs);
+    if(pl)
+	pl->free(pl);
+
     shell_unregister_command(play_cmd);
     shell_unregister_command(pause_cmd);
     shell_unregister_command(stop_cmd);
     shell_unregister_prompt();
+
     return 0;
 }

@@ -510,11 +510,15 @@ q_seek(player_t *pl, uint64_t pts)
     return 0;
 }
 
+static u_int plc;
+
 extern player_t *
 t_new(conf_section *cs)
 {
     tcvp_player_t *tp;
     player_t *pl;
+    char qn[32];
+    char qname[16];
 
     tp = calloc(1, sizeof(*tp));
     pl = malloc(sizeof(*pl));
@@ -525,12 +529,17 @@ t_new(conf_section *cs)
     pl->free = t_free;
     pl->private = tp;
 
+    sprintf(qname, "TCVP-%u", plc++);
+    conf_setvalue(cs, "qname", "%s", qname);
+
     pthread_mutex_init(&tp->tmx, NULL);
     pthread_cond_init(&tp->tcd, NULL);
     tp->qs = eventq_new(NULL);
-    eventq_attach(tp->qs, "TCVP/status", EVENTQ_SEND);
+    sprintf(qn, "%s/status", qname);
+    eventq_attach(tp->qs, qn, EVENTQ_SEND);
     tp->qr = eventq_new(tcref);
-    eventq_attach(tp->qr, "TCVP/control", EVENTQ_RECV);
+    sprintf(qn, "%s/control", qname);
+    eventq_attach(tp->qr, qn, EVENTQ_RECV);
     pthread_create(&tp->th_event, NULL, t_event, pl);
     tp->conf = cs;
 

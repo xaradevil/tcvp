@@ -186,6 +186,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     Display *dpy;
     Window win;
     char *display = NULL;
+    char *qname, *qn;
 
     if(cs)
 	conf_getvalue(cs, "video/device", "%s", &display);
@@ -216,8 +217,11 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 			      InputOutput, CopyFromParent, 0, NULL);
     XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
 
+    conf_getvalue(cs, "qname", "%s", &qname);
+    qn = alloca(strlen(qname)+8);
+    sprintf(qn, "%s/status", qname);
     xwm->qs = eventq_new(NULL);
-    eventq_attach(xwm->qs, "TCVP/control", EVENTQ_SEND);
+    eventq_attach(xwm->qs, qn, EVENTQ_SEND);
 
     wm = malloc(sizeof(*wm));
     wm->close = x11_close;
