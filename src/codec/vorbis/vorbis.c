@@ -110,7 +110,7 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     if(op->packetno < 3) {
 	vorbis_synthesis_headerin(&vc->vi, &vc->vc, op);
-	if(op->packetno != 3) {	
+	if(op->packetno < 2) {	
 	    return PROBE_AGAIN;
 	} else {
 /* 	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels, */
