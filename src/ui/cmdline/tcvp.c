@@ -99,14 +99,17 @@ parse_options(int argc, char **argv)
 {
     struct option long_options[] = {
 	{"help", no_argument, 0, 'h'},
-	{"audio-device", required_argument, 0, 'd'},
+	{"audio-device", required_argument, 0, 'A'},
+	{"audio-stream", required_argument, 0, 'a'},
+	{"video-device", required_argument, 0, 'V'},
+	{"video-stream", required_argument, 0, 'v'},
 	{0, 0, 0, 0}
     };
 
     for(;;){
 	int c, option_index = 0;
      
-	c = getopt_long(argc, argv, "hd:", 
+	c = getopt_long(argc, argv, "hA:a:V:v:",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -117,11 +120,23 @@ parse_options(int argc, char **argv)
 	    /* FIXME: better helpscreen */
 	    printf("TCVP helpscreen\n"
 		   "   -h, --help          This helpscreen\n"
-		   "   -d, --audio-device  Select audio device\n");
+		   "   -A, --audio-device  Select audio device\n");
 	    break;
 
-	case 'd':
+	case 'A':
 	    conf_setvalue(cf, "audio/device", "%s", optarg);
+	    break;
+
+	case 'a':
+	    conf_setvalue(cf, "audio/stream", "%i", strtol(optarg, NULL, 0));
+	    break;
+
+	case 'V':
+	    conf_setvalue(cf, "video/device", "%s", optarg);
+	    break;
+
+	case 'v':
+	    conf_setvalue(cf, "video/stream", "%i", strtol(optarg, NULL, 0));
 	    break;
 	}
     }

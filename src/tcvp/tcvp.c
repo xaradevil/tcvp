@@ -194,28 +194,55 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     timer__t *timer = NULL;
     tcvp_player_t *tp;
     player_t *pl;
-    int ac, vc;
+    int ac = -1, vc = -1;
 
     if((stream = stream_open(name, cs)) == NULL)
 	return NULL;
 
     codecs = alloca(stream->n_streams * sizeof(*codecs));
 
+    if(cs){
+	if(conf_getvalue(cs, "video/stream", "%i", &vc) > 0){
+	    if(vc >= 0 && vc < stream->n_streams &&
+	       stream->streams[vc].stream_type == STREAM_TYPE_VIDEO){
+		vs = &stream->streams[vc];
+	    } else {
+		vc = -2;
+	    }
+	}
+	if(conf_getvalue(cs, "audio/stream", "%i", &ac) > 0){
+	    if(ac >= 0 && ac < stream->n_streams &&
+	       stream->streams[ac].stream_type == STREAM_TYPE_AUDIO){
+		as = &stream->streams[ac];
+	    } else {
+		ac = -2;
+	    }
+	}
+    }
+
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
-	if(stream->streams[i].stream_type == STREAM_TYPE_VIDEO && !vs){
+	if(stream->streams[i].stream_type == STREAM_TYPE_VIDEO &&
+	   (!vs || i == vc) && vc > -2){
 	    if((vcodec = codec_new(st, CODEC_MODE_DECODE))){
 		vs = st;
 		codecs[i] = vcodec;
 		stream->used_streams[i] = 1;
 		vc = i;
+	    } else if(vs){
+		printf("Warning: Stream %i not supported => no video\n", i);
+		vs = NULL;
 	    }
-	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO && !as){
+	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO &&
+		  (!as || i == ac) && ac > -2){
 	    if((acodec = codec_new(st, CODEC_MODE_DECODE))){
 		as = &stream->streams[i];
 		codecs[i] = acodec;
 		stream->used_streams[i] = 1;
 		ac = i;
+	    } else if(as){
+		printf("Warning: Stream %i not supported => no audio\n", i);
+		as = NULL;
 	    }
 	}
     }
