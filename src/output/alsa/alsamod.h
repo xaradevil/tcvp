@@ -31,7 +31,7 @@
 #define STOP  2
 #define PAUSE 3
 
-extern timer_driver_t *open_timer(snd_pcm_t *pcm);
+extern timer_driver_t *open_timer(int res, snd_pcm_t *pcm);
 
 #define PCM    0
 #define SYSTEM 1

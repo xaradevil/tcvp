@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <tcalloc.h>
+#include <sched.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API 1
 #include <alsa/asoundlib.h>
@@ -101,6 +102,7 @@ static int
 atm_stop(timer_driver_t *t)
 {
     alsa_timer_t *at = t->private;
+    sched_yield();
     if(at->class != SND_TIMER_CLASS_PCM)
 	snd_timer_stop(at->hwtimer);
     return 0;
@@ -115,14 +117,16 @@ atm_settimer(timer_driver_t *t, tcvp_timer_t *tt)
 }
 
 static alsa_timer_t *
-new_timer(int class, int sclass, int card, int dev, int subdev)
+new_timer(int res, int class, int sclass, int card, int dev, int subdev)
 {
     alsa_timer_t *atm;
     snd_timer_params_t *pm;
     snd_timer_info_t *inf;
     snd_timer_t *timer;
     char name[128];
-    int res, s;
+    int r, s, t;
+
+    res = 1000 * res / 27;
 
     snd_timer_params_alloca(&pm);
     snd_timer_info_alloca(&inf);
@@ -137,8 +141,9 @@ new_timer(int class, int sclass, int card, int dev, int subdev)
     }
 
     snd_timer_info(timer, inf);
-    res = snd_timer_info_get_resolution(inf);
-    snd_timer_params_set_ticks(pm, res? 2000000 / res: 1);
+    r = snd_timer_info_get_resolution(inf);
+    t = (r > 0 && r < res)? res / r: 1;
+    snd_timer_params_set_ticks(pm, t);
     snd_timer_params_set_auto_start(pm, 1);
     snd_timer_params(timer, pm);
 
@@ -153,7 +158,7 @@ new_timer(int class, int sclass, int card, int dev, int subdev)
 }
 
 extern timer_driver_t *
-open_timer(snd_pcm_t *pcm)
+open_timer(int res, snd_pcm_t *pcm)
 {
     snd_pcm_info_t *ifo;
     alsa_timer_t *at;
@@ -168,10 +173,10 @@ open_timer(snd_pcm_t *pcm)
 	dev = snd_pcm_info_get_device(ifo);
 	sdev = snd_pcm_info_get_subdevice(ifo);
 
-	at = new_timer(SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
+	at = new_timer(res, SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
 		       card, dev, sdev);
     } else {
-	at = new_timer(SND_TIMER_CLASS_GLOBAL,
+	at = new_timer(res, SND_TIMER_CLASS_GLOBAL,
 		       SND_TIMER_SCLASS_NONE,
 		       0, SND_TIMER_GLOBAL_SYSTEM, 0);
     }
@@ -195,5 +200,5 @@ open_timer(snd_pcm_t *pcm)
 extern timer_driver_t *
 alsa_timer_new(int res)
 {
-    return open_timer(NULL);
+    return open_timer(res, NULL);
 }

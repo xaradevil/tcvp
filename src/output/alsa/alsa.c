@@ -363,8 +363,8 @@ alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
     pthread_cond_init(&ao->cd, NULL);
     ao->state = PAUSE;
     ao->timer = timer;
-    ao->tmdrivers[PCM] = open_timer(pcm);
-    ao->tmdrivers[SYSTEM] = open_timer(NULL);
+    ao->tmdrivers[PCM] = open_timer(270000, pcm);
+    ao->tmdrivers[SYSTEM] = open_timer(270000, NULL);
     timer->set_driver(timer, tcref(ao->tmdrivers[PCM]));
     ao->ptsq = calloc(ptsqsize, sizeof(*ao->ptsq));
 
