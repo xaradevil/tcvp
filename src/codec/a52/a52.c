@@ -230,15 +230,26 @@ a52_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     }
 
     if(ad->fpos > 0){
-	if(ad->fpos < 7){
-	    rs = 7 - ad->fpos;
-	    memcpy(ad->buf + ad->fpos, pdata, rs);
-	    ad->fpos += rs;
-	    pdata += rs;
-	    psize -= rs;
+	while(!ad->fsize && psize > 0){
+	    if(ad->fpos < 7){
+		rs = 7 - ad->fpos;
+		rs = min(rs, psize);
+		memcpy(ad->buf + ad->fpos, pdata, rs);
+		ad->fpos += rs;
+		pdata += rs;
+		psize -= rs;
+	    }
+	    if(ad->fpos > 6){
+		int fsize = a52_syncinfo(ad->buf, &ad->flags, &srate, &brate);
+		if(fsize > 0){
+		    ad->fsize = fsize;
+		    break;
+		}
+		memmove(ad->buf, ad->buf + 1, ad->fpos - 1);
+		ad->fpos--;
+	    }
 	}
-	if(!ad->fsize)
-	    ad->fsize = a52_syncinfo(ad->buf, &ad->flags, &srate, &brate);
+
 	rs = min(ad->fsize - ad->fpos, psize);
 	memcpy(ad->buf + ad->fpos, pdata, rs);
 	pdata += rs;
