@@ -297,12 +297,20 @@ tcvp_event(void *p)
 	    break;
 
 	case TCVP_LOAD:{
-	    char *title = strrchr(te->load.stream->file, '/')+1;
-	    char *ext = strrchr(te->load.stream->file, '.');
-	    if(title != NULL) *ext = 0;
-	    if(title == NULL) title = te->load.stream->file;
-	    
+	    muxed_stream_t *st = te->load.stream;
+	    char *title;
+	    if(st->title){
+		title = st->title;
+	    } else {
+		char *ext;
+		title = strrchr(st->file, '/');
+		title = strdup(title? title + 1: te->load.stream->file);
+		ext = strrchr(title, '.');
+		if(ext)
+		    *ext = 0;
+	    }
 	    change_label(skin->title, title);
+	    free(title);
 	    break;
 	}
 	case -1:
