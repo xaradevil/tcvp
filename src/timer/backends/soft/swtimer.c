@@ -98,7 +98,7 @@ timer_run(void *p)
     time.tv_nsec = stime.tv_usec * 1000;
 
     while(st->state != STOP){
-	time.tv_nsec += (st->res * 1000) / 27;
+	time.tv_nsec += 1000 * st->res / 27;
 	if(time.tv_nsec > 1000000000){
 	    time.tv_sec++;
 	    time.tv_nsec -= 1000000000;
@@ -127,7 +127,7 @@ st_new(tcconf_section_t *cf, int res)
     sw_timer_t *st;
 
     st = calloc(1, sizeof(*st));
-    st->res = res;
+    st->res = 27000 * res;
     pthread_mutex_init(&st->mx, NULL);
     st->state = PAUSE;
 
