@@ -371,6 +371,8 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 		    c++ < tcvp_demux_stream_conf_max_probe);
 	    if(p != PROBE_OK){
 		ms->used_streams[i] = 0;
+		freeq(vp, i);
+		list_destroy(vp->streams[i].pq, NULL);
 	    }
 	    if(li){
 		list_unlock(vp->streams[i].pq, li);
