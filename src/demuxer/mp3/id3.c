@@ -242,11 +242,11 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
     title = tcattr_get(ms, "title");
     album = tcattr_get(ms, "album");
 
-    if(!strlen(artist))
+    if(artist && !strlen(artist))
 	artist = NULL;
-    if(!strlen(title))
+    if(title && !strlen(title))
 	title = NULL;
-    if(!strlen(album))
+    if(album && !strlen(album))
 	album = NULL;
 
     tagsize = 10;
