@@ -31,6 +31,9 @@
 #include "tcvpctl.h"
 #include <tcvp_event.h>
 
+#define xpos tcvp_ui_tcvpx_conf_xposition
+#define ypos tcvp_ui_tcvpx_conf_yposition
+
 player_t *pl;
 eventq_t qs;
 eventq_t qr;
@@ -75,7 +78,7 @@ tcvpx_init(char *p)
     }
 
     skin->window = xtk_create_window("TCVP", skin->width, skin->height);
-    
+
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n",
 		tcvp_ui_tcvpx_conf_skin);
@@ -85,6 +88,25 @@ tcvpx_init(char *p)
     xtk_update_root(skin->window);
 
     xtk_show_window(skin->window);
+
+    if(xpos > -2 && ypos > -2) {
+	xtk_position_t pos;
+	xtk_size_t *ss = xtk_get_screen_size();
+
+	if(xpos < 0) {
+	    xpos = ss->w - skin->width;
+	}
+	if(ypos < 0) {
+	    ypos = ss->h - skin->height;
+	}
+
+	pos.x = xpos;
+	pos.y = ypos;
+
+	xtk_set_window_position(skin->window, &pos);
+
+	free(ss);
+    }
 
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
 	xtk_set_sticky(skin->window, 1);

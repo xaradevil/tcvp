@@ -48,3 +48,5 @@ import		"xtk"		"get_screen_size"
 option		skin%s
 option		always_on_top%d=0
 option		sticky%d=0
+option		xposition%d=-2
+option		yposition%d=-2

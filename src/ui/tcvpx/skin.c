@@ -557,6 +557,7 @@ tcvp_replace_ui(xtk_widget_t *w, void *p)
 	    }
 	    xtk_set_window_position(s->window, pos);
 	    free(pos);
+	    free(ss);
 	}
 	tcvp_close_ui(w, p);
     }
