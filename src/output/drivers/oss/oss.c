@@ -154,10 +154,12 @@ oss_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 	    return NULL;
     }
 
-    if((dsp = open(device, O_WRONLY /* | O_NONBLOCK */)) < 0){
+    if((dsp = open(device, O_WRONLY | O_NONBLOCK)) < 0){
 	perror(device);
 	return NULL;
     }
+
+    fcntl(dsp, F_SETFL, 0);
 
     if(strstr(as->codec, "pcm-s16le")){
 	ofmt = AFMT_S16_LE;
