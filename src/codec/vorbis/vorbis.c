@@ -113,8 +113,6 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	if(op->packetno < 2) {	
 	    return PROBE_AGAIN;
 	} else {
-/* 	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels, */
-/* 		    vc->vi.rate); */
 	    s->audio.sample_rate = vc->vi.rate;
 	    s->audio.channels = vc->vi.channels;
 	    vorbis_synthesis_init(&vc->vd, &vc->vi);
