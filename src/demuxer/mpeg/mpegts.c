@@ -137,7 +137,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
     int error;
 
     do {
-	int i = 1024;
+	int i = 1048576;
 	int sync = 0;
 	error = 0;
 
@@ -341,7 +341,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    tb->start = 1;
 	}
 
-	if(mp.adaptation_field.pcr_flag){
+	if((mp.adaptation & 2) && mp.adaptation_field.pcr_flag){
 	    if(s->start_time != -1LL){
 		uint64_t time =
 		    (mp.adaptation_field.pcr - s->start_time) / 27000;
@@ -511,7 +511,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     sp = ms->streams;
 
     while(n){
-	int pi_len, prg, ip;
+	int pi_len, prg, ip, pcrpid;
 
 	do {
 	    if(mpegts_read_packet(s, &mp) < 0)
@@ -528,14 +528,18 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    continue;
 	}
 	prg = htob_16(unaligned16(dp + 3));
+	pcrpid = htob_16(unaligned16(dp + 8)) & 0x1fff;
 	pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
 	dp += 12;
+
+	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", prg);
+	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", pcrpid);
 
 	for(i = 0; i < pi_len;){
 	    int tag = dp[0];
 	    int tl = dp[1];
 
-	    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "descriptor %i\n", tag);
+	    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    descriptor %i\n", tag);
 	    dp += tl + 2;
 	    i += tl + 2;
 	}
@@ -578,9 +582,8 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 	    i += esil;
 
-	    tc2_print("MPEGTS", TC2_PRINT_DEBUG,
-		      "program %i => PID %x, type %x\n",
-		      prg, epid, stype);
+	    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PID %x, type %x\n",
+		      epid, stype);
 	}
 
 	n--;
