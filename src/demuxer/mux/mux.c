@@ -123,10 +123,10 @@ mux_probe(tcvp_pipe_t *tp, packet_t *pk, stream_t *s)
 	mx->streams[pk->stream].rate = 27000000LL * 8 / s->common.bit_rate;
 
     ps = tp->next->probe(tp->next, pk, s);
-    if(ps == PROBE_OK)
+    if(ps == PROBE_OK){
 	mx->streams[pk->stream].used = 1;
-    else if(ps == PROBE_FAIL)
-	mx->nstreams--;
+	mx->nstreams++;
+    }
 
     return ps;
 }
@@ -169,11 +169,11 @@ mux_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     mux_t *mx;
 
     mx = calloc(1, sizeof(*mx));
-    mx->nstreams = 1;
+    mx->nstreams = 0;
     pthread_mutex_init(&mx->lock, NULL);
     pthread_cond_init(&mx->cond, NULL);
 
-    tp = tcallocdz(sizeof(*tp), mux_ref, mux_free);
+    tp = tcallocdz(sizeof(*tp), NULL, mux_free);
     tp->format = *s;
     tp->input = mux_packet;
     tp->flush = mux_flush;
