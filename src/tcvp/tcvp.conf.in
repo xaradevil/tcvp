@@ -2,12 +2,29 @@
 profiles {
 	play {
 		audio {
-			filter [ type "decoder"			]
-			filter [ type "output/audio"		]
+			filter [ type 'decoder'			]
+			filter [ type 'output/audio'		]
 		}
 		video {
-			filter [ type "decoder"			]
-			filter [ type "output/video"		]
+			filter [ type 'decoder'			]
+			filter [ type 'output/video'		]
 		}
+	}
+	encode {
+		outname '${title:-${file:0:-4r,^.*/,}}.ogg'
+		encode {
+			filter [ type 'decoder'			]
+			filter [ type 'encoder'			]
+			filter [ type 'mux'; id 'mux'		]
+		}
+		audio : encode [ ]
+		video : encode [ ]
+	}
+	copy {
+		mux {
+			filter [ type 'mux'; id 'mux'		]
+		}
+		audio : mux [ ]
+		video : mux [ ]
 	}
 }
