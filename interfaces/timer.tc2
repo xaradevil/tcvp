@@ -1,4 +1,4 @@
-symbol	"new"	timer__t *(*%s)(void)
+symbol	"new"	timer__t *(*%s)(int resolution)
 include
 #include <stdint.h>
 

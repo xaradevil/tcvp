@@ -37,6 +37,7 @@ tcvp_play(char *arg)
     int i, j;
     char buf[64];
     codec_new_t acnew = NULL, vcnew = NULL;
+    timer_new_t tmnew;
     stream_t *as = NULL, *vs = NULL;
     tcvp_pipe_t *codecs[2];
     int aci, vci;
@@ -77,7 +78,8 @@ tcvp_play(char *arg)
 	    }
 	    stream->used_streams[i] = 1;
 	    vci = j++;
-	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO && !as){
+	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO &&
+		  !as && output_audio_open){
 	    as = &stream->streams[i];
 	    sprintf(buf, "codec/%s", as->audio.codec);
 	    if((acnew = tc2_get_symbol(buf, "new")) == NULL){
@@ -93,13 +95,17 @@ tcvp_play(char *arg)
     if(!as && !vs)
 	return -1;
 
-    if(as && acnew){
+    if(as && acnew && output_audio_open){
 	sound = output_audio_open((audio_stream_t *) as, NULL, &timer);
 	acodec = acnew(as, CODEC_MODE_DECODE, sound);
 	codecs[aci] = acodec;
     }
 
     if(vs && vcnew){
+	if(!timer){
+	    tmnew = tc2_get_symbol("timer", "new");
+	    timer = tmnew(10000);
+	}
 	video = output_video_open((video_stream_t *) vs, NULL, timer);
 	vcodec = vcnew(vs, CODEC_MODE_DECODE, video);
 	codecs[vci] = vcodec;
@@ -108,6 +114,8 @@ tcvp_play(char *arg)
     demux = video_play(stream, codecs);
 
     demux->start(demux);
+    if(timer)
+	timer->start(timer);
 
     return 0;
 }
@@ -117,13 +125,20 @@ tcvp_pause(char *p)
 {
     static int paused = 0;
 
-    if(!sound)
+    if(!sound && !timer)
 	return -1;
 
-    if(paused ^= 1)
-	sound->stop(sound);
-    else
-	sound->start(sound);
+    if(paused ^= 1){
+	if(sound)
+	    sound->stop(sound);
+	if(timer)
+	    timer->stop(timer);
+    } else {
+	if(sound)
+	    sound->start(sound);
+	if(timer)
+	    timer->start(timer);
+    }
 
     return 0;
 }

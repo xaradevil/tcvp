@@ -17,5 +17,6 @@ AC_CONFIG_FILES([Makefile
 		 src/output/Makefile
 		 src/output/alsa/Makefile
 		 src/output/xv/Makefile
-		 src/tcvp/Makefile])
+		 src/tcvp/Makefile
+		 src/timer/Makefile])
 AC_OUTPUT
