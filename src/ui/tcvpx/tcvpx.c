@@ -73,16 +73,25 @@ tcvpx_init(tcvp_module_t *tm)
 	return -1;
     }
 
-    wd = calloc(sizeof(*wd), 1);
-    wd->action = skin->dblclick;
-    wd->skin = skin;
-
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
-    xtk_window_set_doubleclick_callback(skin->window, lookup_action);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
     xtk_window_set_class(skin->window, "TCVP");
 
+    if(create_ui(skin->window, skin, skin->config, NULL) != 0){
+	tc2_print("TCVPX", TC2_PRINT_ERROR,
+		  "Unable to load skin: \"%s\"\n", skinfile);
+	return -1;
+    }
+
+    wd = calloc(sizeof(*wd), 1);
+    wd->action = skin->dblclick;
+    wd->skin = skin;
     xtk_widget_container_set_data(skin->window, wd);
+
+    xtk_window_set_doubleclick_callback(skin->window, lookup_action);
+
+    xtk_window_set_sticky_callback(skin->window, sticky_cb);
+    xtk_window_set_on_top_callback(skin->window, on_top_cb);
 
     char *default_text = malloc(1024);
     wd->value = tcvp_ui_tcvpx_conf_window_title;
@@ -91,12 +100,6 @@ tcvpx_init(tcvp_module_t *tm)
     parse_text(wd->value, default_text, 1024);
     xtk_window_set_title(skin->window, default_text);
     free(default_text);
-
-    if(create_ui(skin->window, skin, skin->config, NULL) != 0){
-	tc2_print("TCVPX", TC2_PRINT_ERROR,
-		  "Unable to load skin: \"%s\"\n", skinfile);
-	return -1;
-    }
 
     xtk_window_show(skin->window);
 

@@ -28,7 +28,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "tcvpctl.h"
-#include <X11/Xlib.h>
 
 #define rwidth (*xtk_display_width)
 #define rheight (*xtk_display_height)
@@ -103,6 +102,7 @@ init_skins(void)
 	{"set_text", set_text},
 	{"enable_widgets", enable_widgets},
 	{"disable_widgets", disable_widgets},
+	{"playlist_remove", tcvp_playlist_remove},
 	{NULL, NULL}
     };
     int i;
@@ -162,7 +162,7 @@ lookup_action(xtk_widget_t *w, void *p)
 
 	    tchash_find(action_hash, c, -1, &acb);
 	    if(acb) {
-/* 		tc2_print("TCVPX", TC2_PRINT_DEBUG, "Action: \"%s(%s)\"\n", c, wd->action_data); */
+		tc2_print("TCVPX", TC2_PRINT_DEBUG+2, "Action: \"%s(%s)\"\n", c, wd->action_data);
 		acb(w, p);
 	    } else {
 		tc2_print("TCVPX", TC2_PRINT_WARNING,
@@ -323,6 +323,7 @@ create_skinned_box(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
 
     xtk_widget_t *w = xtk_widget_container_create(c, x, y, width, height);
     wd = calloc(sizeof(*wd), 1);
+    wd->skin = skin;
     xtk_widget_container_set_data(c, wd);
     w->on_destroy = destroy_skinned_box;
 
@@ -770,8 +771,31 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
+    xtk_window_set_class(skin->window, "TCVP");
 
-    create_ui(skin->window, skin, skin->config, NULL);
+    if(create_ui(skin->window, skin, skin->config, NULL) != 0){
+	tc2_print("TCVPX", TC2_PRINT_ERROR,
+		  "Unable to load skin: \"%s\"\n", buf);
+	return NULL;
+    }
+
+    wd = calloc(sizeof(*wd), 1);
+    wd->action = skin->dblclick;
+    wd->skin = skin;
+    xtk_widget_container_set_data(skin->window, wd);
+
+    xtk_window_set_doubleclick_callback(skin->window, lookup_action);
+
+    xtk_window_set_sticky_callback(skin->window, sticky_cb);
+    xtk_window_set_on_top_callback(skin->window, on_top_cb);
+
+    char *default_text = malloc(1024);
+    wd->value = tcvp_ui_tcvpx_conf_window_title;
+    register_textwidget(skin->window, wd->value);
+
+    parse_text(wd->value, default_text, 1024);
+    xtk_window_set_title(skin->window, default_text);
+    free(default_text);
 
     xtk_window_show(skin->window);
 
@@ -785,19 +809,6 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 	skin->state |= ST_ON_TOP;
     }
 
-    wd = calloc(sizeof(*wd), 1);
-    wd->action = skin->dblclick;
-    wd->skin = skin;
-    xtk_widget_container_set_data(skin->window, wd);
-
-    xtk_window_set_doubleclick_callback(skin->window, lookup_action);
-
-    char *default_text = malloc(1024);
-    wd->value = tcvp_ui_tcvpx_conf_window_title;
-    parse_text(wd->value, default_text, 1024);
-    register_textwidget(skin->window, wd->value);
-    xtk_window_set_title(skin->window, default_text);
-    free(default_text);
 
     ui_count++;
 
@@ -1007,3 +1018,36 @@ disable_widgets(xtk_widget_t *xw, void *p)
 }
 
 
+extern int
+on_top_cb(xtk_widget_t *w, int i)
+{
+    widget_data_t *wd = xtk_widget_get_data(w);
+    char *d = wd->action_data;
+    skin_t *s = wd->skin;
+
+    if(i == 0) {
+	s->state &= ~ST_ON_TOP;
+	change_text("on_top", "unset");
+    } else {
+	s->state |= ST_ON_TOP;	
+	change_text("on_top", "set");
+    }
+
+    return 0;
+}
+
+
+extern int
+sticky_cb(xtk_widget_t *w, int i)
+{
+    widget_data_t *wd = xtk_widget_get_data(w);
+    skin_t *s = wd->skin;
+
+    if(i == 0) {
+	s->state &= ~ST_STICKY;
+    } else {
+	s->state |= ST_STICKY;	
+    }
+
+    return 0;
+}

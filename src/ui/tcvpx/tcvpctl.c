@@ -225,6 +225,7 @@ tcvp_quit(void)
     return 0;
 }
 
+
 extern int
 tcvp_add_file(char *file)
 {
@@ -239,6 +240,7 @@ tcvp_add_file(char *file)
     return 0;
 }
 
+
 extern int
 toggle_time(xtk_widget_t *w, void *p)
 {
@@ -251,6 +253,7 @@ toggle_time(xtk_widget_t *w, void *p)
 
     return 0;
 }
+
 
 extern int
 update_time(void)
@@ -278,6 +281,24 @@ update_time(void)
 
     snprintf(text, 8, "%c%d:%02d", sign, m, t%60);
     change_text("time", text);
+
+    return 0;
+}
+
+
+extern int
+tcvp_playlist_remove(xtk_widget_t *w, void *p)
+{
+    widget_data_t *wd = xtk_widget_get_data(w);
+    char *d = wd->action_data;
+    char *next;
+    int pos = 0;
+    int num = 1;
+
+    pos = strtol(d, &next, 10);
+    if(next) num = strtol(next, NULL, 10);
+
+    tcvp_event_send(qs, TCVP_PL_REMOVE, pos, num);
 
     return 0;
 }

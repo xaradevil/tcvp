@@ -35,7 +35,7 @@ int tcvp_stop(xtk_widget_t *w, void *p);
 int tcvp_pause(xtk_widget_t *w, void *p);
 int tcvp_seek(xtk_widget_t *w, void *p);
 int tcvp_seek_rel(xtk_widget_t *w, void *p);
-
+int tcvp_playlist_remove(xtk_widget_t *w, void *p);
 int tcvp_add_file(char *file);
 
 #endif /* _TCVPCTL_H */

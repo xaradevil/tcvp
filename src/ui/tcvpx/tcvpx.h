@@ -85,6 +85,10 @@ extern int update_state(char *state);
 extern void *tcvp_event(void *p);
 extern int toggle_time(xtk_widget_t *w, void *p);
 
+extern int sticky_cb(xtk_widget_t *xw, int i);
+extern int on_top_cb(xtk_widget_t *xw, int i);
+
+
 extern int quit;
 
 extern eventq_t qs;
