@@ -125,6 +125,13 @@ crop_flush(tcvp_pipe_t *p, int drop)
     return p->next->flush(p->next, drop);
 }
 
+static void
+crop_free(void *p)
+{
+    tcvp_pipe_t *tp = p;
+    free(tp->private);
+}
+
 extern tcvp_pipe_t *
 crop_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 {
@@ -137,7 +144,7 @@ crop_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
     tcconf_getvalue(cs, "x", "%i", &c->x);
     tcconf_getvalue(cs, "y", "%i", &c->y);
 
-    p = tcallocz(sizeof(*p));
+    p = tcallocdz(sizeof(*p), NULL, crop_free);
     p->format = *s;
     p->input = crop_input;
     p->probe = crop_probe;
