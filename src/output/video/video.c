@@ -86,7 +86,7 @@ v_play(void *p)
 /* 	lt = tm; */
 /* 	dpt = vo->pts[vo->tail] - tm; */
 
-/* 	fprintf(stderr, "VO: pts = %llu, dt = %lli, dpts = %llu pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames); */
+/* 	fprintf(stderr, "VO: pts = %llu, dt = %lli, dpts = %lli pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames); */
 
 	if(vo->timer->wait(vo->timer, vo->pts[vo->tail], &vo->smx) < 0)
 	    continue;
@@ -297,6 +297,9 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     pf += 4;
+
+    tcconf_setvalue(vo->conf, "video/width", "%i", vs->width);
+    tcconf_setvalue(vo->conf, "video/height", "%i", vs->height);
 
     for(i = 0; i < output_video_conf_driver_count; i++){
 	driver_video_open_t vdo;
