@@ -29,16 +29,18 @@ static pthread_t eth;
 extern int
 tcvpx_init(char *p)
 {
-    char *qname, *qn;
+    char *qname, *qn, *skinfile = tcvp_ui_tcvpx_conf_skin;
     skin_t *skin;
+    tcconf_section_t *cs = tc2_get_conf(MODULE_INFO.name);
 
-    if(p){
-        qname = strdup(p);
-    } else {
-	tcconf_section_t *cs = tcconf_new(NULL);
+    if(!cs || tcconf_getvalue(cs, "qname", "%s", &qname) <= 0){
+	cs = tcconf_new(NULL);
 	pl = tcvp_new(cs);
 	tcconf_getvalue(cs, "qname", "%s", &qname);
     }
+
+    tcconf_getvalue(cs, "skin", "%s", &skinfile);
+    tcfree(cs);
 
     qs = eventq_new(NULL);
     qn = alloca(strlen(qname) + 10);
@@ -59,17 +61,15 @@ tcvpx_init(char *p)
     xtk_init_graphics();
     xtk_set_dnd_cb(tcvp_add_file);
 
-    if((skin = load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){
-	fprintf(stderr, "Unable to load skin: \"%s\"\n",
-		tcvp_ui_tcvpx_conf_skin);
+    if((skin = load_skin(skinfile)) == NULL){
+	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 
     skin->window = xtk_create_window("TCVP", skin->width, skin->height);
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
-	fprintf(stderr, "Unable to load skin: \"%s\"\n",
-		tcvp_ui_tcvpx_conf_skin);
+	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 

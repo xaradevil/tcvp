@@ -49,11 +49,10 @@ extern int
 tcvpsh_init(char *p)
 {
     char *qname, *qn;
+    tcconf_section_t *cs = tc2_get_conf(MODULE_INFO.name);
 
-    if(p){
-	qname = strdup(p);
-    } else {
-	tcconf_section_t *cs = tcconf_new(NULL);
+    if(!cs || tcconf_getvalue(cs, "qname", "%s", &qname) <= 0){
+	cs = tcconf_new(NULL);
 	pl = tcvp_new(cs);
 	tcconf_getvalue(cs, "qname", "%s", &qname);
     }
@@ -67,6 +66,7 @@ tcvpsh_init(char *p)
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
     free(qname);
+    tcfree(cs);
 
     play_cmd = malloc(sizeof(command));
     play_cmd->name = strdup("play");
