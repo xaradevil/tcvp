@@ -283,9 +283,10 @@ dvdsub_decode(tcvp_pipe_t *p, packet_t *pk)
 	int cs;
 
 	if(ds->bpos == 0){
+	    if(!(pk->flags & TCVP_PKT_FLAG_PTS))
+		break;
 	    ds->psize = htob_16(unaligned16(data));
-	    if(pk->flags & TCVP_PKT_FLAG_PTS)
-		ds->pts = pk->pts;
+	    ds->pts = pk->pts;
 	    tc2_print("DVDSUB", TC2_PRINT_DEBUG, "psize %x\n", ds->psize);
 	}
 
