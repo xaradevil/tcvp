@@ -186,7 +186,6 @@ typedef struct s_play {
     pthread_t *threads, rth;
     sem_t rsm;
     int state;
-    int flushing;
     int waiting;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
@@ -281,7 +280,7 @@ read_stream(void *_p)
 		st = &vp->streams[str];
 		if(p->flags & TCVP_PKT_FLAG_PTS){
 		    uint64_t pts = p->pts + st->pts_offset;
-		    if(pts < st->pts && st->pts - pts > 27000000){
+		    if(st->pts && pts < st->pts && st->pts - pts > 27000000){
 			st->pts_offset = st->pts - pts;
 			pts = st->pts;
 		    }
@@ -397,10 +396,6 @@ s_flush(tcvp_pipe_t *p, int drop)
     s_play_t *vp = p->private;
     int i;
 
-    pthread_mutex_lock(&vp->mtx);
-    vp->flushing++;
-    pthread_mutex_unlock(&vp->mtx);
-
     while(!sem_trywait(&vp->rsm));
 
     for(i = 0; i < vp->tstreams; i++){
@@ -415,11 +410,6 @@ s_flush(tcvp_pipe_t *p, int drop)
 	}
 	vp->eof = 0;
     }
-
-    pthread_mutex_lock(&vp->mtx);
-    if(--vp->flushing == 0)
-	pthread_cond_broadcast(&vp->cnd);
-    pthread_mutex_unlock(&vp->mtx);
 
     return 0;
 }
@@ -448,11 +438,6 @@ s_free(void *p)
 	    j++;
 	}
     }
-
-    pthread_mutex_lock(&vp->mtx);
-    while(vp->flushing)
-	pthread_cond_wait(&vp->cnd, &vp->mtx);
-    pthread_mutex_unlock(&vp->mtx);
 
     eventq_delete(vp->sq);
     free(vp->pipes);
@@ -488,7 +473,7 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 	int st, ci;
 
 	if(!pk || !pk->data ||
-	   ++packets > tcvp_demux_stream_conf_magic_size * ms->n_streams){
+	   ++packets > tcvp_demux_stream_conf_max_probe * ms->n_streams){
 	    if(pk)
 		tcfree(pk);
 	    break;
