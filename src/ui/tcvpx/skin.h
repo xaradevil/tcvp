@@ -26,6 +26,8 @@ struct _skin_t {
     tclabel_t *time, *title;
     tcbackground_t *background;
     tcseek_bar_t *seek_bar;
+    tcimage_button_t *close;
+    tcimage_button_t *playctl[5];
     int width, height;
     char *file;
     char *path;

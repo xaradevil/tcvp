@@ -57,8 +57,6 @@ extern list_item *flist_curr;
 extern char *current_file;
 extern int s_time;
 extern int s_length;
-extern int p_state;
-
 
 
 #endif /* _TCVPX_H */

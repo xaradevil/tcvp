@@ -34,31 +34,6 @@ tcvp_event(void *p)
 	tcvp_event_t *te = eventq_recv(qr);
 /* 	printf("%d\n", te->type); */
 	switch(te->type){
-	case TCVP_STATE:
-	    switch(te->state.state){
-	    case TCVP_STATE_PLAYING:
-		p_state = PLAYING;
-		break;
-
-	    case TCVP_STATE_STOPPED:
-		p_state = PAUSED;
-		break;
-
-	    case TCVP_STATE_ERROR:
-		printf("Error opening file.\n");
-	    case TCVP_STATE_END:
-		s_time = 0;
-		s_length = 0;
-		update_time(skin);
-		if(st){
-		    tcfree(st);
-		    st = NULL;
-		}
-		if(p_state == PLAYING) {
-		    tcvp_next((tcwidget_t *)skin->background, NULL);
-		}
-	    }
-	    break;
 
 	case TCVP_TIMER:
 	    s_time = te->timer.time/1000000;
@@ -74,7 +49,7 @@ tcvp_event(void *p)
 /* 	    printf("%s %s %s\n", st->title, st->performer, st->file); */
 	    if(st->title){
 		if(st->performer){
-		    title = alloca(strlen(st->title) + strlen(st->performer) + 4);
+		    title = alloca(strlen(st->title)+strlen(st->performer)+4);
 		    sprintf(title, "%s - %s", st->performer, st->title);
 		} else {
 		    title = alloca(strlen(st->title)+1);
@@ -139,8 +114,12 @@ tcvp_pause(tcwidget_t *w, void *p)
 extern int
 tcvp_stop(tcwidget_t *w, void *p)
 {
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_CLOSE);
-    p_state = STOPPED;
+    tcvp_event_t *te;
+    te = tcvp_alloc_event(TCVP_PL_STOP);
+    eventq_send(qs, te);
+    tcfree(te);
+
+    te = tcvp_alloc_event(TCVP_CLOSE);
     eventq_send(qs, te);
     tcfree(te);
 
@@ -151,17 +130,9 @@ tcvp_stop(tcwidget_t *w, void *p)
 extern int
 tcvp_play(tcwidget_t *w, void *p)
 {
-    if(p_state == PLAYING) {
-	tcvp_stop(NULL, NULL);
-    } if(current_file != NULL) {
-	tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
-	te->file = current_file;
-	eventq_send(qs, te);
-	tcfree(te);
-	tcvp_pause(NULL, NULL);
-    } else if(p_state == PAUSED) {
-	tcvp_pause(NULL, NULL);
-    }
+    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_START);
+    eventq_send(qs, te);
+    tcfree(te);
 
     return 0;
 }
@@ -170,15 +141,10 @@ tcvp_play(tcwidget_t *w, void *p)
 extern int
 tcvp_next(tcwidget_t *w, void *p)
 {
-    int state_tmp = p_state;
-    tcvp_stop(NULL, NULL);
-
-    if((current_file = list_next(files, &flist_curr))!=NULL) {
-	if(state_tmp == PLAYING) tcvp_play(NULL, NULL);
-    } else { 
-	p_state = STOPPED;
-	change_label(w->common.skin->title, "Stopped");
-    }
+    fprintf(stderr, "next\n");
+    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_NEXT);
+    eventq_send(qs, te);
+    tcfree(te);
 
     return 0;
 }
@@ -187,16 +153,9 @@ tcvp_next(tcwidget_t *w, void *p)
 extern int
 tcvp_previous(tcwidget_t *w, void *p)
 {
-    int state_tmp = p_state;
-
-    tcvp_stop(NULL, NULL);
-
-    if((current_file = list_prev(files, &flist_curr))!=NULL) {
-	if(state_tmp == PLAYING) tcvp_play(NULL, NULL);
-    } else {
-	p_state = STOPPED;
-	change_label(w->common.skin->title, "Stopped");
-    }
+    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_PREV);
+    eventq_send(qs, te);
+    tcfree(te);
 
     return 0;
 }

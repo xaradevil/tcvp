@@ -167,32 +167,32 @@ create_ui(skin_t *skin)
 
     sec = conf_getsection(skin->config, "buttons/previous");
     if(sec){
-	create_skinned_button(skin, sec, tcvp_previous);
+	skin->playctl[0] = create_skinned_button(skin, sec, tcvp_previous);
     }
 
     sec = conf_getsection(skin->config, "buttons/play");
     if(sec){
-	create_skinned_button(skin, sec, tcvp_play);
+	skin->playctl[1] = create_skinned_button(skin, sec, tcvp_play);
     }
 
     sec = conf_getsection(skin->config, "buttons/pause");
     if(sec){
-	create_skinned_button(skin, sec, tcvp_pause);
+	skin->playctl[2] = create_skinned_button(skin, sec, tcvp_pause);
     }
 
     sec = conf_getsection(skin->config, "buttons/stop");
     if(sec){
-	create_skinned_button(skin, sec, tcvp_stop);
+	skin->playctl[3] = create_skinned_button(skin, sec, tcvp_stop);
     }
 
     sec = conf_getsection(skin->config, "buttons/next");
     if(sec){
-	create_skinned_button(skin, sec, tcvp_next);
+	skin->playctl[4] = create_skinned_button(skin, sec, tcvp_next);
     }
 
     sec = conf_getsection(skin->config, "buttons/quit");
     if(sec){
-	create_skinned_button(skin, sec, tcvp_close);
+	skin->close = create_skinned_button(skin, sec, tcvp_close);
     }
 
     sec = conf_getsection(skin->config, "time");
