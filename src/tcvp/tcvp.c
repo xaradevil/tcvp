@@ -501,6 +501,21 @@ t_open(player_t *pl, int nn, char **names)
 	return -1;
     }
 
+    for(i = 0; i < tp->nstreams; i++){
+	void *as = NULL;
+	char *at, *av;
+	while(tcconf_nextvalue(tp->conf, "attr", &as, "%s%s", &at, &av) > 0){
+	    char *t = tcstrexp(av, "{", "}", ':', exp_stream,
+			       tp->streams[i], TCSTREXP_ESCAPE);
+	    tcattr_set(tp->streams[i], at, t, NULL, free);
+	    free(at);
+	    free(av);
+	}
+	at = tcattr_get(tp->streams[i], "artist");
+	if(at)
+	    tcattr_set(tp->streams[i], "performer", at, NULL, NULL);
+    }
+
     if(tcconf_getvalue(tp->conf, "outname", "%s", &outfile) > 0 ||
        tcconf_getvalue(prsec, "outname", "%s", &outfile) > 0){
 	tp->outfile = tcstrexp(outfile, "{", "}", ':', exp_stream,

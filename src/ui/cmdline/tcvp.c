@@ -459,6 +459,7 @@ tcl_stop(void)
 #define OPT_PAUSE 136
 #define OPT_STOP 137
 #define OPT_CLEAR 138
+#define OPT_ATTR 139
 
 static int
 parse_options(int argc, char **argv)
@@ -493,16 +494,19 @@ parse_options(int argc, char **argv)
 	{"stop", no_argument, 0, OPT_STOP},
 	{"clear", no_argument, 0, OPT_CLEAR},
 	{"daemon", no_argument, 0, 'D'},
+	{"title", required_argument, 0, OPT_ATTR},
+	{"artist", required_argument, 0, OPT_ATTR},
+	{"album", required_argument, 0, OPT_ATTR},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
 
     for(;;){
-	int c, option_index = 0, s;
+	int c, opt_index = 0, s;
 	char *ot;
      
 	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:D",
-			long_options, &option_index);
+			long_options, &opt_index);
 	
 	if(c == -1)
 	    break;
@@ -632,6 +636,11 @@ parse_options(int argc, char **argv)
 
 	case 'D':
 	    isdaemon = 1;
+	    break;
+
+	case OPT_ATTR:
+	    tcconf_setvalue(cf, "attr", "%s%s",
+			    long_options[opt_index].name, optarg);
 	    break;
 
 	case OPT_TC2_DEBUG:
