@@ -1,3 +1,1 @@
-AC_CHECK_LIB(cdda_interface, cdda_identify,
-	     [INPUT_MODULES="$INPUT_MODULES cdda"],
-	     AC_MSG_WARN([cdparanoia not found]))
+TC2_CHECK_LIBS(cdparanoia, cdda_interface, cdda_identify, -lcdda_paranoia)

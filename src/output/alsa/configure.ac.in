@@ -1,3 +1,1 @@
-AC_CHECK_LIB(asound, snd_pcm_open,
-	     [OUTPUT_MODULES="$OUTPUT_MODULES alsa"],
-	     AC_MSG_WARN([ALSA not found]))
+TC2_CHECK_LIBS(alsa, asound, snd_pcm_open)

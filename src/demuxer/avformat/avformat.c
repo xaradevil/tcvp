@@ -23,7 +23,7 @@
 #include <tclist.h>
 #include <pthread.h>
 #include <tcalloc.h>
-#include <avformat.h>
+#include <ffmpeg/avformat.h>
 #include <avformat_tc2.h>
 
 

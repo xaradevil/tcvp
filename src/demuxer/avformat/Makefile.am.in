@@ -1,2 +1,0 @@
-AM_CPPFLAGS = -I$(FFMPEGSRC)/libavformat -I$(FFMPEGSRC)/libavcodec
-MODLIBS = -L$(FFMPEGBLD)/libavformat -lavformat -lavcodec

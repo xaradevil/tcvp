@@ -1,2 +1,1 @@
-AC_CHECK_LIB(avcodec, img_resample_init,
-	     [FILTERS_MODULES="$FILTERS_MODULES scale"])
+TC2_CHECK_LIBS(ffmpeg, avcodec, img_resample_init)

@@ -1,15 +1,1 @@
-AC_ARG_WITH([ffmpeg-src],
-    AC_HELP_STRING([--with-ffmpeg-src], [FFmpeg source dir]),
-    FFMPEGSRC=$with_ffmpeg_src)
-AC_ARG_WITH([ffmpeg-build],
-    AC_HELP_STRING([--with-ffmpeg-build], [FFmpeg build dir]),
-    FFMPEGBLD=$with_ffmpeg_build, FFMPEGBLD=$FFMPEGSRC)
-if test ! "$FFMPEGSRC" -o ! "$FFMPEGBLD"; then
-    AC_WARN([FFmpeg source and build directories not found.])
-else
-    AC_CHECK_LIB(avformat, avcodec_find_decoder,
-		 [DEMUXER_MODULES="$DEMUXER_MODULES avformat"],,
-		 -L$FFMPEGBLD/libavformat -lavcodec)
-fi
-AC_SUBST(FFMPEGSRC)
-AC_SUBST(FFMPEGBLD)
+TC2_CHECK_LIBS(ffmpeg, avformat, av_open_input_file, -lavcodec)

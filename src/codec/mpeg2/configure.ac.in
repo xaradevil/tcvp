@@ -1,2 +1,1 @@
-AC_CHECK_LIB(mpeg2, mpeg2_init,
-	     [CODEC_MODULES="$CODEC_MODULES mpeg2"])
+TC2_CHECK_LIBS(libmpeg2, mpeg2, mpeg2_init)

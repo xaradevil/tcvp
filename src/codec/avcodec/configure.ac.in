@@ -1,2 +1,1 @@
-AC_CHECK_LIB(avcodec, avcodec_find_decoder,
-	     [CODEC_MODULES="$CODEC_MODULES avcodec"])
+TC2_CHECK_LIBS(ffmpeg, avcodec, avcodec_find_decoder)
