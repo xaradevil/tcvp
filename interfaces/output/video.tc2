@@ -1,3 +1,4 @@
-symbol	"open"		tcvp_pipe_t *(*%s)(video_stream_t *, char *device)
+symbol	"open"	tcvp_pipe_t *(*%s)(video_stream_t *, char *device, timer__t *)
+require "timer"
 include
 #include <tcvp.h>

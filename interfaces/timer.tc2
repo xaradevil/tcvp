@@ -1,0 +1,14 @@
+symbol	"new"	timer__t *(*%s)(void)
+include
+#include <stdint.h>
+
+typedef struct timer timer__t;
+struct timer {
+    int (*start)(timer__t *);
+    int (*stop)(timer__t *);
+    int (*wait)(timer__t *, uint64_t);
+    uint64_t (*read)(timer__t *);
+    int (*reset)(timer__t *, uint64_t);
+    void (*free)(timer__t *);
+    void *private;
+};

@@ -43,6 +43,7 @@ typedef struct avc_audio_codec {
 
 typedef struct avc_video_codec {
     AVCodecContext *ctx;
+    uint64_t dpts, last_pts;
     tcvp_pipe_t *out;
     AVFrame *frame;
 } avc_video_codec_t;
@@ -120,7 +121,11 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 		    break;
 	    }
 	    out->planes = i;
-	    out->pts = vc->frame->pts;
+	    if(vc->frame->pts)
+		out->pts = vc->frame->pts;
+	    else
+		out->pts = vc->last_pts + vc->dpts;
+	    vc->last_pts = out->pts;
 	    out->free = avc_free_packet;
 	    out->private = NULL;
 	    vc->out->input(vc->out, out);
@@ -165,11 +170,9 @@ avc_free_vdpipe(tcvp_pipe_t *p)
 extern tcvp_pipe_t *
 avc_new(stream_t *s, int mode, tcvp_pipe_t *out)
 {
-    tcvp_pipe_t *p;
+    tcvp_pipe_t *p = NULL;
     avc_audio_codec_t *ac;
     avc_video_codec_t *vc;
-    audio_stream_t *as = (audio_stream_t *) s;
-    video_stream_t *vs = (video_stream_t *) s;
     AVCodec *avc = NULL;
     AVCodecContext *avctx;
     enum CodecID id;
@@ -201,11 +204,14 @@ avc_new(stream_t *s, int mode, tcvp_pipe_t *out)
 	break;
 
     case STREAM_TYPE_VIDEO:
-	avctx->width = vs->width;
-	avctx->height = vs->height;
+	avctx->width = s->video.width;
+	avctx->height = s->video.height;
+	avctx->frame_rate = s->video.frame_rate * FRAME_RATE_BASE;
 
 	vc = malloc(sizeof(*vc));
 	vc->ctx = avctx;
+	vc->dpts = 1000000 / s->video.frame_rate;
+	vc->last_pts = 0;
 	vc->out = out;
 	vc->frame = avcodec_alloc_frame();
 

@@ -176,6 +176,7 @@ avf_close(muxed_stream_t *ms)
     }
     free(as->packets);
     free(as);
+    return 0;
 }
 
 
@@ -219,6 +220,10 @@ avf_open(char *name)
 	    ms->streams[i].audio.channels = afc->streams[i]->codec.channels;
 	    ms->streams[i].audio.codec =
 		codec_names[afc->streams[i]->codec.codec_id];
+	    break;
+
+	default:
+	    ms->streams[i].stream_type = 0;
 	    break;
 	}
     }

@@ -53,6 +53,7 @@ typedef struct xv_window {
     Window win;
     GC gc;
     XvPortID port;
+    timer__t *timer;
     int width, height;
     int x, y;
     int frames;
@@ -72,6 +73,9 @@ xv_play(void *p)
     xv_window_t *xvw = p;
 
     while(xvw->state != STOP){
+/* 	struct timeval tv; */
+/* 	u_int lu; */
+
 	pthread_mutex_lock(&xvw->smx);
 	while(xvw->state == PAUSE){
 	    pthread_cond_wait(&xvw->scd, &xvw->smx);
@@ -80,7 +84,12 @@ xv_play(void *p)
 
 	sem_wait(&xvw->tsem);
 
-	/* timer */
+	xvw->timer->wait(xvw->timer, xvw->images[xvw->tail].pts);
+
+/* 	gettimeofday(&tv, NULL); */
+/* 	fprintf(stderr, "pts = %li, usec = %i\n", */
+/* 		xvw->images[xvw->tail].pts, tv.tv_usec - lu); */
+/* 	lu = tv.tv_usec; */
 
 	XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
 		      xvw->images[xvw->tail].image,
@@ -172,7 +181,6 @@ xv_free(tcvp_pipe_t *p)
 
     for(i = 0; i < xvw->frames; i++){
 	XShmDetach(xvw->dpy, &xvw->shm[i]);
-	shmdt(xvw->shm[i].shmaddr);
     }
 
     XSync(xvw->dpy, False);
@@ -182,7 +190,7 @@ xv_free(tcvp_pipe_t *p)
 }
 
 extern tcvp_pipe_t *
-xv_open(video_stream_t *vs, char *display)
+xv_open(video_stream_t *vs, char *display, timer__t *timer)
 {
     tcvp_pipe_t *pipe;
     xv_window_t *xvw;
@@ -191,7 +199,7 @@ xv_open(video_stream_t *vs, char *display)
     XvAdaptorInfo *xai;
     int na;
     Window win;
-    int i, j;
+    int i;
     GC gc;
 
     XInitThreads();
@@ -217,6 +225,7 @@ xv_open(video_stream_t *vs, char *display)
     xvw->win = win;
     xvw->gc = gc;
     xvw->port = xai[0].base_id;
+    xvw->timer = timer;
     xvw->width = vs->width;
     xvw->height = vs->height;
     xvw->x = 0;
@@ -236,6 +245,7 @@ xv_open(video_stream_t *vs, char *display)
 	shm->readOnly = False;
 	xvi->data = shm->shmaddr;
 	XShmAttach(dpy, shm);
+/* 	shmdt(shm->shmaddr); */	/* detach now in case we crash */
 
 	xvw->images[i].image = xvi;
     }
