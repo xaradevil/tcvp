@@ -22,6 +22,7 @@
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <pthread.h>
+#include <sys/time.h>
 #include <tcvp_types.h>
 #include <tcvp_event.h>
 #include <playlist_tc2.h>
@@ -110,6 +111,27 @@ pl_count(playlist_t *pl)
     tcvp_playlist_t *tpl = pl->private;
 
     return tpl->nf;
+}
+
+static int
+pl_shuffle(playlist_t *pl, int s, int n)
+{
+    tcvp_playlist_t *tpl = pl->private;
+    struct timeval tv;
+    int i;
+
+    n = min(tpl->nf - s, n);
+    gettimeofday(&tv, NULL);
+    srand(tv.tv_usec);
+
+    for(i = 0; i < n; i++){
+	int j = rand() % (i + 1);
+	char *t = tpl->files[i];
+	tpl->files[i] = tpl->files[j];
+	tpl->files[j] = t;
+    }
+
+    return 0;
 }
 
 static int
@@ -292,6 +314,7 @@ pl_new(conf_section *cs)
     pl->remove = pl_remove;
     pl->get = pl_get;
     pl->count = pl_count;
+    pl->shuffle = pl_shuffle;
     pl->free = pl_free;
     pl->private = tpl;
 

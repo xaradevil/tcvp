@@ -43,6 +43,7 @@ static eventq_t qr, qs;
 static char *qname;
 static char *sel_ui;
 static playlist_t *pll;
+static int shuffle;
 
 static void
 show_help(void)
@@ -159,6 +160,8 @@ tcl_init(char *p)
 
     pll = playlist_new(cf);
     pll->add(pll, files, nfiles, 0);
+    if(shuffle)
+	pll->shuffle(pll, 0, nfiles);
 
     if(sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
@@ -242,6 +245,7 @@ parse_options(int argc, char **argv)
 	{"user-interface", required_argument, 0, 'u'},
 	{"tc2-debug", required_argument, 0, OPT_TC2_DEBUG},
 	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
+	{"shuffle", no_argument, 0, 'z'},
 	{0, 0, 0, 0}
     };
 
@@ -249,7 +253,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -293,6 +297,10 @@ parse_options(int argc, char **argv)
 
 	case 'u':
 	    sel_ui = optarg;
+	    break;
+
+	case 'z':
+	    shuffle = 1;
 	    break;
 
 	case OPT_TC2_DEBUG:
