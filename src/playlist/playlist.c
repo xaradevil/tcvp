@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -393,17 +393,8 @@ pl_init(tcvp_module_t *m)
 {
     tcvp_playlist_t *tpl = m->private;
     char *qname, *qn;
-    void *s = NULL;
-    int pl = 0;
-    char *f;
 
-    while(tcconf_nextvalue(tpl->conf, "feature", &s, "%s", &f) > 0){
-	if(!strcmp(f, "playlist"))
-	    pl = 1;
-	free(f);
-    }
-
-    if(pl)
+    if(!tcconf_getvalue(tpl->conf, "features/playlist", ""))
 	return -1;
 
     tcconf_getvalue(tpl->conf, "qname", "%s", &qname);
@@ -418,7 +409,7 @@ pl_init(tcvp_module_t *m)
     sprintf(qn, "%s/status", qname);
     eventq_attach(tpl->ss, qn, EVENTQ_SEND);
 
-    tcconf_setvalue(tpl->conf, "feature", "%s", "playlist");
+    tcconf_setvalue(tpl->conf, "features/playlist", "");
 
     free(qname);
     return 0;

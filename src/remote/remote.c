@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -141,7 +141,8 @@ rm_event(void *p)
 		    continue;
 		if(send(cl->socket, &s, 4, MSG_MORE | MSG_NOSIGNAL) < 0 ||
 		   send(cl->socket, se, size, MSG_NOSIGNAL) < 0){
-		    fprintf(stderr, "REMOTE: error sending %s\n", se);
+		    tc2_print("REMOTE", TC2_PRINT_ERROR,
+			      "error sending %s\n", se);
 		    FD_CLR(cl->socket, &rm->clf);
 		    tclist_remove(rm->clients, li, cl_free);
 		}
@@ -188,7 +189,8 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
     if(te){
 	tcattr_set(te, "addr", &cl->addr, NULL, NULL);
 	if(te->type > max_event || !event_types[te->type]){
-	    fprintf(stderr, "REMOTE: don't know what to do with %s\n", buf);
+	    tc2_print("REMOTE", TC2_PRINT_WARNING,
+		      "received unknown event %s\n", buf);
 	} else if(event_types[te->type] == CONTROL){
 	    eventq_send(rm->sc, te);
 	} else if(event_types[te->type] == STATUS){
@@ -210,11 +212,11 @@ send_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
     void *s = NULL;
     char *f, l;
 
-    while(tcconf_nextvalue(rm->conf, "feature", &s, "%s", &f) > 0){
+    while(tcconf_nextvalue_g(rm->conf, "features/*", &s, &f, "") >= 0 && s){
+	tc2_print("REMOTE", TC2_PRINT_DEBUG, "send feature %s\n", f);
 	l = strlen(f);
 	send(cl->socket, &l, 1, MSG_NOSIGNAL | MSG_MORE);
 	send(cl->socket, f, l, MSG_NOSIGNAL | MSG_MORE);
-	free(f);
     }
 
     l = 0;
@@ -226,14 +228,16 @@ send_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 static int
 recv_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 {
+    char fbuf[512];
+    char *f;
     u_char l;
 
+    f = fbuf + sprintf(fbuf, "features/");
+
     while(recv(cl->socket, &l, 1, MSG_NOSIGNAL) == 1 && l > 0){
-	char *f = malloc(l + 1);
 	recv(cl->socket, f, l, MSG_NOSIGNAL);
 	f[l] = 0;
-	tcconf_setvalue(rm->conf, "feature", "%s", f);
-	free(f);
+	tcconf_setvalue(rm->conf, fbuf, "");
     }
 
     return 0;
@@ -418,7 +422,7 @@ rm_new(tcconf_section_t *cs)
 	int r = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &r, sizeof(r));
 	if(bind(sock, (struct sockaddr *) &rsa, sizeof(rsa)) < 0){
-	    fprintf(stderr, "REMOTE: bind failed: %m\n");
+	    tc2_print("REMOTE", TC2_PRINT_ERROR, "bind failed: %m\n");
 	    return NULL;
 	}
 	listen(sock, 16);

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -766,17 +766,8 @@ t_init(tcvp_module_t *tm)
 {
     tcvp_player_t *tp = tm->private;
     char *qname, qn[32];
-    void *s = NULL;
-    int core = 0;
-    char *f;
 
-    while(tcconf_nextvalue(tp->conf, "feature", &s, "%s", &f) > 0){
-	if(!strcmp(f, "core"))
-	    core = 1;
-	free(f);
-    }
-
-    if(core)
+    if(!tcconf_getvalue(tp->conf, "features/core", ""))
 	return -1;
 
     tcconf_getvalue(tp->conf, "qname", "%s", &qname);
@@ -786,7 +777,7 @@ t_init(tcvp_module_t *tm)
     sprintf(qn, "%s/timer", qname);
     eventq_attach(tp->qt, qn, EVENTQ_SEND);
 
-    tcconf_setvalue(tp->conf, "feature", "%s", "core");
+    tcconf_setvalue(tp->conf, "features/core", "");
 
     free(qname);
     return 0;
