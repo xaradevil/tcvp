@@ -245,6 +245,12 @@ tcl_init(char *p)
     if(sel_ui && !strcmp(sel_ui, "none"))
 	sel_ui = NULL;
 
+    if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon && !shuffle){
+	show_help();
+	tc2_request(TC2_UNLOAD_ALL, 0);
+	return 0;
+    }
+
     tcvp_conf = tc2_get_conf("TCVP");
     if(tcconf_getvalue(cf, "profile", "%s", &profile) <= 0)
 	tcconf_getvalue(tcvp_conf, "default_profile", "%s", &profile);
@@ -263,12 +269,6 @@ tcl_init(char *p)
 	free(profile);
     }
     tcfree(tcvp_conf);
-
-    if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon && !shuffle){
-	show_help();
-	tc2_request(TC2_UNLOAD_ALL, 0);
-	return 0;
-    }
 
     aonames = realloc(aonames, (nadd + tcvp_ui_cmdline_conf_addon_count) *
 		      sizeof(*aonames));
@@ -345,11 +345,6 @@ tcl_init(char *p)
     else if(shuffle < 0)
 	tcvp_event_send(qs, TCVP_PL_SHUFFLE, 0);
 
-    qr = eventq_new(tcref);
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(qr, qn, EVENTQ_RECV);
-    pthread_create(&evt_thr, NULL, tcl_event, NULL);
-
     if(!ncmds && tcvp_ui_cmdline_conf_autoplay){
 	if(prl){
 	    tcvp_event_send(qs, TCVP_START);
@@ -374,17 +369,23 @@ tcl_init(char *p)
     for(i = 0; i < ncmds; i++)
 	tcvp_event_send(qs, tcvp_event_get(commands[i]));
 
-    sem_init(&psm, 0, 0);
-    sa.sa_handler = sigint;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    sigaction(SIGINT, &sa, NULL);
-    sigaction(SIGTERM, &sa, NULL);
-    intr = 1;
-    pthread_create(&intr_thr, NULL, tcl_intr, NULL);
+    if(pl || sel_ui){
+	qr = eventq_new(tcref);
+	sprintf(qn, "%s/status", qname);
+	eventq_attach(qr, qn, EVENTQ_RECV);
+	pthread_create(&evt_thr, NULL, tcl_event, NULL);
 
-    if(!pl && !sel_ui)
+	sem_init(&psm, 0, 0);
+	sa.sa_handler = sigint;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+	intr = 1;
+	pthread_create(&intr_thr, NULL, tcl_intr, NULL);
+    } else {
 	tc2_request(TC2_UNLOAD_ALL, 0);
+    }
 
     free(qname);
     return 0;
