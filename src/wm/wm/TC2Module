@@ -1,0 +1,7 @@
+module		wm
+name		"TCVP/wm"
+version		0.1.0
+tc2version	0.4.0
+sources		wm.c
+implement	"wm" "open" wm_open
+import		"wm/x11" "open"

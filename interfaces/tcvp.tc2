@@ -1,4 +1,4 @@
-symbol "open" player_t *(*%s)(char *name, tcvp_status_cb_t, void *)
+symbol "open" player_t *(*%s)(char *name, tcvp_status_cb_t, void *, conf_section *)
 include
 #include <stdint.h>
 

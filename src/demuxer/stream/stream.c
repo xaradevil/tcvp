@@ -26,7 +26,7 @@
 
 
 extern muxed_stream_t *
-s_open(char *name)
+s_open(char *name, conf_section *cs)
 {
     char *m;
     char *ext;
@@ -44,7 +44,7 @@ s_open(char *name)
     }
 
     stream_open_t sopen = tc2_get_symbol(m, "open");
-    return sopen(name);
+    return sopen(name, cs);
 }
 
 extern packet_t *

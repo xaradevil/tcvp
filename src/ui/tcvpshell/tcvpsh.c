@@ -71,7 +71,7 @@ tcvp_play(char *file)
     tcvp_stop(NULL);
 
     pthread_mutex_lock(&pmx);
-    if((player = tcvp_open(file, tcvp_status, NULL)))
+    if((player = tcvp_open(file, tcvp_status, NULL, NULL)))
 	player->start(player);
     pthread_mutex_unlock(&pmx);
 

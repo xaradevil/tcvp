@@ -1,0 +1,6 @@
+module		wm_x11
+name		"TCVP/wm/x11"
+version		0.1.0
+tc2version	0.4.0
+sources		x11wm.c
+implement	"wm/x11" "open" x11_open

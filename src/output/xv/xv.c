@@ -105,7 +105,7 @@ xv_close(video_driver_t *vd)
 }
 
 extern video_driver_t *
-xv_open(video_stream_t *vs, char *display)
+xv_open(video_stream_t *vs, conf_section *cs)
 {
     video_driver_t *vd;
     xv_window_t *xvw;
@@ -120,6 +120,10 @@ xv_open(video_stream_t *vs, char *display)
     int color_key;
     XEvent xe;
     Atom atm;
+    char *display = NULL;
+
+    if(cs)
+	conf_getvalue(cs, "video/device", "%s", &display);
 
     XInitThreads();
 

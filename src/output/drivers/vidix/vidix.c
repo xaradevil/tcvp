@@ -44,6 +44,7 @@ typedef struct vidix_window {
     int use_dma;
     char *dmabufs[VID_PLAY_MAXFRAMES];
     vidix_dma_t dma;
+    window_manager_t *wm;
 } vx_window_t;
 
 static int
@@ -103,6 +104,7 @@ vx_close(video_driver_t *vd)
     vx_window_t *vxw = vd->private;
     int i;
 
+    vxw->wm->close(vxw->wm);
     vdlPlaybackOff(vxw->driver);
     vdlClose(vxw->driver);
     for(i = 0; i < VID_PLAY_MAXFRAMES; i++){
@@ -116,6 +118,29 @@ vx_close(video_driver_t *vd)
     return 0;
 }
 
+static int
+vx_reconf(void *p, int event, int x, int y, int w, int h)
+{
+    vx_window_t *vxw = p;
+
+    switch(event){
+    case WM_MOVE:
+	vxw->pbc.dest.x = x;
+	vxw->pbc.dest.y = y;
+	vxw->pbc.dest.w = w;
+	vxw->pbc.dest.h = h;
+	vdlConfigPlayback(vxw->driver, &vxw->pbc);
+	break;
+    case WM_SHOW:
+	vdlPlaybackOn(vxw->driver);
+	break;
+    case WM_HIDE:
+	vdlPlaybackOff(vxw->driver);
+	break;
+    }
+
+    return 0;
+}
 
 static int fccs[] = {
     [PIXEL_FORMAT_YUY2] = IMGFMT_YUY2,
@@ -124,7 +149,7 @@ static int fccs[] = {
 };
 
 extern video_driver_t *
-vx_open(video_stream_t *vs, char *display)
+vx_open(video_stream_t *vs, conf_section *cs)
 {
     video_driver_t *vd;
     vx_window_t *vxw;
@@ -180,9 +205,9 @@ vx_open(video_stream_t *vs, char *display)
     vxw->pbc.dest.h = vs->height;
     vxw->pbc.num_frames = vxw->caps.flags & FLAG_DMA? 1: frames;
 
-    if(vdlConfigPlayback(vxdrv, &vxw->pbc)){
-	free(vxw);
+    if(!(vxw->wm = wm_open(vs->width, vs->height, vx_reconf, vxw, cs))){
 	vdlClose(vxdrv);
+	free(vxw);
 	return NULL;
     }
 
@@ -198,8 +223,6 @@ vx_open(video_stream_t *vs, char *display)
     } else {
 	vxw->frames = vxw->pbc.num_frames;
     }
-
-    vdlPlaybackOn(vxdrv);
 
     fprintf(stderr, "VIDIX: %i frames\n", vxw->pbc.num_frames);
 

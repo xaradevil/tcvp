@@ -132,7 +132,7 @@ static snd_pcm_route_ttable_entry_t *ttables[7][7] = {
 };
 
 extern tcvp_pipe_t *
-alsa_open(audio_stream_t *as, char *device, timer__t **timer)
+alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
 {
     tcvp_pipe_t *tp;
     alsa_out_t *ao;
@@ -140,6 +140,10 @@ alsa_open(audio_stream_t *as, char *device, timer__t **timer)
     snd_pcm_hw_params_t *hwp;
     u_int rate = as->sample_rate, channels = as->channels, ptime;
     int tmp;
+    char *device = NULL;
+
+    if(cs)
+	conf_getvalue(cs, "audio/device", "%s", &device);
 
     if(!device)
 	device = "hw:0,0";

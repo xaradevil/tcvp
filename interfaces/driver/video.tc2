@@ -1,4 +1,4 @@
-symbol	"open"	video_driver_t *(*%s)(video_stream_t *, char *)
+symbol	"open"	video_driver_t *(*%s)(video_stream_t *, conf_section *)
 include
 #include <tcvp_types.h>
 

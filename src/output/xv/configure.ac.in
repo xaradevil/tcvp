@@ -1,11 +1,5 @@
 AC_PATH_XTRA
 AC_CHECK_LIB(Xv, XvShmCreateImage,
-    [X_LIBS="$X_LIBS -lXext -lXv"
-     AC_SUBST(x_includes)
-     AC_SUBST(x_libraries)
-     AC_SUBST(X_LIBS)
-     AC_SUBST(X_PRE_LIBS)
-     AC_SUBST(X_EXTRA_LIBS)
-     OUTPUT_MODULES="$OUTPUT_MODULES xv"],
+    [OUTPUT_MODULES="$OUTPUT_MODULES xv"],
     AC_MSG_WARN([X11 libraries not found.]),
     $X_PRE_LIBS $X_LIBS $X_EXTRA_LIBS -lXext)

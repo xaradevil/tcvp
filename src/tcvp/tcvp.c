@@ -182,7 +182,7 @@ st_ticker(void *p)
 
 
 extern player_t *
-t_open(char *name, tcvp_status_cb_t stcb, void *cbdata)
+t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 {
     int i;
     timer_new_t tmnew;
@@ -197,7 +197,7 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata)
     player_t *pl;
     int ac, vc;
 
-    if((stream = stream_open(name)) == NULL)
+    if((stream = stream_open(name, cs)) == NULL)
 	return NULL;
 
     codecs = alloca(stream->n_streams * sizeof(*codecs));
@@ -232,7 +232,7 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata)
     print_info(stream);
 
     if(as){
-	if((sound = output_audio_open(&as->audio, NULL, &timer))){
+	if((sound = output_audio_open(&as->audio, cs, &timer))){
 	    acodec->next = sound;
 	} else {
 	    stream->used_streams[ac] = 0;
@@ -247,7 +247,7 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata)
 	    tmnew = tc2_get_symbol("timer", "new");
 	    timer = tmnew(10000);
 	}
-	if((video = output_video_open(&vs->video, NULL, timer))){
+	if((video = output_video_open(&vs->video, cs, timer))){
 	    vcodec->next = video;
 	} else {
 	    stream->used_streams[vc] = 0;

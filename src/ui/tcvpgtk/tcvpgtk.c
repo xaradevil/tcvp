@@ -54,7 +54,7 @@ tcvp_play(char *file)
 {
     tcvp_stop(NULL, NULL);
 
-    if(!(player = tcvp_open(file, NULL, NULL)))
+    if(!(player = tcvp_open(file, NULL, NULL, NULL)))
 	return -1;
 
     player->start(player);

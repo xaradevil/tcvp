@@ -459,7 +459,7 @@ avi_close(muxed_stream_t *ms)
 }
 
 extern muxed_stream_t *
-avi_open(char *file)
+avi_open(char *file, conf_section *cs)
 {
     FILE *f;
     muxed_stream_t *ms;

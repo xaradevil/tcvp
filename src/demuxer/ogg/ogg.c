@@ -156,7 +156,7 @@ ogg_close(muxed_stream_t *ms)
 
 
 extern muxed_stream_t *
-ogg_open(char *name)
+ogg_open(char *name, conf_section *cs)
 {
     ogg_stream_t *ost;
     ogg_page og;

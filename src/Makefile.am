@@ -1,1 +1,1 @@
-SUBDIRS = codec demuxer output ui $(SRC_MODULES)
+SUBDIRS = codec demuxer output ui wm $(SRC_MODULES)

@@ -181,7 +181,7 @@ avf_close(muxed_stream_t *ms)
 
 
 extern muxed_stream_t *
-avf_open(char *name)
+avf_open(char *name, conf_section *cs)
 {
     AVFormatContext *afc;
     muxed_stream_t *ms;

@@ -241,7 +241,7 @@ static color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
 };
 
 extern tcvp_pipe_t *
-v_open(video_stream_t *vs, char *device, timer__t *timer)
+v_open(video_stream_t *vs, conf_section *cs, timer__t *timer)
 {
     tcvp_pipe_t *pipe;
     video_out_t *vo;
@@ -257,7 +257,7 @@ v_open(video_stream_t *vs, char *device, timer__t *timer)
 	if(!(vdo = tc2_get_symbol(buf, "open")))
 	    continue;
 
-	if((vd = vdo(vs, device))){
+	if((vd = vdo(vs, cs))){
 	    cconv = conv_table[vs->pixel_format][vd->pixel_format];
 	    if(cconv){
 		break;

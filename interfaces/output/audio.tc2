@@ -1,4 +1,4 @@
-symbol	"open"	tcvp_pipe_t *(*%s)(audio_stream_t *, char *, timer__t **)
+symbol	"open"	tcvp_pipe_t *(*%s)(audio_stream_t *, conf_section *, timer__t **)
 require "timer"
 include
 #include <tcvp_types.h>

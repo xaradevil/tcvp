@@ -109,7 +109,7 @@ oss_play(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern tcvp_pipe_t *
-oss_open(audio_stream_t *as, char *device, timer__t **timer)
+oss_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
 {
     tcvp_pipe_t *tp;
     oss_out_t *ao;
@@ -117,6 +117,10 @@ oss_open(audio_stream_t *as, char *device, timer__t **timer)
     u_int rate = as->sample_rate, channels = as->channels;
     u_int format = AFMT_S16_LE;
     int tmp;
+    char *device = NULL;
+
+    if(cs)
+	conf_getvalue(cs, "audio/device", "%s", &device);
 
     if(!device)
 	device = "/dev/dsp";

@@ -27,8 +27,11 @@ AC_CONFIG_FILES([Makefile
 		 src/output/video/Makefile
 		 src/output/xv/Makefile
 		 src/tcvp/Makefile
+		 src/timer/Makefile
 		 src/ui/Makefile
 		 src/ui/tcvpgtk/Makefile
 		 src/ui/tcvpshell/Makefile
-		 src/timer/Makefile])
+		 src/wm/Makefile
+		 src/wm/wm/Makefile
+		 src/wm/x11/Makefile])
 AC_OUTPUT
