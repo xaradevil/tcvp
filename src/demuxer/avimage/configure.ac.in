@@ -1,0 +1,1 @@
+TC2_CHECK_LIBS(avformat, avformat, av_write_image, -lavcodec)

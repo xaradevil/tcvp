@@ -1,0 +1,2 @@
+inherit "mux"
+option interval%i=0

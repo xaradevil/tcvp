@@ -1,4 +1,4 @@
-AC_INIT([TCVP], [0.1.4])
+AC_INIT([TCVP], [0.1.5])
 AC_CONFIG_SRCDIR([interfaces/stream.tc2])
 AM_INIT_AUTOMAKE([dist-bzip2])
 
@@ -19,6 +19,7 @@ AC_CONFIG_FILES([Makefile
 		 src/demuxer/audiofile/Makefile
 		 src/demuxer/avformat/Makefile
 		 src/demuxer/avi/Makefile
+		 src/demuxer/avimage/Makefile
 		 src/demuxer/mp3/Makefile
 		 src/demuxer/mpeg/Makefile
 		 src/demuxer/ogg/Makefile
