@@ -350,15 +350,21 @@ static uint32_t dvdsub_palettes[][16] = {
       0x00eb8080 }
 };
 
+#define NPALETTES (sizeof(dvdsub_palettes)/sizeof(dvdsub_palettes[0]))
+
 extern int
 dvdsub_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     dvdsub_t *ds = p->private;
 
-    if(s->common.codec_data)
+    if(s->common.codec_data){
 	ds->palette = s->common.codec_data;
-    else
-	ds->palette = dvdsub_palettes[1];
+    } else {
+	int pl = tcvp_codec_dvdsub_conf_palette;
+	if(pl >= NPALETTES || pl < 0)
+	    pl = 0;
+	ds->palette = dvdsub_palettes[pl];
+    }
 
     p->format = *s;
     p->format.common.codec = "overlay/raw";

@@ -12,3 +12,5 @@ TCVP {
 		packet DATA dvdsub_decode
 	}
 }
+
+option	palette%i
