@@ -1,4 +1,4 @@
-symbol	"open"	window_manager_t *(*%s)(int, int, wm_update_t, void *, conf_section *, int flags)
+symbol	"open"	window_manager_t *(*%s)(int, int, wm_update_t, void *, tcconf_section_t *, int flags)
 include
 typedef int (*wm_update_t)(void *d, int event, int x, int y, int w, int h);
 

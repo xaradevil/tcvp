@@ -46,9 +46,9 @@ tcvpx_init(char *p)
     if(p){
         qname = strdup(p);
     } else {
-	conf_section *cs = conf_new(NULL);
+	tcconf_section_t *cs = tcconf_new(NULL);
 	pl = tcvp_new(cs);
-	conf_getvalue(cs, "qname", "%s", &qname);
+	tcconf_getvalue(cs, "qname", "%s", &qname);
     }
 
     qs = eventq_new(NULL);

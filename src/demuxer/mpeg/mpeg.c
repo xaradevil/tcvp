@@ -115,7 +115,7 @@ mpeg_free(muxed_stream_t *ms)
 }
 
 extern muxed_stream_t *
-mpeg_open(char *name, conf_section *cs, tcvp_timer_t **t)
+mpeg_open(char *name, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     muxed_stream_t *ms;
 

@@ -339,7 +339,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-alsa_open(stream_t *s, conf_section *cs, tcvp_timer_t **timer)
+alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
 {
     tcvp_pipe_t *tp;
     alsa_out_t *ao;
@@ -347,7 +347,7 @@ alsa_open(stream_t *s, conf_section *cs, tcvp_timer_t **timer)
     char *device = strdup(tcvp_output_alsa_conf_device);
 
     if(cs)
-	conf_getvalue(cs, "audio/device", "%s", &device);
+	tcconf_getvalue(cs, "audio/device", "%s", &device);
 
     if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)){
 	fprintf(stderr, "ALSA: Can't open device '%s'\n", device);

@@ -154,7 +154,7 @@ mpeg_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mpeg_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
+mpeg_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     mpeg_dec_t *mpd;
     tcvp_pipe_t *p;

@@ -352,14 +352,14 @@ pmx_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mpegps_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
+mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     mpegps_mux_t *psm;
     tcvp_pipe_t *p;
     char *url;
     url_t *out;
 
-    if(conf_getvalue(cs, "mux/url", "%s", &url) <= 0){
+    if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
 	fprintf(stderr, "No output specified.\n");
 	return NULL;
     }

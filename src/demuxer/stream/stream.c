@@ -29,7 +29,7 @@
 #include <stream_tc2.h>
 
 extern muxed_stream_t *
-s_open(char *name, conf_section *cs, tcvp_timer_t **t)
+s_open(char *name, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     char *m = NULL;
     char *ext;
@@ -63,7 +63,7 @@ s_next_packet(muxed_stream_t *ms, int stream)
 }
 
 extern int
-s_validate(char *name, conf_section *cs)
+s_validate(char *name, tcconf_section_t *cs)
 {
     muxed_stream_t *ms = s_open(name, cs, NULL);
 
@@ -380,7 +380,7 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 }
 
 extern tcvp_pipe_t *
-s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
+s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
 {
     tcvp_pipe_t *p;
     s_play_t *vp;
@@ -397,7 +397,7 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
     pthread_cond_init(&vp->cnd, NULL);
     sem_init(&vp->rsm, 0, 0);
 
-    conf_getvalue(cs, "qname", "%s", &qname);
+    tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 9);
     sprintf(qn, "%s/status", qname);
     free(qname);

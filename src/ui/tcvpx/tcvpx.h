@@ -37,7 +37,7 @@
 #define ST_ON_TOP (1<<1)
 
 typedef struct {
-    conf_section *config;
+    tcconf_section_t *config;
     char *file;
     char *path;
     int width, height;
@@ -48,7 +48,7 @@ typedef struct {
 } skin_t;
 
 skin_t* load_skin(char *skinfile);
-int create_ui(window_t *win, skin_t *skin, conf_section *config, 
+int create_ui(window_t *win, skin_t *skin, tcconf_section_t *config, 
 	      hash_table *parameters);
 
 int init_skins(void);

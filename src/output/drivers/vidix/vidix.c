@@ -272,7 +272,7 @@ static int fccs[] = {
 };
 
 extern video_driver_t *
-vx_open(video_stream_t *vs, conf_section *cs)
+vx_open(video_stream_t *vs, tcconf_section_t *cs)
 {
     video_driver_t *vd;
     vx_window_t *vxw;
@@ -288,7 +288,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
     int dw, dh;
 
     if(cs)
-	conf_getvalue(cs, "video/aspect", "%f", &dasp);
+	tcconf_getvalue(cs, "video/aspect", "%f", &dasp);
 
     if(!(drvdir = driver_video_vidix_conf_driver_dir)){
 	fprintf(stderr, "VIDIX: No driver dir.\n");
@@ -362,7 +362,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
     vxw->pbc->dest.w = dw;
     vxw->pbc->dest.h = dh;
 
-    if(conf_getvalue(cs, "video/color_key", "%i", &ckey) > 0){
+    if(tcconf_getvalue(cs, "video/color_key", "%i", &ckey) > 0){
 	ck.ckey.red = (ckey >> 16) & 0xff;
 	ck.ckey.green = (ckey >> 8) & 0xff;
 	ck.ckey.blue = ckey & 0xff;
@@ -372,7 +372,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
     } else {
 	vdlGetGrKeys(vxdrv, &ck);
 	ckey = (ck.ckey.red << 16) | (ck.ckey.green << 8) | ck.ckey.blue;
-	conf_setvalue(cs, "video/color_key", "%i", ckey);
+	tcconf_setvalue(cs, "video/color_key", "%i", ckey);
     }
 
     ck.ckey.op = CKEY_TRUE;

@@ -567,7 +567,7 @@ create_window(char *title, int width, int height)
     XStringListToTextProperty (&title, 1, &windowName);
     XSetWMProperties (xd, window->xw, &windowName, NULL, NULL,
 		      0, sizehints, NULL, classhints);
-
+    XFree(windowName.value);
     XFree(sizehints);
     XFree(classhints);
 

@@ -274,7 +274,6 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     if(do_decvideo(p, pk, 1) < 0){
-	avcodec_flush_buffers(vc->ctx);
 	ret = PROBE_AGAIN;
 	goto out;
     }
@@ -313,7 +312,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
 out:
-    if(ret != PROBE_OK)
+    if(ret != PROBE_FAIL)
 	avcodec_flush_buffers(vc->ctx);
     return ret;
 }
@@ -330,7 +329,7 @@ avc_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern tcvp_pipe_t *
-avc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
+avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     tcvp_pipe_t *p = NULL;
     avc_codec_t *ac, *vc;
@@ -351,7 +350,7 @@ avc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
     if(avc->capabilities & CODEC_CAP_TRUNCATED)
 	avctx->flags |= CODEC_FLAG_TRUNCATED;
 
-#define ctx_conf(n, f) conf_getvalue(cs, #n, "%"#f, &avctx->n)
+#define ctx_conf(n, f) tcconf_getvalue(cs, #n, "%"#f, &avctx->n)
     ctx_conf(workaround_bugs, i);
     ctx_conf(error_resilience, i);
     ctx_conf(error_concealment, i);

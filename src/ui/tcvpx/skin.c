@@ -38,7 +38,7 @@ hash_table *action_hash;
 
 typedef struct {
     char *name;
-    conf_section *conf;
+    tcconf_section_t *conf;
     list *param;
 } template_t;
 
@@ -180,9 +180,9 @@ load_skin(char *skinconf)
     char *tmp;
     skin_t *skin = calloc(sizeof(*skin), 1);
     int i=0;
-    conf_section *sec;
+    tcconf_section_t *sec;
 
-    if(!(skin->config = conf_load_file (NULL, skinconf))){
+    if(!(skin->config = tcconf_load_file (NULL, skinconf))){
 	fprintf(stderr, "Error loading file \"%s\".\n", skinconf);
 	return NULL;
     }
@@ -197,11 +197,11 @@ load_skin(char *skinconf)
 	*tmp=0;
     }
 
-/*     if(conf_getvalue(skin->config, "name", "%s", &tmp) == 1) */
+/*     if(tcconf_getvalue(skin->config, "name", "%s", &tmp) == 1) */
 /* 	printf("Loaded skin: \"%s\"\n", tmp); */
 
-    i = conf_getvalue(skin->config, "size", "%d %d", &skin->width,
-		      &skin->height);
+    i = tcconf_getvalue(skin->config, "size", "%d %d", &skin->width,
+			&skin->height);
     if(i != 2) {
 	free(skin);
 	return NULL;
@@ -210,19 +210,19 @@ load_skin(char *skinconf)
     skin->id_hash = hash_new(10, 0);
     skin->templates = list_new(TC_LOCK_SLOPPY);
     
-    for(s=NULL, sec = conf_nextsection(skin->config, "template", &s);
-	sec != NULL; sec = conf_nextsection(skin->config, "template", &s)) {
+    for(s=NULL, sec = tcconf_nextsection(skin->config, "template", &s);
+	sec != NULL; sec = tcconf_nextsection(skin->config, "template", &s)) {
 
 	void *c = NULL;
 	char *n, *f;
 
 	template_t *t = malloc(sizeof(*t));
 	t->conf = sec;
-	conf_getvalue(sec, "name", "%s", &t->name);
+	tcconf_getvalue(sec, "name", "%s", &t->name);
 	t->param = list_new(TC_LOCK_SLOPPY);
 
-	for(conf_nextvalue(sec, "parameter", &c, "%s %s", &n, &f); c != NULL;
-	    conf_nextvalue(sec, "parameter", &c, "%s %s", &n, &f)) {
+	for(tcconf_nextvalue(sec, "parameter", &c, "%s %s", &n, &f); c != NULL;
+	    tcconf_nextvalue(sec, "parameter", &c, "%s %s", &n, &f)) {
 
 	    parameter_t *p = malloc(sizeof(*p));
 	    p->name = n;
@@ -231,6 +231,7 @@ load_skin(char *skinconf)
 	}
 
 	list_push(skin->templates, t);
+	tcfree(sec);
     }
 
     return skin;
@@ -281,14 +282,14 @@ template_int(char *value, hash_table *parameters)
 
 
 static xtk_widget_t*
-create_skinned_background(window_t *win, skin_t *skin, conf_section *sec,
+create_skinned_background(window_t *win, skin_t *skin, tcconf_section_t *sec,
 			  hash_table *parameters)
 {
     char *file;
     int i=0;
     xtk_widget_t *w;
 
-    i += conf_getvalue(sec, "background", "%s", &file);
+    i += tcconf_getvalue(sec, "background", "%s", &file);
 
     if(i != 1){
 	return NULL;
@@ -308,16 +309,16 @@ destroy_skinned_box(xtk_widget_t *w)
 }
 
 static xtk_widget_t*
-create_skinned_box(window_t *win, skin_t *skin, conf_section *sec,
+create_skinned_box(window_t *win, skin_t *skin, tcconf_section_t *sec,
 		   hash_table *parameters)
 {
     int x, y, width, height;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     int i=0;
 
-    if(conf_getvalue(sec, "position", "%d %d", &x, &y) != 2) {
+    if(tcconf_getvalue(sec, "position", "%d %d", &x, &y) != 2) {
 	char *sx, *sy;
-	if(conf_getvalue(sec, "position", "%s %s", &sx, &sy) == 2) {
+	if(tcconf_getvalue(sec, "position", "%s %s", &sx, &sy) == 2) {
 	    x = template_int(sx, parameters);
 	    y = template_int(sy, parameters);
 	    i += 2;
@@ -325,7 +326,7 @@ create_skinned_box(window_t *win, skin_t *skin, conf_section *sec,
     } else {
 	i += 2;
     }
-    i += conf_getvalue(sec, "size", "%d %d", &width, &height);
+    i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
 
     if(i != 4){
 	return NULL;
@@ -350,7 +351,7 @@ destroy_skinned_button(xtk_widget_t *w)
 }
 
 static xtk_widget_t*
-create_skinned_button(window_t *win, skin_t *skin, conf_section *sec,
+create_skinned_button(window_t *win, skin_t *skin, tcconf_section_t *sec,
 		      hash_table *parameters)
 {
     char *file, *of = NULL, *df = NULL, *bg = NULL;
@@ -359,18 +360,18 @@ create_skinned_button(window_t *win, skin_t *skin, conf_section *sec,
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *bt;
 
-    i += conf_getvalue(sec, "action", "%s", &wd->action);
-    i += conf_getvalue(sec, "image", "%s", &file);
-    i += conf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += tcconf_getvalue(sec, "action", "%s", &wd->action);
+    i += tcconf_getvalue(sec, "image", "%s", &file);
+    i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
 
     if(i != 4){
 	return NULL;
     }
 
-    conf_getvalue(sec, "mouse_over", "%s", &of);
-    conf_getvalue(sec, "pressed", "%s", &df);
+    tcconf_getvalue(sec, "mouse_over", "%s", &of);
+    tcconf_getvalue(sec, "pressed", "%s", &df);
     wd->skin = skin;
-    conf_getvalue(sec, "background", "%s", &bg);
+    tcconf_getvalue(sec, "background", "%s", &bg);
 
     bt = xtk_create_button(win, x, y, load_image(skin->path, bg),
 			   load_image(skin->path, file),
@@ -399,7 +400,7 @@ destroy_skinned_label(xtk_widget_t *w)
 }
 
 static xtk_widget_t*
-create_skinned_label(window_t *win, skin_t *skin, conf_section *sec,
+create_skinned_label(window_t *win, skin_t *skin, tcconf_section_t *sec,
 		     hash_table *parameters)
 {
     int x, y;
@@ -414,23 +415,23 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec,
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *l;
 
-    i += conf_getvalue(sec, "position", "%d %d", &x, &y);
-    i += conf_getvalue(sec, "size", "%d %d", &width, &height);
+    i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
 
-    i += conf_getvalue(sec, "text", "%s", &text);
-    i += conf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
-    i += conf_getvalue(sec, "font", "%s", &font);
-    if((j = conf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
+    i += tcconf_getvalue(sec, "text", "%s", &text);
+    i += tcconf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
+    i += tcconf_getvalue(sec, "font", "%s", &font);
+    if((j = tcconf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
 	alpha = 0xff;
 	j++;
     }
     i += j;
-    if((j = conf_getvalue(sec, "scroll_style", "%d", &stype))<1){
+    if((j = tcconf_getvalue(sec, "scroll_style", "%d", &stype))<1){
 	stype = 1;
 	j = 1;
     }
     i += j;
-    if((j = conf_getvalue(sec, "align", "%s", &align_s))<1){
+    if((j = tcconf_getvalue(sec, "align", "%s", &align_s))<1){
 	j = 1;
 	align_s = strdup("left");
     }
@@ -448,8 +449,8 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec,
 	return NULL;
     }
 
-    conf_getvalue(sec, "action", "%s", &action);
-    conf_getvalue(sec, "background", "%s", &bg);
+    tcconf_getvalue(sec, "action", "%s", &action);
+    tcconf_getvalue(sec, "background", "%s", &bg);
 
     default_text = malloc(1024);
     parse_text(text, default_text);
@@ -485,7 +486,7 @@ destroy_skinned_seek_bar(xtk_widget_t *w)
 }
 
 static xtk_widget_t*
-create_skinned_seek_bar(window_t *win, skin_t *skin, conf_section *sec,
+create_skinned_seek_bar(window_t *win, skin_t *skin, tcconf_section_t *sec,
 			hash_table *parameters)
 {
     int x, y;
@@ -499,20 +500,20 @@ create_skinned_seek_bar(window_t *win, skin_t *skin, conf_section *sec,
     xtk_widget_t *s;
     int disable = 0;
 
-    i += conf_getvalue(sec, "position", "%d %d", &x, &y);
-    i += conf_getvalue(sec, "start_position", "%d %d", &sp_x, &sp_y);
-    i += conf_getvalue(sec, "end_position", "%d %d", &ep_x, &ep_y);
-    i += conf_getvalue(sec, "background", "%s", &bg);
-    i += conf_getvalue(sec, "indicator", "%s", &indicator);
-    i += conf_getvalue(sec, "value", "%s", &value);
+    i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += tcconf_getvalue(sec, "start_position", "%d %d", &sp_x, &sp_y);
+    i += tcconf_getvalue(sec, "end_position", "%d %d", &ep_x, &ep_y);
+    i += tcconf_getvalue(sec, "background", "%s", &bg);
+    i += tcconf_getvalue(sec, "indicator", "%s", &indicator);
+    i += tcconf_getvalue(sec, "value", "%s", &value);
 
     if(i != 9){
 	return NULL;
     }
 
-    conf_getvalue(sec, "action", "%s", &action);
-    conf_getvalue(sec, "mouse_over", "%s", &ind_over);
-    conf_getvalue(sec, "pressed", "%s", &ind_down);
+    tcconf_getvalue(sec, "action", "%s", &action);
+    tcconf_getvalue(sec, "mouse_over", "%s", &ind_over);
+    tcconf_getvalue(sec, "pressed", "%s", &ind_down);
 
     parse_variable(value, (void *)&position, (void *)&def);
     if(!position) {
@@ -560,7 +561,7 @@ destroy_skinned_state(xtk_widget_t *w)
 }
 
 static xtk_widget_t*
-create_skinned_state(window_t *win, skin_t *skin, conf_section *sec,
+create_skinned_state(window_t *win, skin_t *skin, tcconf_section_t *sec,
 		     hash_table *parameters)
 {
     int x, y;
@@ -573,13 +574,13 @@ create_skinned_state(window_t *win, skin_t *skin, conf_section *sec,
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *s = NULL;
 
-    i = conf_getvalue(sec, "position", "%d %d", &x, &y);
-    i += conf_getvalue(sec, "value", "%s", &wd->value);
+    i = tcconf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += tcconf_getvalue(sec, "value", "%s", &wd->value);
     if (i != 3) {
 	return NULL;
     }
 
-    while(i = conf_nextvalue(sec, "image", &c, "%s %s", &st, &img), c){
+    while(i = tcconf_nextvalue(sec, "image", &c, "%s %s", &st, &img), c){
 	if(i == 2) {
 	    imgs = realloc(imgs, sizeof(*imgs)*(ns+1));
 	    states = realloc(states, sizeof(*states)*(ns+1));
@@ -590,9 +591,9 @@ create_skinned_state(window_t *win, skin_t *skin, conf_section *sec,
 	}
     }
 
-    conf_getvalue(sec, "action", "%s", &wd->action);
+    tcconf_getvalue(sec, "action", "%s", &wd->action);
     wd->skin = skin;
-    conf_getvalue(sec, "background", "%s", &bg);
+    tcconf_getvalue(sec, "background", "%s", &bg);
 
     parse_text(wd->value, def_state);
 
@@ -696,17 +697,18 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 
 
 static int
-create_template(window_t *win, skin_t *skin, conf_section *config,
+create_template(window_t *win, skin_t *skin, tcconf_section_t *config,
 		template_t *template)
 {
     
     list_item *lc = NULL;
     parameter_t *p;
     hash_table *params;
+    tcconf_section_t *ws;
 
     params = hash_new(10, 0);
     while((p = list_next(template->param, &lc))!=NULL) {
-	conf_getvalue(config, p->name, p->fmt, &p->value);
+	tcconf_getvalue(config, p->name, p->fmt, &p->value);
 /* 	fprintf(stderr, "%s %s ", p->name, p->fmt); */
 /* 	if(strcmp(p->fmt, "%d") == 0) { */
 /* 	    fprintf(stderr, "%d\n", p->value.integer); */
@@ -716,7 +718,9 @@ create_template(window_t *win, skin_t *skin, conf_section *config,
 	hash_search(params, p->name, p, NULL);
     }
 
-    create_ui(win, skin, conf_getsection(template->conf, "widgets"), params);
+    ws = tcconf_getsection(template->conf, "widgets");
+    create_ui(win, skin, ws, params);
+    tcfree(ws);
 
     hash_destroy(params, NULL);
 
@@ -724,9 +728,10 @@ create_template(window_t *win, skin_t *skin, conf_section *config,
 }
 
 #define create_skinned_widget(name, fn)					\
-    for(s=NULL, sec = conf_nextsection(config, name, &s);		\
-	sec != NULL; sec = conf_nextsection(config, name, &s)) {	\
-									\
+do {									\
+    tcconf_section_t *sec;						\
+    void *s = NULL, *w;							\
+    while((sec = tcconf_nextsection(config, name, &s))){		\
 	char *id = NULL;						\
 	int e = 1;							\
 									\
@@ -735,21 +740,23 @@ create_template(window_t *win, skin_t *skin, conf_section *config,
 	    fprintf(stderr, "Widget \"%s\", could not be created.\n",	\
 		    name);						\
 	} else {							\
-	    conf_getvalue(sec, "id", "%s", &id);			\
+	    tcconf_getvalue(sec, "id", "%s", &id);			\
 	    if(id){							\
 		hash_replace(skin->id_hash, id, w);			\
 		free(id);						\
 	    }								\
-	    conf_getvalue(sec, "enabled", "%d", &e);			\
+	    tcconf_getvalue(sec, "enabled", "%d", &e);			\
 	    if(e != 0) xtk_show_widget(w);				\
 	}								\
-    }
+	tcfree(sec);							\
+    }									\
+} while(0);
 
 extern int
-create_ui(window_t *win, skin_t *skin, conf_section *config,
+create_ui(window_t *win, skin_t *skin, tcconf_section_t *config,
 	  hash_table *parameters)
 {
-    conf_section *sec;
+    tcconf_section_t *sec;
     void *s, *w;
     list_item *lc;
     template_t *t;
@@ -760,14 +767,15 @@ create_ui(window_t *win, skin_t *skin, conf_section *config,
     create_skinned_widget("box", create_skinned_box);
     create_skinned_widget("button", create_skinned_button);
     create_skinned_widget("label", create_skinned_label);
-    create_skinned_widget("state", create_skinned_state);
-    create_skinned_widget("slider", create_skinned_seek_bar);
+/*     create_skinned_widget("state", create_skinned_state); */
+/*     create_skinned_widget("slider", create_skinned_seek_bar); */
 
     lc = NULL;
     while((t = list_next(skin->templates, &lc))!=NULL) {
-	for(s=NULL, sec = conf_nextsection(config, t->name, &s);
-	    sec != NULL; sec = conf_nextsection(config, t->name, &s)) {
+	for(s=NULL, sec = tcconf_nextsection(config, t->name, &s);
+	    sec != NULL; sec = tcconf_nextsection(config, t->name, &s)) {
 	    create_template(win, skin, sec, t);
+	    tcfree(sec);
 	}
     }
 

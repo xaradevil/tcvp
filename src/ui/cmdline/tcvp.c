@@ -38,7 +38,7 @@ static char **files;
 static char *playlist;
 static sem_t psm;
 static int intr;
-static conf_section *cf;
+static tcconf_section_t *cf;
 static int validate;
 static player_t *pl;
 static eventq_t qr, qs;
@@ -164,7 +164,7 @@ tcl_init(char *p)
 {
     char *qname;
     pl = tcvp_new(cf);
-    conf_getvalue(cf, "qname", "%s", &qname);
+    tcconf_getvalue(cf, "qname", "%s", &qname);
 
     if(validate){
 	pthread_create(&check_thr, NULL, tcl_check, NULL);
@@ -297,25 +297,25 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'A':
-	    conf_setvalue(cf, "audio/device", "%s", optarg);
+	    tcconf_setvalue(cf, "audio/device", "%s", optarg);
 	    break;
 
 	case 'a':
 	    s = strtol(optarg, &ot, 0);
 	    if(*ot)
 		s = -1;
-	    conf_setvalue(cf, "audio/stream", "%i", s);
+	    tcconf_setvalue(cf, "audio/stream", "%i", s);
 	    break;
 
 	case 'V':
-	    conf_setvalue(cf, "video/device", "%s", optarg);
+	    tcconf_setvalue(cf, "video/device", "%s", optarg);
 	    break;
 
 	case 'v':
 	    s = strtol(optarg, &ot, 0);
 	    if(*ot)
 		s = -1;
-	    conf_setvalue(cf, "video/stream", "%i", s);
+	    tcconf_setvalue(cf, "video/stream", "%i", s);
 	    break;
 
 	case 'C':
@@ -323,7 +323,7 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 's':
-	    conf_setvalue(cf, "start_time", "%i", strtol(optarg, NULL, 0));
+	    tcconf_setvalue(cf, "start_time", "%i", strtol(optarg, NULL, 0));
 	    break;
 
 	case 'u':
@@ -339,7 +339,7 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'f':
-	    conf_setvalue(cf, "video/fullscreen", "%i", 1);
+	    tcconf_setvalue(cf, "video/fullscreen", "%i", 1);
 	    break;
 
 	case OPT_ASPECT: {
@@ -348,16 +348,16 @@ parse_options(int argc, char **argv)
 	    a = strtod(optarg, &t);
 	    if(*t++ == '/')
 		a /= strtod(t, NULL);
-	    conf_setvalue(cf, "video/aspect", "%f", a);
+	    tcconf_setvalue(cf, "video/aspect", "%f", a);
 	    break;
 	}
 
 	case 'o':
-	    conf_setvalue(cf, "mux/url", "%s", optarg);
+	    tcconf_setvalue(cf, "mux/url", "%s", optarg);
 	    break;
 
 	case 'P':
-	    conf_setvalue(cf, "profile", "%s", optarg);
+	    tcconf_setvalue(cf, "profile", "%s", optarg);
 	    break;
 
 	case OPT_TC2_DEBUG:
@@ -381,7 +381,7 @@ main(int argc, char **argv)
 {
     int opt_num;
 
-    cf = conf_new(NULL);
+    cf = tcconf_new(NULL);
 
     opt_num = parse_options(argc, argv);
 

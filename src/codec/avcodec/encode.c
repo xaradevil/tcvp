@@ -125,7 +125,7 @@ avc_free_encvid(void *p)
 }
 
 static tcvp_pipe_t *
-avc_encvideo_new(stream_t *s, char *codec, conf_section *cf)
+avc_encvideo_new(stream_t *s, char *codec, tcconf_section_t *cf)
 {
     enum CodecID cid;
     AVCodec *avc;
@@ -143,7 +143,7 @@ avc_encvideo_new(stream_t *s, char *codec, conf_section *cf)
     ctx = avcodec_alloc_context();
     avcodec_get_context_defaults(ctx);
 
-#define ctx_conf(n, f) conf_getvalue(cf, #n, "%"#f, &ctx->n)
+#define ctx_conf(n, f) tcconf_getvalue(cf, #n, "%"#f, &ctx->n)
     ctx_conf(bit_rate, i);
     ctx_conf(bit_rate_tolerance, i);
     ctx_conf(flags, i);
@@ -197,7 +197,7 @@ avc_encvideo_new(stream_t *s, char *codec, conf_section *cf)
     ctx_conf(coder_type, i);
     ctx_conf(mb_decision, i);
 
-#define ctx_flag(c, f) if(!conf_getvalue(cf, #c, ""))	\
+#define ctx_flag(c, f) if(!tcconf_getvalue(cf, #c, ""))	\
     ctx->flags |= CODEC_FLAG_##f
 
     ctx_flag(qscale, QSCALE);
@@ -227,19 +227,19 @@ avc_encvideo_new(stream_t *s, char *codec, conf_section *cf)
 }
 
 extern tcvp_pipe_t *
-avc_mpeg4_enc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
+avc_mpeg4_enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     return avc_encvideo_new(s, "video/mpeg4", cs);
 }
 
 extern tcvp_pipe_t *
-avc_mpeg_enc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
+avc_mpeg_enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     return avc_encvideo_new(s, "video/mpeg", cs);
 }
 
 extern tcvp_pipe_t *
-avc_mpeg2_enc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
+avc_mpeg2_enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 {
     return avc_encvideo_new(s, "video/mpeg2", cs);
 }

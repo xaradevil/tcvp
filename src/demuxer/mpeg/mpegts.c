@@ -342,9 +342,13 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	    if(s->synctime && (s->stream->flags & URL_FLAG_STREAMED) &&
 	       s->timer && *s->timer){
-		uint64_t pcr = mp.adaptation_field.pcr - 27000000 * 5;
-		uint64_t time = (*s->timer)->read(*s->timer);
-		int64_t dt = pcr - time;
+		int64_t pcr = mp.adaptation_field.pcr - 27000000 * 1;
+		int64_t time = (*s->timer)->read(*s->timer);
+		int64_t dt;
+
+		if(pcr < 0)
+		    pcr += 300LL << 33;
+		dt = pcr - time;
 		if(llabs(dt) > 270000){
 		    time += dt / 2;
 		    (*s->timer)->reset(*s->timer, time);
@@ -420,7 +424,7 @@ mpegts_free(void *p)
 }
 
 extern muxed_stream_t *
-mpegts_open(char *name, conf_section *cs, tcvp_timer_t **tm)
+mpegts_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 {
     muxed_stream_t *ms;
     mpegts_stream_t *s;
@@ -454,7 +458,7 @@ mpegts_open(char *name, conf_section *cs, tcvp_timer_t **tm)
     s = calloc(1, sizeof(*s));
     s->stream = u;
     s->timer = tm;
-    conf_getvalue(cs, "sync_timer", "%i", &s->synctime);
+    tcconf_getvalue(cs, "sync_timer", "%i", &s->synctime);
 
     ms->private = s;
 

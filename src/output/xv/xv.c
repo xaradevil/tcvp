@@ -117,7 +117,7 @@ xv_close(video_driver_t *vd)
 }
 
 extern video_driver_t *
-xv_open(video_stream_t *vs, conf_section *cs)
+xv_open(video_stream_t *vs, tcconf_section_t *cs)
 {
     video_driver_t *vd;
     xv_window_t *xvw;
@@ -135,8 +135,8 @@ xv_open(video_stream_t *vs, conf_section *cs)
     float dasp = 0;
 
     if(cs){
-	conf_getvalue(cs, "video/device", "%s", &display);
-	conf_getvalue(cs, "video/aspect", "%f", &dasp);
+	tcconf_getvalue(cs, "video/device", "%s", &display);
+	tcconf_getvalue(cs, "video/aspect", "%f", &dasp);
     }
 
     XInitThreads();
@@ -181,11 +181,11 @@ xv_open(video_stream_t *vs, conf_section *cs)
     }
 
     if((atm = XInternAtom(dpy, "XV_COLORKEY", True)) != None){
-	if(conf_getvalue(cs, "video/color_key", "%i", &color_key) > 0){
+	if(tcconf_getvalue(cs, "video/color_key", "%i", &color_key) > 0){
 	    XvSetPortAttribute(dpy, xvw->port, atm, color_key);
 	} else {
 	    XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
-	    conf_setvalue(cs, "video/color_key", "%i", color_key);
+	    tcconf_setvalue(cs, "video/color_key", "%i", color_key);
 	}
     }
 

@@ -356,7 +356,7 @@ pl_free(playlist_t *pl)
 }
 
 extern playlist_t *
-pl_new(conf_section *cs)
+pl_new(tcconf_section_t *cs)
 {
     tcvp_playlist_t *tpl;
     playlist_t *pl;
@@ -367,7 +367,7 @@ pl_new(conf_section *cs)
     tpl->files = malloc(tpl->af * sizeof(*tpl->files));
     pthread_mutex_init(&tpl->lock, NULL);
 
-    conf_getvalue(cs, "qname", "%s", &qname);
+    tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 9);
 
     tpl->qr = eventq_new(tcref);

@@ -117,7 +117,7 @@ oss_play(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern tcvp_pipe_t *
-oss_open(stream_t *s, conf_section *cs, tcvp_timer_t **timer)
+oss_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
 {
     audio_stream_t *as = &s->audio;
     tcvp_pipe_t *tp;
@@ -128,7 +128,7 @@ oss_open(stream_t *s, conf_section *cs, tcvp_timer_t **timer)
     char *device = NULL;
 
     if(cs)
-	conf_getvalue(cs, "audio/device", "%s", &device);
+	tcconf_getvalue(cs, "audio/device", "%s", &device);
 
     if(!device)
 	device = strdup("/dev/dsp");

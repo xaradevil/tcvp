@@ -35,7 +35,7 @@ typedef struct tcvp_player {
     pthread_cond_t tcd;
     int state;
     eventq_t qs, qr, qt;
-    conf_section *conf;
+    tcconf_section_t *conf;
     int open;
     hash_table *filters;
 } tcvp_player_t;
@@ -280,30 +280,30 @@ t_seek(player_t *pl, int64_t time, int how)
 }
 
 static tcvp_pipe_t *
-new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
+new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p)
 {
     tcvp_pipe_t *pipe = NULL, *pp = NULL, *pn = NULL;
-    conf_section *f, *mcf;
+    tcconf_section_t *f, *mcf;
     void *cs = NULL;
 
-    while((f = conf_nextsection(p, "filter", &cs))){
+    while((f = tcconf_nextsection(p, "filter", &cs))){
 	char *type, *id = NULL;
 	filter_new_t fn;
 
 	pn = NULL;
 
-	if(conf_getvalue(f, "type", "%s", &type) < 1)
+	if(tcconf_getvalue(f, "type", "%s", &type) < 1)
 	    continue;
 
-	if(conf_getvalue(f, "id", "%s", &id) > 0)
+	if(tcconf_getvalue(f, "id", "%s", &id) > 0)
 	    hash_find(tp->filters, id, &pn);
 
 	if(!pn){
 	    if(!(fn = tc2_get_symbol(type, "new")))
 		break;
 
-	    mcf = conf_merge(NULL, f);
-	    conf_merge(mcf, tp->conf);
+	    mcf = tcconf_merge(NULL, f);
+	    tcconf_merge(mcf, tp->conf);
 
 	    if(!(pn = fn(pp? &pp->format: s, mcf, &tp->timer)))
 		break;
@@ -325,6 +325,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
 	    pp->next = pn;
 	pp = pn;
 	free(type);
+	tcfree(f);
     }
 
     if(!pn){
@@ -357,10 +358,10 @@ t_open(player_t *pl, char *name)
     int ac = -1, vc = -1;
     int start;
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
-    conf_section *prsec, *dc;
+    tcconf_section_t *prsec, *dc;
 
     if(tp->conf){
-	if(conf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
+	if(tcconf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
 	    if(vc >= 0 && vc < stream->n_streams &&
 	       stream->streams[vc].stream_type == STREAM_TYPE_VIDEO){
 		vs = &stream->streams[vc];
@@ -368,7 +369,7 @@ t_open(player_t *pl, char *name)
 		vc = -2;
 	    }
 	}
-	if(conf_getvalue(tp->conf, "audio/stream", "%i", &ac) > 0){
+	if(tcconf_getvalue(tp->conf, "audio/stream", "%i", &ac) > 0){
 	    if(ac >= 0 && ac < stream->n_streams &&
 	       stream->streams[ac].stream_type == STREAM_TYPE_AUDIO){
 		as = &stream->streams[ac];
@@ -376,7 +377,7 @@ t_open(player_t *pl, char *name)
 		ac = -2;
 	    }
 	}
-	conf_getvalue(tp->conf, "profile", "%s", &profile);
+	tcconf_getvalue(tp->conf, "profile", "%s", &profile);
     }
 
     snprintf(prname, 256, "TCVP/profiles/%s", profile);
@@ -388,11 +389,14 @@ t_open(player_t *pl, char *name)
     tp->filters = hash_new(10, 0);
     free(profile);
 
-    dc = conf_getsection(prsec, "demux");
-    if(dc)
-	dc = conf_merge(NULL, dc);
-    dc = conf_merge(dc, tp->conf);
-    if(!(stream = stream_open(name, dc, &tp->timer))){
+    dc = tcconf_getsection(prsec, "demux");
+    if(dc){
+	tcconf_section_t *nc = tcconf_merge(NULL, dc);
+	tcfree(dc);
+	dc = nc;
+    }
+    dc = tcconf_merge(dc, tp->conf);
+    if(!(stream = stream_open(name, dc?: tp->conf, &tp->timer))){
 	return -1;
     }
     tcfree(dc);
@@ -401,28 +405,30 @@ t_open(player_t *pl, char *name)
 
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
-	conf_section *pc;
+	tcconf_section_t *pc;
 
 	if(stream->streams[i].stream_type == STREAM_TYPE_VIDEO &&
 	   (!vs || i == vc) && vc > -2){
-	    if((pc = conf_getsection(prsec, "video")) &&
+	    if((pc = tcconf_getsection(prsec, "video")) &&
 	       (video = new_pipe(tp, st, pc))){
 		vs = st;
 		codecs[i] = video;
 		stream->used_streams[i] = 1;
 		vc = i;
+		tcfree(pc);
 	    } else if(vs){
 		printf("Warning: Stream %i not supported => no video\n", i);
 		vs = NULL;
 	    }
 	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO &&
 		  (!as || i == ac) && ac > -2){
-	    if((pc = conf_getsection(prsec, "audio")) &&
+	    if((pc = tcconf_getsection(prsec, "audio")) &&
 	       (audio = new_pipe(tp, st, pc))){
 		as = &stream->streams[i];
 		codecs[i] = audio;
 		stream->used_streams[i] = 1;
 		ac = i;
+		tcfree(pc);
 	    } else if(as){
 		printf("Warning: Stream %i not supported => no audio\n", i);
 		as = NULL;
@@ -431,6 +437,7 @@ t_open(player_t *pl, char *name)
     }
 
     hash_destroy(tp->filters, tcfree);
+    tcfree(prsec);
 
     if(!as && !vs)
 	goto err;
@@ -498,7 +505,7 @@ t_open(player_t *pl, char *name)
     tp->demux = demux;
     tp->stream = stream;
 
-    if(conf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
+    if(tcconf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
 	uint64_t spts = (uint64_t) start * 27000000LL;
 	t_seek(pl, spts, TCVP_SEEK_ABS);
     }
@@ -619,7 +626,7 @@ q_seek(player_t *pl, uint64_t pts)
 static u_int plc;
 
 extern player_t *
-t_new(conf_section *cs)
+t_new(tcconf_section_t *cs)
 {
     tcvp_player_t *tp;
     player_t *pl;
@@ -636,7 +643,7 @@ t_new(conf_section *cs)
     pl->private = tp;
 
     sprintf(qname, "TCVP-%u", plc++);
-    conf_setvalue(cs, "qname", "%s", qname);
+    tcconf_setvalue(cs, "qname", "%s", qname);
 
     pthread_mutex_init(&tp->tmx, NULL);
     pthread_cond_init(&tp->tcd, NULL);

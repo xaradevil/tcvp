@@ -1,4 +1,4 @@
-symbol	"new"	playlist_t *(*%s)(conf_section *)
+symbol	"new"	playlist_t *(*%s)(tcconf_section_t *)
 include
 typedef struct playlist playlist_t;
 struct playlist {

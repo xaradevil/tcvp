@@ -486,7 +486,7 @@ mp3_free(void *p)
 }
 
 extern muxed_stream_t *
-mp3_open(char *name, conf_section *cs, tcvp_timer_t **tm)
+mp3_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 {
     muxed_stream_t *ms;
     mp3_file_t *mf;
@@ -519,7 +519,7 @@ mp3_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 	return NULL;
     }
 
-    conf_getvalue(cs, "qname", "%s", &qname);
+    tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 8);
     mf->qs = eventq_new(tcref);
     sprintf(qn, "%s/status", qname);

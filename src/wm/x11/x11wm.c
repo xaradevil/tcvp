@@ -195,7 +195,7 @@ x11_fullscreen(x11_wm_t *xwm)
 
 extern window_manager_t *
 x11_open(int width, int height, wm_update_t upd, void *cbd,
-	 conf_section *cs, int flags)
+	 tcconf_section_t *cs, int flags)
 {
     window_manager_t *wm;
     x11_wm_t *xwm;
@@ -206,8 +206,8 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     int fs = 0;
 
     if(cs){
-	conf_getvalue(cs, "video/device", "%s", &display);
-	conf_getvalue(cs, "video/fullscreen", "%i", &fs);
+	tcconf_getvalue(cs, "video/device", "%s", &display);
+	tcconf_getvalue(cs, "video/fullscreen", "%i", &fs);
     }
 
     XInitThreads();
@@ -229,7 +229,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     xwm->update = upd;
     xwm->cbd = cbd;
     xwm->flags = flags;
-    conf_getvalue(cs, "video/color_key", "%i", &xwm->color_key);
+    tcconf_getvalue(cs, "video/color_key", "%i", &xwm->color_key);
 
     x11_hidecursor(xwm);
 
@@ -237,7 +237,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 			      InputOutput, CopyFromParent, 0, NULL);
     XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
 
-    conf_getvalue(cs, "qname", "%s", &qname);
+    tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname)+8);
     sprintf(qn, "%s/control", qname);
     xwm->qs = eventq_new(NULL);

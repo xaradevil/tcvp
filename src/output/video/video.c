@@ -48,7 +48,7 @@ typedef struct video_out {
     int *drop;
     int dropcnt;
     int framecnt;
-    conf_section *conf;
+    tcconf_section_t *conf;
 } video_out_t;
 
 #define DROPLEN 8
@@ -331,7 +331,7 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-v_open(stream_t *s, conf_section *cs, tcvp_timer_t **timer)
+v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
 {
     tcvp_pipe_t *pipe;
     video_out_t *vo;
