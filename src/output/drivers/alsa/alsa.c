@@ -111,7 +111,8 @@ alsa_flush(audio_driver_t *p, int drop)
 	    snd_pcm_wait(ao->pcm, 100);
 	if(ao->tmdrivers[SYSTEM]){
 	    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
-	    ao->restore_timer = 1;
+	    if(ao->tmdrivers[PCM])
+		ao->restore_timer = 1;
 	}
     }
 
@@ -240,7 +241,8 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     if(tcvp_driver_audio_alsa_conf_pcm_timer){
 	ao->tmdrivers[PCM] = open_timer(270000, pcm);
 	ao->tmdrivers[SYSTEM] = open_timer(270000, NULL);
-	timer->set_driver(timer, tcref(ao->tmdrivers[PCM]));
+	if(ao->tmdrivers[PCM])
+	    timer->set_driver(timer, tcref(ao->tmdrivers[PCM]));
     }
     ao->hwp = hwp;
     ao->can_pause = snd_pcm_hw_params_can_pause(hwp);
