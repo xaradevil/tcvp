@@ -157,7 +157,7 @@ send_event(eventq_t q, int type, ...)
     if(type == -1){
 	te = tcalloc(sizeof(*te));
 	te->type = -1;
-    } else if(type <= event_num && event_tab[type]){
+    } else if(type <= event_num && event_tab[type] && event_tab[type]->alloc){
 	te = event_tab[type]->alloc(type, args);
     } else {
 	fprintf(stderr, "TCVP: unknown event type %i\n", type);
