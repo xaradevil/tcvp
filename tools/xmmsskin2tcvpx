@@ -40,7 +40,7 @@ if(-d $skin){
 	$err = system "bunzip2 -c $skin | tar xf - -C $sd";
     } elsif ($skin =~ /\.tar$/) {
 	$err = system "tar xf $skin -C $sd";
-    } elsif ($skin =~ /\.zip$|\.wsz/) {
+    } elsif ($skin =~ /\.zip$|\.wsz$/) {
 	$err = system "unzip -LL -qq -d $sd $skin";
     }
 
@@ -79,25 +79,44 @@ sub save_image {
     gimp_file_save($img, $d, $f, $f);
 }
 
+sub load_image {
+    my ($file) = @_;
+    my $img = gimp_file_load($file, $file);
+    gimp_drawable_is_rgb(gimp_image_active_drawable($img)) or
+      gimp_convert_rgb($img);
+    return $img;
+}
+
 sub save_rect {
     my ($img, $x, $y, $w, $h, $out) = @_;
     gimp_rect_select($img, $x, $y, $w, $h, REPLACE, 0, 0);
     my $d = gimp_image_active_drawable($img);
     gimp_edit_copy($d);
-    my $l = gimp_edit_paste($d, 0);
-    save_image($img, $l, $out, $out);
-    gimp_floating_sel_remove($l);
+    $img = gimp_image_new($w, $h, RGB);
+    my $tl = gimp_layer_new($img, $w, $h, RGBA_IMAGE, 'foo', 100, NORMAL_MODE);
+    gimp_image_add_layer($img, $tl, -1);
+    gimp_layer_set_offsets($tl, 0, 0);
+    gimp_edit_clear($tl);
+    my $l = gimp_edit_paste($tl, 0);
+    gimp_layer_set_offsets($l, 0, 0);
+    gimp_floating_sel_anchor($l);
+    save_image($img, $tl, $out, $out);
+    gimp_image_remove_layer($img, $tl);
+    gimp_layer_delete($tl);
 }
 
-sub cover {
+sub make_rect {
     my ($w, $h, $x, $y, $ww, $hh, $bg, $name) = @_;
     my $nbg = gimp_image_new($w, $h, RGB);
     my $bl = gimp_layer_new($nbg, $w, $h, RGBA_IMAGE, 'foo', 0, NORMAL_MODE);
     gimp_image_add_layer($nbg, $bl, 0);
+    gimp_layer_set_offsets($bl, 0, 0);
     gimp_edit_clear($bl);
-    gimp_rect_select($nbg, $x, $y, $ww, $hh, REPLACE, 0, 0);
-    gimp_palette_set_background([@$bg[0..2]]);
-    gimp_edit_fill($bl, BG_IMAGE_FILL);
+    if($ww and $hh){
+	gimp_rect_select($nbg, $x, $y, $ww, $hh, REPLACE, 0, 0);
+	gimp_palette_set_background([@$bg[0..2]]);
+	gimp_edit_fill($bl, BG_IMAGE_FILL);
+    }
     save_image($nbg, $bl, $name);
     gimp_image_delete($nbg);
 }
@@ -141,17 +160,29 @@ END_TCCONF
 
 sub create_slider {
     my ($img, $x, $y, $w, $h, $nx, $ny, $px, $py, $hw, $hh, $bx, $by,
-	$min, $max, $name, $value, $action, $conf) = @_;
+	$min, $max, $name, $value, $action, $conf, $hn, $hp) = @_;
     my $bg = "$name.png";
-    my $hn = "${name}_ind.png";
-    my $hp = "${name}_down.png";
+    $hn or $hn = "${name}_ind.png";
+    $hp or $hp = "${name}_down.png";
     my $start = floor($min + $hw / 2);
     my $end = floor($max + $hw / 2);
     my $hpy = floor($h / 2);
+    my $iw = gimp_image_width($img);
+    my $ih = gimp_image_height($img);
 
     save_rect($img, $bx, $by, $w, $h, $bg);
-    save_rect($img, $nx, $ny, $hw, $hh, $hn) if $hw;
-    save_rect($img, $px, $py, $hw, $hh, $hp) if $hw;
+
+    if($nx < $iw and $ny < $ih){
+	save_rect($img, $nx, $ny, $hw, $hh, $hn);
+    } elsif($hw and $hh){
+	make_rect($hw, $hh, 0, 0, 0, 0, undef, $hn);
+    }
+
+    if($px < $iw and $py < $ih){
+	save_rect($img, $px, $py, $hw, $hh, $hp);
+    } elsif($hw and $hh){
+	make_rect($hw, $hh, 0, 0, 0, 0, undef, $hp);
+    }
 
     $$conf .= <<END_TCCONF;
 slider [
@@ -168,13 +199,13 @@ END_TCCONF
 }
 
 sub background {
-    my $bg = gimp_file_load($main, $main);
+    my $bg = load_image($main);
     save_image($bg, gimp_image_active_drawable($bg), 'bg.png');
     gimp_image_delete($bg);
 }
 
 sub titlebar {
-    my $tm = gimp_file_load($titlebar, $titlebar);
+    my $tm = load_image($titlebar);
     create_button($tm, 244, 3, 9, 9, 9, 0, 9, 9,
 		  'minimize', 'minimize', \$skinconf, \$shadeconf);
     create_button($tm, 254, 3, 9, 9, 0, 18, 9, 18,
@@ -199,7 +230,7 @@ sub titlebar {
 }
 
 sub cbuttons {
-    my $bi = gimp_file_load($cbuttons, $cbuttons);
+    my $bi = load_image($cbuttons);
     create_button($bi, 16, 88, 23, 18, 0, 0, 0, 18,
 		  'prev', 'previous', \$skinconf);
     create_button($bi, 39, 88, 23, 18, 23, 0, 23, 18,
@@ -219,38 +250,54 @@ sub luminance {
     0.212671 * $_[0] + 0.715160 * $_[1] + 0.072169 * $_[2];
 }
 
-sub text_colors {
-    my ($img, $x, $y) = @_;
-    my ($i, @c, $bl, $dl, $d, $md, @fg, @bg, $nc);
+sub text_properties {
+    my ($img, $x, $y, $h) = @_;
+    my ($i, $j, @c, $bl, $dl, $d, $md, @fg, @bg, $tt, $tb);
     my $w = gimp_image_width($img);
 
     $d = gimp_image_active_drawable($img);
     @bg = gimp_drawable_get_pixel($d, $x, $y);
-    $bl = luminance(@bg);
 
     $md = 0;
+    $tt = -1;
 
-    for($i = 0; $i < $w; $i++){
-	@c = gimp_drawable_get_pixel($d, $i, $y);
-	$dl = abs(luminance(@c) - $bl);
-	if($dl > $md){
-	    @fg = @c;
-	    $md = $dl;
+    for($j = 0; $j < $h; $j++){
+	my $rd = 0;
+	my (@rc, @rb);
+
+	@rb = gimp_drawable_get_pixel($d, $x, $j);
+	$bl = luminance(@rb);
+
+	for($i = 0; $i < $w; $i++){
+	    @c = gimp_drawable_get_pixel($d, $i, $j);
+	    $dl = abs(luminance(@c) - $bl);
+	    if($dl > $rd){
+		@rc = @c;
+		$rd = $dl;
+	    }
+	}
+	if($rd > 50){
+	    $tt = $j if $tt < 0;
+	    $tb = $j;
+	}
+	if($rd > $md){
+	    @fg = @rc;
+	    $md = $rd;
 	}
     }
 
-    return (\@fg, \@bg);
+    return (\@fg, \@bg, $tt, $tb);
 }
 
 sub posbar {
-    my $pb = gimp_file_load($posbar, $posbar);
+    my $pb = load_image($posbar);
     create_slider($pb, 16, 72, 248, 10, 248, 0, 278, 0, 29, 10, 0, 0, 0, 219,
 		  'pos', '${position}', 'seek', \$skinconf);
     gimp_image_delete($pb);
 }
 
 sub volume {
-    my $vb = gimp_file_load($volume, $volume);
+    my $vb = load_image($volume);
     create_slider($vb, 107, 57, 68, 13, 15, 422, 0, 422, 14, 11, 0, 0, 0, 51,
 		  'volume', '${pcm_volume:-%f0.5}',
 		  'change_pcm_volume,set_variable(pcm_volume)', \$skinconf);
@@ -258,16 +305,17 @@ sub volume {
 }
 
 sub balance {
-    my $vb = gimp_file_load($balance, $balance);
-    create_slider($vb, 177, 57, 38, 13, 15, 422, 0, 422, 14, 11, 9, 0, 0, 24,
+    my $bb = load_image($balance);
+    my($hw, $hh) = (14, 11);
+    create_slider($bb, 177, 57, 38, 13, 15, 422, 0, 422, $hw, $hh, 9, 0, 0, 24,
 		  'balance', '${balance:-%f0.5}',
 		  'change_balance,set_variable(balance)', \$skinconf);
-    gimp_image_delete($vb);
+    gimp_image_delete($bb);
 }
 
 sub text {
-    my $tx = gimp_file_load($text, $text);
-    my ($fg, $bg) = text_colors($tx, 151, 2);
+    my $tx = load_image($text);
+    my ($fg, $bg) = text_properties($tx, 151, 2, 6);
     my $color = sprintf "rgb:%02x/%02x/%02x", @$fg;
     gimp_image_delete($tx);
 
@@ -302,7 +350,7 @@ label [
 ]
 END_TCCONF
 
-    cover(30, 6, 0, 0, 30, 6, $bg, 'stimebg.png');
+    make_rect(30, 6, 0, 0, 27, 6, $bg, 'stimebg.png');
 
     $shadeconf .= <<END_TCCONF;
 label [
@@ -320,19 +368,24 @@ END_TCCONF
 }
 
 sub numbers {
-    my $nb = gimp_file_load($numbers, $numbers);
-    my ($fg, $bg) = text_colors($nb, 96, 4);
+    my $nb = load_image($numbers);
+    my ($fg, $bg, $tt, $tb) = text_properties($nb, 96, 6, 13);
     my $color = sprintf "rgb:%02x/%02x/%02x", @$fg;
     gimp_image_delete($nb);
 
-    cover(65, 13, 0, 0, 63, 13, $bg, 'timebg.png');
+    make_rect(65, 13, 0, 1, 63, 11, $bg, 'timebg.png');
+
+    my $th = $tb - $tt + 1;
+    my $pxs = floor($th * 1.4);
+    my $yoff = $pxs + $tt - 3;
+    my $asp = 1 + 0.9 / $pxs;
 
     $skinconf .= <<END_TCCONF;
 label [
 	position 36 26
 	size 65 13
-	text_offset 0 13
-	font 'arial:pixelsize=18:aspect=1.05:weight=bold:spacing=monospace'
+	text_offset 0 $yoff
+	font 'arial:pixelsize=$pxs:aspect=$asp:weight=bold:spacing=monospace'
 	color "$color" 255
 	text '\${time:-    :  } '
 	scroll_style 1
@@ -344,7 +397,7 @@ END_TCCONF
 }
 
 sub playpause {
-    my $pp = gimp_file_load($playpause, $playpause);
+    my $pp = load_image($playpause);
     my $d = gimp_image_active_drawable($pp);
     my $im = gimp_image_new(11, 9, RGB);
     my $l = gimp_layer_new($im, 11, 9, RGB_IMAGE, 'foo', 100, NORMAL_MODE);
@@ -395,11 +448,11 @@ END_TCCONF
 }
 
 sub monostereo {
-    my $ms = gimp_file_load($monostereo, $monostereo);
+    my $ms = load_image($monostereo);
     save_rect($ms, 0, 0, 29, 12, 'stereo_on.png');
     save_rect($ms, 0, 12, 29, 12, 'stereo_off.png');
-    save_rect($ms, 29, 0, 29, 12, 'mono_on.png');
-    save_rect($ms, 29, 12, 29, 12, 'mono_off.png');
+    save_rect($ms, 29, 0, 27, 12, 'mono_on.png');
+    save_rect($ms, 29, 12, 27, 12, 'mono_off.png');
 
     $skinconf .= <<END_TCCONF;
 state [
@@ -435,7 +488,7 @@ Gimp::on_net {
     $cbuttons and cbuttons;
     $posbar and posbar;
     $volume and volume;
-#    $balance and balance;
+    $balance and balance;
     $numbers and numbers;
     $playpause and playpause;
     $monostereo and monostereo;
