@@ -61,6 +61,7 @@ typedef struct audio_out {
     } *ptsq;
     int pqh, pqt, pqc;
     tcconf_section_t *conf;
+    char outfmt[64];
 } audio_out_t;
 
 static int
@@ -316,7 +317,7 @@ audio_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     formats = audio_all_conv(sf);
 
     p->format = *s;
-    as->codec = malloc(256);
+    as->codec = ao->outfmt;
 
     for(i = 0; i < output_audio_conf_driver_count && !ad; i++){
 	driver_audio_new_t adn;
@@ -328,7 +329,8 @@ audio_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	    continue;
 
 	for(j = 0; formats[j] && !ad; j++){
-	    snprintf(as->codec, 256, "audio/pcm-%s", formats[j]);
+	    snprintf(ao->outfmt, sizeof(ao->outfmt),
+		     "audio/pcm-%s", formats[j]);
 	    if((ad = adn(as, ao->conf, ao->timer))){
 		if(!(conv = audio_conv(sf, ad->format))){
 		    tcfree(ad);
