@@ -111,6 +111,7 @@ typedef struct avi_file {
     avi_index_t **index;
     int idxlen;
     int pkt;
+    int has_video;
 } avi_file_t;
 
 typedef struct avi_packet {
@@ -171,9 +172,12 @@ avi_add_index(muxed_stream_t *ms, int s, uint64_t offset,
     int ixl = st->idxlen;
 
     if(st->idxlen == st->idxsize){
-	st->index = realloc(st->index,
-			    (st->idxsize += 16384) * sizeof(*st->index));
+	st->idxsize = st->idxsize? st->idxsize * 2: 65536;
+	st->index = realloc(st->index, st->idxsize * sizeof(*st->index));
     }
+
+    if(ms->streams[s].stream_type == STREAM_TYPE_AUDIO)
+	flags &= ~AVI_FLAG_KEYFRAME;
 
     st->index[ixl].pts = st->ipts / st->ptsd;
     st->index[ixl].offset = offset;
@@ -394,7 +398,7 @@ avi_header(FILE *f)
 	    } else if(lt == TAG('s','t','r','l')){
 		next = TAG('s','t','r','h');
 	    }
-	    break;
+	    continue;
 	}
 	case TAG('a','v','i','h'):{
 	    ftime = getu32(f);
@@ -417,7 +421,6 @@ avi_header(FILE *f)
 	    width = getu32(f);
 	    height = getu32(f);
 
-	    fseek(f, pos + size, SEEK_SET);
 	    break;
 	}
 	case TAG('s','t','r','h'):{
@@ -467,6 +470,7 @@ avi_header(FILE *f)
 		    ms->streams[sidx].video.height = height;
 		}
 		vs = &ms->streams[sidx];
+		af->has_video = 1;
 	    } else if(stype == TAG('a','u','d','s')){
 		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
 		af->streams[sidx].ptsn = 1000000LL * af->streams[sidx].scale;
@@ -478,7 +482,6 @@ avi_header(FILE *f)
 		fprintf(stderr, "AVI: start = %i\n", start);
 	    }
 
-	    fseek(f, pos + size, SEEK_SET);
 	    next = TAG('s','t','r','f');
 	    break;
 	}
@@ -546,19 +549,16 @@ avi_header(FILE *f)
 	    }
 
 	    next = 0;
-	    fseek(f, pos + size, SEEK_SET);
 	    break;
 	}
 	case TAG('i','d','x','1'):{
 	    if(!odml_idx)
 		avi_read_idx1(ms, size);
-	    fseek(f, pos + size, SEEK_SET);
 	    break;
 	}
 	case TAG('i','n','d','x'):{
 	    avi_read_indx(ms);
 	    odml_idx = 1;
-	    fseek(f, pos + size, SEEK_SET);
 	    break;
 	}
 	case TAG('R','I','F','F'):{
@@ -570,9 +570,13 @@ avi_header(FILE *f)
 		vs->video.frames = getu32(f);
 	    break;
 	}
-	default:
-	    fseek(f, size, SEEK_CUR);
+	case TAG('J','U','N','K'):{
+	    break;
 	}
+	default:
+	    fprintf(stderr, "AVI: unknown tag '%s'\n", st);
+	}
+	fseek(f, pos + size, SEEK_SET);
     }
 
     for(i = 0; i < ms->n_streams; i++){
@@ -793,19 +797,14 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 
     pthread_mutex_lock(&af->mx);
 
-    for(s = 0; s < ms->n_streams; s++){
-	avi_stream_t *st = &af->streams[s];
-	for(i = 0; i < st->idxlen; i++){
-	    if(time <= st->index[i].pts){
-		if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO){
-		    if(st->index[i].flags & AVI_FLAG_KEYFRAME)
-			time = st->index[i].pts;
-		    else
-			continue;
-		}
-		if(st->index[i].offset < pos){
-		    pos = st->index[i].offset;
-		}
+    for(i = 0; i < af->idxlen; i++){
+	if(time <= af->index[i]->pts){
+	    if(af->index[i]->offset < pos)
+		pos = af->index[i]->offset;
+	    if(!af->has_video)
+		break;
+	    if(af->index[i]->flags & AVI_FLAG_KEYFRAME){
+		time = af->index[i]->pts;
 		break;
 	    }
 	}
