@@ -26,27 +26,44 @@
 #include <pcm_tc2.h>
 
 static int
-pcm_free(tcvp_pipe_t *p)
+pcm_free_pipe(tcvp_pipe_t *p)
 {
     free(p);
     return 0;
 }
 
 extern tcvp_pipe_t *
-pcm_new(tcvp_pipe_t *p)
+pcm_new_pipe(int mode, tcvp_pipe_t *p)
 {
     tcvp_pipe_t *np = malloc(sizeof(*np));
     np->input = p->input;
     np->start = p->start;
     np->stop = p->stop;
-    np->free = pcm_free;
+    np->free = pcm_free_pipe;
     np->private = p->private;
 
     return np;
 }
 
 extern packet_t *
-pcm_encdec(packet_t *p)
+pcm_encdec(codec_t *c, packet_t *p)
 {
     return p;
+}
+
+static int
+pcm_free(codec_t *c)
+{
+    free(c);
+    return 0;
+}
+
+extern codec_t *
+pcm_new(int mode)
+{
+    codec_t *c = malloc(sizeof(*c));
+    c->decode = pcm_encdec;
+    c->encode = pcm_encdec;
+    c->free = pcm_free;
+    return c;
 }

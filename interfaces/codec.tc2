@@ -1,8 +1,12 @@
-symbol	"new"		tcvp_pipe_t *(*%s)(tcvp_pipe_t *)
+symbol	"new"		codec_t *(*%s)(int mode)
+symbol	"new_pipe"	tcvp_pipe_t *(*%s)(int mode, tcvp_pipe_t *)
 symbol	"decode"	packet_t *(*%s)(codec_t *, packet_t *)
 symbol	"encode"	packet_t *(*%s)(codec_t *, packet_t *)
 include
 #include <tcvp.h>
+
+#define CODEC_MODE_ENCODE 1
+#define CODEC_MODE_DECODE 2
 
 typedef struct codec codec_t;
 struct codec {
