@@ -42,6 +42,7 @@ typedef struct mpegts_stream {
 	int bpos;
 	int hlen;
 	int cc;
+	int start;
     } *streams;
 } mpegts_stream_t;
 
@@ -232,6 +233,8 @@ mpegts_packet(muxed_stream_t *ms, int str)
     struct tsbuf *tb;
 
     do {
+	int ccd;
+
 	do {
 	    if(mpegts_read_packet(s, &mp) < 0)
 		return NULL;
@@ -240,32 +243,38 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	tb = &s->streams[sx];
 
-	if(((mp.cont_counter - tb->cc + 0x10) & 0xf) != 1){
-	    fprintf(stderr, "MPEGTS: lost/duplicate packet, PID %x: %i %i\n",
+	ccd = (mp.cont_counter - tb->cc + 0x10) & 0xf;
+	if(ccd == 0){
+	    fprintf(stderr, "MPEGTS: duplicate packet, PID %x\n", mp.pid);
+	    continue;
+	} else if(ccd != 1){
+	    fprintf(stderr, "MPEGTS: lost packet, PID %x: %i %i\n",
 		    mp.pid, tb->cc, mp.cont_counter);
+	    tb->start = 0;
 	}
 
 	tb->cc = mp.cont_counter;
 
 	if((mp.unit_start && tb->bpos) || tb->bpos > MAX_PACKET_SIZE){
-	    pk = malloc(sizeof(*pk));
-	    pk->pk.stream = sx;
-	    pk->pk.data = &pk->data;
-	    pk->data = tb->buf + tb->hlen;
-	    pk->buf = tb->buf;
-	    pk->pk.sizes = &pk->size;
-	    pk->size = tb->bpos - tb->hlen;
-	    pk->pk.planes = 1;
-	    pk->pk.flags = tb->flags;
-	    if(tb->flags & TCVP_PKT_FLAG_PTS)
-		pk->pk.pts = tb->pts * 300;
-	    if(tb->flags & TCVP_PKT_FLAG_DTS)
-		pk->pk.dts = tb->dts * 300;
-	    pk->pk.free = mpegts_free_pk;
-
+	    if(tb->start){
+		pk = malloc(sizeof(*pk));
+		pk->pk.stream = sx;
+		pk->pk.data = &pk->data;
+		pk->data = tb->buf + tb->hlen;
+		pk->buf = tb->buf;
+		pk->pk.sizes = &pk->size;
+		pk->size = tb->bpos - tb->hlen;
+		pk->pk.planes = 1;
+		pk->pk.flags = tb->flags;
+		if(tb->flags & TCVP_PKT_FLAG_PTS)
+		    pk->pk.pts = tb->pts * 300;
+		if(tb->flags & TCVP_PKT_FLAG_DTS)
+		    pk->pk.dts = tb->dts * 300;
+		pk->pk.free = mpegts_free_pk;
+		tb->buf = malloc(0x10000);
+	    }
 	    tb->bpos = 0;
 	    tb->flags = 0;
-	    tb->buf = malloc(0x10000);
 	    tb->hlen = 0;
 	}
 
@@ -285,6 +294,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		tb->flags |= TCVP_PKT_FLAG_DTS;
 		tb->dts = pes.dts;
 	    }
+	    tb->start = 1;
 	}
     } while(!pk);
 
@@ -423,7 +433,7 @@ mpegts_open(char *name)
 	    fprintf(stderr, "MPEGTS: program %i => PID %x, type %x\n",
 		    prg, epid, stype);
 
-	    if((sti =stream_type2codec(stype)) >= 0){
+	    if((sti = stream_type2codec(stype)) >= 0){
 		memset(sp, 0, sizeof(*sp));
 		sp->stream_type = mpeg_stream_types[sti].stream_type;
 		sp->common.codec = mpeg_stream_types[sti].codec;
@@ -436,8 +446,10 @@ mpegts_open(char *name)
     }
 
     s->streams = calloc(ms->n_streams, sizeof(*s->streams));
-    for(i = 0; i < ms->n_streams; i++)
+    for(i = 0; i < ms->n_streams; i++){
 	s->streams[i].buf = malloc(0x10000);
+	s->streams[i].cc = -1;
+    }
 
     free(pat);
     return ms;
