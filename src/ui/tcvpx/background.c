@@ -60,12 +60,8 @@ repaint_background(tcwidget_t *w)
 	    img = XGetImage(xd, root, x, y, w->background.width,
 			    w->background.height, AllPlanes, ZPixmap);
 	} else {
-	    Pixmap tmp_p;
-	    XImage *tmp_i;
 	    int tmp_x, tmp_y, tmp_w, tmp_h, xp, yp;
 
-	    tmp_p = XCreatePixmap(xd, xw, w->background.width,
-				  w->background.height, depth);
 	    if(x<0) {
 		tmp_x = 0;
 		xp = -x;
@@ -96,15 +92,9 @@ repaint_background(tcwidget_t *w)
 		tmp_h = w->background.height;
 	    }
 
-	    tmp_i = XGetImage(xd, root, tmp_x, tmp_y, tmp_w, tmp_h,
-			      AllPlanes, ZPixmap);
-	    XPutImage(xd, tmp_p, bgc, tmp_i, 0, 0, xp, yp, tmp_w, tmp_h);
+	    img = XGetImage(xd, root, tmp_x, tmp_y, tmp_w, tmp_h,
+			    AllPlanes, ZPixmap);
 	    XSync(xd, False);
-	    XDestroyImage(tmp_i);
-	    img = XGetImage(xd, tmp_p, 0, 0, w->background.width,
-			    w->background.height, AllPlanes, ZPixmap);
-	    XSync(xd, False);
-	    XFreePixmap(xd, tmp_p);
 	}
 
 	alpha_render(*w->background.img->data, img->data, w->background.width,
