@@ -1,12 +1,17 @@
 module		tcvpsh
-name		"TCVP/shell"
+name		"TCVP/ui/shell"
 version		0.1.0
 tc2version	0.4.0
 sources		tcvpsh.c
 postinit	tcvpsh_init
 shutdown	tcvpsh_shdn
-import		"tcvp"	"open"
 import		"Shell" "register_command"
 import		"Shell" "unregister_command"
 import		"Shell" "register_prompt"
 import		"Shell" "unregister_prompt"
+import		"Eventq"	"new"
+import		"Eventq"	"delete"
+import		"Eventq"	"send"
+import		"Eventq"	"recv"
+import		"Eventq"	"attach"
+import		"Eventq"	"detach"

@@ -217,7 +217,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
 
     xwm->qs = eventq_new(NULL);
-    eventq_attach(xwm->qs, "TCVP", EVENTQ_SEND);
+    eventq_attach(xwm->qs, "TCVP/control", EVENTQ_SEND);
 
     wm = malloc(sizeof(*wm));
     wm->close = x11_close;

@@ -1,5 +1,5 @@
 program		tcvp
-name		"TCVP/cmdline"
+name		"TCVP/ui/cmdline"
 version		0.1.0
 tc2version	0.4.0
 sources		tcvp.c
@@ -13,3 +13,4 @@ import		"Eventq"	"send"
 import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
+option		ui%s

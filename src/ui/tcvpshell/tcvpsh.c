@@ -23,45 +23,25 @@
 #include <tcvp_types.h>
 #include <tcvpsh_tc2.h>
 
-static player_t *player;
-static pthread_mutex_t pmx = PTHREAD_MUTEX_INITIALIZER;
-static conf_section *params;
+static eventq_t qs;
 
 static int
 tcvp_pause(char *p)
 {
-    static int paused = 0;
-
-    pthread_mutex_lock(&pmx);
-    if(player)
-	(paused ^= 1)? player->stop(player): player->start(player);
-    pthread_mutex_unlock(&pmx);
-
+    tcvp_event_t *te = tcvp_alloc_event();
+    te->type = TCVP_PAUSE;
+    eventq_send(qs, te);
+    tcfree(te);
     return 0;
 }
 
 static int
 tcvp_stop(char *p)
 {
-    player_t *pl;
-
-    pthread_mutex_lock(&pmx);
-    pl = player;
-    player = NULL;
-    pthread_mutex_unlock(&pmx);
-
-    if(pl)
-	pl->close(pl);
-
-    return 0;
-}
-
-static int
-tcvp_status(void *p, int state, uint64_t time)
-{
-/*     fprintf(stderr, "\r%li", time); */
-    if(state == TCVP_STATE_END)
-	tcvp_stop(NULL);
+    tcvp_event_t *te = tcvp_alloc_event();
+    te->type = TCVP_CLOSE;
+    eventq_send(qs, te);
+    tcfree(te);
 
     return 0;
 }
@@ -69,12 +49,13 @@ tcvp_status(void *p, int state, uint64_t time)
 static int
 tcvp_play(char *file)
 {
-    tcvp_stop(NULL);
+    tcvp_open_event_t *te = tcvp_alloc_event();
+    te->type = TCVP_OPEN;
+    te->file = file;
+    eventq_send(qs, te);
+    tcfree(te);
 
-    pthread_mutex_lock(&pmx);
-    if((player = tcvp_open(file, tcvp_status, NULL, params)))
-	player->start(player);
-    pthread_mutex_unlock(&pmx);
+    tcvp_pause(NULL);
 
     return 0;
 }
@@ -84,6 +65,9 @@ static command *play_cmd, *pause_cmd, *stop_cmd;
 extern int
 tcvpsh_init(char *p)
 {
+    qs = eventq_new(NULL);
+    eventq_attach(qs, "TCVP/control", EVENTQ_SEND);
+
     play_cmd = malloc(sizeof(command));
     play_cmd->name = strdup("play");
     play_cmd->cmd_fn = tcvp_play;
@@ -101,19 +85,16 @@ tcvpsh_init(char *p)
 
     shell_register_prompt("TCVP$ ");
 
-    params = conf_new(NULL);
-
     return 0;
 }
 
 extern int
 tcvpsh_shdn(void)
 {
-    tcvp_stop(NULL);
+    eventq_delete(qs);
     shell_unregister_command(play_cmd);
     shell_unregister_command(pause_cmd);
     shell_unregister_command(stop_cmd);
     shell_unregister_prompt();
-    conf_free(params);
     return 0;
 }

@@ -35,6 +35,8 @@ static sem_t psm;
 static int intr;
 static conf_section *cf;
 static int validate;
+static player_t *pl;
+static eventq_t qr;
 
 static void
 sigint(int s)
@@ -49,10 +51,8 @@ sigint(int s)
 static void *
 tcl_event(void *p)
 {
-    eventq_t qr = eventq_new(tcref);
-    eventq_attach(qr, "TCVP", EVENTQ_RECV);
-
-    for(;;){
+    int r = 1;
+    while(r){
 	tcvp_event_t *te = eventq_recv(qr);
 	switch(te->type){
 	case TCVP_STATE:
@@ -62,6 +62,9 @@ tcl_event(void *p)
 	    case TCVP_STATE_END:
 		sem_post(&psm);
 	    }
+	    break;
+	case -1:
+	    r = 0;
 	    break;
 	}
 	tcfree(te);
@@ -73,10 +76,9 @@ static void *
 tcl_play(void *p)
 {
     int i;
-    player_t *pl = tcvp_new(cf);
     eventq_t qs = eventq_new(NULL);
 
-    eventq_attach(qs, "TCVP", EVENTQ_SEND);
+    eventq_attach(qs, "TCVP/control", EVENTQ_SEND);
     sem_init(&psm, 0, 0);
 
     for(i = 0; i < nfiles; i++){
@@ -101,18 +103,26 @@ tcl_play(void *p)
 	}
     }
 
-    pl->free(pl);
     eventq_delete(qs);
 
-    tc2_request(TC2_UNLOAD_MODULE, 0, "TCVP/cmdline");
+    tc2_request(TC2_UNLOAD_MODULE, 0, MODULE_INFO.name);
     return NULL;
 }
 
 extern int
 tcl_init(char *p)
 {
-    pthread_create(&evt_thr, NULL, tcl_event, NULL);
-    pthread_create(&play_thr, NULL, tcl_play, NULL);
+    pl = tcvp_new(cf);
+    if(nfiles){
+	qr = eventq_new(tcref);
+	eventq_attach(qr, "TCVP/status", EVENTQ_RECV);
+	pthread_create(&evt_thr, NULL, tcl_event, NULL);
+	pthread_create(&play_thr, NULL, tcl_play, NULL);
+    } else if(tcvp_ui_cmdline_conf_ui){
+	char *ui = alloca(strlen(tcvp_ui_cmdline_conf_ui) + 9);
+	sprintf(ui, "TCVP/ui/%s", tcvp_ui_cmdline_conf_ui);
+	tc2_request(TC2_LOAD_MODULE, 1, ui, NULL);
+    }
 
     return 0;
 }
@@ -121,8 +131,16 @@ extern int
 tcl_stop(void)
 {
     pthread_join(play_thr, NULL);
-    pthread_cancel(evt_thr);
-    pthread_join(evt_thr, NULL);
+
+    if(qr){
+	tcvp_event_t *te = tcvp_alloc_event();
+	te->type = -1;
+	eventq_send(qr, te);
+	tcfree(te);
+	pthread_join(evt_thr, NULL);
+    }
+
+    pl->free(pl);
 
     return 0;
 }
@@ -141,6 +159,10 @@ show_help(void)
 	   "   -s t    --seek=t            Seek t seconds at start\n");
 }
 
+/* Identifiers for long-only options */
+#define OPT_TC2_DEBUG 128
+#define OPT_TC2_VERBOSE 129
+
 static int
 parse_options(int argc, char **argv)
 {
@@ -152,6 +174,8 @@ parse_options(int argc, char **argv)
 	{"video-stream", required_argument, 0, 'v'},
 	{"validate", no_argument, 0, 'C'},
 	{"seek", required_argument, 0, 's'},
+	{"tc2-debug", required_argument, 0, OPT_TC2_DEBUG},
+	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
 	{0, 0, 0, 0}
     };
 
@@ -193,6 +217,14 @@ parse_options(int argc, char **argv)
 	case 's':
 	    conf_setvalue(cf, "start_time", "%i", strtol(optarg, NULL, 0));
 	    break;
+
+	case OPT_TC2_DEBUG:
+	    tc2_debug(strtol(optarg, NULL, 0));
+	    break;
+
+	case OPT_TC2_VERBOSE:
+	    tc2_verbose(strtol(optarg, NULL, 0));
+	    break;
 	}
     }
 
@@ -209,11 +241,6 @@ main(int argc, char **argv)
 
     opt_num = parse_options(argc, argv);
 
-    if(argc == opt_num) {
-	show_help();
-	return 0;
-    }
-
     nfiles = argc - opt_num;
     files = argv + opt_num;
 
@@ -226,8 +253,8 @@ main(int argc, char **argv)
 
     tc2_add_config(TCVP_CONF);
     tc2_init();
-    tc2_request(TC2_ADD_MODULE, 0, NULL, &tc2__module_info);
-    tc2_request(TC2_LOAD_MODULE, 0, "TCVP/cmdline", NULL);
+    tc2_request(TC2_ADD_MODULE, 0, NULL, &MODULE_INFO);
+    tc2_request(TC2_LOAD_MODULE, 0, MODULE_INFO.name, NULL);
     tc2_run();
 
     conf_free(cf);

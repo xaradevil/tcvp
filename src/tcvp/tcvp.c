@@ -221,6 +221,10 @@ st_ticker(void *p)
 {
     tcvp_player_t *tp = p;
     uint64_t time = 0;
+    eventq_t qt;
+
+    qt = eventq_new(NULL);
+    eventq_attach(qt, "TCVP/timer", EVENTQ_SEND);
 
     pthread_mutex_lock(&tp->tmx);
     while(tp->state != TCVP_STATE_END){
@@ -229,13 +233,14 @@ st_ticker(void *p)
 	    tcvp_timer_event_t *te = tcvp_alloc_event();
 	    te->type = TCVP_TIMER;
 	    te->time = time;
-	    eventq_send(tp->qs, te);
+	    eventq_send(qt, te);
 	    tcfree(te);
 	}
 	pthread_mutex_lock(&tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
 
+    eventq_delete(qt);
     return NULL;
 }
 
@@ -470,7 +475,7 @@ q_cmd(player_t *pl, int cmd)
     tcvp_player_t *tp = pl->private;
     tcvp_event_t *te = tcvp_alloc_event();
     te->type = cmd;
-    eventq_send(tp->qs, te);
+    eventq_send(tp->qr, te);
     tcfree(te);
     return 0;
 }
@@ -500,7 +505,7 @@ q_seek(player_t *pl, uint64_t pts)
     tcvp_seek_event_t *se = tcvp_alloc_event();
     se->type = TCVP_SEEK;
     se->time = pts;
-    eventq_send(tp->qs, se);
+    eventq_send(tp->qr, se);
     tcfree(se);
     return 0;
 }
@@ -523,9 +528,9 @@ t_new(conf_section *cs)
     pthread_mutex_init(&tp->tmx, NULL);
     pthread_cond_init(&tp->tcd, NULL);
     tp->qs = eventq_new(NULL);
-    eventq_attach(tp->qs, "TCVP", EVENTQ_SEND);
+    eventq_attach(tp->qs, "TCVP/status", EVENTQ_SEND);
     tp->qr = eventq_new(tcref);
-    eventq_attach(tp->qr, "TCVP", EVENTQ_RECV);
+    eventq_attach(tp->qr, "TCVP/control", EVENTQ_RECV);
     pthread_create(&tp->th_event, NULL, t_event, pl);
     tp->conf = cs;
 
