@@ -198,7 +198,8 @@ parse_options(int argc, char **argv)
     };
 
     for(;;){
-	int c, option_index = 0;
+	int c, option_index = 0, s;
+	char *ot;
      
 	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:",
 			long_options, &option_index);
@@ -217,7 +218,10 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'a':
-	    conf_setvalue(cf, "audio/stream", "%i", strtol(optarg, NULL, 0));
+	    s = strtol(optarg, &ot, 0);
+	    if(*ot)
+		s = -1;
+	    conf_setvalue(cf, "audio/stream", "%i", s);
 	    break;
 
 	case 'V':
@@ -225,7 +229,10 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'v':
-	    conf_setvalue(cf, "video/stream", "%i", strtol(optarg, NULL, 0));
+	    s = strtol(optarg, &ot, 0);
+	    if(*ot)
+		s = -1;
+	    conf_setvalue(cf, "video/stream", "%i", s);
 	    break;
 
 	case 'C':
