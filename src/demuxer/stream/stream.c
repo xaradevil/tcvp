@@ -367,8 +367,10 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 			tcfree(pk);
 		    break;
 		}
-		if(!st && pk->flags & TCVP_PKT_FLAG_PTS)
+		if(!st && pk->flags & TCVP_PKT_FLAG_PTS){
 		    ms->streams[i].common.start_time = pk->pts;
+		    st = 1;
+		}
 		tcref(pk);
 		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
 	    } while(p == PROBE_AGAIN &&
