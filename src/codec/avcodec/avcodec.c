@@ -147,7 +147,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	l = avcodec_decode_video(vc->ctx, vc->frame, &gp, inbuf, insize);
 
 	if(l < 0)
-	    return -1;
+	    return 0;
 
 	inbuf += l;
 	insize -= l;
@@ -322,7 +322,7 @@ avc_flush(tcvp_pipe_t *p, int drop)
 {
     avc_codec_t *ac = p->private;
 
-    if(drop)
+    if(drop && ac->ctx->codec)
 	avcodec_flush_buffers(ac->ctx);
 
     return 0;

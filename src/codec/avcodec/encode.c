@@ -134,7 +134,7 @@ avc_encvid_flush(tcvp_pipe_t *p, int drop)
 {
     avc_encvid_t *enc = p->private;
 
-    if(drop)
+    if(drop && enc->ctx->codec)
 	avcodec_flush_buffers(enc->ctx);
 
     return 0;
