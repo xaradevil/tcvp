@@ -24,13 +24,12 @@
 #include <tcalloc.h>
 #include <tcbyteswap.h>
 #include <pthread.h>
-#include <sys/stat.h>
 #include <tcvp_types.h>
 #include <tcvp_event.h>
 #include <mp3_tc2.h>
 
 typedef struct mp3_file {
-    FILE* file;
+    url_t* file;
     stream_t stream;
     int used;
     off_t start;
@@ -48,14 +47,14 @@ typedef struct mp3_frame {
     int size;
 } mp3_frame_t;
 
-#define get4c(t,f) fread(&t, 4, 1, f)
+#define get4c(t,f) f->read(&t, 4, 1, f)
 
 #define getuint(s)				\
 static inline uint##s##_t			\
-getu##s(FILE *f)				\
+getu##s(url_t *f)				\
 {						\
     uint##s##_t v;				\
-    fread(&v, sizeof(v), 1, f);			\
+    f->read(&v, sizeof(v), 1, f);			\
     v = htob_##s(v);				\
     return v;					\
 }
@@ -65,7 +64,7 @@ getuint(32)
 getuint(64)
 
 static inline uint32_t
-getss32(FILE *f)
+getss32(url_t *f)
 {
     uint32_t v;
     v = getu32(f);
@@ -100,12 +99,12 @@ tag2str(char *s, uint32_t tag)
 }
 
 static char *
-id3v2_getframe(FILE *f, int *fsize, int fflags)
+id3v2_getframe(url_t *f, int *fsize, int fflags)
 {
     u_char *buf;
 
     buf = malloc(*fsize);
-    fread(buf, 1, *fsize, f);
+    f->read(buf, 1, *fsize, f);
 
     if(fflags & ID3v2_FFLAG_USYNC){
 	u_char *s, *d;
@@ -143,21 +142,22 @@ static int
 id3v2_tag(muxed_stream_t *ms)
 {
     mp3_file_t *mf = ms->private;
+    url_t *f = mf->file;
     off_t spos;
     char tag[4];
     int version;
     int flags;
     int32_t size, tsize;
 
-    spos = ftell(mf->file);
+    spos = f->tell(f);
 
-    if(fread(tag, 1, 3, mf->file) < 3)
+    if(f->read(tag, 1, 3, f) < 3)
 	goto err;
 
     if(strncmp(tag, "ID3", 3))
 	goto err;		/* FIXME: check for trailing tag */
 
-    version = getu16(mf->file);
+    version = getu16(f);
     if(version >= 0x0500 || version < 0x0300){
 	fprintf(stderr, "MP3: Unsupported ID3v2 tag version %i.%i.\n",
 		version >> 8, version & 0xff);
@@ -165,13 +165,13 @@ id3v2_tag(muxed_stream_t *ms)
 	goto err;
     }
 
-    flags = getc(mf->file);
+    flags = url_getc(f);
     if(flags & 0xf){
 	fprintf(stderr, "MP3: Unknown ID3v2 flags %x\n", flags);
 	goto err;
     }
 
-    size = getss32(mf->file);
+    size = getss32(f);
     tsize = size + ((flags & ID3v2_FLAG_FOOT)? 20: 10);
     mf->size -= tsize;
 
@@ -180,13 +180,13 @@ id3v2_tag(muxed_stream_t *ms)
 #endif
 
     if(flags & ID3v2_FLAG_EXTH){
-	uint32_t esize = getss32(mf->file);
-	fseek(mf->file, esize - 4, SEEK_CUR);
+	uint32_t esize = getss32(f);
+	f->seek(f, esize - 4, SEEK_CUR);
 	size -= esize;
     }
 
     while(size > 0){
-	uint32_t tag = getu32(mf->file);
+	uint32_t tag = getu32(f);
 	uint32_t fsize, dsize;
 	int fflags, dlen = 0;
 	char *data = NULL;
@@ -195,9 +195,9 @@ id3v2_tag(muxed_stream_t *ms)
 	if(!tag)
 	    break;
 
-	dsize = fsize = getss32(mf->file);
-	fflags = getu16(mf->file);
-	pos = ftell(mf->file);
+	dsize = fsize = getss32(f);
+	fflags = getu16(f);
+	pos = f->tell(f);
 
 #ifdef DEBUG
 	char stag[5];
@@ -206,34 +206,34 @@ id3v2_tag(muxed_stream_t *ms)
 #endif
 
 	if(fflags & ID3v2_FFLAG_GID)
-	    getc(mf->file);
+	    url_getc(f);
 	if(fflags & ID3v2_FFLAG_CRYPT)
-	    getc(mf->file);
+	    url_getc(f);
 	if(fflags & ID3v2_FFLAG_DLEN)
-	    dlen = getss32(mf->file);
+	    dlen = getss32(f);
 
 	switch(tag){
 	case TAG('T','I','T','2'):
-	    data = id3v2_getframe(mf->file, &dsize, fflags);
+	    data = id3v2_getframe(f, &dsize, fflags);
 	    ms->title = id3v2_gettext(data, dsize);
 	    free(data);
 	    break;
 	case TAG('T','P','E','1'):
-	    data = id3v2_getframe(mf->file, &dsize, fflags);
+	    data = id3v2_getframe(f, &dsize, fflags);
 	    ms->performer = id3v2_gettext(data, dsize);
 	    free(data);
 	    break;
 	}
 
-	fseek(mf->file, pos + fsize, SEEK_SET);
+	f->seek(f, pos + fsize, SEEK_SET);
 	size -= fsize + 10;
     }
 
-    fseek(mf->file, spos + tsize, SEEK_SET);
+    f->seek(f, spos + tsize, SEEK_SET);
     return 0;
 
 err:
-    fseek(mf->file, spos, SEEK_SET);
+    f->seek(f, spos, SEEK_SET);
     return -1;
 }
 
@@ -254,11 +254,12 @@ static int
 id3v1_tag(muxed_stream_t *ms)
 {
     mp3_file_t *mf = ms->private;
-    off_t pos = ftell(mf->file);
+    url_t *f = mf->file;
+    off_t pos = f->tell(f);
     char buf[128];
 
-    fseek(mf->file, -128, SEEK_END);
-    fread(buf, 1, 128, mf->file);
+    f->seek(f, -128, SEEK_END);
+    f->read(buf, 1, 128, f);
     if(!strncmp(buf, "TAG", 3)){
 	if(!ms->title)
 	    ms->title = id3v1_strdup(buf + 3, 30);
@@ -267,7 +268,7 @@ id3v1_tag(muxed_stream_t *ms)
 	mf->size -= 128;
     }
 
-    fseek(mf->file, pos, SEEK_SET);
+    f->seek(f, pos, SEEK_SET);
     return 0;
 }
 
@@ -345,23 +346,24 @@ static int
 mp3_getparams(muxed_stream_t *ms)
 {
     mp3_file_t *mf = ms->private;
+    url_t *f = mf->file;
     mp3_frame_t fr;
     int c = -1, d = -1, i;
     int hdrok = 0;
     off_t pos = 0;
 
     for(i = 0; i < 8065; i++){
-	if(getc(mf->file) == 0xff){
-	    c = getc(mf->file);
-	    d = getc(mf->file);
+	if(url_getc(f) == 0xff){
+	    c = url_getc(f);
+	    d = url_getc(f);
 	    if(mp3_header(c, d, &fr))
 		continue;
 	    if(++hdrok == 2){
-		fseek(mf->file, pos - 3, SEEK_SET);
+		f->seek(f, pos - 3, SEEK_SET);
 		break;
 	    }
-	    pos = ftell(mf->file);
-	    fseek(mf->file, fr.size - 3, SEEK_CUR);
+	    pos = f->tell(f);
+	    f->seek(f, fr.size - 3, SEEK_CUR);
 	} else {
 	    hdrok = 0;
 	}
@@ -392,7 +394,7 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
     if(pos > mf->size)
 	return -1LL;
 
-    fseek(mf->file, mf->start + pos, SEEK_SET);
+    mf->file->seek(mf->file, mf->start + pos, SEEK_SET);
     if(!mp3_getparams(ms))
 	if(mf->stream.audio.bit_rate)
 	    time = pos * 8000000LL / mf->stream.audio.bit_rate;
@@ -430,7 +432,7 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp->pk.planes = 1;
     mp->pk.free = mp3_free_pk;
 
-    size = fread(mp->data, 1, size, mf->file);
+    size = mf->file->read(mp->data, 1, size, mf->file);
     if(size <= 0){
 	mp3_free_pk((packet_t *) mp);
 	return NULL;
@@ -448,7 +450,8 @@ mp3_packet(muxed_stream_t *ms, int str)
 	    if(br != mf->stream.audio.bit_rate){
 #ifdef DEBUG
 		fprintf(stderr, "MP3: bitrate %i [%i] @%lx\n",
-			fr.bitrate, br, ftell(mf->file) - size+(f-mp->data));
+			fr.bitrate, br,
+			mf->file->tell(mf->file) - size+(f-mp->data));
 #endif
 		mf->stream.audio.bit_rate = br;
 		ms->time = 8000000LL * mf->size / br;
@@ -479,7 +482,7 @@ mp3_free(void *p)
 
     eventq_delete(mf->qs);
 
-    fclose(mf->file);
+    mf->file->close(mf->file);
     free(mf);
 }
 
@@ -488,11 +491,10 @@ mp3_open(char *name, conf_section *cs)
 {
     muxed_stream_t *ms;
     mp3_file_t *mf;
-    struct stat st;
     char *qname, *qn;
-    FILE *f;
+    url_t *f;
 
-    if(!(f = fopen(name, "r")))
+    if(!(f = url_open(name, "r")))
 	return NULL;
 
     ms = tcallocd(sizeof(*ms), NULL, mp3_free);
@@ -506,11 +508,11 @@ mp3_open(char *name, conf_section *cs)
 
     mf->file = f;
     mf->stream.stream_type = STREAM_TYPE_AUDIO;
-    fstat(fileno(f), &st);
-    mf->size = st.st_size;
+    mf->size = f->size;
 
     if(id3v2_tag(ms))
-	id3v1_tag(ms);
+	if(!f->flags & URL_FLAG_STREAMED)
+	    id3v1_tag(ms);
 
     if(mp3_getparams(ms)){
 	tcfree(ms);
@@ -523,7 +525,7 @@ mp3_open(char *name, conf_section *cs)
     sprintf(qn, "%s/status", qname);
     eventq_attach(mf->qs, qn, EVENTQ_SEND);
 
-    mf->start = ftell(f);
+    mf->start = f->tell(f);
 
     ms->used_streams = &mf->used;
     ms->next_packet = mp3_packet;
