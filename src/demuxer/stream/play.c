@@ -68,6 +68,7 @@ typedef struct stream_play {
     } *streams;
     int *smap;
     int nstreams, pstreams;
+    int fail;
     int waiting;
     int nbuf;
     int state;
@@ -308,6 +309,8 @@ add_stream(stream_player_t *sp, int s)
 
 out:
     pthread_mutex_unlock(&sh->lock);
+    if(r < 0)
+	sp->fail++;
     if(r < -1)
 	tc2_print("STREAM", TC2_PRINT_WARNING,
 		  "error opening stream #%i\n", sid);
@@ -342,12 +345,18 @@ del_stream(stream_player_t *sp, int s)
     sp->ms->used_streams[s] = 0;
     sp->nbuf &= ~(1 << s);
 
-    if(!--sp->pstreams){
-	pthread_mutex_lock(&sh->lock);
-	if(!--sh->nstreams)
-	    tcvp_event_send(sh->sq, TCVP_STATE, TCVP_STATE_END);
-	pthread_mutex_unlock(&sh->lock);
-	sp->state = STOP;
+    if(sp->fail == sp->ms->n_streams){
+	tcvp_event_send(sh->sq, TCVP_STATE, TCVP_STATE_ERROR);
+    }
+
+    if(str->sp){
+	if(!--sp->pstreams){
+	    pthread_mutex_lock(&sh->lock);
+	    if(!--sh->nstreams)
+		tcvp_event_send(sh->sq, TCVP_STATE, TCVP_STATE_END);
+	    pthread_mutex_unlock(&sh->lock);
+	    sp->state = STOP;
+	}
     }
 
     pthread_cond_broadcast(&sp->cond);
@@ -523,6 +532,7 @@ read_stream(void *p)
 		if(str->probe == PROBE_FAIL){
 		    tc2_print("STREAM", TC2_PRINT_DEBUG,
 			      "stream %i failed probe\n", pk->stream);
+		    sp->fail++;
 		    del_stream(sp, ps);
 		    tcfree(pk);
 		    break;
@@ -655,7 +665,8 @@ s_play(stream_shared_t *sh, muxed_stream_t *ms)
     pthread_cond_init(&sp->cond, NULL);
 
     for(i = 0; i < ms->n_streams; i++)
-	add_stream(sp, i);
+	if(add_stream(sp, i))
+	    del_stream(sp, i);
 
     if(!sp->pstreams)
 	return NULL;		/* FIXME: leak */
