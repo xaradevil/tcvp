@@ -26,10 +26,7 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tclist.h>
 #include <tcalloc.h>
-#include <tcendian.h>
-#include <pthread.h>
 #include <tcvp_types.h>
 #include <mp3_tc2.h>
 #include "id3.h"
