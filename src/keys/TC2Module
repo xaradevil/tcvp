@@ -14,7 +14,7 @@ TCVP {
 		init keys_init
 		event control TCVP_KEY key_event
 	}
-	event TCVP_KEY key_alloc NULL NULL
+	event TCVP_KEY auto
 }
 
 option *bind key%s origin%s action%s

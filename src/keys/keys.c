@@ -89,6 +89,7 @@ ac_send(tcscript_t *tcs, void *p, char *fun, int na, tcscript_value_t **args)
 	switch(fmt[i]){
 	case 'i':
 	case 'u':
+	case 'c':
 	    tcarg_add(evt_args, int32_t, tcscript_getint(args[i]));
 	    break;
 	case 'I':
@@ -256,19 +257,4 @@ keys_new(tcvp_module_t *m, tcconf_section_t *cs)
     m->private = tk;
 
     return 0;
-}
-
-static void
-key_free(void *p)
-{
-    tcvp_key_event_t *te = p;
-    free(te->key);
-}
-
-extern void *
-key_alloc(int type, va_list args)
-{
-    tcvp_key_event_t *te = tcvp_event_alloc(type, sizeof(*te), key_free);
-    te->key = strdup(va_arg(args, char *));
-    return te;
 }
