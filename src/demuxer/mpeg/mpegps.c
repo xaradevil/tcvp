@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003  Michael Ahlberg, MÃ¥ns RullgÃ¥rd
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -389,6 +389,9 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		sp->stream_type = mpeg_stream_types[sti].stream_type;
 		sp->common.codec = mpeg_stream_types[sti].codec;
 		sp->common.index = ms->n_streams++;
+
+		tc2_print("MPEGPS", TC2_PRINT_DEBUG,
+			  "stream %x type %02x\n", sid, stype);
 
 		while(il > 0){
 		    int dl = mpeg_descriptor(sp, pm);
