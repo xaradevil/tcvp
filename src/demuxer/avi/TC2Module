@@ -16,3 +16,4 @@ option		noninterleaved%i=0
 Use alternate method for badly interleaved files.
 option		*vtag tag%s codec%s
 option		*atag tag%i codec%s
+option		starttime%li=0

@@ -37,6 +37,7 @@
 #define max_skip tcvp_demux_avi_conf_max_skip
 #define max_scan tcvp_demux_avi_conf_max_scan
 #define backup tcvp_demux_avi_conf_backup
+#define starttime tcvp_demux_avi_conf_starttime
 
 #undef DEBUG
 
@@ -833,7 +834,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    flags = af->index[af->pkt]->flags;
 	    if(flags & AVI_FLAG_KEYFRAME)
 		pflags |= TCVP_PKT_FLAG_KEY;
-	    pts = af->index[af->pkt]->pts;
+	    pts = af->index[af->pkt]->pts + starttime;
 	    pflags |= TCVP_PKT_FLAG_PTS;
 	} else {
 	    af->idxok = 0;
