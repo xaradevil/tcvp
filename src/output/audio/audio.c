@@ -27,7 +27,7 @@ typedef struct audio_out {
     audio_driver_t *driver;
     tcvp_timer_t *timer;
     int channels;
-    int bpf;
+    int ibpf, obpf;
     int rate;
     int state;
     u_char *buf, *head, *tail;
@@ -164,13 +164,13 @@ audio_input(tcvp_pipe_t *p, packet_t *pk)
 	    pts = 0;
 	}
 
-	bs = min(count, ao->bufsize - ao->bbytes);
-	bs = min(bs, ao->bufsize - (ao->head - ao->buf));
-	ao->conv(ao->head, data, bs / ao->bpf, ao->channels);
-	data += bs;
-	count -= bs;
-	ao->bbytes += bs;
-	ao->head += bs;
+	bs = min(count / ao->ibpf, (ao->bufsize - ao->bbytes) / ao->obpf);
+	bs = min(bs, (ao->bufsize - (ao->head - ao->buf)) / ao->obpf);
+	ao->conv(ao->head, data, bs, ao->channels);
+	data += bs * ao->ibpf;
+	count -= bs * ao->ibpf;
+	ao->bbytes += bs * ao->obpf;
+	ao->head += bs * ao->obpf;
 	if(ao->head - ao->buf == ao->bufsize)
 	    ao->head = ao->buf;
 	pthread_cond_broadcast(&ao->cd);
@@ -199,14 +199,14 @@ audio_play(void *p)
 	    break;
 	}
 
-	count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->bpf;
+	count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->obpf;
 	r = ao->driver->write(ao->driver, ao->tail, count);
 
 	if(r > 0){
 	    u_char *pt = ao->tail;
 	    count -= r;
-	    ao->bbytes -= r * ao->bpf;
-	    ao->tail += r * ao->bpf;
+	    ao->bbytes -= r * ao->obpf;
+	    ao->tail += r * ao->obpf;
 
 	    if(ao->pqc){
 		u_char *pp = ao->ptsq[ao->pqt].bp;
@@ -216,7 +216,7 @@ audio_play(void *p)
 		    uint64_t d, t, tm;
 		    int64_t dt;
 		    int df = ao->driver->delay(ao->driver);
-		    d = (uint64_t) (df - bc / ao->bpf) * 27000000 / ao->rate;
+		    d = (uint64_t) (df - bc / ao->obpf) * 27000000 / ao->rate;
 		    t = ao->ptsq[ao->pqt].pts - d;
 		    tm = ao->timer->read(ao->timer);
 		    dt = tm > t? tm - t: t - tm;
@@ -264,6 +264,22 @@ audio_buffer(tcvp_pipe_t *p, float r)
 }
 
 static int
+get_ssize(char *s)
+{
+    s++;
+
+    if(!strncmp(s, "16", 2)){
+	return 2;
+    } else if(!strncmp(s, "32", 2)){
+	return 4;
+    } else if(!strncmp(s, "8", 1)){
+	return 1;
+    } else {
+	return 0;
+    }
+}
+
+static int
 audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     audio_out_t *ao = p->private;
@@ -271,7 +287,7 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     audio_stream_t *as = &p->format.audio;
     char **formats;
     sndconv_t conv = NULL;
-    int ssize = 0;
+    int issize, ossize;
     char *sf;
     int i, j;
 
@@ -310,22 +326,18 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(!ad)
 	return PROBE_FAIL;
 
-    if(!strncmp(ad->format, "s16", 3)){
-	ssize = 2;
-    } else if(!strncmp(ad->format, "u16", 3)){
-	ssize = 2;
-    } else if(!strncmp(ad->format, "u8", 2)){
-	ssize = 1;
-    } else {
-	fprintf(stderr, "AUDIO: unsupported format %s\n", ad->format);
+    if(!(issize = get_ssize(sf)))
 	goto err;
-    }
+
+    if(!(ossize = get_ssize(ad->format)))
+	goto err;
 
     ao->driver = ad;
-    ao->bpf = as->channels * ssize;
+    ao->ibpf = as->channels * issize;
+    ao->obpf = as->channels * ossize;
     ao->channels = as->channels;
     ao->rate = as->sample_rate;
-    ao->bufsize = ao->bpf * output_audio_conf_buffer_size;
+    ao->bufsize = ao->obpf * output_audio_conf_buffer_size;
     ao->buf = malloc(ao->bufsize);
     ao->head = ao->tail = ao->buf;
     ao->conv = conv;
@@ -333,6 +345,7 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     return PROBE_OK;
 err:
+    fprintf(stderr, "AUDIO: unsupported format %s\n", ad->format);
     tcfree(ad);
     return PROBE_FAIL;
 }

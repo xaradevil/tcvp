@@ -13,15 +13,24 @@
 #include <audio_tc2.h>
 #include <audiomod.h>
 
-static void
-bs16(void *dst, void *src, int samples, int channels)
-{
-    int16_t *d = dst, *s = src;
-    int i;
-
-    for(i = 0; i < samples * channels; i++)
-	d[i] = bswap_16(s[i]);
+#define snd_conv(sname, stype, dname, dtype, conv)			\
+static void								\
+sname##_##dname(void *dst, void *src, int samples, int channels)	\
+{									\
+    stype *s = src;							\
+    dtype *d = dst;							\
+    int i;								\
+									\
+    for(i = 0; i < samples * channels; i++)				\
+	d[i] = conv(s[i]);						\
 }
+
+#define s2u8(x) (x + 128)
+#define s32s16(x) (x >> 16)
+
+snd_conv(le16, int16_t, be16, int16_t, bswap_16)
+snd_conv(s8, char, u8, u_char, s2u8)
+snd_conv(s32, int32_t, s16, int16_t, s32s16);
 
 #define copy(ss)						\
 static void							\
@@ -33,20 +42,25 @@ copy_##ss(void *dst, void *src, int samples, int channels)	\
 copy(8)
 copy(16)
 
+#define HE TCVP_ENDIAN
+
 static struct {
     char *in;
     char *out;
     sndconv_t conv;
 } conv_table[] = {
-    { "s16le", "s16be", bs16 },
-    { "s16be", "s16le", bs16 },
-    { "u16le", "u16be", bs16 },
-    { "u16be", "u16le", bs16 },
+    { "s16le", "s16be", le16_be16 },
+    { "s16be", "s16le", le16_be16 },
+    { "u16le", "u16be", le16_be16 },
+    { "u16be", "u16le", le16_be16 },
     { "s16le", "s16le", copy_16 },
     { "s16be", "s16be", copy_16 },
     { "u16le", "u16le", copy_16 },
     { "u16be", "u16be", copy_16 },
     { "u8",    "u8",    copy_8 },
+    { "s8",    "s8",    copy_8 },
+    { "s8",    "u8",    s8_u8 },
+    { "s32"HE, "s16"HE, s32_s16 },
     { NULL, NULL, NULL }
 };
 

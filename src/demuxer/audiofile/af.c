@@ -15,10 +15,15 @@
 #define PK_SIZE tcvp_demux_audiofile_conf_packet_size
 
 char *formats[] = {
+    NULL,
     "audio/pcm-u8",
-    "audio/pcm-s8",
     "audio/pcm-u16" TCVP_ENDIAN,
+    "audio/pcm-u24" TCVP_ENDIAN,
+    "audio/pcm-u32" TCVP_ENDIAN,
+    "audio/pcm-s8",
     "audio/pcm-s16" TCVP_ENDIAN,
+    "audio/pcm-s24" TCVP_ENDIAN,
+    "audio/pcm-s32" TCVP_ENDIAN,
 };
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -135,7 +140,7 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     muxed_stream_t *ms;
     AFfilehandle aff;
     AFvirtualfile *vf;
-    int sampleFormat, sampleWidth, byteOrder, fn=0;
+    int sampleFormat, sampleWidth, byteOrder, fn = 0;
 
     vf = af_virtual_file_new();
     vf->closure = tcref(f);
@@ -153,9 +158,8 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     afGetSampleFormat(aff, AF_DEFAULT_TRACK, &sampleFormat, &sampleWidth);
     byteOrder = afGetByteOrder(aff, AF_DEFAULT_TRACK);
-/*     fn += (byteOrder == AF_BYTEORDER_BIGENDIAN)?1:0; */
-    fn += (sampleFormat == AF_SAMPFMT_TWOSCOMP);
-    fn += (sampleWidth == 16) << 1;
+    fn += sampleWidth / 8;
+    fn += (sampleFormat == AF_SAMPFMT_TWOSCOMP) << 2;
 
     ms = tcallocd(sizeof(*ms), NULL, af_free);
     memset(ms, 0, sizeof(*ms));
