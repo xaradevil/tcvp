@@ -35,6 +35,13 @@ static tcvp_event_type_t **event_tab;
 
 static int event_num;
 
+static void*
+evt_alloc(int type, va_list args)
+{
+    tcvp_event_t *te = alloc_event(type, sizeof(*te), NULL);
+    return te;
+}
+
 extern int
 reg_event(char *name, tcvp_event_alloc_t af)
 {
@@ -42,6 +49,9 @@ reg_event(char *name, tcvp_event_alloc_t af)
 
     if(!hash_find(event_types, name, &e))
 	return -1;
+
+    if(!af)
+	af = evt_alloc;
 
     e = malloc(sizeof(*e));
     e->name = strdup(name);
@@ -192,13 +202,6 @@ load_alloc(int type, va_list args)
     tcvp_load_event_t *te = alloc_event(type, sizeof(*te), load_free);
     te->stream = va_arg(args, muxed_stream_t *);
     tcref(te->stream);
-    return te;
-}
-
-static void*
-evt_alloc(int type, va_list args)
-{
-    tcvp_event_t *te = alloc_event(type, sizeof(*te), NULL);
     return te;
 }
 
