@@ -167,6 +167,7 @@ v_flush(tcvp_pipe_t *p, int drop)
 	    sem_post(&vo->hsem);
 	}
 	vo->tail = vo->head;
+	sem_post(&vo->hsem);
     }
 
     return 0;
