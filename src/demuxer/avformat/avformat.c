@@ -68,7 +68,7 @@ static char *codec_names[] = {
     [CODEC_ID_MACE3] = "audio/mace3",
     [CODEC_ID_MACE6] = "audio/mace6",
     [CODEC_ID_HUFFYUV] = "video/huffyuv",
-    [CODEC_ID_CYUV] = "video/cyuv",
+/*     [CODEC_ID_CYUV] = "video/cyuv", */
 
     /* various pcm "codecs" */
     [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
@@ -92,61 +92,6 @@ typedef struct {
     list **packets;
 } avf_stream_t;
 
-
-extern muxed_stream_t *
-avf_open(char *name)
-{
-    AVFormatContext *afc;
-    muxed_stream_t *ms;
-    avf_stream_t *as;
-    int i;
-
-    if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0)
-	return NULL;
-
-    if(av_find_stream_info(afc) != 0)
-	return NULL;
-
-    ms = malloc(sizeof(*ms));
-    ms->n_streams = afc->nb_streams;
-    ms->streams = malloc(ms->n_streams * sizeof(stream_t));
-    for(i = 0; i < ms->n_streams; i++){
-	switch(afc->streams[i]->codec.codec_type){
-	case CODEC_TYPE_VIDEO:
-	    ms->streams[i].stream_type = STREAM_TYPE_VIDEO;
-	    ms->streams[i].video.frame_rate =
-		(float) afc->streams[i]->codec.frame_rate / FRAME_RATE_BASE;
-	    ms->streams[i].video.width = afc->streams[i]->codec.width;
-	    ms->streams[i].video.height = afc->streams[i]->codec.height;
-	    ms->streams[i].video.codec =
-		codec_names[afc->streams[i]->codec.codec_id];
-	    break;
-
-	case CODEC_TYPE_AUDIO:
-	    ms->streams[i].stream_type = STREAM_TYPE_AUDIO;
-	    ms->streams[i].audio.sample_rate =
-		afc->streams[i]->codec.sample_rate;
-	    ms->streams[i].audio.channels = afc->streams[i]->codec.channels;
-	    ms->streams[i].audio.codec =
-		codec_names[afc->streams[i]->codec.codec_id];
-	    break;
-	}
-    }
-    ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
-    ms->next_packet = avf_next_packet;
-    ms->close = avf_close;
-
-    as = malloc(sizeof(*as));
-    as->afc = afc;
-    as->packets = calloc(ms->streams, sizeof(list *));
-    for(i = 0; i < ms->n_streams; i++){
-	as->packets[i] = list_new(TC_LOCK_SLOPPY);
-    }
-
-    ms->private = as;
-
-    return ms;
-}
 
 static void
 avf_free_packet(packet_t *p)
@@ -205,8 +150,64 @@ avf_close(muxed_stream_t *ms)
     free(ms->used_streams);
 
     for(i = 0; i < ms->n_streams; i++){
-	list_destroy(as->packets[i], avf_free_packet);
+	list_destroy(as->packets[i], (tc_free_fn) avf_free_packet);
     }
     free(as->packets);
     free(as);
+}
+
+
+extern muxed_stream_t *
+avf_open(char *name)
+{
+    AVFormatContext *afc;
+    muxed_stream_t *ms;
+    avf_stream_t *as;
+    int i;
+
+    if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0)
+	return NULL;
+
+    if(av_find_stream_info(afc) != 0)
+	return NULL;
+
+    ms = malloc(sizeof(*ms));
+    ms->n_streams = afc->nb_streams;
+    ms->streams = malloc(ms->n_streams * sizeof(stream_t));
+    for(i = 0; i < ms->n_streams; i++){
+	switch(afc->streams[i]->codec.codec_type){
+	case CODEC_TYPE_VIDEO:
+	    ms->streams[i].stream_type = STREAM_TYPE_VIDEO;
+	    ms->streams[i].video.frame_rate =
+		(float) afc->streams[i]->codec.frame_rate / FRAME_RATE_BASE;
+	    ms->streams[i].video.width = afc->streams[i]->codec.width;
+	    ms->streams[i].video.height = afc->streams[i]->codec.height;
+	    ms->streams[i].video.codec =
+		codec_names[afc->streams[i]->codec.codec_id];
+	    break;
+
+	case CODEC_TYPE_AUDIO:
+	    ms->streams[i].stream_type = STREAM_TYPE_AUDIO;
+	    ms->streams[i].audio.sample_rate =
+		afc->streams[i]->codec.sample_rate;
+	    ms->streams[i].audio.channels = afc->streams[i]->codec.channels;
+	    ms->streams[i].audio.codec =
+		codec_names[afc->streams[i]->codec.codec_id];
+	    break;
+	}
+    }
+    ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
+    ms->next_packet = avf_next_packet;
+    ms->close = avf_close;
+
+    as = malloc(sizeof(*as));
+    as->afc = afc;
+    as->packets = calloc(ms->n_streams, sizeof(list *));
+    for(i = 0; i < ms->n_streams; i++){
+	as->packets[i] = list_new(TC_LOCK_SLOPPY);
+    }
+
+    ms->private = as;
+
+    return ms;
 }
