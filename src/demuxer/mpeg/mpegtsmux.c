@@ -23,8 +23,6 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
@@ -75,6 +73,7 @@ typedef struct mpegts_mux {
     uint64_t start_time;
     int realtime;
     int64_t delay;
+    int64_t pcr_offset;
     uint64_t pts_interval;
     int started;
     uint64_t bytes;
@@ -323,16 +322,29 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    uint64_t dts = pk->flags & TCVP_PKT_FLAG_DTS? pk->dts: pk->pts;
 
 	    if(os->sts == -1){
-		os->sts = dts;
-		os->tailtime = dts;
+		if(tsm->pcr == -1){
+		    if(dts >= tsm->delay)
+			tsm->pcr_offset = -tsm->delay;
+		    else
+			tsm->pcr_offset = -dts;
+		    tsm->delay += tsm->pcr_offset;
+
+		    tc2_print("MPEGTS", TC2_PRINT_DEBUG,
+			      "pcr_offset %lli, delay %lli\n",
+			      tsm->pcr_offset, tsm->delay);
+
+		    tsm->pcr = dts + tsm->pcr_offset;
+		    tsm->start_time = tsm->pcr;
+		}
+
+		os->sts = dts + tsm->pcr_offset;
+		os->tailtime = os->sts;
 		
 		tc2_print("MPEGTS", TC2_PRINT_DEBUG, "[%i] start %lli\n",
 			  pk->stream, os->sts);
-		if(tsm->pcr == -1){
-		    tsm->pcr = os->sts;
-		    tsm->start_time = tsm->pcr;
-		}
 	    }
+
+	    dts += tsm->pcr_offset;
 
 	    if(dts - os->tailtime >= tsm->rate_lookahead){
 		os->bitrate =
@@ -371,9 +383,9 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 	if(pk->flags & TCVP_PKT_FLAG_PTS){
 	    if(pk->flags & TCVP_PKT_FLAG_DTS)
-		dts = pk->dts;
+		dts = pk->dts + tsm->pcr_offset;
 	    else
-		dts = pk->pts;
+		dts = pk->pts + tsm->pcr_offset;
 
 	    if(dts - os->lpts > tsm->pts_interval){
 		if(pk->flags & TCVP_PKT_FLAG_PTS)
@@ -548,10 +560,6 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	os->offset = tsm->audio_offset;
     else
 	os->offset = tsm->video_offset;
-
-    if(s->common.start_time < tsm->start_time)
-	tsm->pcr = tsm->start_time = s->common.start_time;
-    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "start_pcr %lli\n", tsm->pcr);
 
     rate = s->common.bit_rate;
     if(!rate){
