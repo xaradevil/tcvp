@@ -19,8 +19,8 @@ import		"URL"		"open"
 import		"URL"		"getc"
 require		"URL/dvd"
 option		pes_size%i=0xfff2
-option		ts_rate_window%i=1000
-option		ts_rate_factor%f=2
-option		pcr_delay%i=0
 option		pts_interval%i=500
 option		ts_max_skip%i=10
+option		default_video_rate%i=2000000
+option		default_audio_rate%i=128000
+option		ts_pcr_delay%i=1000;
