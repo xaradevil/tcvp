@@ -15,7 +15,7 @@ typedef struct crop {
     int x, y, w, h;
 } crop_t;
 
-static int
+extern int
 crop_input(tcvp_pipe_t *p, packet_t *pk)
 {
     crop_t *c = p->private;
@@ -33,14 +33,12 @@ crop_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 crop_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     crop_t *c = p->private;
     video_stream_t *vs = &p->format.video;
     tcfraction_t sar = { 1, 1 };
-
-    p->format = *s;
 
     if(vs->aspect.num){
 	sar.num = vs->height * vs->aspect.num;
@@ -107,41 +105,22 @@ crop_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     vs->aspect.den = vs->height * sar.den;
     tcreduce(&vs->aspect);
 
-    return p->next->probe(p->next, pk, &p->format);
+    return PROBE_OK;
 }
 
-static int
-crop_flush(tcvp_pipe_t *p, int drop)
-{
-    return p->next->flush(p->next, drop);
-}
-
-static void
-crop_free(void *p)
-{
-    tcvp_pipe_t *tp = p;
-    free(tp->private);
-}
-
-extern tcvp_pipe_t *
-crop_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+crop_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p;
     crop_t *c;
 
-    c = calloc(1, sizeof(*c));
+    c = tcallocz(sizeof(*c));
     tcconf_getvalue(cs, "width", "%i", &c->w);
     tcconf_getvalue(cs, "height", "%i", &c->h);
     tcconf_getvalue(cs, "x", "%i", &c->x);
     tcconf_getvalue(cs, "y", "%i", &c->y);
 
-    p = tcallocdz(sizeof(*p), NULL, crop_free);
-    p->format = *s;
-    p->input = crop_input;
-    p->probe = crop_probe;
-    p->flush = crop_flush;
     p->private = c;
 
-    return p;
+    return 0;
 }

@@ -4,7 +4,7 @@ version		0.1.0
 tc2version	0.4.0
 sources		remote.c
 postinit	rm_init
-implement	"tcvp/addon/remote"	"new"	rm_new
+implement	"tcvp/remote"	"new"	rm_new
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"

@@ -3,4 +3,8 @@ name		"TCVP/filter/crop"
 version		0.1.0
 tc2version	0.4.0
 sources		crop.c
-implement	"filter/crop"	"new"	crop_new
+TCVP {
+	filter "filter/crop" "video/raw-i420" "video/raw-i420" crop_new
+	packet DATA crop_input
+	probe crop_probe
+}

@@ -20,7 +20,6 @@
 #define xpos tcvp_ui_tcvpx_conf_xposition
 #define ypos tcvp_ui_tcvpx_conf_yposition
 
-player_t *pl;
 eventq_t qs;
 eventq_t qr;
 
@@ -37,11 +36,6 @@ tcvpx_init(char *p)
 	cs = tcconf_new(NULL);
     else
 	tcconf_getvalue(cs, "qname", "%s", &qname);
-
-    if(!qname){
-	pl = tcvp_new(cs);
-	tcconf_getvalue(cs, "qname", "%s", &qname);
-    }
 
     tcconf_getvalue(cs, "skin", "%s", &skinfile);
     tcfree(cs);
@@ -136,9 +130,6 @@ tcvpx_shdn(void)
 
     eventq_delete(qs);
     eventq_delete(qr);
-
-    if(pl)
-	pl->free(pl);
 
     return 0;
 }

@@ -9,7 +9,7 @@ profiles {
 			filter [ type 'decoder'			]
 			filter [ type 'output/video'		]
 		}
-		addon 'remote'
+		module 'tcvp/remote'
 	}
 	encode {
 		outname '${title:-${file:0:-4r,^.*/,}}.ogg'

@@ -21,21 +21,12 @@ typedef struct tcvp_playlist {
     int nf, af;
     int state;
     int cur;
-    eventq_t qr, sc, ss;
+    eventq_t sc, ss;
     pthread_t eth;
     pthread_mutex_t lock;
     int shuffle;
     tcconf_section_t *conf;
 } tcvp_playlist_t;
-
-typedef union tcvp_pl_event {
-    int type;
-    tcvp_state_event_t state;
-    tcvp_pl_add_event_t pl_add;
-    tcvp_pl_addlist_event_t pl_addlist;
-    tcvp_pl_remove_event_t pl_remove;
-    tcvp_pl_shuffle_event_t pl_shuffle;
-} tcvp_pl_event_t;
 
 #define STOPPED 0
 #define PLAYING 1
@@ -43,24 +34,9 @@ typedef union tcvp_pl_event {
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
-static int TCVP_STATE;
-static int TCVP_OPEN;
-static int TCVP_START;
-static int TCVP_CLOSE;
-static int TCVP_LOAD;
-static int TCVP_PL_START;
-static int TCVP_PL_STOP;
-static int TCVP_PL_NEXT;
-static int TCVP_PL_PREV;
-static int TCVP_PL_ADD;
-static int TCVP_PL_ADDLIST;
-static int TCVP_PL_REMOVE;
-static int TCVP_PL_SHUFFLE;
-
 static int
-pl_add(playlist_t *pl, char **files, int n, int p)
+pl_add(tcvp_playlist_t *tpl, char **files, int n, int p)
 {
-    tcvp_playlist_t *tpl = pl->private;
     int nf;
     int i;
 
@@ -113,9 +89,8 @@ pl_add(playlist_t *pl, char **files, int n, int p)
 }
 
 static int
-pl_addlist(playlist_t *pl, char *file, int pos)
+pl_addlist(tcvp_playlist_t *tpl, char *file, int pos)
 {
-    tcvp_playlist_t *tpl = pl->private;
     url_t *plf = url_open(file, "r");
     char buf[1024], *line = alloca(1024), **lp = &line;
     char *d, *l;
@@ -154,7 +129,7 @@ pl_addlist(playlist_t *pl, char *file, int pos)
 	    } else {
 		snprintf(line, 1024, "%s/%s", d, buf);
 	    }
-	    pl_add(pl, lp, 1, pos + n++);
+	    pl_add(tpl, lp, 1, pos + n++);
 	}
     }
 
@@ -165,9 +140,8 @@ pl_addlist(playlist_t *pl, char *file, int pos)
 }
 
 static int
-pl_remove(playlist_t *pl, int s, int n)
+pl_remove(tcvp_playlist_t *tpl, int s, int n)
 {
-    tcvp_playlist_t *tpl = pl->private;
     int i, j, nr;
 
     pthread_mutex_lock(&tpl->lock);
@@ -197,34 +171,8 @@ pl_remove(playlist_t *pl, int s, int n)
 }
 
 static int
-pl_get(playlist_t *pl, char **d, int s, int n)
+pl_shuffle(tcvp_playlist_t *tpl, int s)
 {
-    tcvp_playlist_t *tpl = pl->private;
-    int i, ng;
-
-    pthread_mutex_lock(&tpl->lock);
-
-    ng = min(tpl->nf - s, (unsigned) n);
-
-    for(i = 0; i < ng; i++)
-	d[i] = strdup(tpl->files[s + i]);
-
-    pthread_mutex_unlock(&tpl->lock);
-    return ng;
-}
-
-static int
-pl_count(playlist_t *pl)
-{
-    tcvp_playlist_t *tpl = pl->private;
-
-    return tpl->nf;
-}
-
-static int
-pl_shuffle(playlist_t *pl, int s)
-{
-    tcvp_playlist_t *tpl = pl->private;
     struct timeval tv;
     int i;
 
@@ -303,67 +251,108 @@ pl_next(tcvp_playlist_t *tpl, int dir)
     return ret;
 }
 
-static void *
-pl_event(void *p)
+extern int
+epl_state(tcvp_module_t *p, tcvp_event_t *e)
 {
-    playlist_t *pl = p;
-    tcvp_playlist_t *tpl = pl->private;
-    int run = 1;
+    tcvp_playlist_t *tpl = p->private;
+    tcvp_state_event_t *te = (tcvp_state_event_t *) e;
 
-    while(run){
-	tcvp_pl_event_t *te = eventq_recv(tpl->qr);
-	if(te->type == TCVP_STATE){
-	    switch(te->state.state){
-	    case TCVP_STATE_ERROR:
-		tpl->state = PLAYING;
-		pl_next(tpl, 1);
-		break;
+    switch(te->state){
+    case TCVP_STATE_ERROR:
+	tpl->state = PLAYING;
+	pl_next(tpl, 1);
+	break;
 
-	    case TCVP_STATE_END:
-		if(tpl->state == PLAYING)
-		    pl_next(tpl, 1);
-		break;
-
-	    case TCVP_STATE_PLAYING:
-		tpl->state = PLAYING;
-		break;
-	    }
-	} else if(te->type == TCVP_PL_START){
-	    if(tpl->state != PLAYING)
-		pl_start(tpl);
-	} else if(te->type == TCVP_PL_STOP){
-	    tpl->state = STOPPED;
-	} else if(te->type == TCVP_PL_NEXT){
+    case TCVP_STATE_END:
+	if(tpl->state == PLAYING)
 	    pl_next(tpl, 1);
-	} else if(te->type == TCVP_PL_PREV){
-	    pl_next(tpl, -1);
-	} else if(te->type == TCVP_PL_ADD){
-	    pl_add(pl, te->pl_add.names, te->pl_add.n, te->pl_add.pos);
-	} else if(te->type == TCVP_PL_ADDLIST){
-	    pl_addlist(pl, te->pl_addlist.name, te->pl_addlist.pos);
-	} else if(te->type == TCVP_PL_REMOVE){
-	    pl_remove(pl, te->pl_remove.start, te->pl_remove.n);
-	} else if(te->type == TCVP_PL_SHUFFLE){
-	    pl_shuffle(pl, te->pl_shuffle.shuffle);
-	} else if(te->type == -1){
-	    run = 0;
-	}
-	tcfree(te);
+	break;
+
+    case TCVP_STATE_PLAYING:
+	tpl->state = PLAYING;
+	break;
     }
 
-    return NULL;
+    return 0;
+}
+
+extern int
+epl_start(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+
+    if(tpl->state != PLAYING)
+	pl_start(tpl);
+
+    return 0;
+}
+
+extern int
+epl_stop(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    tpl->state = STOPPED;
+    return 0;
+}
+
+extern int
+epl_next(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    pl_next(tpl, 1);
+    return 0;
+}
+
+extern int
+epl_prev(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    pl_next(tpl, -1);
+    return 0;
+}
+
+extern int
+epl_add(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    tcvp_pl_add_event_t *te = (tcvp_pl_add_event_t *) e;
+    pl_add(tpl, te->names, te->n, te->pos);
+    return 0;
+}
+
+extern int
+epl_addlist(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    tcvp_pl_addlist_event_t *te = (tcvp_pl_addlist_event_t *) e;
+    pl_addlist(tpl, te->name, te->pos);
+    return 0;
+}
+
+extern int
+epl_remove(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    tcvp_pl_remove_event_t *te = (tcvp_pl_remove_event_t *) e;
+    pl_remove(tpl, te->start, te->n);
+    return 0;
+}
+
+extern int
+epl_shuffle(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    tcvp_pl_shuffle_event_t *te = (tcvp_pl_shuffle_event_t *) e;
+    pl_shuffle(tpl, te->shuffle);
+    return 0;
 }
 
 static void
-pl_free(playlist_t *pl)
+pl_free(void *p)
 {
-    tcvp_playlist_t *tpl = pl->private;
+    tcvp_playlist_t *tpl = p;
     int i;
 
-    tcvp_event_send(tpl->qr, -1);
-    pthread_join(tpl->eth, NULL);
-
-    eventq_delete(tpl->qr);
     eventq_delete(tpl->ss);
     eventq_delete(tpl->sc);
 
@@ -375,57 +364,48 @@ pl_free(playlist_t *pl)
     pthread_mutex_destroy(&tpl->lock);
 
     tcfree(tpl->conf);
-    free(tpl);
-    free(pl);
 }
 
-extern playlist_t *
-pl_new(tcconf_section_t *cs)
+extern int
+pl_init(tcvp_module_t *m)
 {
-    tcvp_playlist_t *tpl;
-    playlist_t *pl;
+    tcvp_playlist_t *tpl = m->private;
     char *qname, *qn;
 
-    tpl = calloc(1, sizeof(*tpl));
+    tcconf_getvalue(tpl->conf, "qname", "%s", &qname);
+    qn = alloca(strlen(qname) + 9);
+
+    tpl->ss = eventq_new(NULL);
+    tpl->sc = eventq_new(NULL);
+
+    sprintf(qn, "%s/control", qname);
+    eventq_attach(tpl->sc, qn, EVENTQ_SEND);
+
+    sprintf(qn, "%s/status", qname);
+    eventq_attach(tpl->ss, qn, EVENTQ_SEND);
+
+    free(qname);
+    return 0;
+}
+
+extern int
+pl_new(tcvp_module_t *m, tcconf_section_t *cs)
+{
+    tcvp_playlist_t *tpl;
+
+    tpl = tcallocdz(sizeof(*tpl), NULL, pl_free);
     tpl->af = 16;
     tpl->files = malloc(tpl->af * sizeof(*tpl->files));
     tpl->order = malloc(tpl->af * sizeof(*tpl->order));
     pthread_mutex_init(&tpl->lock, NULL);
     tpl->state = END;
     tpl->conf = tcref(cs);
+    m->private = tpl;
 
-    tcconf_getvalue(cs, "qname", "%s", &qname);
-    qn = alloca(strlen(qname) + 9);
-
-    tpl->qr = eventq_new(tcref);
-    tpl->ss = eventq_new(NULL);
-    tpl->sc = eventq_new(NULL);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(tpl->qr, qn, EVENTQ_RECV);
-    eventq_attach(tpl->sc, qn, EVENTQ_SEND);
-
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(tpl->qr, qn, EVENTQ_RECV);
-    eventq_attach(tpl->ss, qn, EVENTQ_SEND);
-
-    free(qname);
-
-    pl = calloc(1, sizeof(*pl));
-    pl->add = pl_add;
-    pl->addlist = pl_addlist;
-    pl->remove = pl_remove;
-    pl->get = pl_get;
-    pl->count = pl_count;
-    pl->free = pl_free;
-    pl->private = tpl;
-
-    pthread_create(&tpl->eth, NULL, pl_event, pl);
-
-    return pl;
+    return 0;
 }
 
-static void
+extern void
 pl_free_add(void *p)
 {
     tcvp_pl_add_event_t *te = p;
@@ -436,7 +416,7 @@ pl_free_add(void *p)
     free(te->names);
 }
 
-static void *
+extern void *
 pl_alloc_add(int t, va_list args)
 {
     tcvp_pl_add_event_t *te = tcvp_event_alloc(t, sizeof(*te), pl_free_add);
@@ -452,7 +432,7 @@ pl_alloc_add(int t, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 pl_add_ser(char *name, void *event, int *size)
 {
     tcvp_pl_add_event_t *te = event;
@@ -478,7 +458,7 @@ pl_add_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 pl_add_deser(int type, u_char *event, int size)
 {
     u_char *nm = memchr(event, 0, size);
@@ -512,7 +492,7 @@ pl_add_deser(int type, u_char *event, int size)
     return tcvp_event_new(type, names, i, pos);
 }
 
-static void
+extern void
 pl_free_addlist(void *p)
 {
     tcvp_pl_addlist_event_t *te = p;
@@ -520,7 +500,7 @@ pl_free_addlist(void *p)
     free(te->name);
 }
 
-static void *
+extern void *
 pl_alloc_addlist(int t, va_list args)
 {
     tcvp_pl_addlist_event_t *te =
@@ -532,7 +512,7 @@ pl_alloc_addlist(int t, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 pl_addlist_ser(char *name, void *event, int *size)
 {
     tcvp_pl_addlist_event_t *te = event;
@@ -549,7 +529,7 @@ pl_addlist_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 pl_addlist_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -570,7 +550,7 @@ pl_addlist_deser(int type, u_char *event, int size)
     return tcvp_event_new(type, n, pos);
 }
 
-static void *
+extern void *
 pl_alloc_remove(int t, va_list args)
 {
     tcvp_pl_remove_event_t *te = tcvp_event_alloc(t, sizeof(*te), NULL);
@@ -581,7 +561,7 @@ pl_alloc_remove(int t, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 remove_ser(char *name, void *event, int *size)
 {
     tcvp_pl_remove_event_t *te = event;
@@ -597,7 +577,7 @@ remove_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 remove_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -610,7 +590,7 @@ remove_deser(int type, u_char *event, int size)
     return tcvp_event_new(type, start, nf);
 }
 
-static void *
+extern void *
 pl_alloc_shuffle(int t, va_list args)
 {
     tcvp_pl_shuffle_event_t *te = tcvp_event_alloc(t, sizeof(*te), NULL);
@@ -619,7 +599,7 @@ pl_alloc_shuffle(int t, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 shuffle_ser(char *name, void *event, int *size)
 {
     tcvp_pl_shuffle_event_t *te = event;
@@ -634,7 +614,7 @@ shuffle_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 shuffle_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -643,29 +623,4 @@ shuffle_deser(int type, u_char *event, int size)
     n++;
     shuffle = *n;
     return tcvp_event_new(type, shuffle);
-}
-
-extern int
-pl_init(char *p)
-{
-    TCVP_PL_START = tcvp_event_register("TCVP_PL_START", NULL, NULL, NULL);
-    TCVP_PL_STOP = tcvp_event_register("TCVP_PL_STOP", NULL, NULL, NULL);
-    TCVP_PL_NEXT = tcvp_event_register("TCVP_PL_NEXT", NULL, NULL, NULL);
-    TCVP_PL_PREV = tcvp_event_register("TCVP_PL_PREV", NULL, NULL, NULL);
-    TCVP_PL_ADD = tcvp_event_register("TCVP_PL_ADD", pl_alloc_add,
-				      pl_add_ser, pl_add_deser);
-    TCVP_PL_ADDLIST = tcvp_event_register("TCVP_PL_ADDLIST", pl_alloc_addlist,
-					  pl_addlist_ser, pl_addlist_deser);
-    TCVP_PL_REMOVE = tcvp_event_register("TCVP_PL_REMOVE", pl_alloc_remove,
-					 remove_ser, remove_deser);
-    TCVP_PL_SHUFFLE = tcvp_event_register("TCVP_PL_SHUFFLE", pl_alloc_shuffle,
-					  shuffle_ser, shuffle_deser);
-
-    TCVP_STATE = tcvp_event_get("TCVP_STATE");
-    TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 
-    TCVP_START = tcvp_event_get("TCVP_START");
-    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
-    TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
-
-    return 0;
 }

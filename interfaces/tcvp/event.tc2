@@ -1,4 +1,4 @@
-symbol "register"	int (*%s)(char *name, tcvp_alloc_event_t, tcvp_serialize_event_t, tcvp_deserialize_event_t)
+symbol "register"	int (*%s)(char *name, tcvp_alloc_event_t *, tcvp_serialize_event_t *, tcvp_deserialize_event_t *)
 symbol "send"		int (*%s)(eventq_t q, int type, ...)
 symbol "new"		void *(*%s)(int type, ...)
 symbol "get"		int (*%s)(char *name)
@@ -7,11 +7,11 @@ symbol "alloc"		void *(*%s)(int type, int size, tcfree_fn)
 symbol "serialize"	u_char *(*%s)(void *event, int *size)
 symbol "deserialize"	void *(*%s)(u_char *event, int size)
 require "Eventq"
-require "tcvp"
+require "tcvp/core"
 include
 #include <sys/types.h>
 #include <stdarg.h>
 
-typedef void *(*tcvp_alloc_event_t)(int type, va_list);
-typedef u_char *(*tcvp_serialize_event_t)(char *name, void *event, int *size);
-typedef void *(*tcvp_deserialize_event_t)(int type, u_char *event, int size);
+typedef void *(tcvp_alloc_event_t)(int type, va_list);
+typedef u_char *(tcvp_serialize_event_t)(char *name, void *event, int *size);
+typedef void *(tcvp_deserialize_event_t)(int type, u_char *event, int size);

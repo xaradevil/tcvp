@@ -17,9 +17,9 @@
 typedef struct tcvp_event_type {
     char *name;
     int num;
-    tcvp_alloc_event_t alloc;
-    tcvp_serialize_event_t serialize;
-    tcvp_deserialize_event_t deserialize;
+    tcvp_alloc_event_t *alloc;
+    tcvp_serialize_event_t *serialize;
+    tcvp_deserialize_event_t *deserialize;
 } tcvp_event_type_t;
 
 static tchash_table_t *event_types;

@@ -246,7 +246,7 @@ free_cl(void *p)
 static void
 rm_free(void *p)
 {
-    tcvp_addon_t *ad = p;
+    tcvp_module_t *ad = p;
     tcvp_remote_t *rm = ad->private;
 
     if(rm->qr){
@@ -274,7 +274,7 @@ rm_free(void *p)
 }
 
 static int
-rm_start(tcvp_addon_t *ad)
+rm_start(tcvp_module_t *ad)
 {
     tcvp_remote_t *rm = ad->private;
     char *qname, *qn;
@@ -310,13 +310,13 @@ rm_start(tcvp_addon_t *ad)
 
 static int qnum;
 
-extern tcvp_addon_t *
+extern tcvp_module_t *
 rm_new(tcconf_section_t *cs)
 {
     tcvp_remote_t *rm;
-    tcvp_addon_t *ad;
+    tcvp_module_t *ad;
     int sock;
-    int port = htons(tcvp_addon_remote_conf_port);
+    int port = htons(tcvp_remote_conf_port);
     struct sockaddr_in rsa;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);

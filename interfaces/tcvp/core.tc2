@@ -1,25 +1,12 @@
-symbol "new"		player_t *(*%s)(tcconf_section_t *)
+inherit "tcvp/module"
 include
-#include <stdint.h>
+#include <tctypes.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
-
-typedef struct player player_t;
-struct player {
-    int (*open)(player_t *, char *);
-    int (*start)(player_t *);
-    int (*stop)(player_t *);
-    int (*seek)(player_t *, uint64_t);
-    int (*close)(player_t *);
-    void (*free)(player_t *);
-    void *private;
-};
 
 typedef struct tcvp_event {
     int type;
 } tcvp_event_t;
-
-/* the core event types */
 
 typedef struct tcvp_key_event {
     int type;

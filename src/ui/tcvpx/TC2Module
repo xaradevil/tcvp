@@ -13,7 +13,6 @@ import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 
-import		"tcvp"		"new"
 import		"tcvp/event"	"get"
 import		"tcvp/event"	"alloc"
 import		"tcvp/event"	"send"

@@ -11,19 +11,18 @@
 #include <tchash.h>
 #include <tctypes.h>
 #include <tcbyteswap.h>
-#include <tcvp_mod.h>
 #include <tcvp_core_tc2.h>
 
 /* key */
 
-static void
+extern void
 key_free(void *p)
 {
     tcvp_key_event_t *te = p;
     free(te->key);
 }
 
-static void *
+extern void *
 key_alloc(int type, va_list args)
 {
     tcvp_key_event_t *te = tcvp_event_alloc(type, sizeof(*te), key_free);
@@ -33,14 +32,14 @@ key_alloc(int type, va_list args)
 
 /* open */
 
-static void
+extern void
 open_free(void *p)
 {
     tcvp_open_event_t *te = p;
     free(te->file);
 }
 
-static void *
+extern void *
 open_alloc(int type, va_list args)
 {
     tcvp_open_event_t *te = tcvp_event_alloc(type, sizeof(*te), open_free);
@@ -48,7 +47,7 @@ open_alloc(int type, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 open_ser(char *name, void *event, int *size)
 {
     tcvp_open_event_t *te = event;
@@ -63,7 +62,7 @@ open_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 open_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -78,7 +77,7 @@ open_deser(int type, u_char *event, int size)
 
 /* open_multi */
 
-static void
+extern void
 open_multi_free(void *p)
 {
     tcvp_open_multi_event_t *te = p;
@@ -89,7 +88,7 @@ open_multi_free(void *p)
     free(te->files);
 }
 
-static void *
+extern void *
 open_multi_alloc(int type, va_list args)
 {
     tcvp_open_multi_event_t *te =
@@ -107,7 +106,7 @@ open_multi_alloc(int type, va_list args)
 
 /* seek */
 
-static void *
+extern void *
 seek_alloc(int type, va_list args)
 {
     tcvp_seek_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
@@ -116,7 +115,7 @@ seek_alloc(int type, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 seek_ser(char *name, void *event, int *size)
 {
     tcvp_seek_event_t *te = event;
@@ -134,7 +133,7 @@ seek_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 seek_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -155,7 +154,7 @@ seek_deser(int type, u_char *event, int size)
 
 /* timer */
 
-static void *
+extern void *
 timer_alloc(int type, va_list args)
 {
     tcvp_timer_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
@@ -163,7 +162,7 @@ timer_alloc(int type, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 timer_ser(char *name, void *event, int *size)
 {
     tcvp_timer_event_t *te = event;
@@ -179,7 +178,7 @@ timer_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 timer_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -197,7 +196,7 @@ timer_deser(int type, u_char *event, int size)
 
 /* state */
 
-static void *
+extern void *
 state_alloc(int type, va_list args)
 {
     tcvp_state_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
@@ -205,7 +204,7 @@ state_alloc(int type, va_list args)
     return te;
 }
 
-static u_char *
+extern u_char *
 state_ser(char *name, void *event, int *size)
 {
     tcvp_state_event_t *te = event;
@@ -221,7 +220,7 @@ state_ser(char *name, void *event, int *size)
     return sb;
 }
 
-static void *
+extern void *
 state_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -234,14 +233,14 @@ state_deser(int type, u_char *event, int size)
 
 /* load */
 
-static void
+extern void
 load_free(void *p)
 {
     tcvp_load_event_t *te = p;
     tcfree(te->stream);
 }
 
-static void *
+extern void *
 load_alloc(int type, va_list args)
 {
     tcvp_load_event_t *te = tcvp_event_alloc(type, sizeof(*te), load_free);
@@ -251,7 +250,7 @@ load_alloc(int type, va_list args)
 }
 
 /* FIXME: incomplete serialization */
-static u_char *
+extern u_char *
 load_ser(char *name, void *event, int *ssize)
 {
     tcvp_load_event_t *te = event;
@@ -293,7 +292,7 @@ load_ser(char *name, void *event, int *ssize)
     return sb;
 }
 
-static void *
+extern void *
 load_deser(int type, u_char *event, int size)
 {
     u_char *n = memchr(event, 0, size);
@@ -333,7 +332,7 @@ load_deser(int type, u_char *event, int size)
     return te;
 }
 
-static void *
+extern void *
 button_alloc(int type, va_list args)
 {
     tcvp_button_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
@@ -343,39 +342,4 @@ button_alloc(int type, va_list args)
     te->y = va_arg(args, int);
 
     return te;
-}
-
-static struct {
-    char *name;
-    tcvp_alloc_event_t alloc;
-    tcvp_serialize_event_t serialize;
-    tcvp_deserialize_event_t deserialize;
-} core_events[] = {
-    { "TCVP_KEY",         key_alloc,        NULL,      NULL        },
-    { "TCVP_OPEN",        open_alloc,       open_ser,  open_deser  },
-    { "TCVP_OPEN_MULTI",  open_multi_alloc, NULL,      NULL        },
-    { "TCVP_START",       NULL,             NULL,      NULL        },
-    { "TCVP_STOP",        NULL,             NULL,      NULL        },
-    { "TCVP_PAUSE",       NULL,             NULL,      NULL        },
-    { "TCVP_SEEK",        seek_alloc,       seek_ser,  seek_deser  },
-    { "TCVP_CLOSE",       NULL,             NULL,      NULL        },
-    { "TCVP_TIMER",       timer_alloc,      timer_ser, timer_deser },
-    { "TCVP_STATE",       state_alloc,      state_ser, state_deser },
-    { "TCVP_LOAD",        load_alloc,       load_ser,  load_deser  },
-    { "TCVP_STREAM_INFO", NULL,             NULL,      NULL        },
-    { "TCVP_QUERY",       NULL,             NULL,      NULL        },
-    { "TCVP_BUTTON",      button_alloc,     NULL,      NULL        },
-};
-
-extern int
-init_events(void)
-{
-    int i;
-
-    for(i = 0; i < sizeof(core_events) / sizeof(core_events[0]); i++)
-	tcvp_event_register(core_events[i].name, core_events[i].alloc,
-			    core_events[i].serialize,
-			    core_events[i].deserialize);
-
-    return 0;
 }

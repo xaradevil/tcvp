@@ -29,16 +29,14 @@ static sem_t psm;
 static int intr;
 static tcconf_section_t *cf;
 static int validate;
-static player_t *pl;
 static eventq_t qr, qs;
 static char *sel_ui;
-static playlist_t *pll;
 static int shuffle;
 static char *skin;
 static int prl;
-static char **aonames, **nanames;
+static char **modnames, **nmodnames;
 static int nadd, nnadd;
-static tcvp_addon_t **addons;
+static tcvp_module_t **modules;
 static char **commands;
 static int ncmds;
 static int isdaemon;
@@ -82,8 +80,8 @@ show_help(void)
 	   "           --aspect=a[/b]        Force video aspect ratio\n"
 	   "           --skin=file           Select skin\n"
 	   "   -D      --daemon              Fork into background\n"
-	   "   -x name --addon=name          Enable addon\n"
-	   "   -X name --noaddon=name        Disable addon\n"
+	   "   -x name --module=name         Enable module\n"
+	   "   -X name --nomodule=name       Disable module\n"
 	   "           --play\n"
 	   "           --pause\n"
 	   "           --stop\n"
@@ -94,22 +92,22 @@ show_help(void)
 }
 
 static void
-add_addon(char *ao)
+add_module(char *ao)
 {
     int i;
     for(i = 0; i < nadd; i++)
-	if(!strcmp(aonames[i], ao))
+	if(!strcmp(modnames[i], ao))
 	    return;
-    aonames = realloc(aonames, (nadd + 1) * sizeof(*aonames));
-    aonames[nadd++] = strdup(ao);
+    modnames = realloc(modnames, (nadd + 1) * sizeof(*modnames));
+    modnames[nadd++] = strdup(ao);
 }
 
 static int
-noaddon(char *ao)
+nomodule(char *ao)
 {
     int i;
     for(i = 0; i < nnadd; i++)
-	if(!strcmp(nanames[i], ao))
+	if(!strcmp(nmodnames[i], ao))
 	    return 1;
     return 0;
 }
@@ -264,8 +262,8 @@ tcl_init(char *p)
 	if((prconf = tcconf_getsection(tcvp_conf, pr))){
 	    void *nv = NULL;
 	    char *aon;
-	    while(tcconf_nextvalue(prconf, "addon", &nv, "%s", &aon) > 0){
-		add_addon(aon);
+	    while(tcconf_nextvalue(prconf, "module", &nv, "%s", &aon) > 0){
+		add_module(aon);
 		free(aon);
 	    }
 	    tcfree(prconf);
@@ -274,47 +272,34 @@ tcl_init(char *p)
     }
     tcfree(tcvp_conf);
 
-    aonames = realloc(aonames, (nadd + tcvp_ui_cmdline_conf_addon_count) *
-		      sizeof(*aonames));
-    memcpy(aonames + nadd, tcvp_ui_cmdline_conf_addon,
-	   tcvp_ui_cmdline_conf_addon_count * sizeof(*aonames));
-    nadd += tcvp_ui_cmdline_conf_addon_count;
-    addons = calloc(nadd, sizeof(*addons));
+    modnames = realloc(modnames, (nadd + tcvp_ui_cmdline_conf_module_count) *
+		       sizeof(*modnames));
+    memcpy(modnames + nadd, tcvp_ui_cmdline_conf_module,
+	   tcvp_ui_cmdline_conf_module_count * sizeof(*modnames));
+    nadd += tcvp_ui_cmdline_conf_module_count;
+    modules = calloc(nadd, sizeof(*modules));
     for(i = 0; i < nadd; i++){
-	char an[strlen(aonames[i]) + 16];
-	tcvp_addon_new_t anf;
+	tcvp_module_new_t anf;
 
-	if(noaddon(aonames[i]))
+	if(nomodule(modnames[i]))
 	    continue;
 
-	sprintf(an, "tcvp/addon/%s", aonames[i]);
-	anf = tc2_get_symbol(an, "new");
+	anf = tc2_get_symbol(modnames[i], "new");
 	if(anf){
-	    addons[i] = anf(cf);
+	    modules[i] = anf(cf);
 	    if(!qname)
 		tcconf_getvalue(cf, "qname", "%s", &qname);
 	}
     }
 
-    if(!qname){
-	pl = tcvp_new(cf);
-	pll = playlist_new(cf);
-	tcconf_getvalue(cf, "qname", "%s", &qname);
-    } else {
-	/* Make sure the event types get registered */
-	/* FIXME: do it in a nicer way */
-	tc2_request(TC2_LOAD_MODULE, 1, "tcvp", NULL);
-	tc2_request(TC2_ADD_DEPENDENCY, 1, "tcvp");
-	tc2_request(TC2_UNLOAD_MODULE, 1, "tcvp");
-
-	tc2_request(TC2_LOAD_MODULE, 1, "playlist", NULL);
-	tc2_request(TC2_ADD_DEPENDENCY, 1, "playlist");
-	tc2_request(TC2_UNLOAD_MODULE, 1, "playlist");
+    for(i = 0; i < nadd; i++){
+	if(modules[i]){
+	    if(modules[i]->init(modules[i])){
+		tcfree(modules[i]);
+		modules[i] = NULL;
+	    }
+	}
     }
-
-    for(i = 0; i < nadd; i++)
-	if(addons[i])
-	    addons[i]->init(addons[i]);
 
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
     TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
@@ -374,7 +359,7 @@ tcl_init(char *p)
     for(i = 0; i < ncmds; i++)
 	tcvp_event_send(qs, tcvp_event_get(commands[i]));
 
-    if((pl || sel_ui) && !have_cmds){
+    if(!have_cmds){
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
@@ -404,12 +389,6 @@ tcl_stop(void)
     if(validate)
 	pthread_join(check_thr, NULL);
 
-    if(pl)
-	pl->free(pl);
-
-    if(pll)
-	pll->free(pll);
-
     if(qr){
 	tcvp_event_send(qr, -1);
 	pthread_join(evt_thr, NULL);
@@ -427,13 +406,13 @@ tcl_stop(void)
     if(qs)
 	eventq_delete(qs);
 
-    if(addons){
+    if(modules){
 	int i;
 	for(i = 0; i < nadd; i++)
-	    if(addons[i])
-		tcfree(addons[i]);
-	free(addons);
-	free(aonames);
+	    if(modules[i])
+		tcfree(modules[i]);
+	free(modules);
+	free(modnames);
     }
 
     if(commands)
@@ -485,8 +464,8 @@ parse_options(int argc, char **argv)
 	{"profile", required_argument, 0, 'P'},
 	{"skin", required_argument, 0, OPT_SKIN},
 	{"parallel", no_argument, 0, 'p'},
-	{"addon", required_argument, 0, 'x'},
-	{"noaddon", required_argument, 0, 'X'},
+	{"module", required_argument, 0, 'x'},
+	{"nomodule", required_argument, 0, 'X'},
 	{"next", no_argument, 0, OPT_NEXT},
 	{"prev", no_argument, 0, OPT_PREV},
 	{"play", no_argument, 0, OPT_PLAY},
@@ -601,12 +580,12 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'x':
-	    add_addon(optarg);
+	    add_module(optarg);
 	    break;
 
 	case 'X':
-	    nanames = realloc(nanames, (nnadd + 1) * sizeof(*nanames));
-	    nanames[nnadd++] = optarg;
+	    nmodnames = realloc(nmodnames, (nnadd + 1) * sizeof(*nmodnames));
+	    nmodnames[nnadd++] = optarg;
 	    break;
 
 	case OPT_NEXT:

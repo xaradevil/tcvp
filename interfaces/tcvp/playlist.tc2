@@ -1,0 +1,25 @@
+inherit "tcvp/module"
+include
+typedef struct tcvp_pl_add_event {
+    int type;
+    char **names;
+    int n;
+    int pos;
+} tcvp_pl_add_event_t;
+
+typedef struct tcvp_pl_addlist_event {
+    int type;
+    char *name;
+    int pos;
+} tcvp_pl_addlist_event_t;
+
+typedef struct tcvp_pl_remove_event {
+    int type;
+    int start;
+    int n;
+} tcvp_pl_remove_event_t;
+
+typedef struct tcvp_pl_shuffle_event {
+    int type;
+    int shuffle;
+} tcvp_pl_shuffle_event_t;

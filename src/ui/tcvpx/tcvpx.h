@@ -63,7 +63,6 @@ extern int toggle_time(xtk_widget_t *w, void *p);
 
 extern int quit;
 
-extern player_t *pl;
 extern eventq_t qs;
 extern eventq_t qr;
 

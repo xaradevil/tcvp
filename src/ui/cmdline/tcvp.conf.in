@@ -1,0 +1,3 @@
+# -*- tcconf -*-
+module "tcvp/core"
+module "tcvp/playlist"
