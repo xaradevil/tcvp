@@ -110,7 +110,7 @@ stream_time(muxed_stream_t *stream, int i, tcvp_pipe_t *pipe)
     }
 }
 
-static void
+extern void
 close_pipe(tcvp_pipe_t *p)
 {
     while(p){
@@ -128,12 +128,11 @@ pid_free(void *p)
     tchash_delete(sh->filters, p, -1, NULL);
 }
 
-static tcvp_pipe_t *
-new_pipe(stream_player_t *sp, stream_t *s)
+extern tcvp_pipe_t *
+new_pipe(stream_shared_t *sh, muxed_stream_t *ms, stream_t *s)
 {
     tcvp_pipe_t *pipe = NULL, *pp = NULL, *pn = NULL;
     tcconf_section_t *f, *mcf;
-    stream_shared_t *sh = sp->shared;
     tcconf_section_t *pr = NULL;
     void *cs = NULL;
 
@@ -175,7 +174,7 @@ new_pipe(stream_player_t *sp, stream_t *s)
 	    if(sh->outfile)
 		tcconf_setvalue(mcf, "mux/url", "%s", sh->outfile);
 
-	    if(!(pn = fn(pp? &pp->format: s, mcf, sh->timer, sp->ms))){
+	    if(!(pn = fn(pp? &pp->format: s, mcf, sh->timer, ms))){
 		tc2_print("STREAM", TC2_PRINT_WARNING,
 			  "error opening filter '%s'\n", type);
 		break;
@@ -288,7 +287,7 @@ add_stream(stream_player_t *sp, int s)
 
     tc2_print("STREAM", TC2_PRINT_DEBUG,
 	      "creating pipeline for stream #%i\n", sid);
-    if(!(tp = new_pipe(sp, sp->ms->streams + s)))
+    if(!(tp = new_pipe(sh, sp->ms, sp->ms->streams + s)))
 	goto out;
 
     pthread_mutex_lock(&sp->lock);
