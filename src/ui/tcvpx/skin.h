@@ -23,7 +23,6 @@
 #include <tcconf.h>
 
 struct _skin_t {
-/*     tcimage_button_t *playctl[5], *close; */
     tclabel_t *time, *title;
     tcbackground_t *background;
     int width, height;

@@ -103,6 +103,10 @@ create_window(skin_t *skin)
 {
     Atom prop;
     MWMHints mwmhints;
+    XClassHint *classhints;
+    XSizeHints *sizehints;
+    XTextProperty windowName;
+    char *title = "TCVP";
 
     bt_list = list_new(TC_LOCK_SLOPPY);
     widget_list = list_new(TC_LOCK_SLOPPY);
@@ -140,6 +144,24 @@ create_window(skin_t *skin)
     XSetForeground(xd, bgc, 0x00000000);
 
     root = XCreatePixmap(xd, xw, root_width, root_height, depth);
+
+    classhints = XAllocClassHint ();
+    classhints->res_name = "TCVP";
+    classhints->res_class = "TCVP";
+
+    sizehints = XAllocSizeHints ();
+    sizehints->flags = PSize | PMinSize | PMaxSize;
+    sizehints->min_width = skin->width;
+    sizehints->min_height = skin->height;
+    sizehints->max_width = skin->width;
+    sizehints->max_height = skin->height;
+
+    XStringListToTextProperty (&title, 1, &windowName);
+    XSetWMProperties (xd, xw, &windowName, NULL, NULL,
+		      0, sizehints, NULL, classhints);
+
+    XFree(sizehints);
+    XFree(classhints);
 
     XSync(xd, False);
 
