@@ -627,9 +627,7 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case OPT_SKIN:
-	    ot = fullpath(optarg);
-	    tcconf_setvalue(cf, "skin", "%s", ot);
-	    free(ot);
+	    tcconf_setvalue(cf, "skin", "%s", optarg);
 	    break;
 
 	case 'p':

@@ -179,15 +179,40 @@ load_skin(char *skinconf)
     char *tmp;
     skin_t *skin = calloc(sizeof(*skin), 1);
     int i=0;
-    char *conf_tmp;
+    char *conf_tmp = NULL;
     struct stat stat_foo;
  
-    if(skinconf[0]!='/' && stat(skinconf, &stat_foo)) {
+    if(skinconf[0] == '/' || stat(skinconf, &stat_foo) == 0) {
+	conf_tmp = strdup(skinconf);
+    } else if (tcvp_ui_tcvpx_conf_skinpath_count > 0){
+	int i;
+	for(i=0; i<tcvp_ui_tcvpx_conf_skinpath_count && conf_tmp == NULL; i++){
+	    conf_tmp = malloc(strlen(tcvp_ui_tcvpx_conf_skinpath[i]) + 
+			      strlen(skinconf) + 2);
+	    sprintf(conf_tmp, "%s/%s", tcvp_ui_tcvpx_conf_skinpath[i],
+		    skinconf);
+	    if(stat(conf_tmp, &stat_foo) != 0) {
+		free(conf_tmp);
+		conf_tmp = NULL;
+	    }
+	}
+    }
+
+    if(conf_tmp == NULL) {
+	conf_tmp = malloc(strlen(getenv("HOME"))+strlen(skinconf)+15);
+	sprintf(conf_tmp, "%s/.tcvp/skins/%s", getenv("HOME"), skinconf);
+	if(stat(conf_tmp, &stat_foo) != 0) {
+	    free(conf_tmp);
+	    conf_tmp = NULL;
+	}
+    }
+
+    if(conf_tmp == NULL) {
 	conf_tmp = malloc(strlen(TCVP_SKINS)+strlen(skinconf)+2);
 	sprintf(conf_tmp, "%s/%s", TCVP_SKINS, skinconf);
-    } else {
-	conf_tmp = strdup(skinconf);
     }
+
+    fprintf(stderr, "%s\n", conf_tmp);
 
     if(!(skin->config = tcconf_load_file (NULL, conf_tmp))){
 	tc2_print("TCVPX", TC2_PRINT_ERROR, "Error loading file \"%s\".\n", conf_tmp);

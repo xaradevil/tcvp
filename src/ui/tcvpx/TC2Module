@@ -80,6 +80,7 @@ option		skin%s
 option		sticky%d=0
 option		xposition%d=-2
 option		yposition%d=-2
+option		*skinpath%s
 
 TCVP {
 	module "tcvp/ui/tcvpx" {
