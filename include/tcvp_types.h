@@ -83,6 +83,7 @@ typedef union tcvp_packet {
 #define STREAM_TYPE_SUBTITLE  4
 
 #define TCVP_STREAM_FLAG_INTERLACED 0x1
+#define TCVP_STREAM_FLAG_NOBUFFER   0x2
 
 #define STREAM_COMMON				\
     int stream_type;				\
