@@ -34,11 +34,11 @@ static inline int conv(int samples, float **pcm, char *buf, int channels) {
     ogg_int16_t *ptr, *data = (ogg_int16_t*)buf ;
     float *mono ;
  
-    for(i = 0 ; i < channels ; i++){
+    for(i = 0; i < channels; i++){
 	ptr = &data[i];
 	mono = pcm[i] ;
 	
-	for(j = 0 ; j < samples ; j++) {
+	for(j = 0; j < samples; j++) {
 	    
 	    val = mono[j] * 32767.f;
 	    
@@ -71,7 +71,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     op = (ogg_packet *) pk->data[0];
 
     if(vorbis_synthesis(&vc->vb, op) == 0)
-	vorbis_synthesis_blockin(&vc->vd, &vc->vb) ;
+	vorbis_synthesis_blockin(&vc->vd, &vc->vb);
 
     total_samples = 0;
     total_bytes = 0;
@@ -89,8 +89,12 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     out->sizes[0] = total_bytes;
     out->planes = 1;
     out->flags = 0;
-    out->pts = 0;
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
+	out->flags |= TCVP_PKT_FLAG_PTS;
+	out->pts = pk->pts;
+    }
     out->private = vc->buf;
+
     p->next->input(p->next, out);
 
     tcfree(pk);
