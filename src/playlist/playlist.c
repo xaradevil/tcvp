@@ -17,12 +17,14 @@
 
 typedef struct tcvp_playlist {
     char **files;
+    int *order;
     int nf, af;
     int state;
     int cur;
     eventq_t qr, sc, ss;
     pthread_t eth;
     pthread_mutex_t lock;
+    int shuffle;
 } tcvp_playlist_t;
 
 typedef union tcvp_pl_event {
@@ -36,6 +38,7 @@ typedef union tcvp_pl_event {
 
 #define STOPPED 0
 #define PLAYING 1
+#define END     2
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
@@ -69,8 +72,9 @@ pl_add(playlist_t *pl, char **files, int n, int p)
     nf = tpl->nf + n;
 
     if(nf > tpl->af){
-	tpl->files = realloc(tpl->files, (nf + 16) * sizeof(*tpl->files));
 	tpl->af = nf + 16;
+	tpl->files = realloc(tpl->files, tpl->af * sizeof(*tpl->files));
+	tpl->order = realloc(tpl->order, tpl->af * sizeof(*tpl->order));
     }
 
     if(p < tpl->nf)
@@ -78,6 +82,27 @@ pl_add(playlist_t *pl, char **files, int n, int p)
 
     for(i = 0; i < n; i++)
 	tpl->files[p + i] = strdup(files[i]);
+
+    if(tpl->shuffle){
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_usec);
+	nf = tpl->nf;
+	for(i = 0; i < n; i++){
+	    int j = 0;
+	    if(tpl->cur < nf)
+		j = rand() % (nf - tpl->cur);
+	    if(tpl->cur < tpl->nf && tpl->state != END)
+		j++;
+	    memmove(tpl->order + tpl->cur + j + 1,
+		    tpl->order + tpl->cur + j,
+		    (nf - tpl->cur - j) * sizeof(*tpl->order));
+	    tpl->order[tpl->cur + j] = nf++;
+	}
+    } else {
+	for(i = p; i < nf; i++)
+	    tpl->order[i] = i;
+    }
 
     tpl->nf = nf;
 
@@ -138,7 +163,7 @@ static int
 pl_remove(playlist_t *pl, int s, int n)
 {
     tcvp_playlist_t *tpl = pl->private;
-    int i, nr;
+    int i, j, nr;
 
     pthread_mutex_lock(&tpl->lock);
 
@@ -153,6 +178,13 @@ pl_remove(playlist_t *pl, int s, int n)
 	free(tpl->files[s + i]);
 
     memmove(tpl->files + s, tpl->files + s + nr, nr * sizeof(*tpl->files));
+    for(i = 0, j = 0; i < tpl->nf; i++){
+	if(tpl->order[i] < s)
+	    tpl->order[j++] = tpl->order[i];
+	else if(tpl->order[i] >= s + nr)
+	    tpl->order[j++] = tpl->order[i] - nr;
+    }
+    tpl->nf -= nr;
 
     pthread_mutex_unlock(&tpl->lock);
     return 0;
@@ -171,6 +203,7 @@ pl_get(playlist_t *pl, char **d, int s, int n)
     for(i = 0; i < ng; i++)
 	d[i] = strdup(tpl->files[s + i]);
 
+    pthread_mutex_unlock(&tpl->lock);
     return ng;
 }
 
@@ -183,29 +216,28 @@ pl_count(playlist_t *pl)
 }
 
 static int
-pl_shuffle(playlist_t *pl, int s, int n)
+pl_shuffle(playlist_t *pl, int s)
 {
     tcvp_playlist_t *tpl = pl->private;
     struct timeval tv;
     int i;
 
-    if(s < 0)
-	s = tpl->nf + s + 1;
-    if(s < 0)
-	s = 0;
+    if(s){
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_usec);
 
-    if(n < 0)
-	n = tpl->nf + n + 1;
-    n = min(tpl->nf - s, (unsigned) n);
-    gettimeofday(&tv, NULL);
-    srand(tv.tv_usec);
-
-    for(i = 0; i < n; i++){
-	int j = rand() % (i + 1);
-	char *t = tpl->files[i];
-	tpl->files[i] = tpl->files[j];
-	tpl->files[j] = t;
+	for(i = 0; i < tpl->nf; i++){
+	    int j = rand() % (i + 1);
+	    int t = tpl->order[i];
+	    tpl->order[i] = tpl->order[j];
+	    tpl->order[j] = t;
+	}
+    } else {
+	for(i = 0; i < tpl->nf; i++)
+	    tpl->order[i] = i;
     }
+
+    tpl->shuffle = s;
 
     return 0;
 }
@@ -222,7 +254,7 @@ pl_start(tcvp_playlist_t *tpl)
 	tpl->cur = 0;
 
     tcvp_event_send(tpl->sc, TCVP_CLOSE);
-    tcvp_event_send(tpl->sc, TCVP_OPEN, tpl->files[tpl->cur]);
+    tcvp_event_send(tpl->sc, TCVP_OPEN, tpl->files[tpl->order[tpl->cur]]);
     tcvp_event_send(tpl->sc, TCVP_START);
 
     pthread_mutex_unlock(&tpl->lock);
@@ -239,10 +271,10 @@ pl_next(tcvp_playlist_t *tpl, int dir)
     c = tpl->cur + dir;
 
     if(c >= tpl->nf || c < 0){
-	if(tpl->state == PLAYING){
-	    tpl->state = STOPPED;
+	int s = tpl->state;
+	tpl->state = END;
+	if(s == PLAYING)
 	    tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
-	}
 	c = c < 0? 0: tpl->nf;
     }
 
@@ -299,7 +331,7 @@ pl_event(void *p)
 	} else if(te->type == TCVP_PL_REMOVE){
 	    pl_remove(pl, te->pl_remove.start, te->pl_remove.n);
 	} else if(te->type == TCVP_PL_SHUFFLE){
-	    pl_shuffle(pl, te->pl_shuffle.start, te->pl_shuffle.n);
+	    pl_shuffle(pl, te->pl_shuffle.shuffle);
 	} else if(te->type == -1){
 	    run = 0;
 	}
@@ -325,6 +357,7 @@ pl_free(playlist_t *pl)
     for(i = 0; i < tpl->nf; i++)
 	free(tpl->files[i]);
     free(tpl->files);
+    free(tpl->order);
 
     pthread_mutex_destroy(&tpl->lock);
 
@@ -342,7 +375,9 @@ pl_new(tcconf_section_t *cs)
     tpl = calloc(1, sizeof(*tpl));
     tpl->af = 16;
     tpl->files = malloc(tpl->af * sizeof(*tpl->files));
+    tpl->order = malloc(tpl->af * sizeof(*tpl->order));
     pthread_mutex_init(&tpl->lock, NULL);
+    tpl->state = END;
 
     tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 9);
@@ -367,7 +402,6 @@ pl_new(tcconf_section_t *cs)
     pl->remove = pl_remove;
     pl->get = pl_get;
     pl->count = pl_count;
-    pl->shuffle = pl_shuffle;
     pl->free = pl_free;
     pl->private = tpl;
 
@@ -536,10 +570,35 @@ static void *
 pl_alloc_shuffle(int t, va_list args)
 {
     tcvp_pl_shuffle_event_t *te = tcvp_event_alloc(t, sizeof(*te), NULL);
-    te->start = va_arg(args, int);
-    te->n = va_arg(args, int);
+    te->shuffle = va_arg(args, int);
 
     return te;
+}
+
+static u_char *
+shuffle_ser(char *name, void *event, int *size)
+{
+    tcvp_pl_shuffle_event_t *te = event;
+    int s = strlen(name) + 1 + 1;
+    u_char *sb = malloc(s);
+    u_char *p = sb;
+
+    p += sprintf(sb, "%s", name);
+    *++p = te->shuffle;
+
+    *size = s;
+    return sb;
+}
+
+static void *
+shuffle_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    int shuffle;
+
+    n++;
+    shuffle = *n;
+    return tcvp_event_new(type, shuffle);
 }
 
 extern int
@@ -556,7 +615,7 @@ pl_init(char *p)
     TCVP_PL_REMOVE = tcvp_event_register("TCVP_PL_REMOVE", pl_alloc_remove,
 					 NULL, NULL);
     TCVP_PL_SHUFFLE = tcvp_event_register("TCVP_PL_SHUFFLE", pl_alloc_shuffle,
-					  NULL, NULL);
+					  shuffle_ser, shuffle_deser);
 
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
     TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 

@@ -72,7 +72,8 @@ show_help(void)
 	   "   -s t    --seek=t              Seek t seconds at start\n"
 	   "   -t t    --time=t              Play t seconds\n"
 	   "   -u name --user-interface=name Select user interface\n"
-	   "   -z      --shuffle             Shuffle files\n"
+	   "   -z      --shuffle             Enable shuffle\n"
+	   "   -Z      --noshuffle           Disable shuffle\n"
 	   "   -@ file --playlist=file       Load playlist from file\n"
 	   "   -f      --fullscreen          Fill entire screen\n"
 	   "           --aspect=a[/b]        Force video aspect ratio\n"
@@ -259,7 +260,7 @@ tcl_init(char *p)
     }
     tcfree(tcvp_conf);
 
-    if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon){
+    if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon && !shuffle){
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
 	return 0;
@@ -331,11 +332,14 @@ tcl_init(char *p)
 	    tcvp_event_send(qs, TCVP_PL_ADD, files, nfiles, -1);
 	for(i = 0; i < npl; i++)
 	    tcvp_event_send(qs, TCVP_PL_ADDLIST, playlist[i], -1);
-	if(shuffle)
-	    tcvp_event_send(qs, TCVP_PL_SHUFFLE, 0, -1);
     } else {
 	tcvp_event_send(qs, TCVP_OPEN_MULTI, nfiles, files);
     }
+
+    if(shuffle > 0)
+	tcvp_event_send(qs, TCVP_PL_SHUFFLE, 1);
+    else if(shuffle < 0)
+	tcvp_event_send(qs, TCVP_PL_SHUFFLE, 0);
 
     qr = eventq_new(tcref);
     sprintf(qn, "%s/status", qname);
@@ -460,6 +464,7 @@ parse_options(int argc, char **argv)
 	{"tc2-debug", required_argument, 0, OPT_TC2_DEBUG},
 	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
 	{"shuffle", no_argument, 0, 'z'},
+	{"noshuffle", no_argument, 0, 'Z'},
 	{"playlist", required_argument, 0, '@'},
 	{"fullscreen", required_argument, 0, 'f'},
 	{"aspect", required_argument, 0, OPT_ASPECT},
@@ -483,7 +488,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:px:X:D",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:D",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -535,6 +540,10 @@ parse_options(int argc, char **argv)
 
 	case 'z':
 	    shuffle = 1;
+	    break;
+
+	case 'Z':
+	    shuffle = -1;
 	    break;
 
 	case '@':

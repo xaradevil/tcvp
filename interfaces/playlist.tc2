@@ -9,7 +9,6 @@ struct playlist {
     int (*remove)(playlist_t *, int start, int n);
     int (*get)(playlist_t *, char **, int start, int n);
     int (*count)(playlist_t *);
-    int (*shuffle)(playlist_t *, int s, int n);
     void (*free)(playlist_t *);
     void *private;
 };
@@ -35,6 +34,5 @@ typedef struct tcvp_pl_remove_event {
 
 typedef struct tcvp_pl_shuffle_event {
     int type;
-    int start;
-    int n;
+    int shuffle;
 } tcvp_pl_shuffle_event_t;
