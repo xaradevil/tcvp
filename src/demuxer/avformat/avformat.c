@@ -90,6 +90,7 @@ static char *codec_names[] = {
 typedef struct {
     AVFormatContext *afc;
     list **packets;
+    pthread_mutex_t mtx;
 } avf_stream_t;
 
 
@@ -115,14 +116,21 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     apk = calloc(1, sizeof(*apk));
 
     do {
-	if(av_read_packet(afc, apk) != 0){
+	int s;
+
+	pthread_mutex_lock(&as->mtx);
+	s = av_read_packet(afc, apk);
+	pthread_mutex_unlock(&as0>mtx);
+
+	if(s != 0){
 	    pk = NULL;
 	    break;
 	}
 
 	pk = malloc(sizeof(*pk));
-	pk->data = apk->data;
-	pk->size = apk->size;
+	pk->data = &apk->data;
+	pk->size = &apk->size;
+	pk->planes = 1;
 	pk->pts = apk->pts;
 	pk->free = avf_free_packet;
 	pk->private = apk;
@@ -206,6 +214,7 @@ avf_open(char *name)
     for(i = 0; i < ms->n_streams; i++){
 	as->packets[i] = list_new(TC_LOCK_SLOPPY);
     }
+    pthread_mutex_init(&as->mtx, NULL);
 
     ms->private = as;
 

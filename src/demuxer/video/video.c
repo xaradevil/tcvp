@@ -22,6 +22,7 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <pthread.h>
+#include <tcvp.h>
 #include <video_tc2.h>
 
 
@@ -44,7 +45,130 @@ v_close(muxed_stream_t *ms)
     return ms->close(ms);
 }
 
-extern int
-v_play(muxed_stream_t *ms, tcvp_pipe_t *p)
+#define RUN     1
+#define PAUSE   2
+#define STOP    3
+
+typedef struct video_play {
+    muxed_stream_t *stream;
+    tcvp_pipe_t **pipes;
+    pthread_t *threads;
+    int state;
+    pthread_mutex_t mtx;
+    pthread_cond_t cnd;
+} video_play_t;
+
+typedef struct vp_thread {
+    int stream;
+    video_play_t *vp;
+} vp_thread_t;
+
+static void *
+play_stream(void *p)
 {
+    vp_thread_t *vt = p;
+    video_play_t *vp = vt->vp;
+    muxed_stream_t *ms = vp->stream;
+    int stream = vp->stream;
+    packet_t *pk;
+
+    while(vp->state != STOP){
+	pthread_mutex_lock(&vp->mtx);
+	while(vp->state == PAUSE){
+	    pthread_cond_wait(&vp->cnd, &vp->mtx);
+	}
+	pthread_mutex_unlock(&vp->mtx);
+
+	pk = ms->next_packet(ms, stream);
+	vp->pipes[stream]->input(vp->pipes[stream], pk);
+    }
+
+    free(vt);
+    return NULL;
+}
+
+static int
+start(tcvp_pipe_t *p)
+{
+    video_play_t *vp = p->private;
+
+    pthread_mutex_lock(&vp->mtx);
+    vp->state = RUN;
+    pthread_cond_broadcast(&vp->cnd);
+    pthread_mutex_unlock(&vp->mtx);
+
+    return 0;
+}
+
+static int
+stop(tcvp_pipe_t *p)
+{
+    video_play_t *vp = p->private;
+
+    pthread_mutex_lock(&vp->lock);
+    vp->state = PAUSE;
+    pthread_mutex_unlock(&vp->mtx);
+
+    return 0;
+}
+
+static int
+v_free(tcvp_pipe_t *p)
+{
+    video_play_t *vp = p->private;
+    int i, j;
+
+    pthread_mutex_lock(&vp->mtx);
+    vp->state = STOP;
+    pthread_mutex_unlock(&vp->mtx);
+
+    for(i = 0, j = 0; i < vp->ms->n_streams; i++){
+	if(vp->ms->used_streams[i]){
+	    pthread_join(vp->threads[j], NULL);
+	    j++;
+	}
+    }
+
+    free(vp->pipes);
+    free(vp->threads);
+    free(vp);
+    free(p);
+
+    return 0;
+}
+
+extern tcvp_pipe_t *
+v_play(muxed_stream_t *ms, tcvp_pipe_t **out)
+{
+    tcvp_pipe_t *p;
+    video_play_t *vp;
+    int i, j;
+
+    vp = malloc(sizeof(*vp));
+    vp->stream = ms;
+    vp->pipes = calloc(ms->n_streams, sizeof(tcvp_pipe_t *));
+    vp->threads = calloc(ms->n_streams, sizeof(pthread_t));
+    vp->state = PAUSE;
+    pthread_mutex_init(&vp->mtx, NULL);
+    pthread_cond_init(&vp->cnd, NULL);
+
+    for(i = 0, j = 0; i < ms->n_streams; i++){
+	if(ms->used_streams[i]){
+	    vp_thread_t *th = malloc(sizeof(*th));
+	    th->stream = i;
+	    th->vp = vp;
+	    vp->pipes[i] = out[j];
+	    pthread_create(&vp->threads[j], NULL, play_stream, th);
+	    j++;
+	}
+    }
+
+    p = calloc(1, sizeof(tcvp_pipe_t));
+    p->input = NULL;
+    p->start = start;
+    p->stop = stop;
+    p->free = v_free;
+    p->private = vp;
+
+    return p;
 }

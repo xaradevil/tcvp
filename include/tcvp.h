@@ -19,6 +19,7 @@
 #ifndef _TCVP_H
 #define _TCVP_H
 
+#include <stdint.h>
 #include <sys/types.h>
 
 typedef struct packet packet_t;
@@ -31,5 +32,46 @@ struct packet {
     void *private;
 };
 
+#define STREAM_TYPE_VIDEO 1
+#define STREAM_TYPE_AUDIO 2
+
+typedef struct video_stream {
+    int stream_type;
+    float frame_rate;
+    int width, height;
+    char *codec;
+} video_stream_t;
+
+typedef struct audio_stream {
+    int stream_type;
+    int sample_rate;
+    int channels;
+    char *codec;
+} audio_stream_t;
+
+typedef union stream {
+    int stream_type;
+    video_stream_t video;
+    audio_stream_t audio;
+} stream_t;
+
+typedef struct muxed_stream muxed_stream_t;
+struct muxed_stream {
+    int n_streams;
+    stream_t *streams;
+    int *used_streams;
+    packet_t *(*next_packet)(muxed_stream_t *, int stream);
+    int (*close)(muxed_stream_t *);
+    void *private;
+};
+
+typedef struct tcvp_pipe tcvp_pipe_t;
+struct tcvp_pipe {
+    int (*input)(tcvp_pipe_t *, packet_t *);
+    int (*start)(tcvp_pipe_t *);
+    int (*stop)(tcvp_pipe_t *);
+    int (*free)(tcvp_pipe_t *);
+    void *private;
+};
 
 #endif

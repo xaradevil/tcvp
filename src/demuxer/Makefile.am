@@ -1,1 +1,1 @@
-SUBDIRS = avformat
+SUBDIRS = avformat video

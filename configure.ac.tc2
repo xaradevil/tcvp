@@ -4,6 +4,7 @@ AM_INIT_AUTOMAKE
 
 TC2_INIT
 
+AC_SUBST([CPPFLAGS], [-I\$(top_srcdir)/include])
 AC_CONFIG_FILES([Makefile
 		 interfaces/Makefile
 		 src/Makefile
