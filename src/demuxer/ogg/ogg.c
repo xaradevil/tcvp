@@ -225,17 +225,17 @@ ogg_title(muxed_stream_t *ms, char *buf)
 	return -1;
 
     p += 6;
-    s = htol_32(*(int32_t *) p);
+    s = htol_32(unaligned32(p));
 
     p += s + 4;
-    n = htol_32(*(int32_t *) p);
+    n = htol_32(unaligned32(p));
     p += 4;
 
     for(i = 0; i < n; i++){
 	char *t, *v;
 	int tl, vl;
 
-	s = htol_32(*(int32_t *) p);
+	s = htol_32(unaligned32(p));
 	t = p + 4;
 	p += s + 4;
 
