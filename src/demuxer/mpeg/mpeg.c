@@ -210,7 +210,12 @@ mpeg_descriptor(stream_t *s, u_char *d)
 
     switch(tag){
     case VIDEO_STREAM_DESCRIPTOR:
+	if(s->stream_type != STREAM_TYPE_VIDEO){
+	    fprintf(stderr, "MPEG: Video stream descriptor for non-video stream\n");
+	    break;
+	}
 	s->video.frame_rate = frame_rates[(d[2] >> 3) & 0xf];
+#if 0
 	if(d[2] & 0x4)
 	    fprintf(stderr, "MPEG: MPEG 1 only\n");
 	if(d[2] & 0x2)
@@ -219,6 +224,7 @@ mpeg_descriptor(stream_t *s, u_char *d)
 	    fprintf(stderr, "MPEG: esc %i profile %i, level %i\n",
 		    d[3] >> 7, (d[3] >> 4) & 0x7, d[3] & 0xf);
 	}
+#endif
 	break;
 
     case AUDIO_STREAM_DESCRIPTOR:
@@ -226,6 +232,12 @@ mpeg_descriptor(stream_t *s, u_char *d)
 
     case TARGET_BACKGROUND_GRID_DESCRIPTOR: {
 	int n = htob_32(unaligned32(d + 2));
+
+	if(s->stream_type != STREAM_TYPE_VIDEO){
+	    fprintf(stderr, "MPEG: Target background grid descriptor for non-video stream\n");
+	    break;
+	}
+
 	s->video.width = (n >> 18) & 0x3fff;
 	s->video.height = (n >> 4) & 0x3fff;
 
