@@ -16,9 +16,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
+#define _ISOC99_SOURCE
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
@@ -31,6 +35,7 @@
 typedef struct mpegps_stream {
     url_t *stream;
     int *imap;
+    int rate;
 } mpegps_stream_t;
 
 static mpegpes_packet_t *
@@ -40,7 +45,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 
     do {
 	uint32_t stream_id;
-	int scode = 0, pklen, zc = 0, i = pedantic? 3: 512;
+	int scode = 0, pklen, zc = 0, i = pedantic? 3: 0x10000;
 
 	while(i--){
 	    scode = url_getc(s->stream);
@@ -164,6 +169,7 @@ mpegps_packet(muxed_stream_t *ms, int str)
     if(mp->flags & PES_FLAG_PTS){
 	pk->pts = mp->pts * 300;
 	pk->flags |= TCVP_PKT_FLAG_PTS;
+	s->rate = s->stream->tell(s->stream) * 90 / mp->pts;
     }
 
     if(mp->flags & PES_FLAG_DTS){
@@ -172,6 +178,40 @@ mpegps_packet(muxed_stream_t *ms, int str)
     }
 
     return pk;
+}
+
+static uint64_t
+mpegps_seek(muxed_stream_t *ms, uint64_t time)
+{
+    mpegps_stream_t *s = ms->private;
+    int64_t p, st;
+    packet_t *pk = NULL;
+    int sm = SEEK_SET, c = 0;
+
+    p = time / 27000 * s->rate;
+
+    do {
+	if(s->stream->seek(s->stream, p, sm))
+	    return -1;
+
+	st = 0;
+
+	do {
+	    pk = mpegps_packet(ms, 0);
+	    if(pk){
+		if(pk->flags & TCVP_PKT_FLAG_PTS)
+		    st = pk->pts;
+		pk->free(pk);
+	    } else {
+		return -1;
+	    }
+	} while(!st);
+
+	p = ((int64_t) time - st) / 27000 * s->rate;
+	sm = SEEK_CUR;
+    } while(llabs(st - time) > 27000000 && c++ < 64);
+
+    return st;
 }
 
 static void
@@ -203,6 +243,7 @@ mpegps_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegps_free);
     ms->next_packet = mpegps_packet;
+    ms->seek = mpegps_seek;
     s = calloc(1, sizeof(*s));
     s->stream = u;
     ms->private = s;
