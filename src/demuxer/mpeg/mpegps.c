@@ -96,7 +96,16 @@ mpegpes_packet(url_t *u, int pedantic)
 	    }
 	    continue;
 	} else if(stream_id == 0xb9){
+	    uint64_t p = u->tell(u);
+	    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "end code @ %llu (%llx)\n",
+		      p, p);
+	    continue;
 	    return NULL;
+	} else if(stream_id < 0xba){
+	    uint64_t p = u->tell(u);
+	    tc2_print("MPEGPS", TC2_PRINT_DEBUG,
+		      "unknown PES id %x @ %lli (%llx)\n", stream_id, p, p);
+	    continue;
 	}
 
 	pklen = getu16(u);
@@ -123,8 +132,6 @@ mpegpes_packet(url_t *u, int pedantic)
 	    pes->size = pklen - (pes->data - pes->hdr);
 	    if(pes->stream_id == PRIVATE_STREAM_1){
 		pes->stream_id = *pes->data;
-/* 		pes->data += 3; */
-/* 		pes->size -= 4; */
 	    }
 	} else if(stream_id == DVD_PESID){
 	    pes = malloc(sizeof(*pes));
@@ -323,6 +330,8 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
 
     u->seek(u, p, SEEK_SET);
     s->pts_offset = 0;
+
+    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "seek @ %llu (%llx)\n", p, p);
 
     return st * 300;
 err:
