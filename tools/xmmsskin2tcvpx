@@ -41,7 +41,7 @@ if(-d $skin){
     } elsif ($skin =~ /\.tar$/) {
 	$err = system "tar xf $skin -C $sd";
     } elsif ($skin =~ /\.zip$|\.wsz/) {
-	$err = system "unzip -L -qq -d $sd $skin";
+	$err = system "unzip -LL -qq -d $sd $skin";
     }
 
     $err and die "Error unpacking skin.\n";
