@@ -1,2 +1,3 @@
 TC2_CHECK_LIBS([cdparanoia, cdda_interface, cdda_identify,, cdda_interface.h],
-	       [cdparanoia, cdda_paranoia, paranoia_init,, cdda_paranoia.h])
+	       [cdparanoia, cdda_paranoia, paranoia_init,, cdda_paranoia.h,
+		[#include <cdda_interface.h>]])
