@@ -30,10 +30,11 @@
 static pthread_t play_thr;
 
 static int nfiles;
-char **files;
-sem_t psm;
-int intr;
-conf_section *cf;
+static char **files;
+static sem_t psm;
+static int intr;
+static conf_section *cf;
+static int verbose_flag;
 
 static void
 sigint(int s)
@@ -90,43 +91,41 @@ extern int
 tcvp_stop(void)
 {
     pthread_join(play_thr, NULL);
+    return 0;
 }
 
-static int verbose_flag=0;
 static int
 parse_options(int argc, char **argv)
 {
-    int c;
+    struct option long_options[] = {
+	{"help", no_argument, 0, 'h'},
+	{"audio-device", required_argument, 0, 'd'},
+	{0, 0, 0, 0}
+    };
 
-    while (1)
-    {
-	static struct option long_options[] =
-	    {
-		{"help", no_argument, 0, 'h'},
-		{"alsa-device", required_argument, 0, 'd'},
-		{0, 0, 0, 0}
-	    };
-	int option_index = 0;
+    for(;;){
+	int c, option_index = 0;
      
-	c = getopt_long (argc, argv, "hd:", 
-			 long_options, &option_index);
+	c = getopt_long(argc, argv, "hd:", 
+			long_options, &option_index);
 	
-	if (c == -1)
+	if(c == -1)
 	    break;
 
-	switch (c)
-	{
+	switch(c){
 	case 'h':
 	    /* FIXME: better helpscreen */
 	    printf("TCVP helpscreen\n"
 		   "   -h, --help          This helpscreen\n"
-		   "   -d, --alsa-device   Select audio device\n");
+		   "   -d, --audio-device  Select audio device\n");
 	    break;
+
 	case 'd':
-	    conf_setvalue(cf,"audio/device","%s",optarg);
+	    conf_setvalue(cf, "audio/device", "%s", optarg);
 	    break;
 	}
     }
+
     return optind;
 }
 
