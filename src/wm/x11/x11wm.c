@@ -124,6 +124,23 @@ x11_close(window_manager_t *wm)
     return 0;
 }
 
+static void
+x11_hidecursor(x11_wm_t *xwm)
+{
+    Cursor crs;
+    Pixmap pm;
+    XColor black;
+    char data[8] = { [0 ... 7] = 0 };
+
+    XAllocNamedColor(xwm->dpy,
+		     DefaultColormap(xwm->dpy, DefaultScreen(xwm->dpy)),
+		     "black", &black, &black);	
+    pm = XCreateBitmapFromData(xwm->dpy, xwm->win, data, 8, 8);    
+    crs = XCreatePixmapCursor(xwm->dpy, pm, pm, &black, &black, 0, 0);
+    XDefineCursor(xwm->dpy, xwm->win, crs);
+    XFreePixmap(xwm->dpy, pm);
+}
+
 extern window_manager_t *
 x11_open(int width, int height, wm_update_t upd, void *cbd,
 	 conf_section *cs, int flags)
@@ -159,6 +176,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     xwm->flags = flags;
     conf_getvalue(cs, "video/color_key", "%i", &xwm->color_key);
 
+    x11_hidecursor(xwm);
     xwm->swin = XCreateWindow(dpy, win, 0, 0, width, height, 0, CopyFromParent,
 			      InputOutput, CopyFromParent, 0, NULL);
     XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
