@@ -422,7 +422,7 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp3_file_t *mf = ms->private;
     mp3_packet_t *mp;
     mp3_frame_t fr;
-    int size = 4096;
+    int size = 8192;
     u_char *f;
 
     mp = calloc(1, sizeof(*mp));
