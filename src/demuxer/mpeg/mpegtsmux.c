@@ -45,6 +45,7 @@ typedef struct mpegts_mux {
     uint64_t pcr, pcr_int, last_pcr;
     uint64_t last_psi;
     int psi_interval;
+    int discont;
     int bitrate;
     int astreams;
     struct mpegts_output_stream {
@@ -55,9 +56,14 @@ typedef struct mpegts_mux {
 	uint64_t sts;
 	int ccount;
 	int bitrate;
+	int bytes;
 	uint64_t lpts;
 	int unit_start;
 	tclist_t *packets;
+	uint64_t tailtime;
+	uint64_t headtime;
+	int rbytes;
+	int64_t offset;
     } *streams;
     u_char *pat;
     u_char *pmt, *pmt_slen;
@@ -72,6 +78,9 @@ typedef struct mpegts_mux {
     uint64_t pts_interval;
     int started;
     uint64_t bytes;
+    uint64_t rate_lookahead;
+    int64_t audio_offset;
+    int64_t video_offset;
 } mpegts_mux_t;
 
 static void
@@ -262,8 +271,9 @@ next_stream(mpegts_mux_t *tsm)
 
     for(i = 0; i < tsm->astreams; i++){
 	if(tsm->streams[i].pid){
-	    if(tsm->streams[i].sts < ts){
-		ts = tsm->streams[i].sts;
+	    uint64_t sts = tsm->streams[i].sts + tsm->streams[i].offset;
+	    if(sts < ts){
+		ts = sts;
 		s = i;
 	    }
 	}
@@ -301,29 +311,54 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
     if(!pk->data){
 	tc2_print("MPEGTS", TC2_PRINT_DEBUG,
 		  "stream %i end\n", pk->stream);
-	tsm->streams[pk->stream].sts = -1LL;
-	tsm->streams[pk->stream].pid = 0;
+	tsm->streams[pk->stream].tailtime = -1LL;
 	tcfree(pk);
     } else {
-	tc2_print("MPEGTS", TC2_PRINT_DEBUG+8, "[%i] input\n", pk->stream);
-	tclist_push(tsm->streams[pk->stream].packets, pk);
-	if(tsm->streams[pk->stream].sts == -1 &&
-	   pk->flags & TCVP_PKT_FLAG_PTS){
-	    tsm->streams[pk->stream].sts =
-		pk->flags & TCVP_PKT_FLAG_DTS? pk->dts: pk->pts;
-	    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "[%i] start %lli\n",
-		      pk->stream, tsm->streams[pk->stream].sts);
-	    if(tsm->pcr == -1){
-		tsm->pcr = tsm->streams[pk->stream].sts;
-		tsm->start_time = tsm->pcr;
+	struct mpegts_output_stream *os = tsm->streams + pk->stream;
+
+	if(pk->flags & TCVP_PKT_FLAG_PTS){
+	    uint64_t dts = pk->flags & TCVP_PKT_FLAG_DTS? pk->dts: pk->pts;
+
+	    if(os->sts == -1){
+		os->sts = dts;
+		os->tailtime = dts;
+		
+		tc2_print("MPEGTS", TC2_PRINT_DEBUG, "[%i] start %lli\n",
+			  pk->stream, os->sts);
+		if(tsm->pcr == -1){
+		    tsm->pcr = os->sts;
+		    tsm->start_time = tsm->pcr;
+		}
 	    }
+
+	    if(dts - os->tailtime >= tsm->rate_lookahead){
+		os->bitrate =
+		    os->rbytes * 8 * 27000000LL / (dts - os->tailtime);
+		tc2_print("MPEGTS", TC2_PRINT_DEBUG+5,
+			  "[%i] rate %i, rbytes=%i\n",
+			  pk->stream, os->bitrate, os->rbytes);
+		os->tailtime = dts;
+		os->rbytes = 0;
+	    }
+
+	    os->headtime = dts;
+	}
+
+	if(os->sts != -1){
+	    tclist_push(os->packets, pk);
+	    os->rbytes += pk->sizes[0];
+	    tc2_print("MPEGTS", TC2_PRINT_DEBUG+8, "[%i] input rbytes=%i\n",
+		      pk->stream, os->rbytes);
+	} else {
+	    tcfree(pk);
 	}
     }
 
     nst = next_stream(tsm);
-    tc2_print("MPEGTS", TC2_PRINT_DEBUG+6, "nst=%i\n", nst);
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG+9, "nst=%i\n", nst);
 
-    while(nst > -1 && tclist_items(tsm->streams[nst].packets)){
+    while(nst > -1 && tclist_items(tsm->streams[nst].packets) &&
+	  tsm->streams[nst].sts < tsm->streams[nst].tailtime){
 	struct mpegts_output_stream *os = tsm->streams + nst;
 	uint64_t ppts = -1, pdts = -1;
 	char *data;
@@ -348,23 +383,14 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 	    if(os->dts != -1){
 		int64_t ddts = dts - os->dts;
-		if(ddts > 27000 * 10){
-		    int64_t d = dts - os->sts;
-		    int br =
-			os->bitrate - os->bitrate * d / ddts;
-
-		    if(br > os->bitrate * 1.01)
-			br = os->bitrate * 1.01;
-		    else if(br < os->bitrate * 0.99)
-			br = os->bitrate * 0.99;
-
-		    os->bitrate = br;
+		int64_t d = dts - os->sts;
+		tc2_print("MPEGTS", TC2_PRINT_DEBUG+3,
+			  "[%i] rate=%7i ddts=%lli dpcr=%lli d=%7lli\n",
+			  nst, os->bitrate, ddts,
+			  dts + tsm->delay - os->sts, d);
+		if(ddts > tsm->rate_lookahead){
 		    os->dts = dts;
-		    tc2_print("MPEGTS", TC2_PRINT_DEBUG+3,
-			      "[%i] rate %7i, ddts %lli, dpcr %lli, d %lli\n",
-			      nst, os->bitrate, ddts,
-			      dts + tsm->delay - os->sts, d);
-		    os->sts = dts;
+		    os->bytes = 0;
 		}
 	    } else {
 		os->dts = dts;
@@ -372,13 +398,6 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 	    pk->flags &= ~TCVP_PKT_FLAG_PTS;
 	}
-
-#if 0
-	if(pk->flags & TCVP_PKT_FLAG_KEY){
-	    tsm->last_psi = -1;
-	    pk->flags &= ~TCVP_PKT_FLAG_KEY;
-	}
-#endif
 
 	data = pk->data[0];
 	size = pk->sizes[0];
@@ -397,6 +416,10 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	if(tsm->pcr - tsm->last_pcr > tsm->pcr_int){
 	    put_pcr(tsm->pcr_packet + 6, tsm->pcr);
 	    memcpy(tsm->outbuf + tsm->bpos, tsm->pcr_packet, TS_PACKET_SIZE);
+	    if(tsm->discont){
+		*(tsm->outbuf + tsm->bpos + 5) |= 0x80;
+		tsm->discont = 0;
+	    }
 	    inc_cc(tsm->pcr_packet);
 	    tsm->last_pcr = tsm->pcr;
 	    post_packet(tsm);
@@ -407,12 +430,15 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	os->unit_start = 0;
 	data += psize;
 	size -= psize;
-	if(os->dts != -1)
-	    os->sts += 27000000LL * 8 * psize / os->bitrate;
+	if(os->dts != -1){
+/* 	    os->sts += 27000000LL * 8 * psize / os->bitrate; */
+	    os->bytes += psize;
+	    os->sts = os->dts + 27000000LL * 8 * os->bytes / os->bitrate;
+	}
 
 	post_packet(tsm);
 
-	if(tsm->bytes > TS_PACKET_SIZE * 100){
+	if(tsm->bytes > TS_PACKET_SIZE * 10){
 	    int64_t rate = tsm->bytes * 8 * 27000000LL / os->sts;
 	    if(rate > tsm->bitrate)
 		tsm->bitrate *= 1.000001;
@@ -426,6 +452,10 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	if(!size){
 	    tcfree(pk);
 	    os->unit_start = 1;
+	    if(os->tailtime == -1LL && !tclist_items(os->packets)){
+		os->sts = -1LL;
+		os->pid = 0;
+	    }
 	} else {
 	    pk->data[0] = data;
 	    pk->sizes[0] = size;
@@ -448,6 +478,7 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     uint32_t crc;
     int esil = 0;
     u_char *ilp;
+    int rate;
 
     if(!str_type){
 	tc2_print("MPEGTS", TC2_PRINT_ERROR, "unsupported codec %s\n",
@@ -501,29 +532,37 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     os->stream_type = s->stream_type;
     os->pid = pid;
     os->stream_id = str_type->stream_id_base;
-    os->bitrate = s->common.bit_rate;
+/*     os->bitrate = s->common.bit_rate; */
     os->lpts = -1LL;
     os->dts = -1LL;
     os->sts = -1LL;
     os->packets = tclist_new(TC_LOCK_NONE);
     os->unit_start = 1;
+    os->tailtime = -1LL;
+    os->headtime = -1LL;
+
+    if(os->stream_type == STREAM_TYPE_AUDIO)
+	os->offset = tsm->audio_offset;
+    else
+	os->offset = tsm->video_offset;
 
     if(s->common.start_time < tsm->start_time)
 	tsm->pcr = tsm->start_time = s->common.start_time;
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "start_pcr %lli\n", tsm->pcr);
 
-    if(!os->bitrate){
+    rate = s->common.bit_rate;
+    if(!rate){
 	if(s->stream_type == STREAM_TYPE_VIDEO)
-	    os->bitrate = tcvp_demux_mpeg_conf_default_video_rate;
+	    rate = tcvp_demux_mpeg_conf_default_video_rate;
 	else
-	    os->bitrate = tcvp_demux_mpeg_conf_default_audio_rate;
+	    rate = tcvp_demux_mpeg_conf_default_audio_rate;
 
 	tc2_print("MPEGTS", TC2_PRINT_WARNING,
 		  "bitrate not specified for stream %i, using default %i\n",
-		  s->common.index, os->bitrate);
+		  s->common.index, rate);
     }
 
-    tsm->bitrate += os->bitrate * 1.05;
+    tsm->bitrate += rate * 1.05;
 
     return PROBE_OK;
 }
@@ -591,10 +630,12 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->timer = tcref(t);
     tsm->pcr_int = mux_mpeg_ts_conf_pcr_interval;
     tsm->delay = tcvp_demux_mpeg_conf_ts_pcr_delay;
+    tsm->discont = 1;
 
     tsm->start_time = -1;
     tsm->realtime = out->flags & URL_FLAG_STREAMED;
     tsm->pts_interval = tcvp_demux_mpeg_conf_pts_interval;
+    tsm->rate_lookahead = tcvp_demux_mpeg_conf_ts_rate_lookahead;
 
     tcconf_getvalue(cs, "realtime", "%i", &tsm->realtime);
     tcconf_getvalue(cs, "delay", "%li", &tsm->delay);
@@ -602,6 +643,9 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "psi_interval", "%i", &tsm->psi_interval);
     tcconf_getvalue(cs, "pcr_interval", "%i", &tsm->pcr_int);
     tcconf_getvalue(cs, "start_pid", "%i", &tsm->nextpid);
+    tcconf_getvalue(cs, "rate_lookahead", "%li", &tsm->rate_lookahead);
+    tcconf_getvalue(cs, "audio_offset", "%li", &tsm->audio_offset);
+    tcconf_getvalue(cs, "video_offset", "%li", &tsm->video_offset);
 
     tsm->bitrate = 8 * TS_PACKET_SIZE * 1000 / tsm->pcr_int +
 	2 * 8 * TS_PACKET_SIZE * 1000 / tsm->psi_interval;
@@ -621,6 +665,9 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->last_pcr = -1;
     tsm->last_psi = -1;
     tsm->delay *= 27000;
+    tsm->rate_lookahead *= 27000;
+    tsm->audio_offset *= 27000;
+    tsm->video_offset *= 27000;
 
     p = tcallocdz(sizeof(*p), NULL, tmx_free);
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
