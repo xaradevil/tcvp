@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -25,7 +25,6 @@
 #define _GNU_SOURCE
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
@@ -42,7 +41,7 @@ typedef struct {
     ogg_stream_state os;    
     url_t *f;
     uint64_t end;
-    uint64_t grp;
+    uint64_t grp, lgp;
 } ogg_stream_t;
 
 
@@ -103,32 +102,40 @@ ogg_free_packet(void *v)
     free(p->sizes);
 }
 
-
-extern tcvp_packet_t *
-ogg_next_packet(muxed_stream_t *ms, int stream)
+static int
+ogg_find_packet(ogg_stream_t *ost, ogg_packet *op, uint64_t *gp)
 {
-    tcvp_data_packet_t *pk;
-
-    ogg_stream_t *ost = ms->private;
     ogg_page og;
-    ogg_packet op;
     char *buf;
-    uint64_t gp = -1;
 
-    while(ogg_stream_packetout(&ost->os, &op) != 1) {
+    while(ogg_stream_packetout(&ost->os, op) != 1) {
 	while(ogg_sync_pageout(&ost->oy, &og) != 1) {
 	    int l;
 	    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
 	    l = ost->f->read(buf, 1, BUFFER_SIZE, ost->f);
 	    ogg_sync_wrote(&ost->oy, l);
-	    if(l==0){
-		return NULL;
-	    }
+	    if(l <= 0)
+		return -1;
 	}
 	ogg_stream_pagein(&ost->os, &og);
-	gp = ost->grp;
+	if(gp)
+	    *gp = ost->grp;
 	ost->grp = ogg_page_granulepos(&og);
     }
+
+    return 0;
+}
+
+extern tcvp_packet_t *
+ogg_next_packet(muxed_stream_t *ms, int stream)
+{
+    ogg_stream_t *ost = ms->private;
+    tcvp_data_packet_t *pk;
+    ogg_packet op;
+    uint64_t gp = -1;
+
+    if(ogg_find_packet(ost, &op, &gp) < 0)
+	return NULL;
 
     pk = tcallocdz(sizeof(*pk), NULL, ogg_free_packet);
     pk->stream = 0;
@@ -138,15 +145,16 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 	pk->pts = gp * 27000000 / ms->streams[0].audio.sample_rate;
     }
     pk->data = malloc(sizeof(*pk->data));
-    pk->data[0] = malloc(sizeof(ogg_packet)+op.bytes);
+    pk->data[0] = malloc(op.bytes);
 
-    memcpy(pk->data[0], &op, sizeof(ogg_packet));
-    memcpy(pk->data[0] + sizeof(ogg_packet), op.packet, op.bytes);
-    ((ogg_packet *)pk->data[0])->packet = pk->data[0] + sizeof(ogg_packet);
+    memcpy(pk->data[0], op.packet, op.bytes);
 
-    pk->sizes = malloc(sizeof(*pk->sizes));
-    pk->sizes[0] = op.bytes+sizeof(ogg_packet);
     pk->planes = 1;
+    pk->sizes = malloc(2 * sizeof(*pk->sizes));
+    pk->sizes[0] = op.bytes;
+    pk->sizes[1] = op.granulepos - ost->lgp;
+
+    ost->lgp = op.granulepos;
 
     return (tcvp_packet_t *) pk;
 }
@@ -215,6 +223,7 @@ ogg_free(void *p)
     ogg_stream_clear(&os->os);
     os->f->close(os->f);
 
+    free(ms->streams[0].common.codec_data);
     free(ms->streams);
     free(ms->used_streams);
 
@@ -271,6 +280,41 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
     return 0;
 }
 
+static int
+ogg_get_headers(muxed_stream_t *ms)
+{
+    ogg_stream_t *ost = ms->private;
+    stream_t *st = ms->streams;
+    u_char *buf = NULL, *p;
+    int size = 0, i;
+    ogg_packet op;
+
+    for(i = 0; i < 3; i++){
+	if(ogg_find_packet(ost, &op, NULL))
+	    return -1;
+	buf = realloc(buf, size + op.bytes + 2);
+	p = buf + size;
+	*p++ = op.bytes >> 8;
+	*p++ = op.bytes & 0xff;
+
+	memcpy(p, op.packet, op.bytes);
+	size += op.bytes + 2;
+    }
+
+    st->common.codec_data = buf;
+    st->common.codec_data_size = size;
+
+    p = buf + 13;
+    st->audio.channels = *p++;
+    st->audio.sample_rate = htol_32(unaligned32(p));
+    p += 8;
+    st->audio.bit_rate = htol_32(unaligned32(p));
+
+    ms->time = st->audio.samples * 27000000LL / st->audio.sample_rate;
+
+    return 0;
+}
+
 extern muxed_stream_t *
 ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
@@ -312,11 +356,10 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     ogg_sync_wrote(&ost->oy, l);
     ogg_sync_pageout(&ost->oy, &og);
-
-//    ogg_sync_pageseek(&ost->oy, &og);
-
     ogg_stream_init(&ost->os, ogg_page_serialno(&og));
     ogg_stream_pagein(&ost->os, &og);
+
+    ogg_get_headers(ms);
 
     return ms;
 }

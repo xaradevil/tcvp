@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -34,8 +34,8 @@
 
 typedef struct vorbis_packet {
     tcvp_data_packet_t pk;
-    ogg_packet ogg, *op;
-    int size;
+    u_char *data;
+    int size[2];
 } vorbis_packet_t;
 
 typedef struct vorbis_enc {
@@ -46,6 +46,7 @@ typedef struct vorbis_enc {
     float quality;
     int bps;
     int channels;
+    uint64_t gpos;
 } vorbis_enc_t;
 
 static void
@@ -64,22 +65,21 @@ static void
 ve_free_pk(void *p)
 {
     vorbis_packet_t *vp = p;
-    free(vp->ogg.packet);
+    free(vp->data);
 }
 
 static vorbis_packet_t *
-ve_alloc(int s, ogg_packet *op)
+ve_alloc(int s, ogg_packet *op, int samples)
 {
     vorbis_packet_t *vp = tcallocdz(sizeof(*vp), NULL, ve_free_pk);
     vp->pk.stream = s;
-    vp->pk.data = (u_char **) &vp->op;
-    vp->pk.sizes = &vp->size;
+    vp->pk.data = &vp->data;
+    vp->pk.sizes = vp->size;
     vp->pk.planes = 1;
-    vp->op = &vp->ogg;
-    vp->size = op->bytes;
-    vp->ogg = *op;
-    vp->ogg.packet = malloc(op->bytes);
-    memcpy(vp->ogg.packet, op->packet, op->bytes);
+    vp->size[0] = op->bytes;
+    vp->size[1] = samples;
+    vp->data = malloc(op->bytes);
+    memcpy(vp->data, op->packet, op->bytes);
 
     return vp;
 }
@@ -107,8 +107,10 @@ ve_input(tcvp_pipe_t *p, tcvp_packet_t *tpk)
 	vorbis_bitrate_addblock(&ve->vb);
 
 	while(vorbis_bitrate_flushpacket(&ve->vd, &op)){
-	    vorbis_packet_t *vp = ve_alloc(pk->stream, &op);
+	    vorbis_packet_t *vp = ve_alloc(pk->stream, &op,
+					   op.granulepos - ve->gpos);
 	    p->next->input(p->next, (tcvp_packet_t *) vp);
+	    ve->gpos = op.granulepos;
 	}
     }
 
@@ -124,9 +126,9 @@ static int
 ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     vorbis_enc_t *ve = p->private;
-    ogg_packet header[3];	/* main, comments, codebook */
-    vorbis_packet_t *op;
-    int ret, i;
+    ogg_packet op[3];	/* main, comments, codebook */
+    u_char *cdp;
+    int cds, i;
 
     if(vorbis_encode_setup_vbr(&ve->vi, s->audio.channels,
 			       s->audio.sample_rate, ve->quality))
@@ -143,18 +145,22 @@ ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     p->format.common.codec = "audio/vorbis";
     p->format.audio.bit_rate = ve->vi.bitrate_nominal;
 
-    vorbis_analysis_headerout(&ve->vd, &ve->vc, &header[0], &header[1],
-			      &header[2]);
+    vorbis_analysis_headerout(&ve->vd, &ve->vc, &op[0], &op[1], &op[2]);
+
+    cds = op[0].bytes + op[1].bytes + op[2].bytes + 6;
+    cdp = malloc(cds);
+    p->format.common.codec_data = cdp;
+    p->format.common.codec_data_size = cds;
+
     for(i = 0; i < 3; i++){
-	op = ve_alloc(s->common.index, &header[i]);
-	op->ogg.packetno = i;
-	if((ret = p->next->probe(p->next, &op->pk, &p->format)) != PROBE_AGAIN)
-	    break;
+	*cdp++ = op[i].bytes >> 8;
+	*cdp++ = op[i].bytes & 0xff;
+	memcpy(cdp, op[i].packet, op[i].bytes);
+	cdp += op[i].bytes;
     }
 
-    if(pk)
-	tcfree(pk);
-    return ret;
+    tcfree(pk);
+    return p->next->probe(p->next, NULL, &p->format);
 }
 
 static int
@@ -179,6 +185,8 @@ ve_free(void *p)
     free(ve->vc.user_comments);
     free(ve->vc.comment_lengths);
     free(ve);
+
+    free(tp->format.common.codec_data);
 }
 
 static char *comments[] = {

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -23,29 +23,33 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
-#include <vorbis/vorbisfile.h>
+#include <vorbis/codec.h>
 #include <vorbis_tc2.h>
 
-typedef struct {
+typedef struct vorbis_context {
     vorbis_info vi;
     vorbis_comment vc;
     vorbis_dsp_state vd;
     vorbis_block vb;
-    char *buf;
-} VorbisContext_t;
+    ogg_packet op;
+} vorbis_context_t;
+
+typedef struct vorbis_packet {
+    tcvp_data_packet_t pk;
+    u_char *data;
+    int size;
+} vorbis_packet_t;
 
 static void
-vorbis_free_packet(void *v)
+vorbis_free_packet(void *p)
 {
-    tcvp_data_packet_t *p = v;
-    free(p->sizes);
+    vorbis_packet_t *vp = p;
+    free(vp->data);
 }
-
 
 static inline int
 conv(int samples, float **pcm, char *buf, int channels) {
@@ -72,48 +76,55 @@ conv(int samples, float **pcm, char *buf, int channels) {
     return 0;
 }
 
-
 extern int
 vorbis_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
-    tcvp_data_packet_t *out;
-    VorbisContext_t *vc = p->private;
+    vorbis_packet_t *out;
+    vorbis_context_t *vc = p->private;
     int samples, total_samples, total_bytes;
-    float **pcm ;
-    ogg_packet *op;
+    u_char *buf;
+    float **pcm;
+    int ret;
 
     if(!pk->data){
 	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
-    op = (ogg_packet *) pk->data[0];
+    vc->op.packet = pk->data[0];
+    vc->op.bytes = pk->sizes[0];
 
-    if(vorbis_synthesis(&vc->vb, op) == 0)
+    ret = vorbis_synthesis(&vc->vb, &vc->op);
+
+    if(ret < 0)
+	return -1;
+
+    if(ret == 0)
 	vorbis_synthesis_blockin(&vc->vd, &vc->vb);
 
     total_samples = 0;
     total_bytes = 0;
+    buf = malloc(131072);
 
     while((samples = vorbis_synthesis_pcmout(&vc->vd, &pcm)) > 0) {
-	conv(samples, pcm, (char*)vc->buf + total_bytes, vc->vi.channels);
+	conv(samples, pcm, buf + total_bytes, vc->vi.channels);
 	total_bytes += samples * 2 * vc->vi.channels;
 	total_samples += samples;
 	vorbis_synthesis_read(&vc->vd, samples);
     }
 
     out = tcallocdz(sizeof(*out), NULL, vorbis_free_packet);
-    out->stream = pk->stream;
-    out->data = (u_char **) &out->private;
-    out->sizes = malloc(sizeof(*out->sizes));
-    out->sizes[0] = total_bytes;
-    out->planes = 1;
-    out->flags = 0;
+    out->pk.stream = pk->stream;
+    out->pk.data = &out->data;
+    out->pk.sizes = &out->size;
+    out->pk.planes = 1;
+    out->data = buf;
+    out->size = total_bytes;
+
     if(pk->flags & TCVP_PKT_FLAG_PTS){
-	out->flags |= TCVP_PKT_FLAG_PTS;
-	out->pts = pk->pts;
+	out->pk.flags |= TCVP_PKT_FLAG_PTS;
+	out->pk.pts = pk->pts;
     }
-    out->private = vc->buf;
 
     p->next->input(p->next, (tcvp_packet_t *) out);
 
@@ -122,61 +133,91 @@ vorbis_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     return 0;
 }
 
-extern int
-vorbis_read_header(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
+static int
+vorbis_read_header(tcvp_pipe_t *p, stream_t *s)
 {
-    ogg_packet *op=(ogg_packet*)pk->data[0];
-    VorbisContext_t *vc = p->private;
-    int ret = PROBE_FAIL;
+    vorbis_context_t *vc = p->private;
+    int size, hs, i;
+    ogg_packet op;
+    u_char *cdp;
 
-    if(op->packetno < 3) {
-	vorbis_synthesis_headerin(&vc->vi, &vc->vc, op);
-	if(op->packetno < 2) {	
-	    ret = PROBE_AGAIN;
-	} else {
-	    p->format = *s;
-	    p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
-	    p->format.audio.sample_rate = vc->vi.rate;
-	    p->format.audio.channels = vc->vi.channels;
-	    p->format.audio.bit_rate = vc->vi.rate * vc->vi.channels * 16;
-	    s->audio.sample_rate = vc->vi.rate;
-	    s->audio.channels = vc->vi.channels;
-	    s->audio.bit_rate = vc->vi.bitrate_nominal;
-	    vorbis_synthesis_init(&vc->vd, &vc->vi);
-	    vorbis_block_init(&vc->vd, &vc->vb); 
-	    ret = PROBE_OK;
+    if(s->common.codec_data_size < 58)
+	return -1;
+
+    memset(&op, 0, sizeof(op));
+
+    cdp = s->common.codec_data;
+    size = s->common.codec_data_size;
+
+    for(i = 0; i < 3; i++){
+	hs = *cdp++ << 8;
+	hs += *cdp++;
+	size -= 2;
+
+	tc2_print("VORBIS", TC2_PRINT_DEBUG, "header %i size %i\n", i, hs);
+
+	if(hs > size){
+	    tc2_print("VORBIS", TC2_PRINT_ERROR,
+		      "codec_data too small: %i > %i\n", hs, size);
+	    return -1;
 	}
+
+	op.packet = cdp;
+	op.bytes = hs;
+	op.b_o_s = !i;
+	vorbis_synthesis_headerin(&vc->vi, &vc->vc, &op);
+	op.packetno++;
+
+	cdp += hs;
+	size -= hs;
     }
-    tcfree(pk);
-    return ret;
+
+    vorbis_synthesis_init(&vc->vd, &vc->vi);
+    vorbis_block_init(&vc->vd, &vc->vb); 
+
+    return 0;
+}
+
+extern int
+vorbis_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
+{
+    vorbis_context_t *vc = p->private;
+
+    if(vorbis_read_header(p, s))
+	return PROBE_FAIL;
+
+    p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
+    p->format.audio.sample_rate = vc->vi.rate;
+    p->format.audio.channels = vc->vi.channels;
+    p->format.audio.bit_rate = vc->vi.rate * vc->vi.channels * 16;
+    s->audio.sample_rate = vc->vi.rate;
+    s->audio.channels = vc->vi.channels;
+    s->audio.bit_rate = vc->vi.bitrate_nominal;
+
+    return PROBE_OK;
 }
 
 static void
 vorbis_free_pipe(void *p)
 {
-    VorbisContext_t *vc = p;
+    vorbis_context_t *vc = p;
 
     vorbis_block_clear(&vc->vb);
     vorbis_dsp_clear(&vc->vd);
     vorbis_comment_clear(&vc->vc);
     vorbis_info_clear(&vc->vi);
-
-    if(vc->buf)
-	free(vc->buf);
 }
 
 extern int
 vorbis_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	   muxed_stream_t *ms)
 {
-    VorbisContext_t *vc;
+    vorbis_context_t *vc;
 
     vc = tcallocdz(sizeof(*vc), NULL, vorbis_free_pipe);
 
     vorbis_info_init(&vc->vi);
     vorbis_comment_init(&vc->vc);
-
-    vc->buf = malloc(131072);
 
     p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->private = vc;

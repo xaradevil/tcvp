@@ -9,6 +9,6 @@ TCVP {
 	filter "decoder/audio/vorbis" {
 		new vorbis_new
 		packet DATA vorbis_decode
-		probe vorbis_read_header
+		probe vorbis_probe
 	}
 }
