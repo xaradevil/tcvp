@@ -54,7 +54,9 @@ static char *codec_names[] = {
     [CODEC_ID_H264] = "video/h264",
     [CODEC_ID_INDEO3] = "video/indeo3",
     [CODEC_ID_VP3] = "video/vp3",
+#if LIBAVCODEC_BUILD >= 4685
     [CODEC_ID_THEORA] = "video/theora",
+#endif
     [CODEC_ID_AAC] = "audio/aac",
     [CODEC_ID_MPEG4AAC] = "audio/aac",
 
