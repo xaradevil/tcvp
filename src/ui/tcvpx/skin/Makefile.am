@@ -1,2 +1,2 @@
 skindir = $(pkgdatadir)/skins
-nobase_skin_DATA = $(shell find $(srcdir) -name '*.png' -o -name '*.conf' | sed s,^$(srcdir)/,,)
+nobase_dist_skin_DATA = $(shell find $(srcdir) -name '*.png' -o -name '*.conf' | sed s,^$(srcdir)\\x2f,,)
