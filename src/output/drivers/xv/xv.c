@@ -23,7 +23,6 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -35,8 +34,6 @@
 #include <X11/extensions/XShm.h>
 #include <X11/extensions/Xvlib.h>
 #include <pthread.h>
-#include <semaphore.h>
-#include <sched.h>
 #include <tcvp_types.h>
 #include <xv_tc2.h>
 
@@ -53,11 +50,14 @@ typedef struct xv_window {
     XvImage **images;
     window_manager_t *wm;
     int last_frame;
+    pthread_mutex_t flock;
 } xv_window_t;
 
 static int
 do_show(xv_window_t *xvw, int frame)
 {
+    pthread_mutex_lock(&xvw->flock);
+
     XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
 		  xvw->images[frame],
 		  0, 0, xvw->width, xvw->height,
@@ -67,6 +67,7 @@ do_show(xv_window_t *xvw, int frame)
 
     xvw->last_frame = frame;
 
+    pthread_mutex_unlock(&xvw->flock);
     return 0;
 }
 
@@ -83,12 +84,14 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     XvImage *xi = xvw->images[frame];
     int i;
 
+    pthread_mutex_lock(&xvw->flock);
     if(frame == xvw->last_frame){
 	if(xvw->last_frame == vd->frames - 1)
 	    xvw->last_frame = 0;
 	else
 	    xvw->last_frame++;
     }
+    pthread_mutex_unlock(&xvw->flock);
 
     for(i = 0; i < xi->num_planes; i++){
 	data[i] = xi->data + xi->offsets[i];
@@ -133,6 +136,7 @@ xv_close(video_driver_t *vd)
 
     xvw->wm->close(xvw->wm);
 
+    pthread_mutex_destroy(&xvw->flock);
     free(xvw->images);
     free(xvw->shm);
     free(xvw);
@@ -244,6 +248,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     xvw->shm = malloc(frames * sizeof(*xvw->shm));
     xvw->images = malloc(frames * sizeof(*xvw->images));
     xvw->last_frame = -1;
+    pthread_mutex_init(&xvw->flock, NULL);
 
     if(dasp > 0 || vs->aspect.num){
 	float asp = (float) vs->width / vs->height;
