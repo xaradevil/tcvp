@@ -187,6 +187,8 @@ print_stream(stream_t *s)
 	    printf(", %i Hz", s->audio.sample_rate);
 	if(s->audio.channels)
 	    printf(", %i channels", s->audio.channels);
+	if(s->audio.language[0])
+	    printf(", %s", s->audio.language);
 	break;
 
     case STREAM_TYPE_VIDEO:
@@ -200,6 +202,11 @@ print_stream(stream_t *s)
 		   s->video.aspect.num, s->video.aspect.den,
 		   (double) s->video.aspect.num / s->video.aspect.den);
 	break;
+
+    case STREAM_TYPE_SUBTITLE:
+	if(s->subtitle.language[0])
+	    printf(", %s", s->subtitle.language);
+
     }
     if(s->common.bit_rate)
 	printf(", %i kb/s", s->audio.bit_rate / 1000);
