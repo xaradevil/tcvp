@@ -131,7 +131,7 @@ audio_input(tcvp_pipe_t *p, packet_t *pk)
     if(!pk->data){
 	tcfree(pk);
 	pthread_mutex_lock(&ao->mx);
-	while(ao->bbytes)
+	while(ao->bbytes && ao->state == RUN)
 	    pthread_cond_wait(&ao->cd, &ao->mx);
 	ao->state = STOP;
 	pthread_cond_broadcast(&ao->cd);
