@@ -529,7 +529,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	if(crc && (ccrc = mpeg_crc32(dp, seclen + 3)) != 0){
 	    tc2_print("MPEGTS", TC2_PRINT_WARNING,
 		      "Bad CRC in PMT, got %x, expected %x\n", ccrc, crc);
-	    continue;
+/* 	    continue; */
 	}
 
 	prg = htob_16(unaligned16(dp + 3));
@@ -601,6 +601,8 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     }
 
     s->start_time = -1LL;
+
+    u->seek(u, 0, SEEK_SET);
 
     free(pat);
     return ms;
