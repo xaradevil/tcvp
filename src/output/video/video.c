@@ -47,6 +47,7 @@ typedef struct video_out {
     int *drop;
     int dropcnt;
     int framecnt;
+    conf_section *conf;
 } video_out_t;
 
 #define DROPLEN 8
@@ -288,14 +289,17 @@ static color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
     [PIXEL_FORMAT_I420][PIXEL_FORMAT_YUY2] = i420_yuy2,
 };
 
-extern tcvp_pipe_t *
-v_open(video_stream_t *vs, conf_section *cs, timer__t *timer)
+static int
+v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    tcvp_pipe_t *pipe;
-    video_out_t *vo;
+    video_out_t *vo = p->private;
     video_driver_t *vd = NULL;
     color_conv_t cconv = NULL;
+    video_stream_t *vs = (video_stream_t *) s;
     int i;
+
+    if(s->stream_type != STREAM_TYPE_VIDEO)
+	return PROBE_FAIL;
 
     for(i = 0; i < output_video_conf_driver_count; i++){
 	driver_video_open_t vdo;
@@ -305,7 +309,7 @@ v_open(video_stream_t *vs, conf_section *cs, timer__t *timer)
 	if(!(vdo = tc2_get_symbol(buf, "open")))
 	    continue;
 
-	if((vd = vdo(vs, cs))){
+	if((vd = vdo(vs, vo->conf))){
 	    cconv = conv_table[vs->pixel_format][vd->pixel_format];
 	    if(cconv){
 		break;
@@ -317,29 +321,43 @@ v_open(video_stream_t *vs, conf_section *cs, timer__t *timer)
     }
 
     if(!vd)
-	return NULL;
+	return PROBE_FAIL;
 
-    vo = calloc(1, sizeof(*vo));
+    p->format = *s;
+
     vo->driver = vd;
-    vo->vstream = vs;
-    vo->timer = timer;
+    vo->vstream = &p->format.video;
     vo->cconv = cconv;
     vo->pts = malloc(vd->frames * sizeof(*vo->pts));
+
+    return PROBE_OK;
+}
+
+extern tcvp_pipe_t *
+v_open(stream_t *s, conf_section *cs, timer__t *timer)
+{
+    tcvp_pipe_t *pipe;
+    video_out_t *vo;
+
+    vo = calloc(1, sizeof(*vo));
     vo->head = 0;
     vo->tail = 0;
     pthread_mutex_init(&vo->smx, NULL);
     pthread_cond_init(&vo->scd, NULL);
     vo->state = PAUSE;
     vo->drop = drops[0];
+    vo->timer = timer;
+    vo->conf = cs;
     pthread_create(&vo->thr, NULL, v_play, vo);
 
-    pipe = malloc(sizeof(*pipe));
+    pipe = calloc(1, sizeof(*pipe));
     pipe->input = v_put;
     pipe->start = v_start;
     pipe->stop = v_stop;
     pipe->free = v_free;
     pipe->flush = v_flush;
     pipe->buffer = v_buffer;
+    pipe->probe = v_probe;
     pipe->private = vo;
 
     return pipe;

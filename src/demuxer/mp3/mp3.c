@@ -427,6 +427,7 @@ mp3_packet(muxed_stream_t *ms, int str)
 
     mp = calloc(1, sizeof(*mp));
     mp->data = malloc(size);
+    mp->pk.stream = 0;
     mp->pk.data = &mp->data;
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;

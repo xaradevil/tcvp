@@ -18,7 +18,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
+#include <unistd.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
@@ -58,8 +58,6 @@ typedef struct mpeg_stream {
     int bs, br;
     uint32_t bits;
     int *map, *imap;
-    list **packets;
-    pthread_mutex_t mtx;
     uint64_t *pts;
 } mpeg_stream_t;
 
@@ -195,7 +193,6 @@ mpegts_read_packet(mpeg_stream_t *s)
 		    error = 1;
 		    continue;
 		}
-		assert(br >= 0);
 		while(br--){
 		    if(getbits(s, 8, "stuffing") != 0xff){
 			fprintf(stderr, "MPEGTS: Stuffing != 0xff\n");
@@ -235,66 +232,55 @@ mpegts_packet(muxed_stream_t *ms, int str)
 {
     mpeg_stream_t *s = ms->private;
     packet_t *pk = NULL;
+    mpegts_packet_t *mp;
 
-    pthread_mutex_lock(&s->mtx);
+    int sx = -1;
 
-    if(str < 0 || !(pk = list_shift(s->packets[str]))){
-	int sx = -2;
+    do {
+	mp = mpegts_read_packet(s);
 
-	do {
-	    mpegts_packet_t *mp = mpegts_read_packet(s);
+	if(!mp)
+	    return NULL;
 
-	    if(!mp)
-		abort();
+	sx = s->imap[mp->pid];
 
-	    sx = s->imap[mp->pid];
+	if(sx < 0 || !ms->used_streams[sx])
+	    free(mp);
+    } while(sx < 0 || !ms->used_streams[sx]);
 
-	    if(sx < 0 || !ms->used_streams[sx]){
-		free(mp);
-		continue;
+    pk = malloc(sizeof(*pk));
+    pk->stream = sx;
+    pk->data = &mp->datap;
+    pk->sizes = &mp->data_length;
+    pk->planes = 1;
+    pk->flags = 0;
+    pk->free = mpegts_free_pk;
+    pk->private = mp;
+
+    if(mp->unit_start){
+	uint64_t pts = 0, upts = 0;
+	int peshl = mp->datap[8];
+	if(mp->datap[7] & 0x80){
+	    pts = (htob_16(unaligned16(mp->datap+12)) & 0xfffe) >> 1;
+	    pts |= (htob_16(unaligned16(mp->datap+10)) & 0xfffe) << 14;
+	    pts |= (uint64_t) (mp->datap[9] & 0xe) << 29;
+
+	    if(pts < s->pts[sx] &&
+	       s->pts[sx] - pts > 24000){
+		fprintf(stderr, "MPEGTS: PTS discontinuous\n");
 	    }
-
-	    pk = malloc(sizeof(*pk));
-	    pk->data = &mp->datap;
-	    pk->sizes = &mp->data_length;
-	    pk->planes = 1;
-	    pk->flags = 0;
-	    pk->free = mpegts_free_pk;
-	    pk->private = mp;
-
-	    if(mp->unit_start){
-		uint64_t pts = 0, upts = 0;
-		int peshl = mp->datap[8];
-		if(mp->datap[7] & 0x80){
-		    pts = (htob_16(unaligned16(mp->datap+12)) & 0xfffe) >> 1;
-		    pts |= (htob_16(unaligned16(mp->datap+10)) & 0xfffe) << 14;
-		    pts |= (uint64_t) (mp->datap[9] & 0xe) << 29;
-
-		    if(pts < s->pts[sx] &&
-		       s->pts[sx] - pts > 24000){
-			fprintf(stderr, "MPEGTS: PTS discontinuous\n");
-/* 			s->pts[sx].offset += 1LL << 33; */
-		    }
-		    upts = pts;
-		    upts *= 100ULL;
-		    upts /= 9ULL;
+	    upts = pts;
+	    upts *= 100ULL;
+	    upts /= 9ULL;
 /* 		    fprintf(stderr, "MPEGTS: sx = %i, pts = %10llu, upts = %15llu, dpts = %lli\n", */
 /* 			    sx, pts, upts, pts - s->pts[sx]); */
-		    s->pts[sx] = pts;
-		    pk->pts = upts;
-		    pk->flags |= PKT_FLAG_PTS;
-		}
-		mp->datap += 9 + peshl;
-		mp->data_length -= 9 + peshl;
-	    }
-
-	    if(sx != str){
-		list_push(s->packets[sx], pk);
-	    }
-	} while(sx != str);
+	    s->pts[sx] = pts;
+	    pk->pts = upts;
+	    pk->flags |= PKT_FLAG_PTS;
+	}
+	mp->datap += 9 + peshl;
+	mp->data_length -= 9 + peshl;
     }
-
-    pthread_mutex_unlock(&s->mtx);
 
     return pk;
 }
@@ -304,7 +290,6 @@ mpeg_free(void *p)
 {
     muxed_stream_t *ms = p;
     mpeg_stream_t *s = ms->private;
-    int i;
 
     if(ms->file)
 	free(ms->file);
@@ -312,9 +297,6 @@ mpeg_free(void *p)
 	free(ms->title);
     if(ms->performer)
 	free(ms->performer);
-
-    for(i = 0; i < ms->n_streams; i++)
-	list_destroy(s->packets[i], (tc_free_fn) mpegts_free_pk);
 
     s->stream->close(s->stream);
     free(s->map);
@@ -463,7 +445,6 @@ mpeg_open(char *name, conf_section *cs)
     muxed_stream_t *ms;
     mpeg_stream_t *mf;
     url_t *f;
-    int i;
 
     if(!(f = url_open(name, "r")))
 	return NULL;
@@ -480,11 +461,6 @@ mpeg_open(char *name, conf_section *cs)
     mpegts_getinfo(ms);
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = mpegts_packet;
-
-    mf->packets = calloc(ms->n_streams, sizeof(*mf->packets));
-    for(i = 0; i < ms->n_streams; i++)
-	mf->packets[i] = list_new(TC_LOCK_NONE);
-    pthread_mutex_init(&mf->mtx, NULL);
 
     mf->pts = calloc(ms->n_streams, sizeof(*mf->pts));
 

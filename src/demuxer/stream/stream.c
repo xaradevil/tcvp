@@ -22,6 +22,7 @@
 #include <tctypes.h>
 #include <pthread.h>
 #include <tcalloc.h>
+#include <tclist.h>
 #include <tcvp_types.h>
 #include <tcvp_event.h>
 #include <stream_tc2.h>
@@ -75,18 +76,27 @@ s_validate(char *name, conf_section *cs)
 #define RUN     1
 #define PAUSE   2
 #define STOP    3
+#define PROBE   4
+
+#define QSIZE tcvp_demux_stream_conf_buffer
+
+typedef struct packetq {
+    packet_t **q;
+    int head, tail, count;
+} packetq_t;
 
 typedef struct s_play {
     muxed_stream_t *stream;
     tcvp_pipe_t **pipes;
     int streams;
-    pthread_t *threads;
+    pthread_t *threads, rth;
     int state;
     int flushing;
     int waiting;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
     eventq_t sq;
+    packetq_t *pq;
 } s_play_t;
 
 typedef struct vp_thread {
@@ -94,41 +104,127 @@ typedef struct vp_thread {
     s_play_t *vp;
 } vp_thread_t;
 
+static void
+qpk(s_play_t *vp, packet_t *pk, int s)
+{
+    packetq_t *pq = vp->pq + s;
+
+    pthread_mutex_lock(&vp->mtx);
+
+    while(pq->count == QSIZE && vp->state != STOP)
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
+
+    if(vp->state != STOP){
+	pq->q[pq->head] = pk;
+	if(++pq->head == QSIZE)
+	    pq->head = 0;
+	pq->count++;
+	pthread_cond_broadcast(&vp->cnd);
+    }
+
+    pthread_mutex_unlock(&vp->mtx);
+}
+
+static packet_t *
+dqp(s_play_t *vp, int s)
+{
+    packet_t *pk = NULL;
+    packetq_t *pq = vp->pq + s;
+
+    pthread_mutex_lock(&vp->mtx);
+    while(!pq->count && vp->state != STOP)
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
+
+    if(vp->state != STOP){
+	pk = pq->q[pq->tail];
+	if(++pq->tail == QSIZE)
+	    pq->tail = 0;
+	pq->count--;
+	pthread_cond_broadcast(&vp->cnd);
+    }
+
+    pthread_mutex_unlock(&vp->mtx);
+
+    return pk;
+}
+
+static void
+wait_pause(s_play_t *vp)
+{
+    int w = 1;
+    pthread_mutex_lock(&vp->mtx);
+    while(vp->state == PAUSE){
+	if(w){
+	    vp->waiting++;
+	    pthread_cond_broadcast(&vp->cnd);
+	    w = 0;
+	}
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
+    }
+    if(!w){
+	vp->waiting--;
+	pthread_cond_broadcast(&vp->cnd);
+    }
+    pthread_mutex_unlock(&vp->mtx);
+}
+
+static void *
+read_stream(void *p)
+{
+    s_play_t *vp = p;
+    muxed_stream_t *ms = vp->stream;
+    int i;
+
+    vp->streams++;
+
+    while(vp->state != STOP){
+	packet_t *pk;
+	int s;
+
+	wait_pause(vp);
+
+	for(i = 0, s = 0; i < ms->n_streams; i++){
+	    if(ms->used_streams[i] && vp->pq[i].count < vp->pq[s].count)
+		s = i;
+	}
+
+	if(!(pk = ms->next_packet(ms, s))){
+	    break;
+	}
+
+	qpk(vp, pk, pk->stream);
+    }
+
+    for(i = 0; i < ms->n_streams; i++)
+	if(ms->used_streams[i])
+	    qpk(vp, NULL, i);
+
+    pthread_mutex_lock(&vp->mtx);
+    vp->streams--;
+    pthread_cond_broadcast(&vp->cnd);
+    pthread_mutex_unlock(&vp->mtx);
+
+    return NULL;
+}
+
 static void *
 play_stream(void *p)
 {
     vp_thread_t *vt = p;
     s_play_t *vp = vt->vp;
-    muxed_stream_t *ms = vp->stream;
-    int stream = vt->stream;
+    int str = vt->stream;
     packet_t *pk;
 
     while(vp->state != STOP){
-	int w = 1;
-	pthread_mutex_lock(&vp->mtx);
-	while(vp->state == PAUSE){
-	    if(w){
-		vp->waiting++;
-		pthread_cond_broadcast(&vp->cnd);
-		w = 0;
-	    }
-	    pthread_cond_wait(&vp->cnd, &vp->mtx);
-	}
-	if(!w){
-	    vp->waiting--;
-	    pthread_cond_broadcast(&vp->cnd);
-	}
-	pthread_mutex_unlock(&vp->mtx);
-
-	if(!(pk = ms->next_packet(ms, stream)))
+	wait_pause(vp);
+	pk = dqp(vp, str);
+	vp->pipes[str]->input(vp->pipes[str], pk);
+	if(!pk)
 	    break;
-
-	vp->pipes[stream]->input(vp->pipes[stream], pk);
     }
 
-    vp->pipes[stream]->input(vp->pipes[stream], NULL);
     if(vp->state != STOP)
-	vp->pipes[stream]->flush(vp->pipes[stream], 0);
+	vp->pipes[str]->flush(vp->pipes[str], 0);
 
     pthread_mutex_lock(&vp->mtx);
     vp->streams--;
@@ -171,38 +267,25 @@ stop(tcvp_pipe_t *p)
     return 0;
 }
 
-static void
-flush_all(s_play_t *vp, int drop)
-{
-    int i;
-
-    for(i = 0; i < vp->stream->n_streams; i++){
-	if(vp->stream->used_streams[i]){
-	    vp->pipes[i]->flush(vp->pipes[i], drop);
-	}
-    }
-}
-
 static int
 s_flush(tcvp_pipe_t *p, int drop)
 {
     s_play_t *vp = p->private;
+    int i;
 
     pthread_mutex_lock(&vp->mtx);
     vp->flushing++;
-    pthread_mutex_unlock(&vp->mtx);
 
-    if(drop){
-	vp->state = STOP;
-	flush_all(vp, drop);
+    for(i = 0; i < vp->stream->n_streams; i++){
+	if(vp->stream->used_streams[i]){
+	    vp->pipes[i]->flush(vp->pipes[i], drop);
+	    if(drop){
+		vp->pq[i].tail = vp->pq[i].head;
+		vp->pq[i].count = 0;
+	    }
+	}
     }
 
-    pthread_mutex_lock(&vp->mtx);
-    while(vp->streams > 0)
-	pthread_cond_wait(&vp->cnd, &vp->mtx);
-    pthread_mutex_unlock(&vp->mtx);
-
-    pthread_mutex_lock(&vp->mtx);
     if(--vp->flushing == 0)
 	pthread_cond_broadcast(&vp->cnd);
     pthread_mutex_unlock(&vp->mtx);
@@ -216,11 +299,18 @@ s_free(tcvp_pipe_t *p)
     s_play_t *vp = p->private;
     int i, j;
 
-    s_flush(p, 1);
+    pthread_mutex_lock(&vp->mtx);
+    vp->state = STOP;
+    pthread_cond_broadcast(&vp->cnd);
+    while(vp->streams > 0)
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
+    pthread_mutex_unlock(&vp->mtx);
 
+    pthread_join(vp->rth, NULL);
     for(i = 0, j = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
 	    pthread_join(vp->threads[j], NULL);
+	    free(vp->pq[i].q);
 	    j++;
 	}
     }
@@ -233,10 +323,35 @@ s_free(tcvp_pipe_t *p)
     eventq_delete(vp->sq);
     free(vp->pipes);
     free(vp->threads);
+    free(vp->pq);
     free(vp);
     free(p);
 
     return 0;
+}
+
+static int
+s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
+{
+    muxed_stream_t *ms = vp->stream;
+    int i;
+
+    for(i = 0; i < ms->n_streams; i++){
+	if(ms->used_streams[i] && codecs[i]->probe){
+	    int p = PROBE_FAIL;
+	    do {
+		packet_t *pk = dqp(vp, i);
+		if(!pk)
+		    break;
+		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
+	    } while(p == PROBE_AGAIN);
+	    if(p == PROBE_FAIL){
+		ms->used_streams[i] = 0;
+	    }
+	}
+    }
+
+    return PROBE_OK;
 }
 
 extern tcvp_pipe_t *
@@ -249,9 +364,10 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
 
     vp = calloc(1, sizeof(*vp));
     vp->stream = ms;
-    vp->pipes = calloc(ms->n_streams, sizeof(tcvp_pipe_t *));
-    vp->threads = calloc(ms->n_streams, sizeof(pthread_t));
-    vp->state = PAUSE;
+    vp->pipes = calloc(ms->n_streams, sizeof(*vp->pipes));
+    vp->threads = calloc(ms->n_streams, sizeof(*vp->threads));
+    vp->pq = calloc(ms->n_streams, sizeof(*vp->pq));
+    vp->state = PROBE;
     pthread_mutex_init(&vp->mtx, NULL);
     pthread_cond_init(&vp->cnd, NULL);
 
@@ -261,6 +377,13 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
     vp->sq = eventq_new(NULL);
     eventq_attach(vp->sq, qn, EVENTQ_SEND);
 
+    for(i = 0; i < ms->n_streams; i++)
+	vp->pq[i].q = malloc(QSIZE * sizeof(*vp->pq->q));
+
+    pthread_create(&vp->rth, NULL, read_stream, vp);
+    s_probe(vp, out);
+    vp->state = PAUSE;
+
     for(i = 0, j = 0; i < ms->n_streams; i++){
 	if(ms->used_streams[i]){
 	    vp_thread_t *th = malloc(sizeof(*th));
@@ -269,6 +392,8 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
 	    vp->pipes[i] = out[i];
 	    pthread_create(&vp->threads[j], NULL, play_stream, th);
 	    j++;
+	} else {
+	    free(vp->pq[i].q);
 	}
     }
 
@@ -283,24 +408,4 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
     p->private = vp;
 
     return p;
-}
-
-extern int
-s_probe(muxed_stream_t *ms, tcvp_pipe_t **codecs)
-{
-    int i;
-
-    for(i = 0; i < ms->n_streams; i++){
-	if(ms->used_streams[i] && codecs[i]->probe){
-	    int p;
-	    do {
-		packet_t *pk = ms->next_packet(ms, i);
-		if(!pk)
-		    break;
-		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
-	    } while(p == PROBE_AGAIN);
-	}
-    }
-
-    return PROBE_OK;
 }

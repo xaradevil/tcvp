@@ -121,14 +121,16 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	switch(state){
 	case STATE_SEQUENCE:
 	    seq = mpd->info->sequence;
-	    s->video.width = seq->picture_width;
-	    s->video.height = seq->picture_height;
-	    s->video.aspect.num = seq->pixel_width * seq->display_width;
-	    s->video.aspect.den = seq->pixel_height * seq->display_height;
-	    s->video.frame_rate.num = 27000000;
-	    s->video.frame_rate.den = seq->frame_period;
-	    s->video.pixel_format = PIXEL_FORMAT_I420;
-	    ret = PROBE_OK;
+	    p->format = *s;
+	    p->format.video.codec = "video/yuv-420";
+	    p->format.video.width = seq->picture_width;
+	    p->format.video.height = seq->picture_height;
+	    p->format.video.aspect.num = seq->pixel_width * seq->display_width;
+	    p->format.video.aspect.den = seq->pixel_height*seq->display_height;
+	    p->format.video.frame_rate.num = 27000000;
+	    p->format.video.frame_rate.den = seq->frame_period;
+	    p->format.video.pixel_format = PIXEL_FORMAT_I420;
+	    ret = p->next->probe(p->next, NULL, &p->format);
 	    break;
 	case -1:
 	    pk->free(pk);

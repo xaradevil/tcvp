@@ -126,6 +126,7 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     }
 
     pk = malloc(sizeof(*pk));
+    pk->stream = 0;
     pk->data = malloc(sizeof(*pk->data));
     pk->data[0] = malloc(sizeof(ogg_packet)+op.bytes);
 

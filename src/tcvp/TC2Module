@@ -6,7 +6,6 @@ sources		tcvp.c
 implement	"tcvp"		"new"	t_new
 import		"stream"	"open"
 import		"stream"	"play"
-import		"stream"	"probe"
 import		"output/audio"	"open"
 import		"output/video"	"open"
 import		"codec"		"new"

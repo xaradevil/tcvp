@@ -61,22 +61,17 @@ avc_free_packet(packet_t *p)
 }
 
 static int
-avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
+do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
 {
     packet_t *out;
     avc_codec_t *ac = p->private;
     char *inbuf;
     int insize;
 
-    if(ac->out && p->next){
-	p->next->input(p->next, ac->out);
-	ac->out = NULL;
-    }
-
     if(ac->in){
 	packet_t *in = ac->in;
 	ac->in = NULL;
-	avc_decaudio(p, in);
+	do_decaudio(p, in, probe);
     }
 
     if(ac->inbuf){
@@ -113,7 +108,7 @@ avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
 	    pk->pts = 0;
 	    out->free = avc_free_packet;
 	    out->private = ac->buf;
-	    if(p->next){
+	    if(!probe){
 		p->next->input(p->next, out);
 	    } else {
 		ac->have_params = 1;
@@ -136,22 +131,23 @@ avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
 }
 
 static int
-avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
+avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
+{
+    return do_decaudio(p, pk, 0);
+}
+
+static int
+do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 {
     packet_t *out;
     avc_codec_t *vc = p->private;
     char *inbuf;
     int insize;
 
-    if(vc->out && p->next){
-	p->next->input(p->next, vc->out);
-	vc->out = NULL;
-    }
-
     if(vc->in){
 	packet_t *in = vc->in;
 	vc->in = NULL;
-	avc_decvideo(p, in);
+	do_decvideo(p, in, probe);
     }
 
     if(vc->inbuf){
@@ -204,7 +200,7 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 
 	    out->free = avc_free_packet;
 	    out->private = NULL;
-	    if(p->next){
+	    if(!probe){
 		p->next->input(p->next, out);
 	    } else {
 		vc->have_params = 1;
@@ -227,6 +223,12 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
     pk->free(pk);
 
     return 0;
+}
+
+static int
+avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
+{
+    return do_decvideo(p, pk, 0);
 }
 
 static int
@@ -262,13 +264,15 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     avc_codec_t *ac = p->private;
     int ret;
 
-    if(avc_decaudio(p, pk) < 0)
+    if(do_decaudio(p, pk, 0) < 0)
 	return PROBE_FAIL;
 
     if(ac->have_params){
-	s->audio.sample_rate = ac->ctx->sample_rate;
-	s->audio.channels = ac->ctx->channels;
-	ret = PROBE_OK;
+	p->format = *s;
+	p->format.audio.sample_rate = ac->ctx->sample_rate;
+	p->format.audio.channels = ac->ctx->channels;
+	ret = p->next->probe(p->next, ac->out, &p->format);
+	ac->out = NULL;
     } else {
 	ret = PROBE_AGAIN;
     }
@@ -302,18 +306,21 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     avc_codec_t *vc = p->private;
     int ret;
 
-    if(avc_decvideo(p, pk) < 0)
+    if(do_decvideo(p, pk, 1) < 0)
 	return PROBE_FAIL;
 
     if(vc->have_params){
-	s->video.frame_rate.num = vc->ctx->frame_rate;
-	s->video.frame_rate.den = vc->ctx->frame_rate_base;
-	s->video.width = vc->ctx->width;
-	s->video.height = vc->ctx->height;
-	s->video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
+	p->format = *s;
+	p->format.video.codec = "video/yuv-420";
+	p->format.video.frame_rate.num = vc->ctx->frame_rate;
+	p->format.video.frame_rate.den = vc->ctx->frame_rate_base;
+	p->format.video.width = vc->ctx->width;
+	p->format.video.height = vc->ctx->height;
+	p->format.video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
 	vc->ptsn = (uint64_t) 1000000 * vc->ctx->frame_rate_base;
 	vc->ptsd = vc->ctx->frame_rate;
-	ret = PROBE_OK;
+	ret = p->next->probe(p->next, vc->out, &p->format);
+	vc->out = NULL;
     } else {
 	ret = PROBE_AGAIN;
     }

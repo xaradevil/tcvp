@@ -87,8 +87,6 @@ static char *codec_names[] = {
 
 typedef struct {
     AVFormatContext *afc;
-    list **packets;
-    pthread_mutex_t mtx;
 } avf_stream_t;
 
 
@@ -109,51 +107,35 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     AVFormatContext *afc = as->afc;
     AVPacket *apk = NULL;
     packet_t *pk;
+    int sx;
 
-    pthread_mutex_lock(&as->mtx);
+    apk = calloc(1, sizeof(*apk));
 
-    if(!(pk = list_shift(as->packets[stream]))){
-	int sx;
+    do {
+	if(av_read_packet(afc, apk) < 0){
+	    pk = NULL;
+	    return NULL;
+	}
 
-	apk = calloc(1, sizeof(*apk));
+	sx = apk->stream_index;
 
-	do {
-	    int s;
+	if(!ms->used_streams[sx])
+	    av_free_packet(apk);
+    } while(!ms->used_streams[sx]);
 
-	    s = av_read_packet(afc, apk);
-	    if(s < 0){
-		pk = NULL;
-		break;
-	    }
+    pk = malloc(sizeof(*pk));
+    pk->stream = sx;
+    pk->data = &apk->data;
+    pk->sizes = malloc(sizeof(*pk->sizes));
+    pk->sizes[0] = apk->size;
+    pk->planes = 1;
+    pk->flags = 0;
+    pk->pts = 0;
+    pk->free = avf_free_packet;
+    pk->private = apk;
 
-	    sx = apk->stream_index;
-
-	    if(!ms->used_streams[apk->stream_index]){
-		av_free_packet(apk);
-		continue;
-	    }
-
-	    pk = malloc(sizeof(*pk));
-	    pk->data = &apk->data;
-	    pk->sizes = malloc(sizeof(*pk->sizes));
-	    pk->sizes[0] = apk->size;
-	    pk->planes = 1;
-	    pk->flags = 0;
-	    pk->pts = 0;
-	    pk->free = avf_free_packet;
-	    pk->private = apk;
-
-	    if(sx != stream){
-		list_push(as->packets[sx], pk);
-		apk = calloc(1, sizeof(*apk));
-	    }
-	} while(sx != stream);
-
-	if(!pk)
-	    free(apk);
-    }
-
-    pthread_mutex_unlock(&as->mtx);
+    if(!pk)
+	free(apk);
 
     return pk;
 }
@@ -171,10 +153,6 @@ avf_free(void *p)
     free(ms->used_streams);
     free(ms->file);
 
-    for(i = 0; i < ms->n_streams; i++){
-	list_destroy(as->packets[i], (tc_free_fn) avf_free_packet);
-    }
-    free(as->packets);
     free(as);
 }
 
@@ -240,10 +218,6 @@ avf_open(char *name, conf_section *cs)
     as = calloc(1, sizeof(*as));
     as->afc = afc;
     as->packets = calloc(ms->n_streams, sizeof(list *));
-    for(i = 0; i < ms->n_streams; i++){
-	as->packets[i] = list_new(TC_LOCK_SLOPPY);
-    }
-    pthread_mutex_init(&as->mtx, NULL);
 
     ms->file = strdup(name);
     ms->private = as;

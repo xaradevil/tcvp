@@ -44,6 +44,12 @@ pcm_flush(tcvp_pipe_t *p, int drop)
     return p->next->flush(p->next, drop);
 }
 
+static int
+pcm_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+{
+    return p->next->probe(p->next, NULL, s);
+}
+
 extern tcvp_pipe_t *
 pcm_new(stream_t *s, int mode)
 {
@@ -51,6 +57,7 @@ pcm_new(stream_t *s, int mode)
     np->input = pcm_input;
     np->free = pcm_free_pipe;
     np->flush = pcm_flush;
+    np->probe = pcm_probe;
 
     return np;
 }

@@ -328,12 +328,15 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return md->pc > 8065? PROBE_FAIL: PROBE_AGAIN;
     }
 
-    s->audio.sample_rate = mf.sample_rate;
-    s->audio.channels = mf.channels;
+    p->format = *s;
+    p->format.audio.codec = "audio/pcm-s16le";
+    p->format.audio.sample_rate = mf.sample_rate;
+    p->format.audio.channels = mf.channels;
+    p->format.audio.bit_rate = mf.bitrate;
 
     md->in = pk;
 
-    return PROBE_OK;
+    return p->next->probe(p->next, NULL, &p->format);
 }
 
 static int

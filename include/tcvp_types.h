@@ -24,6 +24,7 @@
 
 typedef struct packet packet_t;
 struct packet {
+    int stream;
     u_char **data;
     int *sizes;
     int planes;
@@ -99,6 +100,7 @@ struct muxed_stream {
 
 typedef struct tcvp_pipe tcvp_pipe_t;
 struct tcvp_pipe {
+    stream_t format;
     int (*input)(tcvp_pipe_t *, packet_t *);
     int (*start)(tcvp_pipe_t *);
     int (*stop)(tcvp_pipe_t *);

@@ -102,7 +102,7 @@ typedef struct avi_stream {
 
 typedef struct avi_file {
     FILE *file;
-    list **packets;
+    list *packets;
     pthread_mutex_t mx;
     int eof;
     int idxok;
@@ -376,7 +376,6 @@ avi_header(FILE *f)
     uint32_t width = 0, height = 0;
     uint32_t ftime = 0, start = 0;
     char st[5] = {[4] = 0};
-    int i;
     struct stat sst;
     off_t fsize, pos;
     int odml_idx = 0;
@@ -403,6 +402,7 @@ avi_header(FILE *f)
     af->file = f;
     pthread_mutex_init(&af->mx, NULL);
     ms->private = af;
+    af->packets = list_new(TC_LOCK_NONE);
 
     while(fread(&tag, 4, 1, f) == 1){
 	size = getu32(f);
@@ -449,10 +449,7 @@ avi_header(FILE *f)
 
 	    ms->n_streams = getu32(f);
 	    ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
-	    af->packets = calloc(ms->n_streams, sizeof(*af->packets));
 	    af->streams = calloc(ms->n_streams, sizeof(*af->streams));
-	    for(i = 0; i < ms->n_streams; i++)
-		af->packets[i] = list_new(TC_LOCK_NONE);
 
 	    getjunk(f, 32);
 
@@ -663,153 +660,142 @@ avi_packet(muxed_stream_t *ms, int stream)
     int32_t size;
     avi_file_t *af = ms->private;
     int str;
-    avi_packet_t *pk = NULL;
+    avi_packet_t *pk;
 
-    pthread_mutex_lock(&af->mx);
+    int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
+    uint32_t flags = 0;
+    uint64_t pts = 0;
+    int pflags = 0;
+    size_t pos;
 
-    if((stream < 0 || !(pk = list_shift(af->packets[stream]))) && !af->eof){
-	do {
-	    int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
-	    uint32_t flags = 0;
-	    uint64_t pts = 0;
-	    int pflags = 0;
-	    size_t pos;
+    if(stream > -2 && (pk = list_shift(af->packets)))
+	return &pk->pk;
 
-	    /* FIXME: get rid of gotos */
-	again:
-	    pos = ftell(af->file);
-	    if(!get4c(tag, af->file))
-		break;
+    /* FIXME: get rid of gotos */
+ again:
+    pos = ftell(af->file);
+    if(!get4c(tag, af->file))
+	return NULL;
 
-	    if(!valid_tag(tag, scan)){
-		if(!strcmp(tag, "LIST") || !strcmp(tag, "RIFF")){
-		    getu32(af->file); /* size */
-		    getu32(af->file); /* rec/movi/AVIX */
-		    goto again;
-		} else if(!strcmp(tag, "JUNK") ||
-			  !strcmp(tag, "idx1") ||
-			  !strncmp(tag, "ix", 2)){
-		    size = getu32(af->file);
-		    fseek(af->file, size, SEEK_CUR);
-		    goto again;
-		}
-
-		if(!scan)
-		    fprintf(stderr,
-			    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08lx\n",
-			    tag[0], tag[1], tag[2], tag[3],
-			    strtag(tag, stag), pos);
-		if(!tried_index && af->idxok > 256){
-		    uint64_t p = af->index[af->pkt]->offset;
-		    fprintf(stderr, "AVI: Index => %16lx\n", p);
-		    fseek(af->file, p, SEEK_SET);
-		    tried_index++;
-		    goto again;
-		} else if(!tried_bkup){
-		    fprintf(stderr, "AVI: Backing up %i bytes.\n", backup);
-		    fseek(af->file, -backup - 4, SEEK_CUR);
-		    tried_bkup++;
-		    goto again;
-		} else if(skipped < max_skip && af->idxok > 256){
-		    if(!skipped)
-			fprintf(stderr, "AVI: Skipping chunk.\n");
-		    fseek(af->file, af->index[af->pkt]->offset, SEEK_SET);
-		    af->pkt++;
-		    skipped++;
-		    goto again;
-		} else if(scan < max_scan){
-		    fseek(af->file, -3, SEEK_CUR);
-		    scan++;
-		    goto again;
-		}
-
-		fprintf(stderr, "AVI: Can't find valid chunk tag.\n");
-		af->eof = 1;
-		break;
-	    }
-
-	    if(skipped)
-		fprintf(stderr, "AVI: Skipped %i chunks\n", skipped);
-
-	    if(scan)
-		fprintf(stderr, "AVI: Resuming @%08lx\n", pos);
-
+    if(!valid_tag(tag, scan)){
+	if(!strcmp(tag, "LIST") || !strcmp(tag, "RIFF")){
+	    getu32(af->file); /* size */
+	    getu32(af->file); /* rec/movi/AVIX */
+	    goto again;
+	} else if(!strcmp(tag, "JUNK") ||
+		  !strcmp(tag, "idx1") ||
+		  !strncmp(tag, "ix", 2)){
 	    size = getu32(af->file);
-	    if(size < 0){
-		fprintf(stderr, "AVI: Negative size @%08lx\n", pos);
-		scan++;
-		goto again;
-	    }
+	    fseek(af->file, size, SEEK_CUR);
+	    goto again;
+	}
 
-	    if(scan && af->index){
-		int i;
-
-		for(i = af->pkt; i < af->idxlen; i++){
-		    if(pos <= af->index[i]->offset){
-			af->pkt = i;
-			break;
-		    }
-		}
-
-		if(i != af->pkt){
-		    fprintf(stderr, "AVI: Can't resync index.\n");
-		    af->idxok = 0;
-		}
-	    }
-
-	    str = tag2str(tag);
-
-	    if(str >= ms->n_streams){
-		fprintf(stderr, "AVI: Bad stream number %i @%08lx\n",
-			str, pos);
-		scan++;
-		goto again;
-	    }
-
-	    if(!ms->used_streams[str]){
-		fseek(af->file, size + (size&1), SEEK_CUR);
-		continue;
-	    }
-
-	    if(af->pkt < af->idxlen){
-		if(af->index[af->pkt]->offset == pos){
-		    af->idxok++;
-		    flags = af->index[af->pkt]->flags;
-		    if(flags & AVI_FLAG_KEYFRAME)
-			flags |= PKT_FLAG_KEY;
-		    pts = af->index[af->pkt]->pts;
-		    pflags |= PKT_FLAG_PTS;
-		} else {
-		    af->idxok = 0;
-		}
-	    }
-
-	    pk = avi_alloc_packet(size);
-	    fread(pk->data, 1, size, af->file);
-	    if(size & 1)
-		fgetc(af->file);
-
-	    pk->pk.data = (u_char **) &pk->data;
-	    pk->pk.sizes = &pk->size;
-	    pk->pk.sizes[0] = size;
-	    pk->pk.planes = 1;
-	    pk->pk.flags = pflags;
-	    pk->pk.pts = pts;
-	    pk->pk.free = avi_free_packet;
-	    pk->flags = flags;
-
+	if(!scan)
+	    fprintf(stderr,
+		    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08lx\n",
+		    tag[0], tag[1], tag[2], tag[3],
+		    strtag(tag, stag), pos);
+	if(!tried_index && af->idxok > 256){
+	    uint64_t p = af->index[af->pkt]->offset;
+	    fprintf(stderr, "AVI: Index => %16lx\n", p);
+	    fseek(af->file, p, SEEK_SET);
+	    tried_index++;
+	    goto again;
+	} else if(!tried_bkup){
+	    fprintf(stderr, "AVI: Backing up %i bytes.\n", backup);
+	    fseek(af->file, -backup - 4, SEEK_CUR);
+	    tried_bkup++;
+	    goto again;
+	} else if(skipped < max_skip && af->idxok > 256){
+	    if(!skipped)
+		fprintf(stderr, "AVI: Skipping chunk.\n");
+	    fseek(af->file, af->index[af->pkt]->offset, SEEK_SET);
 	    af->pkt++;
+	    skipped++;
+	    goto again;
+	} else if(scan < max_scan){
+	    fseek(af->file, -3, SEEK_CUR);
+	    scan++;
+	    goto again;
+	}
 
-	    if(stream < 0){
-		break;
-	    } else if(str != stream){
-		list_push(af->packets[str], pk);
-		pk = NULL;
-	    }
-	} while(str != stream);
+	fprintf(stderr, "AVI: Can't find valid chunk tag.\n");
+	af->eof = 1;
+	return NULL;
     }
 
-    pthread_mutex_unlock(&af->mx);
+    if(skipped)
+	fprintf(stderr, "AVI: Skipped %i chunks\n", skipped);
+
+    if(scan)
+	fprintf(stderr, "AVI: Resuming @%08lx\n", pos);
+
+    size = getu32(af->file);
+    if(size < 0){
+	fprintf(stderr, "AVI: Negative size @%08lx\n", pos);
+	scan++;
+	goto again;
+    }
+
+    if(scan && af->index){
+	int i;
+
+	for(i = af->pkt; i < af->idxlen; i++){
+	    if(pos <= af->index[i]->offset){
+		af->pkt = i;
+		break;
+	    }
+	}
+
+	if(i != af->pkt){
+	    fprintf(stderr, "AVI: Can't resync index.\n");
+	    af->idxok = 0;
+	}
+    }
+
+    str = tag2str(tag);
+
+    if(str >= ms->n_streams){
+	fprintf(stderr, "AVI: Bad stream number %i @%08lx\n",
+		str, pos);
+	scan++;
+	goto again;
+    }
+
+    if(!ms->used_streams[str]){
+	fseek(af->file, size + (size&1), SEEK_CUR);
+	goto again;
+    }
+
+    if(af->pkt < af->idxlen){
+	if(af->index[af->pkt]->offset == pos){
+	    af->idxok++;
+	    flags = af->index[af->pkt]->flags;
+	    if(flags & AVI_FLAG_KEYFRAME)
+		flags |= PKT_FLAG_KEY;
+	    pts = af->index[af->pkt]->pts;
+	    pflags |= PKT_FLAG_PTS;
+	} else {
+	    af->idxok = 0;
+	}
+    }
+
+    pk = avi_alloc_packet(size);
+    fread(pk->data, 1, size, af->file);
+    if(size & 1)
+	fgetc(af->file);
+
+    pk->pk.stream = str;
+    pk->pk.data = (u_char **) &pk->data;
+    pk->pk.sizes = &pk->size;
+    pk->pk.sizes[0] = size;
+    pk->pk.planes = 1;
+    pk->pk.flags = pflags;
+    pk->pk.pts = pts;
+    pk->pk.free = avi_free_packet;
+    pk->flags = flags;
+
+    af->pkt++;
 
     return (packet_t *) pk;
 }
@@ -819,9 +805,9 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 {
     avi_file_t *af = ms->private;
     uint64_t pos = -1;
-    int i;
-
-    pthread_mutex_lock(&af->mx);
+    avi_packet_t *pk;
+    int fi[ms->n_streams];
+    int i, cfi = 0;
 
     for(i = 0; i < af->idxlen; i++){
 	if(time <= af->index[i]->pts){
@@ -848,32 +834,40 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	}
     }
 
-    for(i = 0; i < ms->n_streams; i++){
-	packet_t *pk;
-	while((pk = list_shift(af->packets[i]))){
-	    pk->free(pk);
-	}
-    }
+    while((pk = list_shift(af->packets)))
+	avi_free_packet(&pk->pk);
 
     fseek(af->file, pos, SEEK_SET);
 
-    pthread_mutex_unlock(&af->mx);
-
     for(i = 0; i < ms->n_streams; i++){
-	if(ms->used_streams[i]){
-	    avi_packet_t *pk = NULL;
-	    uint32_t mask = 0;
+	if(ms->used_streams[i])
+	    cfi++;
+	fi[i] = 0;
+    }
 
-	    if(ms->streams[i].stream_type == STREAM_TYPE_VIDEO)
+    while(cfi){
+	avi_packet_t *pk = NULL;
+	uint32_t mask = 0;
+	int s;
+
+	if(!(pk = (avi_packet_t *) avi_packet(ms, -2)))
+	    break;
+
+	s = pk->pk.stream;
+
+	if(ms->used_streams[s]){
+	    if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO)
 		mask = AVI_FLAG_KEYFRAME;
 
-	    do {
-		if(pk)
-		    avi_free_packet((packet_t *) pk);
-		pk = (avi_packet_t *) avi_packet(ms, i);
-	    } while(pk && (pk->pk.pts < time || (pk->flags & mask) != mask));
-	    if(pk){
-		list_unshift(af->packets[i], pk);
+	    if(time <= pk->pk.pts && (pk->flags & mask) == mask){
+		if(!fi[s]){
+		    fi[s] = 1;
+		    cfi--;
+		}
+	    }
+
+	    if(fi[s]){
+		list_unshift(af->packets, pk);
 	    }
 	}
     }
@@ -892,14 +886,14 @@ avi_free(void *p)
     free(ms->used_streams);
     free(ms->file);
 
+    list_destroy(af->packets, (tc_free_fn) avi_free_packet);
+
     for(i = 0; i < ms->n_streams; i++){
-	list_destroy(af->packets[i], (tc_free_fn) avi_free_packet);
 	if(af->streams[i].index){
 	    free(af->streams[i].index);
 	}
     }
 
-    free(af->packets);
     if(af->index)
 	free(af->index);
 
@@ -951,9 +945,9 @@ static char *vcodec_tags[][2] = {
     { "dvsd", "video/dvvideo" },
     { "DVSD", "video/dvvideo" },
     { "dvhd", "video/dvvideo" },
-    { "mpg1", "video/mpeg1video" },
-    { "mpg2", "video/mpeg1video" },
-    { "PIM1", "video/mpeg1video" },
+    { "mpg1", "video/mpeg" },
+    { "mpg2", "video/mpeg" },
+    { "PIM1", "video/mpeg" },
     { "MJPG", "video/mjpeg" },
     { "HFYU", "video/huffyuv" },
     { "hfyu", "video/huffyuv" },

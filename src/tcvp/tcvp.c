@@ -162,29 +162,43 @@ t_free(player_t *pl)
 }
 
 static void
-print_info(muxed_stream_t *stream)
+print_stream(stream_t *s)
+{
+    switch(s->stream_type){
+    case STREAM_TYPE_AUDIO:
+	printf("%s, %i Hz, %i channels, %i kb/s\n",
+	       s->audio.codec,
+	       s->audio.sample_rate,
+	       s->audio.channels,
+	       s->audio.bit_rate / 1000);
+	break;
+
+    case STREAM_TYPE_VIDEO:
+	printf("%s, %ix%i, %lf fps\n",
+	       s->video.codec,
+	       s->video.width,
+	       s->video.height,
+	       (double) s->video.frame_rate.num / s->video.frame_rate.den);
+	break;
+    }
+}
+
+static void
+print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes)
 {
     int i;
 
     for(i = 0; i < stream->n_streams; i++){
-	printf("Stream %i%s, ", i, stream->used_streams[i]? "*": "");
-	switch(stream->streams[i].stream_type){
-	case STREAM_TYPE_AUDIO:
-	    printf("%s, %i Hz, %i channels, %i kb/s\n",
-		   stream->streams[i].audio.codec,
-		   stream->streams[i].audio.sample_rate,
-		   stream->streams[i].audio.channels,
-		   stream->streams[i].audio.bit_rate / 1000);
-	    break;
-
-	case STREAM_TYPE_VIDEO:
-	    printf("%s, %ix%i, %lf fps\n",
-		   stream->streams[i].video.codec,
-		   stream->streams[i].video.width,
-		   stream->streams[i].video.height,
-		   (double) stream->streams[i].video.frame_rate.num / 
-		   stream->streams[i].video.frame_rate.den);
-	    break;
+	int u = stream->used_streams[i];
+	printf("%2i%*s: ", i, 1 - u, u? "*": "");
+	print_stream(stream->streams + i);
+	if(u){
+	    tcvp_pipe_t *np = pipes[i];
+	    while(np){
+		printf("     ");
+		print_stream(&np->format);
+		np = np->next;
+	    }
 	}
     }
 }
@@ -235,10 +249,7 @@ t_seek(player_t *pl, int64_t time, int how)
 	ntime = tp->stream->seek(tp->stream, ntime);
 	if(ntime != -1LL){
 	    tp->timer->reset(tp->timer, ntime);
-	    if(tp->vcodec)
-		tp->vcodec->flush(tp->vcodec, 1);
-	    if(tp->acodec)
-		tp->acodec->flush(tp->acodec, 1);
+	    tp->demux->flush(tp->demux, 1);
 	}
 	if(s == TCVP_STATE_PLAYING){
 	    tp->demux->start(tp->demux);
@@ -325,8 +336,6 @@ t_open(player_t *pl, char *name)
 
     tp->open = 1;
 
-    stream_probe(stream, codecs);
-
     if(!stream->time){
 	for(i = 0; i < stream->n_streams; i++){
 	    if(stream->used_streams[i]){
@@ -352,8 +361,6 @@ t_open(player_t *pl, char *name)
 	    }
 	}
     }
-
-    print_info(stream);
 
     if(as){
 	if((sound = output_audio_open(&as->audio, tp->conf, &timer))){
@@ -382,6 +389,7 @@ t_open(player_t *pl, char *name)
     }
 
     demux = stream_play(stream, codecs, tp->conf);
+    print_info(stream, codecs);
 
     tp->state = TCVP_STATE_STOPPED;
     tp->demux = demux;

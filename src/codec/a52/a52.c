@@ -152,25 +152,15 @@ a52_free_pk(packet_t *p)
     free(p);
 }
 
-static int
-a52_decode(tcvp_pipe_t *p, packet_t *pk)
+static packet_t *
+do_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     a52_decode_t *ad = p->private;
     int psize;
     char *pdata;
-    int i;
-    int ret = 0;
-
-    if(ad->in){
-	packet_t *in = ad->in;
-	ad->in = NULL;
-	a52_decode(p, in);
-    }
-
-    if(!pk){
-	p->next->input(p->next, NULL);
-	return 0;
-    }
+    int i, s;
+    packet_t *out = NULL;
+    int16_t *outbuf;
 
     psize = pk->sizes[0];
     pdata = pk->data[0];
@@ -194,17 +184,17 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 		ad->fpos += fs;
 	    }
 	} else {
-	    int flags, srate, brate, size = 0, od;
+	    int flags, size = 0, od;
 
 	    for(od = 0; od < psize - 7; od++){
-		if((size = a52_syncinfo(pdata + od, &flags, &srate, &brate)))
+		if((size = a52_syncinfo(pdata + od, &flags,
+					&p->format.audio.sample_rate,
+					&p->format.audio.bit_rate)))
 		    break;
 	    }
 
-	    if(!size){
-		ret = -1;
+	    if(!size)
 		break;
-	    }
 
 	    psize -= od;
 	    pdata += od;
@@ -215,30 +205,27 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	a52_frame(ad->state, ad->buf, &ad->flags, &ad->level, ad->bias);
 	ad->flags &= ~A52_ADJUST_LEVEL;
 
-	for(i = 0; i < 6; i++){
-	    int s;
-	    packet_t *out;
-	    int16_t *outbuf = malloc(6*256*sizeof(*outbuf));
+	outbuf = malloc(6*6*256*sizeof(*outbuf));
+	out = malloc(sizeof(*out));
+	out->data = (u_char **) &out->private;
+	out->sizes = malloc(sizeof(*out->sizes));
+	out->planes = 1;
+	out->free = a52_free_pk;
+	out->private = outbuf;
+	out->flags = 0;
+	if(ad->ptsf){
+	    out->flags |= PKT_FLAG_PTS;
+	    out->pts = ad->pts;
+	    ad->ptsf = 0;
+	}
 
+	for(i = 0; i < 6; i++){
 	    a52_block(ad->state);
 	    s = float_to_int(ad->out, outbuf, ad->flags);
-
-	    out = malloc(sizeof(*out));
-	    out->data = (u_char **) &out->private;
-	    out->sizes = malloc(sizeof(*out->sizes));
-	    out->sizes[0] = 256 * s * sizeof(*outbuf);
-	    out->planes = 1;
-	    out->free = a52_free_pk;
-	    out->private = outbuf;
-	    out->flags = 0;
-	    if(ad->ptsf){
-		out->flags |= PKT_FLAG_PTS;
-		out->pts = ad->pts;
-		ad->ptsf = 0;
-	    }
-
-	    p->next->input(p->next, out);
+	    outbuf += 256 * s;
 	}
+
+	out->sizes[0] = 6*256 * s * sizeof(*outbuf);
 
 	ad->fpos = 0;
 	ad->fsize = 0;
@@ -246,32 +233,39 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 
     pk->free(pk);
 
-    return ret;
+    return out;
+}
+
+
+static int
+a52_decode(tcvp_pipe_t *p, packet_t *pk)
+{
+    packet_t *dp;
+
+    if(!pk){
+	p->next->input(p->next, NULL);
+	return 0;
+    }
+
+    if((dp = do_decode(p, pk)))
+	p->next->input(p->next, dp);
+
+    return 0;
 }
 
 static int
 a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    a52_decode_t *ad = p->private;
-    int flags, srate, bitrate, size = 0;
-    int od;
+    packet_t *out;
+    int ret = PROBE_AGAIN;
 
-    for(od = 0; od < pk->sizes[0] - 7; od++){
-	size = a52_syncinfo(pk->data[0] + od, &flags, &srate, &bitrate);
-	if(size)
-	    break;
-    }
+    p->format = *s;
+    p->format.audio.channels = 2;
 
-    if(!size)
-	return PROBE_FAIL;
+    if((out = do_decode(p, pk)))
+	ret = p->next->probe(p->next, out, &p->format);
 
-    s->stream_type = STREAM_TYPE_AUDIO;
-    s->audio.sample_rate = srate;
-    s->audio.channels = 2;
-
-    ad->in = pk;
-
-    return PROBE_OK;
+    return ret;
 }
 
 static int

@@ -285,28 +285,23 @@ alsa_buffer(tcvp_pipe_t *p, float r)
     return 0;
 }
 
-extern tcvp_pipe_t *
-alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
+static int
+alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    tcvp_pipe_t *tp;
-    alsa_out_t *ao;
-    snd_pcm_t *pcm;
+    alsa_out_t *ao = p->private;
+    audio_stream_t *as = (audio_stream_t *) s;
     snd_pcm_hw_params_t *hwp;
+    snd_pcm_t *pcm = ao->pcm;
     u_int rate = as->sample_rate, channels = as->channels, ptime;
     int tmp;
-    char *device = tcvp_output_alsa_conf_device;
 
-    if(cs)
-	conf_getvalue(cs, "audio/device", "%s", &device);
-
-    if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK))
-	return NULL;
+    if(s->stream_type != STREAM_TYPE_AUDIO)
+	return PROBE_FAIL;
 
     snd_pcm_hw_params_malloc(&hwp);
     snd_pcm_hw_params_any(pcm, hwp);
 
-    snd_pcm_hw_params_set_access(pcm, hwp,
-				 SND_PCM_ACCESS_RW_INTERLEAVED);
+    snd_pcm_hw_params_set_access(pcm, hwp, SND_PCM_ACCESS_RW_INTERLEAVED);
     snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_S16_LE);
     snd_pcm_hw_params_set_rate_near(pcm, hwp, &rate, &tmp);
     snd_pcm_hw_params_set_channels_near(pcm, hwp, &channels);
@@ -315,15 +310,10 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     snd_pcm_hw_params_set_period_time_near(pcm, hwp, &ptime, &tmp);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
-	fprintf(stderr, "ALSA: snd_pcm_hw_parameters failed for %s\n", device);
-	return NULL;
+	fprintf(stderr, "ALSA: snd_pcm_hw_parameters failed for\n");
+	return PROBE_FAIL;
     }
 
-    if(timer)
-	*timer = open_timer(pcm);
-
-    ao = calloc(1, sizeof(*ao));
-    ao->pcm = pcm;
     ao->hwp = hwp;
     ao->bpf = as->channels * 2;
     ao->rate = as->sample_rate;
@@ -331,6 +321,31 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ao->buf = malloc(ao->bufsize);
     ao->head = ao->tail = ao->buf;
     ao->can_pause = snd_pcm_hw_params_can_pause(hwp);
+
+    p->format = *s;
+
+    return PROBE_OK;
+}
+
+extern tcvp_pipe_t *
+alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
+{
+    tcvp_pipe_t *tp;
+    alsa_out_t *ao;
+    snd_pcm_t *pcm;
+    char *device = tcvp_output_alsa_conf_device;
+
+    if(cs)
+	conf_getvalue(cs, "audio/device", "%s", &device);
+
+    if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK))
+	return NULL;
+
+    if(timer)
+	*timer = open_timer(pcm);
+
+    ao = calloc(1, sizeof(*ao));
+    ao->pcm = pcm;
     pthread_mutex_init(&ao->mx, NULL);
     pthread_cond_init(&ao->cd, NULL);
     ao->state = PAUSE;
@@ -346,6 +361,7 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     tp->free = alsa_free;
     tp->flush = alsa_flush;
     tp->buffer = alsa_buffer;
+    tp->probe = alsa_probe;
     tp->private = ao;
 
     return tp;

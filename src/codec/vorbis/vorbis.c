@@ -121,15 +121,17 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	if(op->packetno < 2) {	
 	    return PROBE_AGAIN;
 	} else {
-	    s->audio.sample_rate = vc->vi.rate;
-	    s->audio.channels = vc->vi.channels;
-	    s->audio.bit_rate = vc->vi.bitrate_nominal;
+	    p->format = *s;
+	    p->format.audio.codec = "audio/pcm-s16le";
+	    p->format.audio.sample_rate = vc->vi.rate;
+	    p->format.audio.channels = vc->vi.channels;
+	    p->format.audio.bit_rate = vc->vi.bitrate_nominal;
 	    vorbis_synthesis_init(&vc->vd, &vc->vi);
 	    vorbis_block_init(&vc->vd, &vc->vb); 
+	    return p->next->probe(p->next, NULL, &p->format);
 	}
     }
-    return PROBE_OK;
-
+    return PROBE_FAIL;
 }
 
 static int
