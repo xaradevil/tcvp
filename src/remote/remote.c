@@ -14,10 +14,14 @@
 #include <pthread.h>
 #include <tclist.h>
 #include <signal.h>
+#include <tcdirent.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <openssl/rand.h>
 #include <tcvp_types.h>
 #include <remote_tc2.h>
+
+#define COOKIE_SIZE 8
 
 typedef struct tcvp_remote {
     eventq_t qr, sc, ss, st;
@@ -27,9 +31,11 @@ typedef struct tcvp_remote {
     tclist_t *clients;
     fd_set clf;
     int run;
+    u_char cookie[COOKIE_SIZE];
 } tcvp_remote_t;
 
 typedef struct tcvp_remote_client {
+    int auth;
     int socket;
     struct sockaddr_in addr;
 } tcvp_remote_client_t;
@@ -40,6 +46,39 @@ typedef struct tcvp_remote_client {
 
 static int *event_types;
 static int max_event;
+
+static int
+get_cookie(u_char *cookie)
+{
+    FILE *cf;
+    char *home;
+    char *ck;
+    int ret = 0;
+
+    if(!(home = getenv("HOME")))
+	return -1;
+
+    ck = alloca(strlen(home) + 22);
+    sprintf(ck, "%s/.tcvp/remote", home);
+    if(tcmkpath(ck, 0755))
+	return -1;
+
+    strcat(ck, "/cookie");
+    if((cf = fopen(ck, "r"))){
+	if(fread(cookie, 1, COOKIE_SIZE, cf) != COOKIE_SIZE)
+	    ret = -1;
+	fclose(cf);
+    } else if((cf = fopen(ck, "w"))){
+	RAND_pseudo_bytes(cookie, COOKIE_SIZE);
+	if(fwrite(cookie, 1, COOKIE_SIZE, cf) != COOKIE_SIZE)
+	    ret = -1;
+	fclose(cf);
+    } else {
+	ret = -1;
+    }
+
+    return ret;
+}
 
 static void *
 rm_event(void *p)
@@ -158,7 +197,7 @@ rm_listen(void *p)
 		continue;
 /* 	    fprintf(stderr, "REMOTE: connect from %s\n", */
 /* 		    inet_ntoa(sa.sin_addr)); */
-	    cl = malloc(sizeof(*cl));
+	    cl = calloc(1, sizeof(*cl));
 	    cl->socket = s;
 	    cl->addr = sa;
 	    FD_SET(s, &rm->clf);
@@ -167,10 +206,23 @@ rm_listen(void *p)
 
 	while((cl = tclist_next(rm->clients, &li))){
 	    if(FD_ISSET(cl->socket, &tmp)){
-		if(read_event(rm, cl) < 0){
-/* 		    fprintf(stderr, "REMOTE: read event failed\n"); */
-		    tclist_remove(rm->clients, li);
-		    FD_CLR(cl->socket, &rm->clf);
+		if(cl->auth){
+		    if(read_event(rm, cl) < 0){
+			tclist_remove(rm->clients, li);
+			FD_CLR(cl->socket, &rm->clf);
+			close(cl->socket);
+		    }
+		} else {
+		    u_char cookie[COOKIE_SIZE];
+		    if(read(cl->socket, cookie, COOKIE_SIZE) == COOKIE_SIZE &&
+		       !memcmp(cookie, rm->cookie, COOKIE_SIZE)){
+			cl->auth = 1;
+			write(cl->socket, "auth", 4);
+		    } else {
+			tclist_remove(rm->clients, li);
+			FD_CLR(cl->socket, &rm->clf);
+			close(cl->socket);
+		    }
 		}
 	    }
 	}
@@ -275,10 +327,17 @@ rm_new(tcconf_section_t *cs)
     rm->conf = tcref(cs);
     rm->clients = tclist_new(TC_LOCK_SLOPPY);
     FD_ZERO(&rm->clf);
+    if(get_cookie(rm->cookie))
+	return NULL;
 
     if(!connect(sock, (struct sockaddr *) &rsa, sizeof(rsa))){
 	tcvp_remote_client_t *cl;
 	char buf[64];
+
+	write(sock, rm->cookie, COOKIE_SIZE);
+	if(read(sock, buf, 4) != 4 || memcmp(buf, "auth", 4))
+	    return NULL;
+
 	sprintf(buf, "TCVP/remote-%i", qnum++);
 	tcconf_setvalue(cs, "qname", "%s", buf);
 	FD_SET(sock, &rm->clf);
