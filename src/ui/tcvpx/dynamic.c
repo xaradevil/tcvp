@@ -58,6 +58,11 @@ change_variable(char *key, void *data)
 	    case TCSEEKBAR:
 	    {
 		double pos = (tmp)?*((double *)tmp):0;
+		if(pos < 0) {
+		    xtk_disable_seek_bar(w);
+		} else {
+		    xtk_enable_seek_bar(w);
+		}
 		xtk_change_seek_bar(w, pos);
 		break;
 	    }
@@ -79,7 +84,9 @@ change_text(char *key, char *text)
     hash_delete(variable_hash, key, &tmp);
     if(tmp) free(tmp);
 
-    hash_search(variable_hash, key, strdup(text), NULL);
+    if(text) {
+	hash_search(variable_hash, key, strdup(text), NULL);
+    }
 
     sprintf(buf, "text:%s", key);
     hash_find(widget_hash, buf, &lst);

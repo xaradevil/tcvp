@@ -9,8 +9,8 @@ symbol	"create_label"		xtk_widget_t *(*%s)(window_t *window, int x, int y, int w
 
 symbol	"change_seek_bar"	int (*%s)(xtk_widget_t *sb, double position)
 symbol	"create_seek_bar"	xtk_widget_t *(*%s)(window_t *window, int x, int y, int sp_x, int sp_y, int ep_x, int ep_y, image_info_t *bg, image_info_t *indicator, double position, action_cb_t action, void *data)
-symbol	"enable_seek_bar"	int (*%s)(xtk_widget_t *sb);
-symbol	"disable_seek_bar"	int (*%s)(xtk_widget_t *sb);
+symbol	"enable_seek_bar"	int (*%s)(xtk_widget_t *sb)
+symbol	"disable_seek_bar"	int (*%s)(xtk_widget_t *sb)
 
 symbol	"create_state"		xtk_widget_t *(*%s)(window_t *window, int x, int y, int num_states, image_info_t **imagefiles, char **states, char *state, action_cb_t action, void *data)
 symbol	"change_state"		int (*%s)(xtk_widget_t* st, char *state)
@@ -25,10 +25,11 @@ symbol	"hide_window"		int (*%s)(window_t *window)
 symbol	"set_always_on_top"	int (*%s)(window_t *window, int enabled)
 symbol	"set_sticky"		int (*%s)(window_t *window, int enabled)
 
-symbol	"widget_cmp"		int (*%s)(const void *, const void *);
+symbol	"widget_cmp"		int (*%s)(const void *, const void *)
 
 symbol	"draw_widgets"		int (*%s)()
 symbol	"repaint_widgets"	int (*%s)()
+symbol	"set_dnd_cb"		int (*%s)(int(*)(char *))
 
 include
 #include <X11/Xlib.h>

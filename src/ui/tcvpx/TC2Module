@@ -36,6 +36,7 @@ import		"xtk"		"set_always_on_top"
 import		"xtk"		"widget_cmp"
 import		"xtk"		"draw_widgets"
 import		"xtk"		"repaint_widgets"
+import		"xtk"		"set_dnd_cb"
 
 option		skin%s
 option		always_on_top%d=0

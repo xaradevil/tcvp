@@ -29,6 +29,7 @@
 
 #include "tcvpx.h"
 #include "tcvpctl.h"
+#include <tcvp_event.h>
 
 int quit = 0;
 
@@ -66,6 +67,7 @@ tcvpx_init(char *p)
     init_dynamic();
     register_actions();
     xtk_init_graphics();
+    xtk_set_dnd_cb(tcvp_add_file);
 
     if((skin = load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n",
@@ -114,9 +116,14 @@ tcvpx_shdn(void)
 
     xtk_shutdown_graphics();
 
+    tcvp_event_t *te = tcvp_alloc_event(TCVP_CLOSE);
+    eventq_send(qr, te);
+    tcfree(te);
+
     pthread_join(eth, NULL);
 
     eventq_delete(qs);
+    eventq_delete(qr);
 
     if(pl)
 	pl->free(pl);

@@ -38,6 +38,7 @@ typedef struct _mwmhints {
 int mapped = 1;
 int quit = 0;
 static pthread_t xth, sth;
+int (*dnd_cb)(char *);
 
 Atom XdndEnter, XdndLeave, XdndPosition, XdndStatus, XdndDrop,
     XdndType, XdndSelection, XdndFinished, XdndActionPrivate, tcvpxa;
@@ -220,13 +221,14 @@ x11_event(void *p)
 	    xevent.xclient.data.l[0] = xe.xselection.requestor;
 	    XSendEvent(xd, selowner, 0, 0, &xevent);
 
-	    do {
-		if((tmp = strchr(buf, '\n')))
-		   *tmp++ = 0;
-		/* FIXME */
-/* 		tcvp_add_file(buf); */
-		buf = tmp;
-	    } while(tmp);
+	    if(dnd_cb) {
+		do {
+		    if((tmp = strchr(buf, '\n')))
+			*tmp++ = 0;
+		    dnd_cb(buf);
+		    buf = tmp;
+		} while(tmp);
+	    }
 
 	    free(foo);
 	    break;
@@ -397,6 +399,14 @@ set_always_on_top(window_t *window, int enabled)
 	wm_set_property(window, "_NET_WM_STATE_STAYS_ON_TOP", 1);
     }
 
+    return 0;
+}
+
+
+extern int
+set_dnd_cb(int(*cb)(char *))
+{
+    dnd_cb = cb;
     return 0;
 }
 

@@ -66,10 +66,12 @@ repaint_seek_bar(xtk_widget_t *xw)
 extern int
 disable_seek_bar(tcseek_bar_t *w)
 {
-    w->enabled = 0;
-    w->repaint((xtk_widget_t *) w);
-    draw_widget((tcwidget_t *) w);
-    XSync(xd, False);
+    if(w->enabled == 1) {
+	w->enabled = 0;
+	w->repaint((xtk_widget_t *) w);
+	draw_widget((tcwidget_t *) w);
+	XSync(xd, False);
+    }
 
     return 0;
 }
@@ -78,10 +80,12 @@ disable_seek_bar(tcseek_bar_t *w)
 extern int
 enable_seek_bar(tcseek_bar_t *w)
 {
-    w->enabled = 1;
-    w->repaint((xtk_widget_t *) w);
-    draw_widget((tcwidget_t *) w);
-    XSync(xd, False);
+    if(w->enabled == 0) {
+	w->enabled = 1;
+	w->repaint((xtk_widget_t *) w);
+	draw_widget((tcwidget_t *) w);
+	XSync(xd, False);
+    }
 
     return 0;
 }

@@ -34,7 +34,6 @@ tcvp_event(void *p)
 
     while(!quit){
 	tcvp_event_t *te = eventq_recv(qr);
-/* 	printf("%d\n", te->type); */
 	switch(te->type){
 
 	case TCVP_STATE:
@@ -89,9 +88,7 @@ tcvp_event(void *p)
 		free(title);
 	    }
 
-	    if(st->performer){
-		change_text("performer", st->performer);
-	    }
+	    change_text("performer", st->performer);
 
 	    /* fall through */
 
@@ -102,20 +99,8 @@ tcvp_event(void *p)
 	    if(st->time)
 		s_length = st->time / 27000000;
 
-/* 	    list_item *current = NULL; */
-/* 	    skin_t *skin; */
+	    update_time();
 
-/* 	    while((skin = list_next(skin_list, &current))!=NULL) { */
-/* 		if(skin->seek_bar) { */
-/* 		    if(skin->seek_bar) { */
-/* 			if(s_length > 0){ */
-/* 			    enable_seek_bar(skin->seek_bar); */
-/* 			} else { */
-/* 			    disable_seek_bar(skin->seek_bar); */
-/* 			} */
-/* 		    } */
-/* 		} */
-/* 	    } */
 	    break;
 	}
 	tcfree(te);
@@ -264,7 +249,7 @@ update_time()
 	}
     }
 
-    *pos = (s_length>0)?(double)s_time/s_length:0;
+    *pos = (s_length>0)?(double)s_time/s_length:-1;
     change_variable("position", pos);
 
     char *spaces;

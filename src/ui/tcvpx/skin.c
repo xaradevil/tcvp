@@ -34,6 +34,8 @@ load_image(char *skinpath, char *file)
 {
     if(file) {
 	FILE *f;
+
+
 	char fn[1024];
 	image_info_t *img;
 

@@ -27,3 +27,4 @@ implement	"xtk"	"set_sticky"		set_sticky
 implement	"xtk"	"widget_cmp"		widget_cmp
 implement	"xtk"	"draw_widgets"		draw_widgets
 implement	"xtk"	"repaint_widgets"	repaint_widgets
+implement	"xtk"	"set_dnd_cb"		set_dnd_cb
