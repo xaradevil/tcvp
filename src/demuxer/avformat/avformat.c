@@ -207,7 +207,7 @@ avf_open(char *name, conf_section *cs)
     ms = tcallocd(sizeof(*ms), NULL, avf_free);
     memset(ms, 0, sizeof(*ms));
     ms->n_streams = afc->nb_streams;
-    ms->streams = malloc(ms->n_streams * sizeof(stream_t));
+    ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
     for(i = 0; i < ms->n_streams; i++){
 	switch(afc->streams[i]->codec.codec_type){
 	case CODEC_TYPE_VIDEO:
@@ -245,7 +245,7 @@ avf_open(char *name, conf_section *cs)
     ms->next_packet = avf_next_packet;
     ms->close = avf_close;
 
-    as = malloc(sizeof(*as));
+    as = calloc(1, sizeof(*as));
     as->afc = afc;
     as->packets = calloc(ms->n_streams, sizeof(list *));
     for(i = 0; i < ms->n_streams; i++){
