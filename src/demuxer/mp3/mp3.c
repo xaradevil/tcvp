@@ -25,6 +25,9 @@ typedef struct mp3_file {
     eventq_t qs;
     uint64_t sbr;
     size_t bytes;
+    uint64_t pts;
+    int fsize;
+    char fh;
 } mp3_file_t;
 
 typedef struct mp3_frame {
@@ -187,6 +190,8 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp3_packet_t *mp;
     mp3_frame_t fr;
     int size = 1024;
+    uint64_t pos;
+    int bh = 0;
     u_char *f;
 
     mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
@@ -195,35 +200,54 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp->pk.data = &mp->data;
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;
+    mp->pk.flags = TCVP_PKT_FLAG_PTS;
+    mp->pk.pts = mf->pts;
 
+    pos = mf->file->tell(mf->file);
     size = mf->file->read(mp->data, 1, size, mf->file);
     if(size <= 0){
 	tcfree(mp);
 	return NULL;
     }
 
-    f = memchr(mp->data, 0xff, size - 2);
-    if(f && !mp3_header(f[1], f[2], &fr) && fr.bitrate){
-	if((fr.size < size - (f - mp->data) - 3) &&
-	   f[fr.size] == 0xff &&
-	   !mp3_header(f[fr.size+1], f[fr.size+2], NULL)){
+    f = mp->data + mf->fsize;
+    while(f - mp->data < size - 2){
+	u_char fh1;
+
+	if(f - mp->data < -1)
+	    fh1 = mf->fh;
+	else
+	    fh1 = f[1];
+
+	if(!mp3_header(fh1, f[2], &fr)){
 	    u_int br;
-	    mf->sbr += (uint64_t) size * fr.bitrate;
-	    mf->bytes += size;
+	    mf->pts += 1536 * 27000000LL / fr.sample_rate;
+	    mf->sbr += (uint64_t) fr.size * fr.bitrate;
+	    mf->bytes += fr.size;
 	    br = mf->sbr / mf->bytes;
 	    if(br != mf->stream.audio.bit_rate){
 #ifdef DEBUG
 		fprintf(stderr, "MP3: bitrate %i [%u] @%lx\n",
 			fr.bitrate, br,
-			mf->file->tell(mf->file) - size+(f-mp->data));
+			mf->file->tell(mf->file) - size + (f - mp->data));
 #endif
 		mf->stream.audio.bit_rate = br;
 		ms->time = 27 * 8000000LL * mf->size / br;
 		tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
-	    }	    
+	    }
+	    f += fr.size;
+	    bh = 0;
+	} else {
+	    if(!bh++)
+		fprintf(stderr, "MP3: bad header %02x%02x @ %llx\n",
+			fh1, f[2], pos + (uint64_t) (f - mp->data));
+	    f++;
 	}
     }
 
+    mf->fsize = f - mp->data - size;
+    if(mf->fsize < 0)
+	mf->fh = mp->data[size - 1];
     mp->size = size;
 
     return &mp->pk;
