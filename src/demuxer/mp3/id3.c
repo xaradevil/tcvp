@@ -115,7 +115,8 @@ id3v2_gettext(char *buf, int size)
     char *text;
 
     if(*buf){
-	fprintf(stderr, "MP3: Unknown ID3v2 encoding %i\n", *buf);
+	tc2_print("ID3", TC2_PRINT_WARNING,
+		  "Unknown ID3v2 encoding %i\n", *buf);
 	return NULL;
     }
 
@@ -145,14 +146,15 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 
     version = getu16(f);
     if(version >= 0x0500 || version < 0x0300){
-	fprintf(stderr, "MP3: Unsupported ID3v2 tag version %i.%i.\n",
-		version >> 8, version & 0xff);
+	tc2_print("ID3", TC2_PRINT_ERROR,
+		  "Unsupported ID3v2 tag version %i.%i.\n",
+		  version >> 8, version & 0xff);
 	goto err;
     }
 
     flags = url_getc(f);
     if(flags & 0xf){
-	fprintf(stderr, "MP3: Unknown ID3v2 flags %x\n", flags);
+	tc2_print("ID3", TC2_PRINT_ERROR, "Unknown ID3v2 flags %x\n", flags);
 	goto err;
     }
 
@@ -160,9 +162,8 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
     size = getss32(f, 4);
     tsize = size + ((flags & ID3v2_FLAG_FOOT)? 20: 10);
 
-#ifdef DEBUG
-    fprintf(stderr, "MP3: ID3v2 size=%x, flags=%x\n", size, flags);
-#endif
+    tc2_print("ID3", TC2_PRINT_DEBUG,
+	      "ID3v2 size=%x, flags=%x\n", size, flags);
 
     if(flags & ID3v2_FLAG_EXTH){
 	uint32_t esize = getss32(f, version);

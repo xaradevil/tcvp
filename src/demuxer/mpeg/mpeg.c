@@ -213,7 +213,8 @@ mpeg_descriptor(stream_t *s, u_char *d)
     switch(tag){
     case VIDEO_STREAM_DESCRIPTOR:
 	if(s->stream_type != STREAM_TYPE_VIDEO){
-	    fprintf(stderr, "MPEG: Video stream descriptor for non-video stream\n");
+	    tc2_print("MPEG", TC2_PRINT_WARNING,
+		      "Video stream descriptor for non-video stream\n");
 	    break;
 	}
 	s->video.frame_rate = frame_rates[(d[2] >> 3) & 0xf];
@@ -236,7 +237,7 @@ mpeg_descriptor(stream_t *s, u_char *d)
 	int n = htob_32(unaligned32(d + 2));
 
 	if(s->stream_type != STREAM_TYPE_VIDEO){
-	    fprintf(stderr, "MPEG: Target background grid descriptor for non-video stream\n");
+	    tc2_print("MPEG", TC2_PRINT_WARNING, "Target background grid descriptor for non-video stream\n");
 	    break;
 	}
 

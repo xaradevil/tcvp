@@ -138,8 +138,8 @@ mp3_header(u_char *head, mp3_frame_t *mf)
     mf->samples = 1152;
 
 #ifdef DEBUG
-    fprintf(stderr, "MP3: layer %i, version %i, rate %i\n",
-	    mf->layer, mf->version, mf->bitrate);
+    tc2_print("MP3", TC2_PRINT_DEBUG, "layer %i, version %i, rate %i\n",
+	      mf->layer, mf->version, mf->bitrate);
 #endif
 
     return 0;
@@ -314,19 +314,21 @@ mp3_packet(muxed_stream_t *ms, int str)
 			tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
 		}
 #ifdef DEBUG
-		fprintf(stderr, "%s: bitrate %i [%u] %lli s @%llx\n",
-			mf->tag, fr.bitrate, br, ms->time / 27000000,
-			mf->file->tell(mf->file) - size + (f - mp->data));
+		tc2_print("MP3", TC2_PRINT_DEBUG,
+			  "%s: bitrate %i [%u] %lli s @%llx\n",
+			  mf->tag, fr.bitrate, br, ms->time / 27000000,
+			  mf->file->tell(mf->file) - size + (f - mp->data));
 #endif
 	    }
 	    f += fr.size;
 	    bh = 0;
 	} else {
 	    if(!bh++)
-		fprintf(stderr, "%s: bad header %02x%02x @ %llx\n",
-			mf->tag, mf->head[0], mf->head[1],
-			mf->file->tell(mf->file) - size +
-			(uint64_t) (f - mp->data));
+		tc2_print("%s", TC2_PRINT_WARNING,
+			  "bad header %02x%02x @ %llx\n",
+			  mf->tag, mf->head[0], mf->head[1],
+			  mf->file->tell(mf->file) - size +
+			  (uint64_t) (f - mp->data));
 	    f++;
 	}
     }

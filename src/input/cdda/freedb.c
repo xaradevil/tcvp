@@ -63,7 +63,7 @@ cddb_cmd(char *cmd)
 	    *p = '+';
 
     free(cmd);
-/*     fprintf(stderr, "CDDA: %s\n", url); */
+/*     tc2_print("CDDA", TC2_PRINT_DEBUG, "%s\n", url); */
 
     u = url_http_open(url, "r");
     if(!u)

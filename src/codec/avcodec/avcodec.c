@@ -270,7 +270,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	}
 
 	if(!pixel_fmts[vc->ctx->pix_fmt]){
-	    fprintf(stderr, "avcodec: unknown pixel format %i\n",
+	    tc2_print("AVCODEC", TC2_PRINT_ERROR, "avcodec: unknown pixel format %i\n",
 		    vc->ctx->pix_fmt);
 	    ret = PROBE_FAIL;
 	    goto out;
@@ -341,7 +341,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     avc = avcodec_find_decoder(id);
 
     if(avc == NULL){
-	fprintf(stderr, "AVC: Can't find codec for '%s' => %i\n",
+	tc2_print("AVCODEC", TC2_PRINT_ERROR, "Can't find codec for '%s' => %i\n",
 		s->common.codec, id);
 	return -1;
     }
@@ -386,7 +386,8 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 	break;
 
     default:
-	fprintf(stderr, "AVCODEC: unknown stream type %i\n", s->stream_type);
+	tc2_print("AVCODEC", TC2_PRINT_ERROR,
+		  "unknown stream type %i\n", s->stream_type);
 	return -1;
     }
 

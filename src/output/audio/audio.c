@@ -340,7 +340,7 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     free(formats);
 
     if(!ad){
-	fprintf(stderr, "AUDIO: can't find a usable driver\n");
+	tc2_print("AUDIO", TC2_PRINT_ERROR, "can't find a usable driver\n");
 	return PROBE_FAIL;
     }
 
@@ -363,7 +363,7 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     return PROBE_OK;
 err:
-    fprintf(stderr, "AUDIO: unsupported format %s\n", ad->format);
+    tc2_print("AUDIO", TC2_PRINT_ERROR, "unsupported format %s\n", ad->format);
     tcfree(ad);
     return PROBE_FAIL;
 }

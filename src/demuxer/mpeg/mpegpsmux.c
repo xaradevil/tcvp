@@ -207,7 +207,8 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
     uint64_t dts;
 
     if(!pk->data){
-	fprintf(stderr, "MPEGPS mux: stream %i end\n", pk->stream);
+	tc2_print("MPEGPS-MUX", TC2_PRINT_DEBUG,
+		  "stream %i end\n", pk->stream);
 	pthread_mutex_lock(&psm->lock);
 	if(!--psm->nstreams){
 	    /* write end code */
@@ -368,12 +369,12 @@ mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     url_t *out;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
-	fprintf(stderr, "No output specified.\n");
+	tc2_print("MPEGPS-MUX", TC2_PRINT_ERROR, "No output specified.\n");
 	return NULL;
     }
 
     if(!(out = url_open(url, "w"))){
-	fprintf(stderr, "Error opening %s.\n", url);
+	tc2_print("MPEGPS-MUX", TC2_PRINT_ERROR, "Error opening %s.\n", url);
 	return NULL;
     }
 

@@ -147,7 +147,8 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 		break;
 	}
 	if(sync != MPEGTS_SYNC){
-	    fprintf(stderr, "MPEGTS: can't find sync byte, @ %llx\n",
+	    tc2_print("MPEGTS", TC2_PRINT_DEBUG,
+		      "can't find sync byte, @ %llx\n",
 		    s->stream->tell(s->stream));
 	    return -1;
 	}
@@ -156,7 +157,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 
 	mp->transport_error = getbits(s, 1, "transport_error");
 	if(mp->transport_error){
-	    fprintf(stderr, "MPEGTS: transport error %p\n", s);
+	    tc2_print("MPEGTS", TC2_PRINT_WARNING, "transport error %p\n", s);
 	    s->stream->read(mp->data, 1, 188 - (s->br + s->bs) / 8, s->stream);
 	    s->bs = 0;
 	    error = 1;
@@ -214,13 +215,15 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 		}
 		br = al - (s->br - br) / 8;
 		if(br < 0){
-		    fprintf(stderr, "MPEGTS: Bad pack header. br = %i\n", br);
+		    tc2_print("MPEGTS", TC2_PRINT_WARNING,
+			      "Bad pack header. br = %i\n", br);
 		    error = 1;
 		    continue;
 		}
 		while(br--){
 		    if(getbits(s, 8, "stuffing") != 0xff){
-			fprintf(stderr, "MPEGTS: Stuffing != 0xff\n");
+			tc2_print("MPEGTS", TC2_PRINT_WARNING,
+				  "Stuffing != 0xff\n");
 			error = 1;
 			break;
 		    }
@@ -283,11 +286,13 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	if(tb->cc > -1){
 	    ccd = (mp.cont_counter - tb->cc + 0x10) & 0xf;
 	    if(ccd == 0){
-		fprintf(stderr, "MPEGTS: duplicate packet, PID %x\n", mp.pid);
+		tc2_print("MPEGTS", TC2_PRINT_VERBOSE,
+			  "duplicate packet, PID %x\n", mp.pid);
 		continue;
 	    } else if(ccd != 1){
-		fprintf(stderr, "MPEGTS: lost packet, PID %x: %i %i\n",
-			mp.pid, tb->cc, mp.cont_counter);
+		tc2_print("MPEGTS", TC2_PRINT_VERBOSE,
+			  "lost packet, PID %x: %i %i\n",
+			  mp.pid, tb->cc, mp.cont_counter);
 /* 		tb->start = 0; */
 	    }
 	}
@@ -471,7 +476,8 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     } while(mp.pid != 0);
 
     if(!mp.unit_start){
-	fprintf(stderr, "MPEGTS: BUG: Large PAT not supported.\n");
+	tc2_print("MPEGTS", TC2_PRINT_ERROR,
+		  "BUG: Large PAT not supported.\n");
 	goto err;
     }
 
@@ -479,10 +485,11 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     dp = mp.data + ptr + 1;
     seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
     if(mpeg_crc32(dp, seclen + 3)){
-	fprintf(stderr, "MPEGTS: Bad CRC in PAT.\n");
+	tc2_print("MPEGTS", TC2_PRINT_WARNING, "Bad CRC in PAT.\n");
     }
     if(dp[6] || dp[7]){
-	fprintf(stderr, "MPEGTS: BUG: Multi-section PAT not supported.\n");
+	tc2_print("MPEGTS", TC2_PRINT_ERROR,
+		  "BUG: Multi-section PAT not supported.\n");
 	goto err;
     }
 
@@ -492,8 +499,8 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     for(i = 0; i < n; i++){
 	pat[2*i] = 1;
 	pat[2*i+1] = htob_16(unaligned16(dp + 2)) & 0x1fff;
-	fprintf(stderr, "MPEGTS: program %i => PMT pid %x\n",
-		htob_16(unaligned16(dp)), pat[i+1]);
+	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i => PMT pid %x\n",
+		  htob_16(unaligned16(dp)), pat[i+1]);
 	dp += 4;
     }
 
@@ -517,7 +524,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	dp = mp.data + mp.data[0] + 1;
 	seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
 	if(mpeg_crc32(dp, seclen + 3)){
-	    fprintf(stderr, "MPEGTS: Bad CRC in PMT.\n");
+	    tc2_print("MPEGTS", TC2_PRINT_WARNING, "Bad CRC in PMT.\n");
 	    continue;
 	}
 	prg = htob_16(unaligned16(dp + 3));
@@ -528,7 +535,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    int tag = dp[0];
 	    int tl = dp[1];
 
-	    fprintf(stderr, "MPEGTS: descriptor %i\n", tag);
+	    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "descriptor %i\n", tag);
 	    dp += tl + 2;
 	    i += tl + 2;
 	}
@@ -571,8 +578,9 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 	    i += esil;
 
-	    fprintf(stderr, "MPEGTS: program %i => PID %x, type %x\n",
-		    prg, epid, stype);
+	    tc2_print("MPEGTS", TC2_PRINT_DEBUG,
+		      "program %i => PID %x, type %x\n",
+		      prg, epid, stype);
 	}
 
 	n--;

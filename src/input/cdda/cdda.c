@@ -61,7 +61,8 @@ print_paranoia_stats(cd_data_t *cdt)
     int i;
 
     for(i = 0; i < 13; i++)
-	fprintf(stderr, "%5i %s\n", cdt->prn_stats[i], stat_names[i]);
+	tc2_print("CDDA", TC2_PRINT_INFO,
+		  "%5i %s\n", cdt->prn_stats[i], stat_names[i]);
 
     return 0;
 }
@@ -82,7 +83,7 @@ fill_buffer(cd_data_t *cdt)
 						  max_retries);
 	    char *err = cdda_errors(cdt->drive);
 	    if(err){
-		fprintf(stderr, "CDDA: error reading sector %i: %s\n",
+		tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
 			cdt->current_sector, err);
 		return -1;
 	    } else {
@@ -96,7 +97,7 @@ fill_buffer(cd_data_t *cdt)
 			      cdt->current_sector, nsect);
 	    char *err = cdda_errors(cdt->drive);
 	    if(s < 0 || err){
-		fprintf(stderr, "CDDA: error reading sector %i: %s\n",
+		tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
 			cdt->current_sector, err);
 		return -1;
 	    } else {
@@ -360,6 +361,6 @@ cd_open(char *url, char *mode)
 	}
     }
 
-    fprintf(stderr, "CDDA: unsupported URL: %s\n", url);
+    tc2_print("CDDA", TC2_PRINT_ERROR, "unsupported URL: %s\n", url);
     return NULL;
 }

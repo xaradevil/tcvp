@@ -237,11 +237,12 @@ tmx_output(void *p)
 		    rs += srate[i];
 		ns = i;
 		rs /= ns;
-		fprintf(stderr, "%lli %7i %7lli %8.3lf %.2f\r",
-			(8 * bytes * 27000) / time,
-			mrate / 1000, rs / 1000,
-			(double) (tsm->pcr - tsm->start_time) / 27000000,
-			(float) rs / tsm->bitrate);
+		tc2_print("MPEGTS", TC2_PRINT_VERBOSE,
+			  "%lli %7i %7lli %8.3lf %.2f\r",
+			  (8 * bytes * 27000) / time,
+			  mrate / 1000, rs / 1000,
+			  (double) (tsm->pcr - tsm->start_time) / 27000000,
+			  (float) rs / tsm->bitrate);
 		mrate = 0;
 	    }
 	    pcrb = tsm->pcr;
@@ -318,7 +319,8 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
     int64_t time;
 
     if(!pk->data){
-	fprintf(stderr, "MPEGTS mux: stream %i end\n", pk->stream);
+	tc2_print("MPEGTS-MUX", TC2_PRINT_DEBUG,
+		  "stream %i end\n", pk->stream);
 	pthread_mutex_lock(&tsm->lock);
 	if(!--tsm->nstreams)
 	    tsm->running = 0;
@@ -502,11 +504,6 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    dts += (27000000LL * 188 * tsm->rate_factor) /
 		(os->bitrate?: tsm->bitrate);
 	    os->dts = dts;
-
-	    if(tsm->bpos % 188){
-		fprintf(stderr, "MPEGTS: BUG: bpos %% 188 != 0\n");
-		abort();
-	    }
 	}
 
 	pthread_cond_broadcast(&tsm->cnd);
@@ -634,12 +631,12 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     url_t *out;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
-	fprintf(stderr, "No output specified.\n");
+	tc2_print("MPEGTS-MUX", TC2_PRINT_ERROR, "No output specified.\n");
 	return NULL;
     }
 
     if(!(out = url_open(url, "w"))){
-	fprintf(stderr, "Error opening %s.\n", url);
+	tc2_print("MPEGTS-MUX", TC2_PRINT_ERROR, "Error opening %s.\n", url);
 	return NULL;
     }
 

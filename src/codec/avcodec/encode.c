@@ -163,7 +163,7 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     cid = avc_codec_id(codec);
     avc = avcodec_find_encoder(cid);
     if(!avc){
-	fprintf(stderr, "Can't find encoder for '%s'.\n", codec);
+	tc2_print("AVCODEC", TC2_PRINT_ERROR, "Can't find encoder for '%s'.\n", codec);
 	return -1;
     }
 

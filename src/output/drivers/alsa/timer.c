@@ -145,7 +145,7 @@ new_timer(int res, int class, int sclass, int card, int dev, int subdev)
 	    class, sclass, card, dev, subdev);
     
     if((s = snd_timer_open(&timer, name, SND_TIMER_OPEN_NONBLOCK))){
-	fprintf(stderr, "ALSA: snd_timer_open: %s\n",
+	tc2_print("ALSA", TC2_PRINT_ERROR, "snd_timer_open: %s\n",
 		snd_strerror(s));
 	return NULL;
     }

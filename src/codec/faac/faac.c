@@ -157,8 +157,8 @@ faac_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	fec->inputFormat = FAAC_INPUT_32BIT;
 	ae->ssize = 4;
     } else {
-	fprintf(stderr, "FAAC: unsupported sample format %s\n",
-		s->common.codec);
+	tc2_print("FAAC", TC2_PRINT_ERROR, "unsupported sample format %s\n",
+		  s->common.codec);
 	return PROBE_FAIL;
     }
     fec->outputFormat = 1;

@@ -184,12 +184,13 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     int i;
 
     if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0){
-	fprintf(stderr, "Error opening %s\n", name);
+	tc2_print("AVFORMAT", TC2_PRINT_ERROR, "Error opening %s\n", name);
 	return NULL;
     }
 
     if(av_find_stream_info(afc) < 0){
-	fprintf(stderr, "Can't find stream info for %s\n", name);
+	tc2_print("AVFORMAT", TC2_PRINT_ERROR,
+		  "Can't find stream info for %s\n", name);
 	return NULL;
     }
 

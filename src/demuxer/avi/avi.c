@@ -223,13 +223,15 @@ avi_read_idx1(muxed_stream_t *ms, uint32_t size)
 
 	if(!valid_tag(idx1.tag, 0)){
 	    if(memcmp(idx1.tag, "rec ", 4))
-		fprintf(stderr, "AVI: Invalid tag in index @%i\n", i);
+		tc2_print("AVI", TC2_PRINT_WARNING,
+			  "Invalid tag in index @%i\n", i);
 	    continue;
 	}
 
 	s = tag2str(idx1.tag);
 	if(s > ms->n_streams){
-	    fprintf(stderr, "AVI: Invalid stream #%i in index.\n", s);
+	    tc2_print("AVI", TC2_PRINT_WARNING,
+		      "Invalid stream #%i in index.\n", s);
 	    continue;
 	}
 
@@ -240,7 +242,8 @@ avi_read_idx1(muxed_stream_t *ms, uint32_t size)
     }
 
     if(i != idxl)
-	fprintf(stderr, "AVI: Short index. Expected %i, got %i.\n", idxl, i);
+	tc2_print("AVI", TC2_PRINT_WARNING,
+		  "Short index. Expected %i, got %i.\n", idxl, i);
 
     return 0;
 }
@@ -315,13 +318,14 @@ avi_read_indx(muxed_stream_t *ms)
     get4c(tag, af->file);
 
     if(!valid_tag(tag, 0)){
-	fprintf(stderr, "AVI: Invalid tag in indx chunk.\n");
+	tc2_print("AVI", TC2_PRINT_WARNING, "Invalid tag in indx chunk.\n");
 	return -1;
     }
 
     str = tag2str(tag);
     if(str > ms->n_streams){
-	fprintf(stderr, "AVI: Invalid stream #%i in indx chunk.\n", str);
+	tc2_print("AVI", TC2_PRINT_WARNING,
+		  "Invalid stream #%i in indx chunk.\n", str);
 	return -1;
     }
 
@@ -416,18 +420,14 @@ avi_header(url_t *f)
 	*(uint32_t *)st = tag;
 
 	if(pos + size > fsize){
-	    fprintf(stderr,
-		    "AVI: Chunk '%s' @ %llx exceeds file size.\n"
-		    "     Chunk size %u, remains %llu of file\n",
-		    st, pos, size, fsize - pos);
+	    tc2_print("AVI", TC2_PRINT_WARNING,
+		      "Chunk '%s' @ %llx exceeds file size. "
+		      "Chunk size %u, remains %llu of file\n",
+		      st, pos, size, fsize - pos);
 	}
 
-#ifdef DEBUG
-	fprintf(stderr, "%s:\n", st);
-#endif
-
 	if(next && tag != next){
-	    printf("AVI: error unexpected tag\n");
+	    tc2_print("AVI", TC2_PRINT_ERROR, "error unexpected tag\n");
 	    return NULL;
 	}
 
@@ -520,7 +520,7 @@ avi_header(url_t *f)
 	    ms->streams[sidx].common.index = sidx;
 	    ms->streams[sidx].common.start_time = start * 27;
 	    if(start){
-		fprintf(stderr, "AVI: start = %i\n", start);
+		tc2_print("AVI", TC2_PRINT_WARNING, "start = %i\n", start);
 	    }
 
 	    next = TAG('s','t','r','f');
@@ -593,7 +593,7 @@ avi_header(url_t *f)
 		break;
 	    }
 	    default:
-		fprintf(stderr, "AVI: bad stream type\n");
+		tc2_print("AVI", TC2_PRINT_WARNING, "bad stream type\n");
 	    }
 
 	    next = 0;
@@ -622,7 +622,8 @@ avi_header(url_t *f)
 	    break;
 	}
 	default:
-	    fprintf(stderr, "AVI: unknown tag '%s' @%llx\n", st, pos);
+	    tc2_print("AVI", TC2_PRINT_WARNING,
+		      "unknown tag '%s' @%llx\n", st, pos);
 	}
 	f->seek(f, pos + size, SEEK_SET);
     }
@@ -713,25 +714,26 @@ avi_packet(muxed_stream_t *ms, int stream)
 	}
 
 	if(!scan)
-	    fprintf(stderr,
-		    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08llx\n",
-		    tag[0], tag[1], tag[2], tag[3],
-		    strtag(tag, stag), pos);
+	    tc2_print("AVI", TC2_PRINT_WARNING,
+		      "Bad chunk tag %02x%02x%02x%02x:%s @ %08llx\n",
+		      tag[0], tag[1], tag[2], tag[3],
+		      strtag(tag, stag), pos);
 	if(!tried_index && af->idxok > 256 && af->idxlen > af->pkt){
 	    uint64_t p = af->index[af->pkt]->offset;
-	    fprintf(stderr, "AVI: Index => %16llx\n", p);
+	    tc2_print("AVI", TC2_PRINT_DEBUG, "Index => %16llx\n", p);
 	    af->file->seek(af->file, p, SEEK_SET);
 	    tried_index++;
 	    goto again;
 	} else if(!tried_bkup){
-	    fprintf(stderr, "AVI: Backing up %i bytes.\n", backup);
+	    tc2_print("AVI", TC2_PRINT_DEBUG,
+		      "Backing up %i bytes.\n", backup);
 	    af->file->seek(af->file, -backup - 4, SEEK_CUR);
 	    tried_bkup++;
 	    goto again;
 	} else if(skipped < max_skip && af->idxok > 256 &&
 		  af->idxlen > af->pkt){
 	    if(!skipped)
-		fprintf(stderr, "AVI: Skipping chunk.\n");
+		tc2_print("AVI", TC2_PRINT_WARNING, "Skipping chunk.\n");
 	    af->file->seek(af->file, af->index[af->pkt]->offset, SEEK_SET);
 	    af->pkt++;
 	    skipped++;
@@ -742,16 +744,16 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    goto again;
 	}
 
-	fprintf(stderr, "AVI: Can't find valid chunk tag.\n");
+	tc2_print("AVI", TC2_PRINT_ERROR, "Can't find valid chunk tag.\n");
 	af->eof = 1;
 	return NULL;
     }
 
     if(skipped)
-	fprintf(stderr, "AVI: Skipped %i chunks\n", skipped);
+	tc2_print("AVI", TC2_PRINT_WARNING, "Skipped %i chunks\n", skipped);
 
     if(scan)
-	fprintf(stderr, "AVI: Resuming @%08llx\n", pos);
+	tc2_print("AVI", TC2_PRINT_DEBUG, "Resuming @%08llx\n", pos);
 
     size = getu32(af->file);
     str = tag2str(tag);
@@ -786,14 +788,14 @@ avi_packet(muxed_stream_t *ms, int stream)
 	}
 
 	if(i != af->pkt){
-	    fprintf(stderr, "AVI: Can't resync index.\n");
+	    tc2_print("AVI", TC2_PRINT_WARNING, "Can't resync index.\n");
 	    af->idxok = 0;
 	}
     }
 
     if(str >= ms->n_streams){
-	fprintf(stderr, "AVI: Bad stream number %i @%08llx\n",
-		str, pos);
+	tc2_print("AVI", TC2_PRINT_WARNING, "Bad stream number %i @%08llx\n",
+		  str, pos);
 	scan++;
 	goto again;
     }

@@ -97,7 +97,8 @@ change_text(char *key, char *text)
     sprintf(buf, "text:%s", key);
     tchash_find(widget_hash, buf, -1, &lst);
 
-    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "change_text '%s' '%s' '%s' %p\n", key, buf, text, lst);
+    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10,
+	      "change_text '%s' '%s' '%s' %p\n", key, buf, text, lst);
 
     if(lst) {
 	xtk_widget_t *w;

@@ -141,7 +141,7 @@ y4m_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 	return NULL;
 
     if(strncmp(buf, "YUV4MPEG2 ", 10)){
-	fprintf(stderr, "YUV4MPEG: bad signature\n");
+	tc2_print("YUV4MPEG", TC2_PRINT_ERROR, "bad signature\n");
 	return NULL;
     }
 

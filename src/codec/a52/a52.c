@@ -147,7 +147,7 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 	}
 	return 6;
     default:
-	fprintf(stderr, "A52: invalid flags\n");
+	tc2_print("A52", TC2_PRINT_ERROR, "invalid flags\n");
     }
     return 0;
 }

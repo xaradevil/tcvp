@@ -143,7 +143,7 @@ lookup_action(xtk_widget_t *w, void *p)
 		if(tmp) {
 		    tmp[0] = 0;
 		} else {
-		    fprintf(stderr, "Syntax error in skin config file\n");
+		    tc2_print("TCVPX", TC2_PRINT_ERROR, "Syntax error in skin config file\n");
 		}
 	    }
 
@@ -154,10 +154,11 @@ lookup_action(xtk_widget_t *w, void *p)
 
 	    tchash_find(action_hash, c, -1, &acb);
 	    if(acb) {
-/* 		fprintf(stderr, "Action: \"%s(%s)\"\n", c, wd->action_data); */
+/* 		tc2_print("TCVPX", TC2_PRINT_DEBUG, "Action: \"%s(%s)\"\n", c, wd->action_data); */
 		acb(w, p);
 	    } else {
-		fprintf(stderr, "Action: \"%s\" not implemented\n", c);
+		tc2_print("TCVPX", TC2_PRINT_WARNING,
+			  "Action: \"%s\" not implemented\n", c);
 	    }
 	    c = next;
 	}
@@ -176,7 +177,7 @@ load_skin(char *skinconf)
     int i=0;
 
     if(!(skin->config = tcconf_load_file (NULL, skinconf))){
-	fprintf(stderr, "Error loading file \"%s\".\n", skinconf);
+	tc2_print("TCVPX", TC2_PRINT_ERROR, "Error loading file \"%s\".\n", skinconf);
 	return NULL;
     }
 
@@ -722,7 +723,8 @@ do {									\
 									\
 	w = fn(c, skin, sec, parameters);				\
 	if(!w) {							\
-	    fprintf(stderr, "Widget \"%s\", could not be created.\n",	\
+	    tc2_print("TCVPX", TC2_PRINT_WARNING,			\
+		      "Widget \"%s\", could not be created.\n",		\
 		    name);						\
 	} else {							\
 	    tcconf_getvalue(sec, "id", "%s", &id);			\
@@ -840,7 +842,7 @@ set_text(xtk_widget_t *w, void *p)
     char *d = ((widget_data_t *)w->data)->action_data;
 
     if(d) {
-	fprintf(stderr, "set_text(%s) not yet implemented\n", d);
+	tc2_print("TCVPX", TC2_PRINT_WARNING, "set_text(%s) not yet implemented\n", d);
     }
 
     return 0;

@@ -122,7 +122,7 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		case DVDNAV_STILL_FRAME:
 		    if(!d->still){
 			int t = DVD_STILL;
-			fprintf(stderr, "DVD: still\n");
+			tc2_print("DVD", TC2_PRINT_DEBUG, "still\n");
 			flush(d, 0);
 			d->still = 1;
 			d->pci = dvdnav_get_current_nav_pci(d->dvd);
@@ -132,7 +132,7 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		    }
 		    break;
 		case DVDNAV_WAIT:
-		    fprintf(stderr, "DVD: wait\n");
+		    tc2_print("DVD", TC2_PRINT_DEBUG, "wait\n");
 /* 		    flush(d, 0); */
 		    dvdnav_wait_skip(d->dvd);
 		    break;
@@ -149,13 +149,13 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		    break;
 		}
 		case DVDNAV_HOP_CHANNEL:
-		    fprintf(stderr, "DVD: hop_channel\n");
+		    tc2_print("DVD", TC2_PRINT_DEBUG, "hop_channel\n");
 		    flush(d, 1);
 		    break;
 		case DVDNAV_VTS_CHANGE: {
 		    dvdnav_vts_change_event_t *vce =
 			(dvdnav_vts_change_event_t *) d->buf;
-		    fprintf(stderr, "DVD: vts change %i\n", vce->new_vtsN);
+		    tc2_print("DVD", TC2_PRINT_DEBUG, "vts change %i\n", vce->new_vtsN);
 		    if(!tcvp_input_dvdnav_conf_enable_menus && d->vts){
 			d->end = 1;
 			return -1;
@@ -170,7 +170,7 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		    dvdnav_audio_stream_change_event_t *asc =
 			(dvdnav_audio_stream_change_event_t *) d->buf;
 		    dvd_audio_id_t dai;
-		    fprintf(stderr, "DVD: audio stream change %x %x\n",
+		    tc2_print("DVD", TC2_PRINT_DEBUG, "audio stream change %x %x\n",
 			    asc->physical, asc->logical);
 		    dai.type = DVD_AUDIO_ID;
 		    dai.id = asc->logical & 0x80? asc->logical: 0x80;
@@ -178,17 +178,17 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		    break;
 		}
 		case DVDNAV_CELL_CHANGE:
-		    fprintf(stderr, "DVD: cell change\n");
+		    tc2_print("DVD", TC2_PRINT_DEBUG, "cell change\n");
 		    break;
 		default:
-		    fprintf(stderr, "DVD: event %i\n", event);
+		    tc2_print("DVD", TC2_PRINT_DEBUG, "event %i\n", event);
 		    break;
 		}
 	    }
 	}
 
 	bb = min(bytes, d->bbytes - d->bpos);
-/* 	fprintf(stderr, "DVD: reading %i bytes @%lli\n", bb, d->pos); */
+/* 	tc2_print("DVD", TC2_PRINT_DEBUG, "reading %i bytes @%lli\n", bb, d->pos); */
 	memcpy(buf, d->buf + d->bpos, bb);
 	d->bpos += bb;
 	d->pos += bb;
@@ -260,7 +260,8 @@ dvd_seek(url_t *u, int64_t offset, int how)
     } else {
 	uint64_t sector = np / DVD_SECTOR_SIZE;
 	if(dvdnav_sector_search(d->dvd, sector, SEEK_SET) != DVDNAV_STATUS_OK){
-	    fprintf(stderr, "DVD: error seeking to sector %lli\n", sector);
+	    tc2_print("DVD", TC2_PRINT_ERROR,
+		      "error seeking to sector %lli\n", sector);
 	    return -1;
 	}
 	d->bbytes = 0;
@@ -339,7 +340,7 @@ dvd_open(char *url, char *mode)
 	return NULL;
 
     if(dvdnav_open(&dvd, device) != DVDNAV_STATUS_OK){
-	fprintf(stderr, "DVD: can't open %s\n", device);
+	tc2_print("DVD", TC2_PRINT_ERROR, "can't open %s\n", device);
 	goto err;
     }
 
@@ -351,44 +352,44 @@ dvd_open(char *url, char *mode)
 
     if(title > 0){
 	dvdnav_get_number_of_titles(dvd, &titles);
-	fprintf(stderr, "DVD: %i titles.\n", titles);
+	tc2_print("DVD", TC2_PRINT_VERBOSE, "%i titles.\n", titles);
 	if(title < 1 || title > titles){
-	    fprintf(stderr, "DVD: invalid title %i.\n", title);
+	    tc2_print("DVD", TC2_PRINT_ERROR, "invalid title %i.\n", title);
 	    goto err;
 	}
 
 	if(dvdnav_get_number_of_parts(dvd, title, &chapters) !=
 	   DVDNAV_STATUS_OK){
-	    fprintf(stderr, "DVD: error getting number of chapters.\n");
+	    tc2_print("DVD", TC2_PRINT_ERROR, "error getting number of chapters.\n");
 	    goto err;
 	}
 
-	fprintf(stderr, "DVD: %i chapters.\n", chapters);
+	tc2_print("DVD", TC2_PRINT_VERBOSE, "%i chapters.\n", chapters);
 	if(chapter < 1 || chapter > chapters){
-	    fprintf(stderr, "DVD: invalid chapter %i.\n", chapter);
+	    tc2_print("DVD", TC2_PRINT_ERROR, "invalid chapter %i.\n", chapter);
 	    goto err;
 	}
 
 	if(dvdnav_part_play(dvd, title, chapter) != DVDNAV_STATUS_OK){
-	    fprintf(stderr, "DVD: error playing title %i, chapter %i\n",
+	    tc2_print("DVD", TC2_PRINT_ERROR, "error playing title %i, chapter %i\n",
 		    title, chapter);
 	    goto err;
 	}
 
 	dvdnav_get_angle_info(dvd, &ca, &angles);
-	fprintf(stderr, "DVD: %i angles.\n", angles);
+	tc2_print("DVD", TC2_PRINT_VERBOSE, "%i angles.\n", angles);
 	if(angle < 1 || angle > angles){
-	    fprintf(stderr, "DVD: invalid angle %i.\n", angle);
+	    tc2_print("DVD", TC2_PRINT_ERROR, "invalid angle %i.\n", angle);
 	    goto err;
 	}
 
 	if(dvdnav_angle_change(dvd, angle) != DVDNAV_STATUS_OK){
-	    fprintf(stderr, "DVD: error setting angle %i\n", angle);
+	    tc2_print("DVD", TC2_PRINT_ERROR, "error setting angle %i\n", angle);
 	    goto err;
 	}
 
 	if(dvdnav_get_position_in_title(dvd, &pos, &len) != DVDNAV_STATUS_OK){
-	    fprintf(stderr, "DVD: error getting size.\n");
+	    tc2_print("DVD", TC2_PRINT_ERROR, "error getting size.\n");
 	    goto err;
 	}
     }

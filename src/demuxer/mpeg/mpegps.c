@@ -172,8 +172,8 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	    switch(de->type){
 	    case DVD_PTSSKIP:
 		s->pts_offset = de->ptsskip.offset;
-		fprintf(stderr, "MPEGPS: pts offset %lli\n",
-			s->pts_offset);
+		tc2_print("MPEGPS", TC2_PRINT_DEBUG, "pts offset %lli\n",
+			  s->pts_offset);
 		break;
 	    case DVD_FLUSH:
 		pk = tcallocdz(sizeof(*pk), NULL, mpegps_free_pk);
@@ -254,7 +254,8 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
 	}
 
 	if(s->stream->seek(s->stream, p, SEEK_SET)){
-	    fprintf(stderr, "seek failed, p = %lli\n", p);
+	    tc2_print("MPEGPS", TC2_PRINT_WARNING,
+		      "seek failed, p = %lli\n", p);
 	    return -1;
 	}
 
@@ -434,8 +435,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		    s->imap[pk->stream_id] = ms->n_streams;
 		    s->map[ms->n_streams] = pk->stream_id;
 
-/* 		    fprintf(stderr, "MPEGPS: found stream id %02x\n", */
-/* 			    pk->stream_id); */
+		    tc2_print("MPEGPS", TC2_PRINT_DEBUG,
+			      "found stream id %02x\n", pk->stream_id);
 
 		    if(pk->stream_id & 0x20){
 			sp->stream_type = STREAM_TYPE_VIDEO;

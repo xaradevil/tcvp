@@ -51,7 +51,7 @@ wd_watch(void *p)
 	FD_ZERO(&fs);
 	FD_SET(w->bone[0], &fs);
 	if(!select(FD_SETSIZE, &fs, NULL, NULL, &t)){
-	    fprintf(stderr, "WATCHDOG: timeout\n");
+	    tc2_print("WATCHDOG", TC2_PRINT_ERROR, "timeout\n");
 	    exit(1);
 	}
 	read(w->bone[0], buf, 1);

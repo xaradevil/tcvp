@@ -200,7 +200,7 @@ oss_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 	format = "u8";
 	ssize = 1;
     } else {
-	fprintf(stderr, "OSS: unsupported format %s\n", as->codec);
+	tc2_print("OSS", TC2_PRINT_ERROR, "unsupported format %s\n", as->codec);
 	goto err;
     }
 
@@ -221,16 +221,17 @@ oss_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     }
 
     if(channels != as->channels){
-	fprintf(stderr, "OSS: %i channels not supported.\n", as->channels);
+	tc2_print("OSS", TC2_PRINT_WARNING,
+		  "%i channels not supported.\n", as->channels);
     }
 
     if(rate != as->sample_rate){
-	fprintf(stderr, "OSS: %i Hz sample rate not supported.\n",
+	tc2_print("OSS", TC2_PRINT_WARNING, "%i Hz sample rate not supported.\n",
 		as->sample_rate);
     }
 
     ioctl(dsp, SNDCTL_DSP_GETOSPACE, &abi);
-    fprintf(stderr, "OSS: %i fragments of %i bytes\n",
+    tc2_print("OSS", TC2_PRINT_VERBOSE, "%i fragments of %i bytes\n",
 	    abi.fragstotal, abi.fragsize);
 
     oo = calloc(1, sizeof(*oo));

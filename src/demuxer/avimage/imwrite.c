@@ -109,7 +109,8 @@ im_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     if(!codecs[i].name){
-	fprintf(stderr, "Unsupported format %s\n", s->common.codec);
+	tc2_print("AVIMAGE", TC2_PRINT_ERROR,
+		  "Unsupported format %s\n", s->common.codec);
 	return PROBE_FAIL;
     }
 
@@ -140,12 +141,13 @@ im_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     char *url;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
-	fprintf(stderr, "No output file\n");
+	tc2_print("AVIMAGE", TC2_PRINT_ERROR, "No output file\n");
 	return NULL;
     }
 
     if(strncmp(s->common.codec, "video/raw", 9)){
-	fprintf(stderr, "Unsupported format %s\n", s->common.codec);
+	tc2_print("AVIMAGE", TC2_PRINT_ERROR,
+		  "Unsupported format %s\n", s->common.codec);
 	return NULL;
     }
 

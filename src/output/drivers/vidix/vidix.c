@@ -321,7 +321,7 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
 	tcconf_getvalue(cs, "video/aspect", "%f", &dasp);
 
     if(!(drvdir = driver_video_vidix_conf_driver_dir)){
-	fprintf(stderr, "VIDIX: No driver dir.\n");
+	tc2_print("VIDIX", TC2_PRINT_ERROR, "No driver dir.\n");
 	return NULL;
     }
 
@@ -334,7 +334,7 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
 
     vxdrv = vdlOpen(drvdir, drv, TYPE_OUTPUT, 0);
     if(!vxdrv){
-	fprintf(stderr, "VIDIX: Failed to open driver.\n");
+	tc2_print("VIDIX", TC2_PRINT_ERROR, "Failed to open driver.\n");
 	return NULL;
     }
 
@@ -353,7 +353,7 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
     }
 
     if(!fmtok){
-	fprintf(stderr, "VIDIX: No supported pixel format found.\n");
+	tc2_print("VIDIX", TC2_PRINT_ERROR, "No supported pixel format found.\n");
 	vdlClose(vxdrv);
 	return NULL;
     }
@@ -441,7 +441,7 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
 	vxw->use_dma = 1;
 	vxw->run = 1;
 	pthread_create(&vxw->dmath, NULL, vx_dmacpy, vxw);
-	fprintf(stderr, "VIDIX: Using DMA.\n");
+	tc2_print("VIDIX", TC2_PRINT_VERBOSE, "Using DMA.\n");
     } else {
 	vxw->frames = vxw->pbc->num_frames;
     }

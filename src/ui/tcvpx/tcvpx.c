@@ -78,7 +78,7 @@ tcvpx_init(char *p)
     init_events();
 
     if((skin = load_skin(skinfile)) == NULL){
-	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
+	tc2_print("TCVPX", TC2_PRINT_ERROR, "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 
@@ -87,7 +87,7 @@ tcvpx_init(char *p)
     xtk_window_set_title(skin->window, "TCVP");
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
-	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
+	tc2_print("TCVPX", TC2_PRINT_ERROR, "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 

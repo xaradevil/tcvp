@@ -71,8 +71,8 @@ enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 		else if(s->stream_type == STREAM_TYPE_AUDIO)
 		    m = suffix_map[i].acodec;
 		else
-		    fprintf(stderr, "ENCODE: unknown stream type %i\n",
-			    s->stream_type);
+		    tc2_print("ENCODE", TC2_PRINT_ERROR, "unknown stream type %i\n",
+			      s->stream_type);
 		break;
 	    }
 	}

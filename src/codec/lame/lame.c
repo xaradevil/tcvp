@@ -112,7 +112,7 @@ l_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	tcfree(pk);
 
     if(!strstr(s->common.codec, "pcm-s16")){
-	fprintf(stderr, "LAME: unsupported codec %s\n", s->common.codec);
+	tc2_print("LAME", TC2_PRINT_ERROR, "unsupported codec %s\n", s->common.codec);
 	return PROBE_FAIL;
     }
 
@@ -123,7 +123,7 @@ l_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     lame_set_bWriteVbrTag(le->gf, 0);
     lame_mp3_tags_fid(le->gf, NULL);
     if(lame_init_params(le->gf) < 0){
-	fprintf(stderr, "LAME: init failed\n");
+	tc2_print("LAME", TC2_PRINT_ERROR, "init failed\n");
 	return PROBE_FAIL;
     }
 

@@ -132,7 +132,7 @@ alsa_write(audio_driver_t *ad, void *data, int samples)
 
     if(r < 0 && r != -EAGAIN){
 	if(snd_pcm_prepare(ao->pcm) < 0){
-	    fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
+	    tc2_print("ALSA", TC2_PRINT_ERROR, "%s\n", snd_strerror(r));
 	} else {
 	    r = -EAGAIN;
 	}
@@ -180,7 +180,7 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     }
 
     if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)){
-	fprintf(stderr, "ALSA: Can't open device '%s'\n", device);
+	tc2_print("ALSA", TC2_PRINT_ERROR, "Can't open device '%s'\n", device);
 	return NULL;
     }
 
@@ -211,12 +211,12 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 	afmt = SND_PCM_FORMAT_S8;
 	format = "s8";
     } else {
-	fprintf(stderr, "ALSA: unsupported format %s\n", as->codec);
+	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n", as->codec);
 	goto err;
     }
 
     if(snd_pcm_hw_params_test_format(pcm, hwp, afmt)){
-	fprintf(stderr, "ALSA: unsupported format %s\n", as->codec);
+	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n", as->codec);
 	goto err;
     }
     snd_pcm_hw_params_set_format(pcm, hwp, afmt);
@@ -227,7 +227,7 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     snd_pcm_hw_params_set_period_time_near(pcm, hwp, &ptime, &tmp);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
-	fprintf(stderr, "ALSA: snd_pcm_hw_parameters failed\n");
+	tc2_print("ALSA", TC2_PRINT_ERROR, "snd_pcm_hw_parameters failed\n");
 	goto err;
     }
 

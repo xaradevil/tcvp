@@ -297,7 +297,7 @@ mad_decode(tcvp_pipe_t *p, packet_t *pk)
 		if(rs == md->bs){
 		    md->buf = realloc(md->buf, md->bufsize *= 2);
 		    if(++nd == 8){
-			fprintf(stderr, "MAD: nothing decoded, bad file?\n");
+			tc2_print("MAD", TC2_PRINT_WARNING, "nothing decoded, bad file?\n");
 			goto out;
 		    }
 		} else {

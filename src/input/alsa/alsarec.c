@@ -61,7 +61,7 @@ alsa_read(void *buf, size_t size, size_t count, url_t *u)
 	} else if(r == -EPIPE){
 	    snd_pcm_prepare(ai->pcm);
 	} else if(r < 0){
-	    fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
+	    tc2_print("ALSA", TC2_PRINT_ERROR, "%s\n", snd_strerror(r));
 	    return -1;
 	}
 
@@ -119,7 +119,7 @@ alsa_open(char *name, char *mode)
 	dev = tcvp_input_alsa_conf_device;
 
     if(snd_pcm_open(&pcm, dev, SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK)){
-	fprintf(stderr, "ALSA: Can't open '%s' for capture\n", dev);
+	tc2_print("ALSA", TC2_PRINT_ERROR, "Can't open '%s' for capture\n", dev);
 	return NULL;
     }
 
@@ -137,7 +137,7 @@ alsa_open(char *name, char *mode)
     snd_pcm_hw_params_set_buffer_size(pcm, hwp, tcvp_input_alsa_conf_buffer);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
-	fprintf(stderr, "ALSA: failed setting capture parameters\n");
+	tc2_print("ALSA", TC2_PRINT_ERROR, "failed setting capture parameters\n");
 	goto err;
     }
 
