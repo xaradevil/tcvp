@@ -39,7 +39,7 @@ typedef struct _mwmhints {
 int mapped=1;
 
 Atom XdndEnter, XdndLeave, XdndPosition, XdndStatus, XdndDrop,
-    XdndType, XdndSelection, XdndFinished, tcvpxa;
+    XdndType, XdndSelection, XdndFinished, XdndActionPrivate, tcvpxa;
 
 Display *xd;
 int xs;
@@ -219,12 +219,12 @@ x11_event(void *p)
 
 	case ClientMessage:
 	    if(xe.xclient.message_type == XdndEnter) {
-		fprintf(stderr, "enter\n");
+/* 		fprintf(stderr, "enter\n"); */
 
 	    } else if(xe.xclient.message_type == XdndPosition) {
 		XEvent xevent;
 
-		fprintf(stderr, "position\n");
+/* 		fprintf(stderr, "position\n"); */
 
 		memset (&xevent, 0, sizeof(xevent));
 		xevent.xany.type = ClientMessage;
@@ -236,17 +236,17 @@ x11_event(void *p)
 		xevent.xclient.data.l[1] = 1;
 		xevent.xclient.data.l[2] = (skin->x << 16) | skin->y;
 		xevent.xclient.data.l[3] = (skin->width << 16) | skin->height;
-		xevent.xclient.data.l[4] = xe.xclient.data.l[4];
+		xevent.xclient.data.l[4] = XdndActionPrivate;
 		XSendEvent(xd, xe.xclient.window, 0, 0, &xevent);
 
 	    } else if(xe.xclient.message_type == XdndDrop) {
-		fprintf(stderr, "drop\n");
+/* 		fprintf(stderr, "drop\n"); */
 
 		XConvertSelection(xd, XdndSelection, XdndType, tcvpxa,
 				  xe.xclient.window, CurrentTime);
 
 	    } else if(xe.xclient.message_type == XdndLeave) {
-		fprintf(stderr, "leave\n");
+/* 		fprintf(stderr, "leave\n"); */
 	    }
 	    break;
 	}
@@ -424,6 +424,7 @@ create_window(skin_t *skin)
     XTextProperty windowName;
     char *title = "TCVP";
     Atom xdndversion = 3, xa_atom;
+    Window toplevel;
 
     skin->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
 			     skin->width, skin->height, 0,
@@ -443,6 +444,7 @@ create_window(skin_t *skin)
     XdndType = XInternAtom(xd, "text/plain", False);
     XdndFinished = XInternAtom(xd, "XdndFinished", False);
     XdndSelection = XInternAtom(xd, "XdndSelection", False);
+    XdndActionPrivate = XInternAtom(xd, "XdndActionPrivate", False);
     tcvpxa = XInternAtom(xd, "TCVPSEL", False);
 
     memset(&mwmhints, 0, sizeof(MWMHints));
@@ -456,7 +458,19 @@ create_window(skin_t *skin)
     check_wm(skin);
 
     prop = XInternAtom(xd, "XdndAware", False);
-    XChangeProperty(xd, skin->xw, prop, xa_atom, 32,
+    toplevel = skin->xw;
+    for(;;) {
+	Window root, w, *c;
+	int n;
+	XQueryTree(xd, toplevel, &root, &w, &c, &n);
+	XFree(c);
+	if(w != root) {
+	    toplevel = w;
+	} else {
+	    break;
+	}
+    }
+    XChangeProperty(xd, toplevel, prop, xa_atom, 32,
 		    PropModeReplace, (unsigned char *) &xdndversion, 1);
 
     skin->bgc = XCreateGC (xd, skin->xw, 0, NULL);
