@@ -130,6 +130,8 @@ lookup_action(xtk_widget_t *w, void *p)
     widget_data_t *wd = (widget_data_t*)w->data;
     char *ac_c, *c;
 
+    tc2_print("TCVPX", TC2_PRINT_DEBUG+5, "Looking up action \"%s\"\n",wd->action);
+
     if(wd->action) {
 	ac_c = c = strdup(wd->action);
 
@@ -236,6 +238,8 @@ load_skin(char *skinconf)
     } else {
 	*tmp = 0;
     }
+
+    tcconf_getvalue(skin->config, "doubleclick_action", "%s", &skin->dblclick);
 
 /*     if(tcconf_getvalue(skin->config, "name", "%s", &tmp) == 1) */
 /* 	printf("Loaded skin: \"%s\"\n", tmp); */
@@ -713,6 +717,7 @@ tcvp_close_ui(xtk_widget_t *w, void *p)
     widget_data_t *wd = win->data;
 
     unregister_textwidget(win, wd->value);
+    free(wd->action);
     free(wd);
 
     xtk_window_destroy(win);
@@ -760,7 +765,11 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
     }
 
     wd = calloc(sizeof(*wd), 1);
+    wd->action = skin->dblclick;
+    wd->skin = skin;
     xtk_widget_container_set_data(skin->window, wd);
+
+    xtk_window_set_doubleclick_callback(skin->window, lookup_action);
 
     if(tcvp_ui_tcvpx_conf_change_window_title) {
 	char *default_text = malloc(1024);

@@ -73,11 +73,15 @@ tcvpx_init(tcvp_module_t *tm)
 	return -1;
     }
 
+    wd = calloc(sizeof(*wd), 1);
+    wd->action = skin->dblclick;
+    wd->skin = skin;
+
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
+    xtk_window_set_doubleclick_callback(skin->window, lookup_action);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
     xtk_window_set_class(skin->window, "TCVP");
 
-    wd = calloc(sizeof(*wd), 1);
     xtk_widget_container_set_data(skin->window, wd);
 
     if(tcvp_ui_tcvpx_conf_change_window_title) {

@@ -51,12 +51,14 @@ typedef struct {
     int state;
     tchash_table_t *id_hash;
     tclist_t *templates;
+    char *dblclick;
 } skin_t;
 
 extern skin_t* load_skin(char *skinfile);
 extern int create_ui(xtk_widget_t *c, skin_t *skin,
 		     tcconf_section_t *config, tchash_table_t *parameters);
 
+extern int lookup_action(xtk_widget_t *w, void *p);
 extern int init_skins(void);
 extern void cleanup_skins(void);
 
