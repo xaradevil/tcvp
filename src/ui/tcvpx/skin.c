@@ -23,8 +23,39 @@
 #include <X11/Xlib.h>
 #include "widgets.h"
 
+static int tcvp_playlist(tcwidget_t *w, void *p);
+
+typedef struct {
+    char *name;
+    action_cb_t action;
+} saction_t;
+
+saction_t actions[] = {
+    {"play", tcvp_play},
+    {"stop", tcvp_stop},
+    {"pause", tcvp_pause},
+    {"previous", tcvp_previous},
+    {"next", tcvp_next},
+    {"playlist", tcvp_playlist},
+    {"close", tcvp_close}, 
+    {NULL, NULL}
+};
 
 static int pl_visible = 0;
+
+static action_cb_t
+lookup_action(char *name)
+{
+    int i;
+
+    for(i = 0; actions[i].name != NULL; i++) {
+	if(strcmp(name, actions[i].name) == 0) {
+	    return actions[i].action;
+	}
+    }
+
+    return NULL;
+}
 
 extern skin_t*
 load_skin(char *skinconf)
@@ -83,23 +114,26 @@ create_skinned_background(skin_t *skin, conf_section *sec)
 
 
 static tcimage_button_t*
-create_skinned_button(skin_t *skin, conf_section *sec, action_cb_t acb)
+create_skinned_button(skin_t *skin, conf_section *sec)
 {
-    char *file, *of = NULL, *df = NULL;
+    char *file, *action, *of = NULL, *df = NULL;
     int x, y;
     int i=0;
+    action_cb_t acb;
 
+    i += conf_getvalue(sec, "action", "%s", &action);
     i += conf_getvalue(sec, "image", "%s", &file);
     i += conf_getvalue(sec, "position", "%d %d", &x, &y);
 
-    if(i != 3){
+    if(i != 4){
 	return NULL;
     }
 
     conf_getvalue(sec, "mouse_over", "%s", &of);
     conf_getvalue(sec, "pressed", "%s", &df);
 
-    return(create_button(skin, x, y, file, of, df, acb));
+    acb = lookup_action(action);
+    return(create_button(skin, x, y, file, of, df, acb, action));
 }
 
 
@@ -136,7 +170,7 @@ create_skinned_label(skin_t *skin, conf_section *sec, char *text,
     }
 
     return(create_label(skin, x, y, w, h, xoff, yoff, text, font,
-			color, alpha, stype, acb));
+			color, alpha, stype, acb, NULL));
 }
 
 
@@ -161,7 +195,7 @@ create_skinned_seek_bar(skin_t *skin, conf_section *sec, double position,
     }
 
     return(create_seek_bar(skin, x, y, sp_x, sp_y, ep_x, ep_y, bg,
-			   indicator, position, acb));
+			   indicator, position, acb, NULL));
 }
 
 
@@ -193,7 +227,7 @@ create_skinned_state(skin_t *skin, conf_section *sec, char *state,
     }
 
     if(ns > 0) {
-	return(create_state(skin, x, y, ns, imgs, states, state, acb));
+	return(create_state(skin, x, y, ns, imgs, states, state, acb, NULL));
     } else {
 	return NULL;
     }
@@ -234,7 +268,7 @@ extern int
 create_ui(skin_t *skin)
 {
     conf_section *sec;
-    void *w;
+    void *w, *s;
 
     conf_getvalue(skin->config, "playlist", "%s", &skin->playlistfile);
 
@@ -245,60 +279,14 @@ create_ui(skin_t *skin)
     }
     list_push(skin->widgets, skin->background);
 
-    sec = conf_getsection(skin->config, "buttons/previous");
-    if(sec){
-	w = create_skinned_button(skin, sec, tcvp_previous);
-	if(w){
-	    list_push(skin->widgets, w);
-	}
-    }
+    for(s=NULL, sec = conf_nextsection(skin->config, "button", &s);
+	sec != NULL; sec = conf_nextsection(skin->config, "button", &s)) {
 
-    sec = conf_getsection(skin->config, "buttons/play");
-    if(sec){
-	w = create_skinned_button(skin, sec, tcvp_play);
+	w = create_skinned_button(skin, sec);
 	if(w){
 	    list_push(skin->widgets, w);
 	}
-    }
 
-    sec = conf_getsection(skin->config, "buttons/pause");
-    if(sec){
-	w = create_skinned_button(skin, sec, tcvp_pause);
-	if(w){
-	    list_push(skin->widgets, w);
-	}
-    }
-
-    sec = conf_getsection(skin->config, "buttons/stop");
-    if(sec){
-	w = create_skinned_button(skin, sec, tcvp_stop);
-	if(w){
-	    list_push(skin->widgets, w);
-	}
-    }
-
-    sec = conf_getsection(skin->config, "buttons/next");
-    if(sec){
-	w = create_skinned_button(skin, sec, tcvp_next);
-	if(w){
-	    list_push(skin->widgets, w);
-	}
-    }
-
-    sec = conf_getsection(skin->config, "buttons/quit");
-    if(sec){
-	w = create_skinned_button(skin, sec, tcvp_close);
-	if(w){
-	    list_push(skin->widgets, w);
-	}
-    }
-    
-    sec = conf_getsection(skin->config, "buttons/playlist");
-    if(sec){
-	w = create_skinned_button(skin, sec, tcvp_playlist);
-	if(w){
-	    list_push(skin->widgets, w);
-	}
     }
 
     sec = conf_getsection(skin->config, "time");

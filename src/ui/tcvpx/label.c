@@ -350,7 +350,8 @@ destroy_label(tcwidget_t *w)
 extern tclabel_t*
 create_label(skin_t *skin, int x, int y, int width, int height,
 	     int xoff, int yoff, char *text, char *font,
-	     char *color, short alpha, int scroll, action_cb_t action)
+	     char *color, short alpha, int scroll, action_cb_t action,
+	     void *data)
 {
     long emask;
     XColor xc;
@@ -389,6 +390,7 @@ create_label(skin_t *skin, int x, int y, int width, int height,
     txt->s_space = 20;
     txt->s_dir = 1;
     txt->enabled = 1;
+    txt->data = data;
 
 
     XftColorAllocValue(xd, DefaultVisual(xd, xs), DefaultColormap(xd, xs),

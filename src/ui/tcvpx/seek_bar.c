@@ -147,7 +147,7 @@ destroy_seek_bar(tcwidget_t *w)
 extern tcseek_bar_t*
 create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 		int ep_x, int ep_y, char *background, char *indicator,
-		double position, action_cb_t action)
+		double position, action_cb_t action, void *data)
 {
     tcseek_bar_t *sb = calloc(sizeof(tcseek_bar_t), 1);
     long emask;
@@ -168,6 +168,7 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
     sb->width = sb->background->width;
     sb->height = sb->background->height;
     sb->enabled = 1;
+    sb->data = data;
 
     sb->win = XCreateWindow(xd, skin->xw, sb->x, sb->y,
 			     sb->width, sb->height,

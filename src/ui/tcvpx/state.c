@@ -79,7 +79,7 @@ change_state(tcstate_t *st, char *state)
 
 extern tcstate_t*
 create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
-	     char **states, char *state, action_cb_t action)
+	     char **states, char *state, action_cb_t action, void *data)
 {
     int i;
     tcstate_t *st = calloc(sizeof(tcstate_t), 1);
@@ -94,6 +94,7 @@ create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
     st->num_states = num_states;
     st->states = malloc(num_states * sizeof(*st->states));
     st->images = malloc(num_states * sizeof(*st->images));
+    st->data = data;
     
     for(i=0; i<num_states; i++) {
 /* 	fprintf(stderr, "%s -> %s\n", states[i], imagefiles[i]); */

@@ -154,24 +154,26 @@ tcbackground_t* create_background(skin_t *skin, char *imagefile);
 
 tcimage_button_t* create_button(skin_t *skin, int x, int y,
 				char *imagefile, char *over_image,
-				char *down_image, action_cb_t action);
+				char *down_image, action_cb_t action,
+				void *data);
 
 int change_label(tclabel_t *txt, char *text);
 tclabel_t* create_label(skin_t *skin, int x, int y, int width, int height,
 			int xoff, int yoff, char *text, char *font,
 			char *color, short alpha, int scroll,
-			action_cb_t action);
+			action_cb_t action, void *data);
 
 int change_seek_bar(tcseek_bar_t *sb, double position);
 tcseek_bar_t *create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 			      int ep_x, int ep_y, char *bg, char *indicator,
-			      double position, action_cb_t action);
+			      double position, action_cb_t action,
+			      void *data);
 int enable_seek_bar(tcseek_bar_t *sb);
 int disable_seek_bar(tcseek_bar_t *sb);
 
 tcstate_t* create_state(skin_t *skin, int x, int y, int num_states, 
 			char **imagefiles, char **states, char *state,
-			action_cb_t action);
+			action_cb_t action, void *data);
 int change_state(tcstate_t* st, char *state);
 
 int widget_cmp(const void *, const void *);

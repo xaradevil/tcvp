@@ -91,7 +91,7 @@ exit_button(tcwidget_t *w, XEvent *xe)
 
 extern tcimage_button_t*
 create_button(skin_t *skin, int x, int y, char *imagefile, char *over_image,
-	      char *down_image, action_cb_t action)
+	      char *down_image, action_cb_t action, void *data)
 {
     tcimage_button_t *btn = calloc(sizeof(tcimage_button_t), 1);
     long emask = 0;
@@ -106,6 +106,7 @@ create_button(skin_t *skin, int x, int y, char *imagefile, char *over_image,
     btn->width = btn->img->width;
     btn->height = btn->img->height;
     btn->enabled = 1;
+    btn->data = data;
 
     if(over_image != NULL) {
 	btn->over_img = load_image(skin->path, over_image);
