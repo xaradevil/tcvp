@@ -14,6 +14,7 @@
 0	string			RIFF
 >8	string			WAVE		audio/x-wav
 >8	string			AVI		video/x-msvideo
+>8	string			CDXA		video/x-cdxa
 8	string			AIFF		audio/x-aiff	
 8	string			AIFC		audio/x-aiff	
 8	string			8SVX		audio/x-aiff	
