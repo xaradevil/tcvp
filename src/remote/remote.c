@@ -25,6 +25,7 @@ typedef struct tcvp_remote {
     int ssock, rsock;
     tcconf_section_t *conf;
     list *clients;
+    fd_set clf;
     int run;
 } tcvp_remote_t;
 
@@ -33,19 +34,12 @@ typedef struct tcvp_remote_client {
     struct sockaddr_in addr;
 } tcvp_remote_client_t;
 
-static int TCVP_STATE;
-static int TCVP_OPEN;
-static int TCVP_START;
-static int TCVP_CLOSE;
-static int TCVP_PL_START;
-static int TCVP_PL_STOP;
-static int TCVP_PL_NEXT;
-static int TCVP_PL_PREV;
-static int TCVP_PL_ADD;
-static int TCVP_PL_ADDLIST;
-static int TCVP_PL_REMOVE;
-static int TCVP_PL_SHUFFLE;
+#define CONTROL 1
+#define STATUS  2
+#define TIMER   3
 
+static int *event_types;
+static int max_event;
 
 static void *
 rm_event(void *p)
@@ -78,6 +72,7 @@ rm_event(void *p)
 		if(write(cl->socket, &s, 4) < 0 ||
 		   write(cl->socket, se, size) < 0){
 		    list_remove(rm->clients, li);
+		    FD_CLR(cl->socket, &rm->clf);
 		    close(cl->socket);
 		}
 	    }
@@ -114,14 +109,21 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 	p += r;
     }
 
+    fprintf(stderr, "REMOTE: received %s\n", buf);
+
     te = tcvp_event_deserialize(buf, size);
     if(te){
 	tcattr_set(te, "addr", &cl->addr, NULL, NULL);
-	eventq_send(rm->sc, te);
+	if(te->type > max_event || !event_types[te->type]){
+	    fprintf(stderr, "REMOTE: don't know what to do with %s\n", buf);
+	} else if(event_types[te->type] == CONTROL){
+	    eventq_send(rm->sc, te);
+	} else if(event_types[te->type] == STATUS){
+	    eventq_send(rm->ss, te);
+	}
 	tcfree(te);
     }
 
-    fprintf(stderr, "REMOTE: received %s\n", buf);
     return 0;
 }
 
@@ -129,19 +131,12 @@ static void *
 rm_listen(void *p)
 {
     tcvp_remote_t *rm = p;
-    fd_set clf;
-
-    FD_ZERO(&clf);
-    if(rm->ssock >= 0)
-	FD_SET(rm->ssock, &clf);
-    if(rm->rsock >= 0)
-	FD_SET(rm->rsock, &clf);
 
     while(rm->run){
 	tcvp_remote_client_t *cl;
 	list_item *li = NULL;
 	struct timeval tv = { 1, 0 };
-	fd_set tmp = clf;
+	fd_set tmp = rm->clf;
 
 	if(select(FD_SETSIZE, &tmp, NULL, NULL, &tv) <= 0)
 	    continue;
@@ -160,16 +155,18 @@ rm_listen(void *p)
 	    cl = malloc(sizeof(*cl));
 	    cl->socket = s;
 	    cl->addr = sa;
-	    FD_SET(s, &clf);
+	    FD_SET(s, &rm->clf);
 	    list_push(rm->clients, cl);
 	}
 
 	while((cl = list_next(rm->clients, &li))){
-	    if(FD_ISSET(cl->socket, &tmp))
+	    if(FD_ISSET(cl->socket, &tmp)){
 		if(read_event(rm, cl) < 0){
 		    fprintf(stderr, "REMOTE: read event failed\n");
 		    list_remove(rm->clients, li);
+		    FD_CLR(cl->socket, &rm->clf);
 		}
+	    }
 	}
     }
 
@@ -264,13 +261,14 @@ rm_new(tcconf_section_t *cs)
     rm = calloc(1, sizeof(*rm));
     rm->conf = tcref(cs);
     rm->clients = list_new(TC_LOCK_SLOPPY);
-    
+    FD_ZERO(&rm->clf);
+
     if(!connect(sock, (struct sockaddr *) &rsa, sizeof(rsa))){
 	tcvp_remote_client_t *cl;
 	char buf[64];
 	sprintf(buf, "TCVP/remote-%i", qnum++);
 	tcconf_setvalue(cs, "qname", "%s", buf);
-	rm->rsock = sock;
+	FD_SET(sock, &rm->clf);
 	cl = calloc(1, sizeof(*cl));
 	cl->socket = sock;
 	cl->addr = rsa;
@@ -282,8 +280,8 @@ rm_new(tcconf_section_t *cs)
 	    return NULL;
 	}
 	listen(sock, 16);
+	FD_SET(sock, &rm->clf);
 	rm->ssock = sock;
-	rm->rsock = -1;
     }
 
     ad = tcallocdz(sizeof(*ad), NULL, rm_free);
@@ -293,21 +291,34 @@ rm_new(tcconf_section_t *cs)
     return ad;
 }
 
+static void
+get_event(char *evt, int type)
+{
+    int e = tcvp_event_get(evt);
+    if(e > max_event){
+	event_types = realloc(event_types, (e + 1) * sizeof(*event_types));
+	memset(event_types + e, 0, (e - max_event) * sizeof(*event_types));
+	max_event = e;
+    }
+    event_types[e] = type;
+}
+
 extern int
 rm_init(char *p)
 {
-    TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
-    TCVP_PL_STOP = tcvp_event_get("TCVP_PL_STOP");
-    TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
-    TCVP_PL_PREV = tcvp_event_get("TCVP_PL_PREV");
-    TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
-    TCVP_PL_ADDLIST = tcvp_event_get("TCVP_PL_ADDLIST");
-    TCVP_PL_REMOVE = tcvp_event_get("TCVP_PL_REMOVE");
-    TCVP_PL_SHUFFLE = tcvp_event_get("TCVP_PL_SHUFFLE");
-    TCVP_STATE = tcvp_event_get("TCVP_STATE");
-    TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 
-    TCVP_START = tcvp_event_get("TCVP_START");
-    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
+    get_event("TCVP_PL_START", CONTROL);
+    get_event("TCVP_PL_STOP", CONTROL);
+    get_event("TCVP_PL_NEXT", CONTROL);
+    get_event("TCVP_PL_PREV", CONTROL);
+    get_event("TCVP_PL_ADD", CONTROL);
+    get_event("TCVP_PL_ADDLIST", CONTROL);
+    get_event("TCVP_PL_REMOVE", CONTROL);
+    get_event("TCVP_PL_SHUFFLE", CONTROL);
+    get_event("TCVP_STATE", STATUS);
+    get_event("TCVP_OPEN", CONTROL); 
+    get_event("TCVP_START", CONTROL);
+    get_event("TCVP_CLOSE", CONTROL);
+    get_event("TCVP_TIMER", TIMER);
 
     return 0;
 }
