@@ -120,7 +120,7 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 
 	pthread_mutex_lock(&as->mtx);
 	s = av_read_packet(afc, apk);
-	pthread_mutex_unlock(&as0>mtx);
+	pthread_mutex_unlock(&as->mtx);
 
 	if(s != 0){
 	    pk = NULL;
@@ -129,7 +129,7 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 
 	pk = malloc(sizeof(*pk));
 	pk->data = &apk->data;
-	pk->size = &apk->size;
+	pk->sizes = &apk->size;
 	pk->planes = 1;
 	pk->pts = apk->pts;
 	pk->free = avf_free_packet;

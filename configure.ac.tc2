@@ -4,10 +4,11 @@ AM_INIT_AUTOMAKE
 
 TC2_INIT
 
-AC_SUBST([CPPFLAGS], [-I\$(top_srcdir)/include])
+AC_SUBST([CPPFLAGS], [-I\$\(top_srcdir\)/include])
 AC_CONFIG_FILES([Makefile
 		 interfaces/Makefile
 		 src/Makefile
 		 src/demuxer/Makefile
-		 src/demuxer/avformat/Makefile])
+		 src/demuxer/avformat/Makefile
+		 src/demuxer/video/Makefile])
 AC_OUTPUT

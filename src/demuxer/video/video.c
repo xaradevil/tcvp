@@ -49,27 +49,27 @@ v_close(muxed_stream_t *ms)
 #define PAUSE   2
 #define STOP    3
 
-typedef struct video_play {
+typedef struct v_play {
     muxed_stream_t *stream;
     tcvp_pipe_t **pipes;
     pthread_t *threads;
     int state;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
-} video_play_t;
+} v_play_t;
 
 typedef struct vp_thread {
     int stream;
-    video_play_t *vp;
+    v_play_t *vp;
 } vp_thread_t;
 
 static void *
 play_stream(void *p)
 {
     vp_thread_t *vt = p;
-    video_play_t *vp = vt->vp;
+    v_play_t *vp = vt->vp;
     muxed_stream_t *ms = vp->stream;
-    int stream = vp->stream;
+    int stream = vt->stream;
     packet_t *pk;
 
     while(vp->state != STOP){
@@ -90,7 +90,7 @@ play_stream(void *p)
 static int
 start(tcvp_pipe_t *p)
 {
-    video_play_t *vp = p->private;
+    v_play_t *vp = p->private;
 
     pthread_mutex_lock(&vp->mtx);
     vp->state = RUN;
@@ -103,9 +103,9 @@ start(tcvp_pipe_t *p)
 static int
 stop(tcvp_pipe_t *p)
 {
-    video_play_t *vp = p->private;
+    v_play_t *vp = p->private;
 
-    pthread_mutex_lock(&vp->lock);
+    pthread_mutex_lock(&vp->mtx);
     vp->state = PAUSE;
     pthread_mutex_unlock(&vp->mtx);
 
@@ -115,15 +115,15 @@ stop(tcvp_pipe_t *p)
 static int
 v_free(tcvp_pipe_t *p)
 {
-    video_play_t *vp = p->private;
+    v_play_t *vp = p->private;
     int i, j;
 
     pthread_mutex_lock(&vp->mtx);
     vp->state = STOP;
     pthread_mutex_unlock(&vp->mtx);
 
-    for(i = 0, j = 0; i < vp->ms->n_streams; i++){
-	if(vp->ms->used_streams[i]){
+    for(i = 0, j = 0; i < vp->stream->n_streams; i++){
+	if(vp->stream->used_streams[i]){
 	    pthread_join(vp->threads[j], NULL);
 	    j++;
 	}
@@ -141,7 +141,7 @@ extern tcvp_pipe_t *
 v_play(muxed_stream_t *ms, tcvp_pipe_t **out)
 {
     tcvp_pipe_t *p;
-    video_play_t *vp;
+    v_play_t *vp;
     int i, j;
 
     vp = malloc(sizeof(*vp));
