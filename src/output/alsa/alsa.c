@@ -215,7 +215,6 @@ open_timer(snd_pcm_t *pcm)
     timer__t *tm;
     u_int card, dev, sdev;
     char name[128];
-    long res;
 
     snd_timer_params_alloca(&pm);
     snd_pcm_info_alloca(&ifo);
@@ -275,7 +274,6 @@ alsa_open(audio_stream_t *as, char *device, timer__t **timer)
     snd_pcm_t *pcm;
     snd_pcm_hw_params_t *hwp;
     u_int rate = as->sample_rate, channels = as->channels, ptime;
-    snd_pcm_uframes_t ps;
     int tmp;
 
     if(!device)

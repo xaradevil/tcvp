@@ -127,13 +127,10 @@ print_info(muxed_stream_t *stream)
 extern player_t *
 t_open(char *name)
 {
-    int i, j;
-    char buf[64];
-    codec_new_t acnew = NULL, vcnew = NULL;
+    int i;
     timer_new_t tmnew;
     stream_t *as = NULL, *vs = NULL;
     tcvp_pipe_t **codecs;
-    int aci, vci, asi, vsi;
     tcvp_pipe_t *demux = NULL;
     tcvp_pipe_t *vcodec = NULL, *acodec = NULL;
     tcvp_pipe_t *sound = NULL, *video = NULL;
