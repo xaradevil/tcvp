@@ -271,17 +271,9 @@ update_time(void)
     *pos = (s_length>0)?(double)s_time/s_length:-1;
     change_variable("position", pos);
 
-    char *spaces;
     int m = t/60;
-    if(m < 10){
-	spaces = "  ";
-    } else if(m >= 10 && m < 100){
-	spaces = " ";
-    } else {
-	spaces = "";
-    }
 
-    snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
+    snprintf(text, 8, "%c%d:%02d", sign, m, t%60);
     change_text("time", text);
 
     return 0;
