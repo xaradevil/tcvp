@@ -280,11 +280,15 @@ avi_packet(muxed_stream_t *ms, int stream)
 
 	    size = getu32(af->file);
 
+	    if(!strcmp(tag, "LIST")){
+		getu32(af->file); /* size */
+		getu32(af->file); /* rec */
+	    }
+
 	    if(!(isxdigit(tag[0]) && isxdigit(tag[1]))){
 		fprintf(stderr, "%s\n", tag);
 		af->eof = 1;
-		fseek(af->file, size + (size&1), SEEK_CUR);
-		continue;
+		break;
 	    }
 
 	    str = ((tag[0] - '0') << 4) + (tag[1] - '0');
@@ -311,6 +315,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 
 	    if(str != stream){
 		list_push(af->packets[str], pk);
+		pk = NULL;
 	    }
 	} while(str != stream);
     }
@@ -332,6 +337,8 @@ avi_close(muxed_stream_t *ms)
     for(i = 0; i < ms->n_streams; i++)
 	list_destroy(af->packets[i], (tc_free_fn) avi_free_packet);
     free(af->packets);
+
+    fclose(af->file);
     free(af);
 
     return 0;
