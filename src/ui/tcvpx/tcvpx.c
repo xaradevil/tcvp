@@ -67,12 +67,12 @@ update_time(skin_t *skin)
 {
     char text[8];
     int t = 0;
-    char sign = 1;
+    char sign = ' ';
 
     if(show_time == TCTIME_ELAPSED) {
 	t = s_time;
     } else if(show_time == TCTIME_REMAINING) {
-	sign = -1;;
+	sign = '-';
 	if(s_length > 0){
 	    t = s_length - s_time;
 	} else {
@@ -89,7 +89,17 @@ update_time(skin_t *skin)
     }
 
     if(skin->time){
-	snprintf(text, 8, "%4d:%02d", sign*t/60, t%60);
+	char *spaces;
+	int m = t/60;
+	if(m < 10){
+	    spaces = "  ";
+	} else if(m >= 10 && m < 100){
+	    spaces = " ";
+	} else {
+	    spaces = "";
+	}
+
+	snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
 	change_label(skin->time, text);
     }
     
