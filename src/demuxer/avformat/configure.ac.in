@@ -1,9 +1,11 @@
 AC_ARG_WITH([ffmpeg-src],
     AC_HELP_STRING([--with-ffmpeg-src], [FFmpeg source dir]),
-    AC_SUBST(FFMPEGSRC, $with_ffmpeg_src))
+    FFMPEGSRC=$with_ffmpeg_src)
 AC_ARG_WITH([ffmpeg-build],
     AC_HELP_STRING([--with-ffmpeg-build], [FFmpeg build dir]),
-    AC_SUBST(FFMPEGBLD, $with_ffmpeg_build))
+    FFMPEGBLD=$with_ffmpeg_build, FFMPEGBLD=$FFMPEGSRC)
 if test ! "$FFMPEGSRC" -o ! "$FFMPEGBLD"; then
     AC_WARN([FFmpeg source and build directories not found.])
 fi
+AC_SUBST(FFMPEGSRC)
+AC_SUBST(FFMPEGBLD)
