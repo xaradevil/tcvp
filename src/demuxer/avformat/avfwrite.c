@@ -178,7 +178,7 @@ avfw_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     p->private = avf;
 
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
-    p->format.common.codec = "avi";
+    p->format.common.codec = of->name;
 
     free(ofn);
     return p;
