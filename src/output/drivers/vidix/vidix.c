@@ -43,11 +43,12 @@ typedef struct vidix_window {
     int frames;
     int vframes;
     int use_dma;
-    char *dmabufs[VID_PLAY_MAXFRAMES];
-    int vfmap[VID_PLAY_MAXFRAMES];
-    int head, tail;
-    sem_t hsm, tsm;
+    char **dmabufs;
+    int *vfmap, *vfq;
+    int head, fqh, fqt;
+    sem_t hsm, tsm, dsm;
     vidix_dma_t *dma;
+    pthread_t dmath;
     window_manager_t *wm;
 } vx_window_t;
 
@@ -58,11 +59,13 @@ vx_show(video_driver_t *vd, int frame)
 
     if(vxw->use_dma){
 	sem_wait(&vxw->tsm);
+#if 0
 	if(vxw->vfmap[frame] != vxw->tail)
 	    fprintf(stderr, "VIDIX: %i != %i\n", vxw->vfmap[frame], vxw->tail);
+#endif
 	vdlPlaybackFrameSelect(vxw->driver, vxw->vfmap[frame]);
-	if(++vxw->tail == vxw->vframes)
-	    vxw->tail = 0;
+/* 	if(++vxw->tail == vxw->vframes) */
+/* 	    vxw->tail = 0; */
 	sem_post(&vxw->hsm);
     } else {
 	vdlPlaybackFrameSelect(vxw->driver, frame);
@@ -71,22 +74,44 @@ vx_show(video_driver_t *vd, int frame)
     return 0;
 }
 
+static void *
+vx_dmacpy(void *p)
+{
+    vx_window_t *vxw = p;
+    int frame;
+
+    for(;;){
+	sem_wait(&vxw->hsm);
+	sem_wait(&vxw->dsm);
+
+	frame = vxw->vfq[vxw->fqt];
+
+	vxw->dma->src = vxw->dmabufs[frame];
+	vxw->dma->dest_offset = vxw->pbc->offsets[vxw->head];
+	vxw->dma->idx = vxw->head;
+	vxw->vfmap[frame] = vxw->head;
+	vdlPlaybackCopyFrame(vxw->driver, vxw->dma);
+
+	if(++vxw->head == vxw->vframes)
+	    vxw->head = 0;
+	if(++vxw->fqt == vxw->frames)
+	    vxw->fqt = 0;
+
+	sem_post(&vxw->tsm);
+    }
+
+    return NULL;
+}
+
 static int
 vx_put(video_driver_t *vd, int frame)
 {
     vx_window_t *vxw = vd->private;
 
-    sem_wait(&vxw->hsm);
-    vxw->dma->src = vxw->dmabufs[frame];
-    vxw->dma->dest_offset = vxw->pbc->offsets[vxw->head];
-    vxw->dma->idx = frame;
-    vxw->vfmap[frame] = vxw->head;
-    vdlPlaybackCopyFrame(vxw->driver, vxw->dma);
-
-    if(++vxw->head == vxw->vframes)
-	vxw->head = 0;
-
-    sem_post(&vxw->tsm);
+    vxw->vfq[vxw->fqh] = frame;
+    sem_post(&vxw->dsm);
+    if(++vxw->fqh == vxw->frames)
+	vxw->fqh = 0;
 
     return 0;
 }
@@ -131,19 +156,25 @@ vx_close(video_driver_t *vd)
     vx_window_t *vxw = vd->private;
     int i;
 
+    if(vxw->use_dma){
+	pthread_cancel(vxw->dmath);
+	pthread_join(vxw->dmath, NULL);
+    }
+
     vxw->wm->close(vxw->wm);
     vdlPlaybackOff(vxw->driver);
     vdlClose(vxw->driver);
-    for(i = 0; i < VID_PLAY_MAXFRAMES; i++){
-	if(vxw->dmabufs[i]){
-	    free(vxw->dmabufs[i]);
-	}
-    }
 
     vdlFreeCapabilityS(vxw->caps);
     vdlFreePlaybackS(vxw->pbc);
-    if(vxw->dma)
+    if(vxw->use_dma){
 	vdlFreeDmaS(vxw->dma);
+	for(i = 0; i < vxw->frames; i++)
+	    free(vxw->dmabufs[i]);
+	free(vxw->dmabufs);
+	free(vxw->vfmap);
+	free(vxw->vfq);
+    }
 
     free(vxw);
     free(vd);
@@ -281,15 +312,19 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	vxw->frames = frames;
 	vxw->vframes = vxw->pbc->num_frames;
 	vxw->head = 0;
-	vxw->tail = 0;
-	sem_init(&vxw->hsm, 0, vxw->vframes / 2);
+	sem_init(&vxw->hsm, 0, vxw->vframes - 3);
 	sem_init(&vxw->tsm, 0, 0);
+	sem_init(&vxw->dsm, 0, 0);
+	vxw->dmabufs = malloc(frames * sizeof(*vxw->dmabufs));
+	vxw->vfmap = calloc(frames, sizeof(*vxw->vfmap));
+	vxw->vfq = calloc(frames, sizeof(*vxw->vfq));
 	for(i = 0; i < frames; i++){
 	    vxw->dmabufs[i] = valloc(vxw->pbc->frame_size);
 	}
 	vxw->dma->size = vxw->pbc->frame_size;
 	vxw->dma->flags = BM_DMA_SYNC;
 	vxw->use_dma = 1;
+	pthread_create(&vxw->dmath, NULL, vx_dmacpy, vxw);
 	fprintf(stderr, "VIDIX: Using DMA.\n");
     } else {
 	vxw->frames = vxw->pbc->num_frames;
