@@ -228,6 +228,11 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		pic->sizes[1] = pic->sizes[0]/2;
 		pic->sizes[2] = pic->sizes[0]/2;
 
+		if(mpd->info->display_picture->flags &
+		   PIC_FLAG_TOP_FIELD_FIRST){
+		    pic->pk.flags |= TCVP_PKT_FLAG_TOPFIELDFIRST;
+		}
+
 		if(mpd->info->display_picture->flags & PIC_FLAG_TAGS){
 		    uint32_t ptsh, ptsl;
 
@@ -246,7 +251,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 
 		    tc2_print("MPEG2", TC2_PRINT_DEBUG+1, "pts %llu\n",
 			      mpd->pts / 27);
-		    pic->pk.flags = TCVP_PKT_FLAG_PTS;
+		    pic->pk.flags |= TCVP_PKT_FLAG_PTS;
 		    pic->pk.pts = mpd->pts;
 		    mpd->pts += nf * mpd->info->sequence->frame_period / 2;
 		}
