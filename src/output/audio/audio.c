@@ -103,6 +103,8 @@ audio_flush(tcvp_pipe_t *p, int drop)
     if(drop){
 	ao->head = ao->tail = ao->buf;
 	ao->bbytes = 0;
+	ao->pqh = ao->pqt = 0;
+	ao->pqc = 0;
     } else {
 	while(ao->bbytes)
 	    pthread_cond_wait(&ao->cd, &ao->mx);
