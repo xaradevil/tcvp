@@ -433,6 +433,7 @@ static char *codec_names[][2] = {
     { (char *) CODEC_ID_H264, "video/h264" },
     { (char *) CODEC_ID_INDEO3, "video/indeo3" },
     { (char *) CODEC_ID_VP3, "video/vp3" },
+    { (char *) CODEC_ID_CINEPAK, "video/cinepak" },
 
     /* various pcm "codecs" */
     { (char *) CODEC_ID_PCM_S16LE, "audio/pcm-s16le" },
