@@ -215,6 +215,30 @@ pipe_end(tcvp_pipe_t *p)
 }
 
 static int
+use_stream(stream_shared_t *sh, int s, int t)
+{
+    void *cs = NULL;
+    int ss, u = 0;
+    char *c;
+
+    if(t == STREAM_TYPE_AUDIO)
+	c = "audio/stream";
+    else if(t == STREAM_TYPE_VIDEO)
+	c = "video/stream";
+    else
+	return 0;
+
+    if(tcconf_getvalue(sh->conf, c, ""))
+	return (t == STREAM_TYPE_VIDEO? sh->vs: sh->as) < 0;
+
+    while(tcconf_nextvalue(sh->conf, c, &cs, "%i", &ss) > 0)
+	if(ss == s)
+	    u = 1;
+
+    return u;
+}
+
+static int
 add_stream(stream_player_t *sp, int s)
 {
     stream_shared_t *sh = sp->shared;
@@ -238,16 +262,12 @@ add_stream(stream_player_t *sp, int s)
 
     sp->smap[s] = sid;
 
+    if(!use_stream(sh, s, sp->ms->streams[s].stream_type))
+	goto out;
+
     if(sp->ms->streams[s].stream_type == STREAM_TYPE_VIDEO){
-	if(sh->vs > -1)
-	    goto out;
 	sh->vs = sid;
     } else if(sp->ms->streams[s].stream_type == STREAM_TYPE_AUDIO){
-	if(sh->as > -1){
-	    tc2_print("STREAM", TC2_PRINT_DEBUG,
-		      "audio stream present as #%i, skipping\n", sh->as);
-	    goto out;
-	}
 	sh->as = sid;
     }
 
