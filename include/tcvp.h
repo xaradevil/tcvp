@@ -24,7 +24,7 @@
 
 typedef struct packet packet_t;
 struct packet {
-    char **data;
+    u_char **data;
     size_t *sizes;
     int planes;
     uint64_t pts;
