@@ -338,6 +338,7 @@ avi_header(FILE *f)
     struct stat sst;
     off_t fsize, pos;
     int odml_idx = 0;
+    stream_t *vs = NULL;
 
     fstat(fileno(f), &sst);
     fsize = sst.st_size;
@@ -465,6 +466,7 @@ avi_header(FILE *f)
 		    ms->streams[sidx].video.width = width;
 		    ms->streams[sidx].video.height = height;
 		}
+		vs = &ms->streams[sidx];
 	    } else if(stype == TAG('a','u','d','s')){
 		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
 		af->streams[sidx].ptsn = 1000000LL * af->streams[sidx].scale;
@@ -561,6 +563,11 @@ avi_header(FILE *f)
 	}
 	case TAG('R','I','F','F'):{
 	    getu32(f);		/* AVIX */
+	    break;
+	}
+	case TAG('d','m','l','h'):{
+	    if(vs)
+		vs->video.frames = getu32(f);
 	    break;
 	}
 	default:
