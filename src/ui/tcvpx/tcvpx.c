@@ -115,7 +115,6 @@ tcvpx_init(char *p)
     xtk_repaint_widgets();
     xtk_draw_widgets();
 
-    tcvp_play(NULL, NULL);
     pthread_create(&eth, NULL, tcvp_event, NULL);
     return 0;
 }
