@@ -38,7 +38,6 @@ typedef struct x4_enc {
     x264_t *enc;
     x264_picture_t pic;
     int pts_valid;
-    int idr_interval, idrc;
 } x4_enc_t;
 
 typedef struct x4_packet {
@@ -96,10 +95,8 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
 	x4->pts_valid = 1;
     }
 
-    if(pk->flags & TCVP_PKT_FLAG_DISCONT ||
-       (x4->idr_interval && x4->idrc++ == x4->idr_interval)){
+    if(pk->flags & TCVP_PKT_FLAG_DISCONT){
 	x4->pic.i_type = X264_TYPE_IDR;
-	x4->idrc = 0;
     } else {
 	x4->pic.i_type = X264_TYPE_AUTO;
     }
@@ -122,7 +119,7 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
 	ep->pk.flags |= TCVP_PKT_FLAG_PTS;
 	ep->pk.pts = x4->pic.i_pts;
     }
-    if(x4->pic.i_type == X264_TYPE_I)
+    if(x4->pic.i_type == X264_TYPE_I || x4->pic.i_type == X264_TYPE_IDR)
 	ep->pk.flags |= TCVP_PKT_FLAG_KEY;
     ep->data = buf;
     ep->size = bufsize;
@@ -141,7 +138,7 @@ x4_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     p->format.common.codec = "video/h264";
-    p->format.common.bit_rate = 1000000;
+    p->format.common.bit_rate = x4->params.i_bitrate;
 
     x4->params.i_width = s->video.width;
     x4->params.i_height = s->video.height;
@@ -178,7 +175,14 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     tcconf_getvalue(cs, "cabac", "%i", &x4->params.b_cabac);
     tcconf_getvalue(cs, "qp", "%i", &x4->params.i_qp_constant);
-    tcconf_getvalue(cs, "idr_interval", "%i", &x4->idr_interval);
+    tcconf_getvalue(cs, "gop_size", "%i", &x4->params.i_iframe);
+    tcconf_getvalue(cs, "idr_interval", "%i", &x4->params.i_idrframe);
+    tcconf_getvalue(cs, "rc_buffer_size", "%i", &x4->params.i_rc_buffer_size);
+    tcconf_getvalue(cs, "bitrate", "%i", &x4->params.i_bitrate);
+    tcconf_getvalue(cs, "qpmin", "%i", &x4->params.i_qp_min);
+    tcconf_getvalue(cs, "qpmax", "%i", &x4->params.i_qp_max);
+    tcconf_getvalue(cs, "qpstep", "%i", &x4->params.i_qp_step);
+    tcconf_getvalue(cs, "cbr", "%i", &x4->params.b_cbr);
 
     p->format = *s;
     p->format.common.codec = "video/h264";
