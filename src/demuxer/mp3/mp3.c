@@ -278,7 +278,7 @@ mp3_getparams(muxed_stream_t *ms)
     int c = -1, i, bx;
     int layer, version, brate;
 
-    for(i = 0; i < 2048; i++){
+    for(i = 0; i < 8065; i++){
 	if(getc(mf->file) == 0xff){
 	    c = getc(mf->file);
 	    if((c & 0xe0) == 0xe0){
