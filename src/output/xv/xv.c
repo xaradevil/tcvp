@@ -30,6 +30,7 @@
 #include <X11/extensions/Xvlib.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <sched.h>
 #include <tcvp_types.h>
 #include <xv_tc2.h>
 
@@ -55,7 +56,6 @@ typedef struct xv_window {
     XvPortID port;
     timer__t *timer;
     int width, height;
-    int x, y;
     int frames;
     XShmSegmentInfo *shm;
     xv_frame_t *images;
@@ -160,9 +160,7 @@ xv_stop(tcvp_pipe_t *p)
 {
     xv_window_t *xvw = p->private;
 
-    pthread_mutex_lock(&xvw->smx);
     xvw->state = PAUSE;
-    pthread_mutex_unlock(&xvw->smx);
 
     return 0;
 }
@@ -181,10 +179,21 @@ xv_free(tcvp_pipe_t *p)
 
     for(i = 0; i < xvw->frames; i++){
 	XShmDetach(xvw->dpy, &xvw->shm[i]);
+	shmdt(xvw->shm[i].shmaddr);
     }
 
     XSync(xvw->dpy, False);
     XCloseDisplay(xvw->dpy);
+
+    pthread_mutex_destroy(&xvw->smx);
+    pthread_cond_destroy(&xvw->scd);
+    sem_destroy(&xvw->hsem);
+    sem_destroy(&xvw->tsem);
+
+    free(xvw->images);
+    free(xvw->shm);
+    free(xvw);
+    free(p);
 
     return 0;
 }
@@ -228,8 +237,6 @@ xv_open(video_stream_t *vs, char *display, timer__t *timer)
     xvw->timer = timer;
     xvw->width = vs->width;
     xvw->height = vs->height;
-    xvw->x = 0;
-    xvw->y = 0;
     xvw->frames = FRAMES;
     xvw->shm = malloc(xvw->frames * sizeof(*xvw->shm));
     xvw->images = malloc(xvw->frames * sizeof(*xvw->images));
@@ -255,6 +262,11 @@ xv_open(video_stream_t *vs, char *display, timer__t *timer)
     sem_init(&xvw->hsem, 0, xvw->frames);
     sem_init(&xvw->tsem, 0, 0);
 
+    pthread_mutex_init(&xvw->smx, NULL);
+    pthread_cond_init(&xvw->scd, NULL);
+    xvw->state = PAUSE;
+    pthread_create(&xvw->thr, NULL, xv_play, xvw);
+
     pipe = malloc(sizeof(*pipe));
     pipe->input = xv_put;
     pipe->start = xv_start;
@@ -264,9 +276,6 @@ xv_open(video_stream_t *vs, char *display, timer__t *timer)
 
     XMapWindow(dpy, win);
     XSync(dpy, False);
-
-    xvw->state = PLAY;
-    pthread_create(&xvw->thr, NULL, xv_play, xvw);
 
     return pipe;
 }
