@@ -38,7 +38,7 @@ struct packet {
 typedef struct video_stream {
     int stream_type;
     char *codec;
-    float frame_rate;
+    double frame_rate;
     int width, height;
     u_long frames;
 } video_stream_t;

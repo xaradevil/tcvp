@@ -114,7 +114,7 @@ print_info(muxed_stream_t *stream)
 	    break;
 
 	case STREAM_TYPE_VIDEO:
-	    printf("%s, %ix%i, %f fps\n",
+	    printf("%s, %ix%i, %lf fps\n",
 		   stream->streams[i].video.codec,
 		   stream->streams[i].video.width,
 		   stream->streams[i].video.height,

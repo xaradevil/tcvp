@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sched.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API 1
 #include <alsa/asoundlib.h>
@@ -122,6 +123,9 @@ free_timer(timer__t *t)
     at->state = STOP;
     pthread_join(at->th, NULL);
     snd_timer_close(at->timer);
+    at->time = -1;
+    pthread_cond_broadcast(&at->cd);
+    sched_yield();
     pthread_mutex_destroy(&at->mx);
     pthread_cond_destroy(&at->cd);
     free(at);
@@ -175,7 +179,7 @@ tm_wait(timer__t *t, uint64_t time)
 {
     alsa_timer_t *at = t->private;
     pthread_mutex_lock(&at->mx);
-    while(at->time < time * 1000)
+    while(at->time < time * 1000 && at->state == RUN)
 	pthread_cond_wait(&at->cd, &at->mx);
     pthread_mutex_unlock(&at->mx);
 

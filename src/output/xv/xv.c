@@ -72,10 +72,17 @@ xv_play(void *p)
 {
     xv_window_t *xvw = p;
 
-    while(xvw->state != STOP){
-/* 	struct timeval tv; */
-/* 	u_int lu; */
+#if 0
+    int f = 0;
+    struct timeval tv;
+    uint64_t lu = 0, st;
+    uint64_t lpts = 0;
 
+    gettimeofday(&tv, NULL);
+    st = tv.tv_sec * 1000000 + tv.tv_usec;
+#endif
+
+    while(xvw->state != STOP){
 	pthread_mutex_lock(&xvw->smx);
 	while(xvw->state == PAUSE){
 	    pthread_cond_wait(&xvw->scd, &xvw->smx);
@@ -86,10 +93,20 @@ xv_play(void *p)
 
 	xvw->timer->wait(xvw->timer, xvw->images[xvw->tail].pts);
 
-/* 	gettimeofday(&tv, NULL); */
-/* 	fprintf(stderr, "pts = %li, usec = %i\n", */
-/* 		xvw->images[xvw->tail].pts, tv.tv_usec - lu); */
-/* 	lu = tv.tv_usec; */
+#if 0
+	if(!(++f & 0x3f)){
+	    uint64_t us;
+	    gettimeofday(&tv, NULL);
+	    us = tv.tv_sec * 1000000 + tv.tv_usec - st;
+
+	    fprintf(stderr, "pts = %li, dpts = %li, us = %li, dus = %li\n",
+		    xvw->images[xvw->tail].pts,
+		    xvw->images[xvw->tail].pts - lpts,
+		    us, us - lu);
+	    lu = us;
+	    lpts = xvw->images[xvw->tail].pts;
+	}
+#endif
 
 	XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
 		      xvw->images[xvw->tail].image,

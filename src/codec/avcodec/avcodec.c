@@ -187,6 +187,8 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 	    out->planes = i;
 	    if(vc->frame->pts)
 		out->pts = vc->frame->pts;
+	    else if(pk->pts)
+		out->pts = pk->pts;
 	    else
 		out->pts = vc->last_pts + vc->dpts;
 	    vc->last_pts = out->pts;
@@ -271,7 +273,9 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     if(vc->have_params){
-	s->video.frame_rate = (float) vc->ctx->frame_rate / FRAME_RATE_BASE;
+	if(!s->video.frame_rate)
+	    s->video.frame_rate =
+		(double) vc->ctx->frame_rate / FRAME_RATE_BASE;
 	s->video.width = vc->ctx->width;
 	s->video.height = vc->ctx->height;
 	ret = PROBE_OK;

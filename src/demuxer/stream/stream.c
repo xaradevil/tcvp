@@ -35,8 +35,10 @@ s_open(char *name)
     if(ext == (void *)1L)
 	return NULL;
 
-    if(strcmp(ext,"ogg") == 0) {
+    if(!strcmp(ext, "ogg")) {
 	m = "audio/ogg";
+    } else if(!strcmp(ext, "avi")){
+	m = "video/x-avi";
     } else {
 	m = "video/mpeg";
     }
@@ -201,6 +203,8 @@ s_probe(muxed_stream_t *ms, tcvp_pipe_t **codecs)
 	    int p;
 	    do {
 		packet_t *pk = ms->next_packet(ms, i);
+		if(!pk)
+		    break;
 		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
 	    } while(p == PROBE_AGAIN);
 	}
