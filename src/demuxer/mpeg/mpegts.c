@@ -285,9 +285,13 @@ mpegts_getinfo(muxed_stream_t *ms)
 
     int ispmt(int pid){
 	int i;
-	for(i = 0; i < np; i++)
-	    if(pat[2*i+1] == pid)
-		return 1;
+	for(i = 0; i < np; i++){
+	    if(pat[2*i+1] == pid){
+		int r = pat[2*i];
+		pat[2*i] = -1;
+		return r;
+	    }
+	}
 	return 0;
     }
 
@@ -315,11 +319,11 @@ mpegts_getinfo(muxed_stream_t *ms)
     pat = calloc(n, 2 * sizeof(*pat));
     dp += 8;
     for(i = 0; i < n; i++){
-	pat[2*i] = htob_16(unaligned16(dp));
+	pat[2*i] = 1;
 	pat[2*i+1] = htob_16(unaligned16(dp + 2)) & 0x1fff;
-	dp += 4;
 /* 	fprintf(stderr, "MPEGTS: program %i => PMT pid %x\n", */
-/* 		pat[i], pat[i+1]); */
+/* 		htob_16(unaligned16(dp)), pat[i+1]); */
+	dp += 4;
     }
 
     np = ns = n;
@@ -330,14 +334,17 @@ mpegts_getinfo(muxed_stream_t *ms)
     sp = ms->streams;
 
     while(n){
-	int pi_len, prg;
+	int pi_len, prg, ip;
 
 	do {
 	    if(mp)
 		free(mp);
 	    if(!(mp = mpegts_read_packet(s)))
 		return -1;
-	} while(!ispmt(mp->pid));
+	} while(!(ip = ispmt(mp->pid)));
+
+	if(ip < 0)
+	    break;
 
 	dp = mp->data + mp->data[0] + 1;
 	seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
@@ -364,8 +371,7 @@ mpegts_getinfo(muxed_stream_t *ms)
 
 	    s->map[ms->n_streams] = epid;
 	    s->imap[epid] = ms->n_streams;
-/* 	    fprintf(stderr, "MPEGTS: stream %i:%i => PID %x, type %x\n", */
-/* 		    prg, ms->n_streams, epid, stype); */
+
 	    switch(stype){
 	    case 1:
 	    case 2:
@@ -385,6 +391,8 @@ mpegts_getinfo(muxed_stream_t *ms)
 	    }
 
 	    if(typeok){
+/* 		fprintf(stderr, "MPEGTS: stream %i:%i => PID %x, type %x\n", */
+/* 			prg, ms->n_streams, epid, stype); */
 		ms->n_streams++;
 		sp++;
 	    }
@@ -392,6 +400,9 @@ mpegts_getinfo(muxed_stream_t *ms)
 
 	n--;
     }
+
+    free(pat);
+    free(mp);
 
     return 0;
 }
