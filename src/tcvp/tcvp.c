@@ -696,6 +696,9 @@ t_event(void *p)
 	    tcvp_event_send(tp->qs, TCVP_STATE, tp->state);
 	    if(tp->streams && tp->streams[0])
 		tcvp_event_send(tp->qs, TCVP_LOAD, tp->streams[0]); /* FIXME */
+	    if(tp->timer)
+		tcvp_event_send(tp->qt, TCVP_TIMER,
+				tp->timer->read(tp->timer));
 	} else if(te->type == -1){
 	    r = 0;
 	}
