@@ -67,6 +67,7 @@ typedef struct mpegts_stream {
     url_t *stream;
     u_char *tsbuf, *tsp;
     int tsnbuf;
+    int extra;
     int *imap;
     int pcrpid;
     struct tsbuf {
@@ -95,13 +96,19 @@ typedef struct mpegts_pk {
 static int
 fill_buf(mpegts_stream_t *s)
 {
-    int n = s->stream->read(s->tsbuf, TS_PACKET_SIZE, TS_PACKET_BUF,
-			    s->stream);
+    int n;
+
+    memmove(s->tsbuf, s->tsp, s->extra);
+    n = TS_PACKET_SIZE * TS_PACKET_BUF - s->extra;
+    n = s->stream->read(s->tsbuf + s->extra, 1, n, s->stream);
     if(n <= 0)
 	return -1;
 
-    s->tsnbuf = n;
+    n += s->extra;
+    s->tsnbuf =  n / TS_PACKET_SIZE;
+    s->extra = n - s->tsnbuf * TS_PACKET_SIZE;
     s->tsp = s->tsbuf;
+
     return 0;
 }
 
@@ -109,35 +116,44 @@ static int
 resync(mpegts_stream_t *s)
 {
     if(s->tsnbuf < 2){
-	int n = s->stream->read(s->tsbuf + s->tsnbuf * TS_PACKET_SIZE,
-				TS_PACKET_SIZE, TS_PACKET_BUF, s->stream);
-	if(n <= 0)
+	if(fill_buf(s) < 0)
 	    return -1;
-	s->tsnbuf += n;
     }
 
     while(s->tsp[0] != MPEGTS_SYNC || s->tsp[188] != MPEGTS_SYNC){
-	u_char *bufmax = s->tsbuf + s->tsnbuf * TS_PACKET_SIZE;
+	u_char *bufmax = s->tsbuf + (s->tsnbuf - 1) * TS_PACKET_SIZE;
+	int sync = 0;
+	int nb;
 
 	while(s->tsp < bufmax){
-	    if(s->tsp[0] == MPEGTS_SYNC && s->tsp[188] == MPEGTS_SYNC)
+	    if(s->tsp[0] == MPEGTS_SYNC && s->tsp[188] == MPEGTS_SYNC){
+		sync = 1;
 		break;
+	    }
 	    s->tsp++;
 	}
 
-	if(s->tsp < bufmax){
-	    ssize_t nb = bufmax - s->tsp, rb;
+	nb = s->tsnbuf * TS_PACKET_SIZE - (s->tsp - s->tsbuf);
+	memmove(s->tsbuf, s->tsp, nb);
+	s->tsp = s->tsbuf + nb;
 
-	    memmove(s->tsbuf, s->tsp, nb);
+	if(sync){
+	    int rb;
+
 	    s->tsnbuf = nb / TS_PACKET_SIZE;
 	    nb -= s->tsnbuf * TS_PACKET_SIZE;
 	    rb = 188 - nb;
+
 	    if(nb > 0){
-		if(s->stream->read(s->tsbuf + s->tsnbuf * TS_PACKET_SIZE + nb,
-				   1, rb, s->stream) == rb)
+		rb = s->stream->read(s->tsp, 1, rb, s->stream);
+		if(rb < 0)
+		    return -1;
+		nb += rb;
+		if(nb == 188)
 		    s->tsnbuf++;
 	    }
 	    s->tsp = s->tsbuf;
+	    s->extra = nb;
 	} else if(fill_buf(s)){
 	    return -1;
 	}
