@@ -38,19 +38,22 @@ static int validate;
 static player_t *pl;
 static eventq_t qr;
 static char *qname;
+static char *sel_ui = NULL;
 
 static void
 show_help(void)
 {
     /* FIXME: better helpscreen */
     printf("TCVP help\n"
-	   "   -h      --help              This helpscreen\n"
-	   "   -A dev  --audio-device=dev  Select audio device\n"
-	   "   -V dev  --video-device=dev  Select video device\n"
-	   "   -a #    --audio-stream=#    Select audio stream\n"
-	   "   -v #    --video-stream=#    Select video stream\n"
-	   "   -C      --validate          Check file integrity\n"
-	   "   -s t    --seek=t            Seek t seconds at start\n");
+	   "   -h      --help                This helpscreen\n"
+	   "   -A dev  --audio-device=dev    Select audio device\n"
+	   "   -V dev  --video-device=dev    Select video device\n"
+	   "   -a #    --audio-stream=#      Select audio stream\n"
+	   "   -v #    --video-stream=#      Select video stream\n"
+	   "   -C      --validate            Check file integrity\n"
+	   "   -s t    --seek=t              Seek t seconds at start\n"
+	   "   -u name --user-interface=name Select user interface\n"
+	);
 }
 
 static void
@@ -138,9 +141,9 @@ tcl_init(char *p)
 	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
 	pthread_create(&play_thr, NULL, tcl_play, NULL);
-    } else if(tcvp_ui_cmdline_conf_ui){
-	char *ui = alloca(strlen(tcvp_ui_cmdline_conf_ui) + 9);
-	sprintf(ui, "TCVP/ui/%s", tcvp_ui_cmdline_conf_ui);
+    } else if(tcvp_ui_cmdline_conf_ui || sel_ui){
+	char *ui = alloca(strlen((!sel_ui)?tcvp_ui_cmdline_conf_ui:sel_ui)+9);
+	sprintf(ui, "TCVP/ui/%s", (!sel_ui)?tcvp_ui_cmdline_conf_ui:sel_ui);
 	tc2_request(TC2_LOAD_MODULE, 1, ui, qname);
 	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
 	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
@@ -185,6 +188,7 @@ parse_options(int argc, char **argv)
 	{"video-stream", required_argument, 0, 'v'},
 	{"validate", no_argument, 0, 'C'},
 	{"seek", required_argument, 0, 's'},
+	{"user-interface", required_argument, 0, 'u'},
 	{"tc2-debug", required_argument, 0, OPT_TC2_DEBUG},
 	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
 	{0, 0, 0, 0}
@@ -193,7 +197,7 @@ parse_options(int argc, char **argv)
     for(;;){
 	int c, option_index = 0;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -229,6 +233,10 @@ parse_options(int argc, char **argv)
 	    conf_setvalue(cf, "start_time", "%i", strtol(optarg, NULL, 0));
 	    break;
 
+	case 'u':
+	    sel_ui = optarg;
+	    break;
+
 	case OPT_TC2_DEBUG:
 	    tc2_debug(strtol(optarg, NULL, 0));
 	    break;
@@ -255,7 +263,7 @@ main(int argc, char **argv)
     nfiles = argc - opt_num;
     files = argv + opt_num;
 
-    if(!validate){
+    if(!validate && !sel_ui){
 	sa.sa_handler = sigint;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
