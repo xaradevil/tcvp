@@ -299,6 +299,7 @@ create_skinned_button(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *bt;
     image_info_t *img;
+    int shaped = 0;
 
     i += tcconf_getvalue(sec, "action", "%s", &wd->action);
     i += tcconf_getvalue(sec, "image", "%s", &file);
@@ -308,6 +309,8 @@ create_skinned_button(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
 	return NULL;
     }
 
+    tcconf_getvalue(sec, "shaped", "%d", &shaped);
+
     tcconf_getvalue(sec, "mouse_over", "%s", &of);
     tcconf_getvalue(sec, "pressed", "%s", &df);
     wd->skin = skin;
@@ -316,12 +319,15 @@ create_skinned_button(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
     img = load_image(skin->path, file);
     bt = xtk_widget_button_create(c, x, y, img->width, img->height);
     xtk_widget_button_set_image(bt, img);
+    if(shaped) xtk_widget_button_set_shape(bt, img);
 
     img = load_image(skin->path, of);
     xtk_widget_button_set_hover_image(bt, img);
+    if(shaped) xtk_widget_button_set_hover_shape(bt, img);
 
     img = load_image(skin->path, df);
     xtk_widget_button_set_pressed_image(bt, img);
+    if(shaped) xtk_widget_button_set_pressed_shape(bt, img);
 
     xtk_widget_button_set_data(bt, wd);
     xtk_widget_button_set_action(bt, lookup_action);
