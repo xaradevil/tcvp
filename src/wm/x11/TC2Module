@@ -4,3 +4,4 @@ version		0.1.0
 tc2version	0.4.0
 sources		x11wm.c
 implement	"wm/x11" "open" x11_open
+implement	"wm/x11" "getwindow" x11_getwindow

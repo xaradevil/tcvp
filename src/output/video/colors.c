@@ -38,12 +38,12 @@ i420_yuy2(int height, const u_char **in, int *istride,
     const u_char *vsrc = in[2];
     const u_char *dst = out[0];
 
-    for(y = 0; y < height-1; y++){
+    for(y = 0; y < height; y++){
 #if __WORDSIZE >= 64
 	int i;
 	uint64_t *ldst = (uint64_t *) dst;
 	const uint8_t *yc = ysrc, *uc = usrc, *vc = vsrc;
-	for(i = 0; i < istride[1]; i += 2){
+	for(i = 0; i < min(istride[0], ostride[0]); i += 4){
 	    *ldst++ = (uint64_t)yc[0] + ((uint64_t)uc[0] << 8) +
 		((uint64_t)yc[1] << 16) + ((uint64_t)vc[0] << 24) +
 		((uint64_t)yc[2] << 32) + ((uint64_t)uc[1] << 40) +

@@ -1,4 +1,4 @@
-symbol	"open"	window_manager_t *(*%s)(int, int, wm_update_t, void *, conf_section *)
+symbol	"open"	window_manager_t *(*%s)(int, int, wm_update_t, void *, conf_section *, int flags)
 include
 typedef int (*wm_update_t)(void *d, int event, int x, int y, int w, int h);
 
@@ -11,3 +11,5 @@ struct window_manager {
 #define WM_SHOW 1
 #define WM_HIDE 2
 #define WM_MOVE 3
+
+#define WM_ABSCOORD (1<<0)

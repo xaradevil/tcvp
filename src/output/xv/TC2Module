@@ -4,4 +4,6 @@ version		0.1.0
 tc2version	0.4.0
 sources		xv.c
 implement	"driver/video/Xv"	"open"	xv_open
+import		"wm/x11" "open"
+import		"wm/x11" "getwindow"
 option		frames%i

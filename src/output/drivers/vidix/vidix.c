@@ -129,8 +129,8 @@ vx_reconf(void *p, int event, int x, int y, int w, int h)
 	vxw->pbc.dest.y = y;
 	vxw->pbc.dest.w = w;
 	vxw->pbc.dest.h = h;
+	vdlPlaybackOff(vxw->driver);
 	vdlConfigPlayback(vxw->driver, &vxw->pbc);
-	break;
     case WM_SHOW:
 	vdlPlaybackOn(vxw->driver);
 	break;
@@ -158,13 +158,23 @@ vx_open(video_stream_t *vs, conf_section *cs)
     void *vxdrv;
     char *drvdir;
     vidix_fourcc_t fcc;
+    vidix_grkey_t ck;
+    int ckey;
+    char *drv = NULL;
 
     if(!(drvdir = driver_video_vidix_conf_driver_dir)){
 	fprintf(stderr, "VIDIX: No driver dir.\n");
 	return NULL;
     }
 
-    vxdrv = vdlOpen(drvdir, NULL, TYPE_OUTPUT, 0);
+    if(driver_video_vidix_conf_driver.name){
+	drv = alloca(strlen(driver_video_vidix_conf_driver.name) +
+		     strlen(driver_video_vidix_conf_driver.options) + 2);
+	sprintf(drv, "%s:%s", driver_video_vidix_conf_driver.name,
+		driver_video_vidix_conf_driver.options);
+    }
+
+    vxdrv = vdlOpen(drvdir, drv, TYPE_OUTPUT, 0);
     if(!vxdrv){
 	fprintf(stderr, "VIDIX: Failed to open driver.\n");
 	return NULL;
@@ -205,7 +215,21 @@ vx_open(video_stream_t *vs, conf_section *cs)
     vxw->pbc.dest.h = vs->height;
     vxw->pbc.num_frames = vxw->caps.flags & FLAG_DMA? 1: frames;
 
-    if(!(vxw->wm = wm_open(vs->width, vs->height, vx_reconf, vxw, cs))){
+    if(conf_getvalue(cs, "video/color_key", "%i", &ckey) > 0){
+	ck.ckey.red = (ckey >> 16) & 0xff;
+	ck.ckey.green = (ckey >> 8) & 0xff;
+	ck.ckey.blue = ckey & 0xff;
+	ck.ckey.op = CKEY_TRUE;
+	ck.key_op = KEYS_PUT;
+	vdlSetGrKeys(vxdrv, &ck);
+    } else {
+	vdlGetGrKeys(vxdrv, &ck);
+	ckey = (ck.ckey.red << 16) | (ck.ckey.green << 8) | ck.ckey.blue;
+	conf_setvalue(cs, "video/color_key", "%i", ckey);
+    }
+
+    if(!(vxw->wm = wm_open(vs->width, vs->height, vx_reconf, vxw,
+			   cs, WM_ABSCOORD))){
 	vdlClose(vxdrv);
 	free(vxw);
 	return NULL;

@@ -25,6 +25,7 @@
 
 static player_t *player;
 static pthread_mutex_t pmx = PTHREAD_MUTEX_INITIALIZER;
+static conf_section *params;
 
 static int
 tcvp_pause(char *p)
@@ -71,7 +72,7 @@ tcvp_play(char *file)
     tcvp_stop(NULL);
 
     pthread_mutex_lock(&pmx);
-    if((player = tcvp_open(file, tcvp_status, NULL, NULL)))
+    if((player = tcvp_open(file, tcvp_status, NULL, params)))
 	player->start(player);
     pthread_mutex_unlock(&pmx);
 
@@ -100,6 +101,8 @@ tcvpsh_init(char *p)
 
     shell_register_prompt("TCVP$ ");
 
+    params = conf_new(NULL);
+
     return 0;
 }
 
@@ -111,6 +114,6 @@ tcvpsh_shdn(void)
     shell_unregister_command(pause_cmd);
     shell_unregister_command(stop_cmd);
     shell_unregister_prompt();
-
+    conf_free(params);
     return 0;
 }

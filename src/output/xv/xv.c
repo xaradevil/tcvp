@@ -46,8 +46,10 @@ typedef struct xv_window {
     GC gc;
     XvPortID port;
     int width, height;
+    int dx, dy, dw, dh;
     XShmSegmentInfo *shm;
     XvImage **images;
+    window_manager_t *wm;
 } xv_window_t;
 
 static int
@@ -58,7 +60,7 @@ xv_show(video_driver_t *vd, int frame)
     XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
 		  xvw->images[frame],
 		  0, 0, xvw->width, xvw->height,
-		  0, 0, xvw->width, xvw->height,
+		  xvw->dx, xvw->dy, xvw->dw, xvw->dh,
 		  False);
     XSync(xvw->dpy, False);
 
@@ -81,20 +83,32 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
 }
 
 static int
+xv_reconf(void *p, int event, int x, int y, int w, int h)
+{
+    xv_window_t *xvw = p;
+
+    if(event == WM_MOVE){
+	xvw->dx = x;
+	xvw->dy = y;
+	xvw->dw = w;
+	xvw->dh = h;
+    }
+
+    return 0;
+}
+
+static int
 xv_close(video_driver_t *vd)
 {
     xv_window_t *xvw = vd->private;
     int i;
-
-    XDestroyWindow(xvw->dpy, xvw->win);
 
     for(i = 0; i < vd->frames; i++){
 	XShmDetach(xvw->dpy, &xvw->shm[i]);
 	shmdt(xvw->shm[i].shmaddr);
     }
 
-    XSync(xvw->dpy, False);
-    XCloseDisplay(xvw->dpy);
+    xvw->wm->close(xvw->wm);
 
     free(xvw->images);
     free(xvw->shm);
@@ -120,6 +134,7 @@ xv_open(video_stream_t *vs, conf_section *cs)
     int color_key;
     XEvent xe;
     Atom atm;
+    window_manager_t *wm;
     char *display = NULL;
 
     if(cs)
@@ -130,28 +145,51 @@ xv_open(video_stream_t *vs, conf_section *cs)
     if((dpy = XOpenDisplay(display)) == NULL)
 	return NULL;
 
-    if(XvQueryExtension(dpy, &ver, &rev, &rb, &evb, &erb) != Success)
+    if(XvQueryExtension(dpy, &ver, &rev, &rb, &evb, &erb) != Success){
 	return NULL;
+    }
 
     XvQueryAdaptors(dpy, RootWindow(dpy, DefaultScreen(dpy)), &na, &xai);
-    if(!na)
+    if(!na){
 	return NULL;
+    }
 
-    gc = DefaultGC(dpy, DefaultScreen(dpy));
-
-    win = XCreateWindow(dpy, RootWindow(dpy, DefaultScreen(dpy)),
-			0, 0, vs->width, vs->height, 0, CopyFromParent,
-			InputOutput, CopyFromParent, 0, NULL);
-
-    xvw = malloc(sizeof(*xvw));
-    xvw->dpy = dpy;
-    xvw->win = win;
-    xvw->gc = gc;
+    xvw = calloc(1, sizeof(*xvw));
     xvw->port = xai[0].base_id;
     xvw->width = vs->width;
     xvw->height = vs->height;
     xvw->shm = malloc(frames * sizeof(*xvw->shm));
     xvw->images = malloc(frames * sizeof(*xvw->images));
+
+    for(i = 0; i < driver_video_xv_conf_attribute_count; i++){
+	char *name = driver_video_xv_conf_attribute[i].name;
+	int value = driver_video_xv_conf_attribute[i].value;
+	if((atm = XInternAtom(dpy, name, True)) != None){
+	    XvSetPortAttribute(dpy, xvw->port, atm, value);
+	}
+    }
+
+    if((atm = XInternAtom(dpy, "XV_COLORKEY", True)) != None){
+	if(conf_getvalue(cs, "video/color_key", "%i", &color_key) > 0){
+	    XvSetPortAttribute(dpy, xvw->port, atm, color_key);
+	} else {
+	    XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
+	    conf_setvalue(cs, "video/color_key", "%i", color_key);
+	}
+    }
+
+    XCloseDisplay(dpy);
+
+    if(!(wm = wm_x11_open(vs->width, vs->height, xv_reconf, xvw, cs, 0))){
+	free(xvw);
+	return NULL;
+    }
+    wm_x11_getwindow(wm, &dpy, &win);
+
+    xvw->dpy = dpy;
+    xvw->win = win;
+    xvw->gc = DefaultGC(xvw->dpy, DefaultScreen(xvw->dpy));
+    xvw->wm = wm;
 
     for(i = 0; i < frames; i++){
 	XvImage *xvi;
@@ -163,7 +201,7 @@ xv_open(video_stream_t *vs, conf_section *cs)
 	shm->shmaddr = shmat(shm->shmid, 0, 0);
 	shm->readOnly = False;
 	xvi->data = shm->shmaddr;
-	XShmAttach(dpy, shm);
+	XShmAttach(xvw->dpy, shm);
 	shmctl(shm->shmid, IPC_RMID, NULL); /* delete now in case we crash */
 
 	xvw->images[i] = xvi;
@@ -176,29 +214,6 @@ xv_open(video_stream_t *vs, conf_section *cs)
     vd->show_frame = xv_show;
     vd->close = xv_close;
     vd->private = xvw;
-
-    XSelectInput(dpy, win, MapNotify | ExposureMask);
-    XMapWindow(dpy, win);
-    XSync(dpy, False);
-    XNextEvent(dpy, &xe);
-    XSelectInput(dpy, win, 0);
-
-    for(i = 0; i < driver_video_xv_conf_attribute_count; i++){
-	char *name = driver_video_xv_conf_attribute[i].name;
-	int value = driver_video_xv_conf_attribute[i].value;
-	if((atm = XInternAtom(dpy, name, True)) != None){
-	    XvSetPortAttribute(dpy, xvw->port, atm, value);
-	}
-    }
-
-    /* just in case someone turned off auto-paint */
-    if((atm = XInternAtom(dpy, "XV_COLORKEY", True)) != None){
-	XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
-	XSetForeground(dpy, gc, color_key);
-	XFillRectangle(dpy, win, gc, 0, 0, xvw->width, xvw->height);
-    }
-
-    XSync(dpy, False);
 
     return vd;
 }

@@ -1,2 +1,3 @@
 inherit "driver/video"
 option	driver_dir%s
+option	driver name%s options%s
