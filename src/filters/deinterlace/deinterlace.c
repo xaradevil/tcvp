@@ -31,7 +31,7 @@ di_input(tcvp_pipe_t *p, packet_t *pk)
 {
     int i;
 
-    if(pk->data && (p->format.video.flags & TCVP_STREAM_FLAG_INTERLACED)){
+    if(pk->data && p->private){
 	for(i = 0; i < pk->planes; i++)
 	    pk->sizes[i] *= 2;
     }
@@ -45,8 +45,11 @@ static int
 di_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     p->format = *s;
-    if(p->format.video.flags & TCVP_STREAM_FLAG_INTERLACED)
+    if(p->format.video.flags & TCVP_STREAM_FLAG_INTERLACED){
 	p->format.video.height /= 2;
+	p->private = (void *) 1L;
+	p->format.video.flags &= ~TCVP_STREAM_FLAG_INTERLACED;
+    }
 
     return p->next->probe(p->next, pk, &p->format);
 }
