@@ -41,6 +41,7 @@ typedef struct a52_decode {
     int fsize, fpos;
     uint64_t pts;
     int ptsf;
+    int downmix;
 } a52_decode_t;
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -168,7 +169,7 @@ decode_frame(tcvp_pipe_t *p, u_char *frame, int str)
     a52_decode_t *ad = p->private;
     int i;
 
-    if(tcvp_codec_a52_conf_downmix)
+    if(ad->downmix)
 	ad->flags = A52_STEREO;
 
     a52_frame(ad->state, frame, &ad->flags, &ad->level, ad->bias);
@@ -273,6 +274,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 extern int
 a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
+    a52_decode_t *ad = p->private;
     int flags, srate, bitrate, size = 0;
     int channels;
     int od;
@@ -288,7 +290,7 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     s->common.bit_rate = bitrate;
 
-    if(tcvp_codec_a52_conf_downmix){
+    if(ad->downmix){
 	channels = 2;
     } else {
 	switch(flags & ~A52_ADJUST_LEVEL){
@@ -367,7 +369,9 @@ a52_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     ad->level = 1;
     ad->bias = 384;
     ad->flags = A52_ADJUST_LEVEL;
-    if(tcvp_codec_a52_conf_downmix)
+    ad->downmix = tcvp_codec_a52_conf_downmix;
+    tcconf_getvalue(cs, "downmix", "%i", &ad->downmix);
+    if(ad->downmix)
 	ad->flags |= A52_STEREO;
 
     p->private = ad;
