@@ -66,8 +66,7 @@ static inline uint##s##_t			\
 getu##s(url_t *f)				\
 {						\
     uint##s##_t v;				\
-    f->read(&v, sizeof(v), 1, f);		\
-    v = htol_##s(v);				\
+    url_getu##s##l(f, &v);			\
     return v;					\
 }
 
@@ -168,6 +167,18 @@ static inline int
 tag2str(u_char *tag)
 {
     return (xval[tag[0]] << 4) + xval[tag[1]];    
+}
+
+static char *
+tagstr(char *str, uint32_t tag)
+{
+    int i;
+    for(i = 0; i < 4; i++){
+	str[i] = tag & 0xff;
+	tag >>= 8;
+    }
+    str[4] = 0;
+    return str;
 }
 
 static int
@@ -393,17 +404,21 @@ avi_header(url_t *f)
 
     fsize = f->size;
 
-    if(f->read(&tag, 4, 1, f) != 1)
+    if(url_getu32l(f, &tag))
 	return NULL;
 
-    if(tag != TAG('R','I','F','F'))
+    if(tag != TAG('R','I','F','F')){
+	tc2_print("AVI", TC2_PRINT_ERROR, "no RIFF header\n");
 	return NULL;
+    }
 
     getu32(f);			/* size */
 
-    tag = getu32(f);
-    if(tag != TAG('A','V','I',' '))
+    url_getu32l(f, &tag);
+    if(tag != TAG('A','V','I',' ')){
+	tc2_print("AVI", TC2_PRINT_ERROR, "non-AVI RIFF header\n");
 	return NULL;
+    }
 
     ms = tcallocd(sizeof(*ms), NULL, avi_free);
     memset(ms, 0, sizeof(*ms));
@@ -413,11 +428,13 @@ avi_header(url_t *f)
     ms->private = af;
     af->packets = tclist_new(TC_LOCK_NONE);
 
-    while(f->read(&tag, 4, 1, f) == 1){
+    while(!url_getu32l(f, &tag)){
 	size = getu32(f);
 	size += size & 1;
 	pos = f->tell(f);
-	*(uint32_t *)st = tag;
+
+	tc2_print("AVI", TC2_PRINT_DEBUG, "tag '%s', size %li\n",
+		  tagstr(st, tag), size);
 
 	if(pos + size > fsize){
 	    tc2_print("AVI", TC2_PRINT_WARNING,
@@ -777,7 +794,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	scan++;
     }
 
-    if(scan && af->index){
+    if(af->index){
 	int i;
 
 	for(i = af->pkt; i < af->idxlen; i++){
@@ -1023,6 +1040,7 @@ vtag2codec(char *tag)
 	    return tcvp_demux_avi_conf_vtag[i].codec;
     }
 
+    tc2_print("AVI", TC2_PRINT_WARNING, "unknown codec tag '%s'\n", tag);
     return NULL;
 }
 
@@ -1036,5 +1054,6 @@ aid2codec(int id)
 	    return tcvp_demux_avi_conf_atag[i].codec;
     }
 
+    tc2_print("AVI", TC2_PRINT_WARNING, "unknown codec ID %#x\n", id);
     return NULL;
 }
