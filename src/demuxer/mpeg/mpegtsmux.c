@@ -272,7 +272,6 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    }
 
 	    if(unit_start){
-		mpegpes_packet_t pes;
 		int pesflags = 0;
 		int peshl;
 

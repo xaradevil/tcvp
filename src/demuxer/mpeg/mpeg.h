@@ -58,7 +58,7 @@ typedef struct mpegpes_packet {
     int stream_id;
     int pts_flag;
     uint64_t pts;
-    size_t size;
+    int size;
     u_char *data;
     u_char *hdr;
 } mpegpes_packet_t;

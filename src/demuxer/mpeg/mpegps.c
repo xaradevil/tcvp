@@ -40,7 +40,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 
     do {
 	uint32_t stream_id;
-	int scode, pklen, zc = 0, i = pedantic? 3: 512;
+	int scode = 0, pklen, zc = 0, i = pedantic? 3: 512;
 
 	while(i--){
 	    scode = url_getc(s->stream);

@@ -181,7 +181,7 @@ write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
        stream_id != H222_E_STREAM &&
        stream_id != SYSTEM_HEADER){
 	int pflags = 0;
-	uint64_t pts;
+	uint64_t pts = 0;
 
 	pklen += 3;
 	*p++ = 0x80;
