@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
@@ -181,6 +183,8 @@ x4_free(void *p)
 
     if(x4->enc)
 	x264_encoder_close(x4->enc);
+    free(x4->params.rc.psz_stat_out);
+    free(x4->params.rc.psz_stat_in);
 }
 
 extern int
@@ -188,6 +192,8 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
        tcvp_timer_t *t, muxed_stream_t *ms)
 {
     x4_enc_t *x4;
+    char *statfile;
+    struct stat st;
 
     x4 = tcallocdz(sizeof(*x4), NULL, x4_free);
     x264_param_default(&x4->params);
@@ -204,6 +210,16 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     tcconf_getvalue(cs, "qpmax", "%i", &x4->params.rc.i_qp_max);
     tcconf_getvalue(cs, "qpstep", "%i", &x4->params.rc.i_qp_step);
     tcconf_getvalue(cs, "cbr", "%i", &x4->params.rc.b_cbr);
+
+    if(tcconf_getvalue(cs, "stats", "%s", &statfile) > 0){
+	if(stat(statfile, &st)){
+	    x4->params.rc.b_stat_write = 1;
+	    x4->params.rc.psz_stat_out = statfile;
+	} else {
+	    x4->params.rc.b_stat_read = 1;
+	    x4->params.rc.psz_stat_in = statfile;
+	}
+    }
 
     p->format = *s;
     p->format.common.codec = "video/h264";
