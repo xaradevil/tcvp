@@ -413,7 +413,13 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 	mf->size -= ts;
 
     f->read(head, 1, 4, f);
-    f->seek(f, -4, SEEK_CUR);
+    if(strncmp(head, "RIFF", 4)){
+	f->seek(f, -4, SEEK_CUR);
+    } else {
+	f->seek(f, 44, SEEK_SET);
+	f->read(head, 1, 4, f);
+    }
+
     if(head[0] == 0xff &&
        (head[1] & 0xf6) == 0xf0){
 	mf->header_size = 5;
