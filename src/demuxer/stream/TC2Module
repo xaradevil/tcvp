@@ -43,3 +43,6 @@ Number of bytes to check for magic signatures.
 
 option	*suffix suffix%s demuxer%s muxer%s
 Mapping of filename suffixes to formats if detection fails.
+
+option	synctime%i
+Synchronize timer with stream clock

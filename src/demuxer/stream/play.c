@@ -52,6 +52,7 @@ struct stream_shared {
     eventq_t sq;
     char *outfile;
     int nstreams, nready;
+    int synctime;
 };
 
 typedef struct stream_play {
@@ -666,6 +667,8 @@ read_stream(void *p)
 	    tcfree(tpk);
 	    break;
 	case TCVP_PKT_TYPE_TIMER:
+	    if(sp->shared->synctime)
+		sp->shared->timer->reset(sp->shared->timer, tpk->timer.time);
 	    tcfree(tpk);
 	    break;
 	}
@@ -877,6 +880,9 @@ new_shared(tcconf_section_t *profile, tcconf_section_t *conf,
 
     if(tcconf_getvalue(conf, "play_time", "%i", &pt) > 0)
 	sh->playtime = pt * 27000000LL;
+
+    sh->synctime = tcvp_demux_stream_conf_synctime;
+    tcconf_getvalue(profile, "synctime", "%i", &sh->synctime);
 
     tcconf_getvalue(conf, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 9);
