@@ -1,0 +1,2 @@
+inherit "URL"
+option device%s="/dev/video"

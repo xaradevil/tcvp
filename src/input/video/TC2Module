@@ -1,0 +1,11 @@
+module		v4l
+name		"TCVP/input/v4l"
+version		0.1.0
+tc2version	0.6.0
+sources		v4l.c
+implement	"URL/video"	"open"	v4l_open
+import		"URL/vheader"	"new"
+option		width%i=720
+option		height%i=576
+option		standard%s="PAL"
+option		buffers%i=16

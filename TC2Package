@@ -29,6 +29,7 @@ module src/input/cdda
 module src/input/dvd
 module src/input/dvdnav
 module src/input/vheader
+module src/input/video
 module src/output/audio
 module src/output/drivers
 module src/output/drivers/alsa
