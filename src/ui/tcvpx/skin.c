@@ -181,7 +181,7 @@ load_skin(char *skinconf)
     int i=0;
     char *conf_tmp = NULL;
     struct stat stat_foo;
- 
+
     if(skinconf[0] == '/' || stat(skinconf, &stat_foo) == 0) {
 	conf_tmp = strdup(skinconf);
     } else if (tcvp_ui_tcvpx_conf_skinpath_count > 0){
@@ -210,6 +210,14 @@ load_skin(char *skinconf)
     if(conf_tmp == NULL) {
 	conf_tmp = malloc(strlen(TCVP_SKINS)+strlen(skinconf)+2);
 	sprintf(conf_tmp, "%s/%s", TCVP_SKINS, skinconf);
+	stat(conf_tmp, &stat_foo);
+    }
+
+    if(S_ISDIR(stat_foo.st_mode)) {
+	tmp = conf_tmp;
+	conf_tmp = malloc(strlen(tmp) + 11);
+	sprintf(conf_tmp, "%s/skin.conf", tmp);
+	free(tmp);
     }
 
     tc2_print("TCVPX", TC2_PRINT_DEBUG+4, "Using skin: \"%s\"\n", conf_tmp);
