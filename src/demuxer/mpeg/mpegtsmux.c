@@ -486,8 +486,10 @@ tmx_flush(tcvp_pipe_t *p, int drop)
 	tsm->bpos = 0;
 	pthread_cond_broadcast(&tsm->cnd);
     } else {
-	while(tsm->bpos)
-	    pthread_cond_wait(&tsm->cnd, &tsm->lock);
+	if(tsm->bpos){
+	    tsm->out->write(tsm->outbuf, 1, tsm->bpos, tsm->out);
+	    tsm->bpos = 0;
+	}
     }
     pthread_mutex_unlock(&tsm->lock);
 
