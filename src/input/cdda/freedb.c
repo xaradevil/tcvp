@@ -101,6 +101,9 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track)
     qry = malloc(40 + tracks * 10);
     p = qry;
 
+    while(tracks > 0 && !IS_AUDIO(d, tracks-1))
+	tracks--;
+
     p += sprintf(qry, "cddb query XXXXXXXX %i", tracks);
 
     for(i = 0; i < tracks; i++){
