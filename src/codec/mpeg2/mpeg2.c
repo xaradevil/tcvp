@@ -99,7 +99,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		}
 	    }
 	}
-    } while(state != -1);
+    } while(state != STATE_BUFFER);
 
     pk->free(pk);
     return 0;
@@ -110,7 +110,7 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     mpeg_dec_t *mpd = p->private;
     int state, ret = PROBE_AGAIN;
-    const sequence_t *seq;
+    const mpeg2_sequence_t *seq;
 
     mpeg2_buffer(mpd->mpeg2, pk->data[0], pk->data[0] + pk->sizes[0]);
     mpd->info = mpeg2_info(mpd->mpeg2);
@@ -133,14 +133,12 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 		p->format.video.flags |= TCVP_STREAM_FLAG_INTERLACED;
 	    ret = p->next->probe(p->next, NULL, &p->format);
 	    break;
-	case -1:
-	    pk->free(pk);
-	    break;
 	case STATE_INVALID:
 	    ret = PROBE_FAIL;
 	}
-    } while(state != -1 && ret != PROBE_FAIL);
+    } while(state != STATE_BUFFER && ret != PROBE_FAIL);
 
+    pk->free(pk);
     return ret;
 }
 
