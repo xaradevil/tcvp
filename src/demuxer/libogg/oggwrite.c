@@ -27,7 +27,7 @@
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <ogg/ogg.h>
-#include <ogg_tc2.h>
+#include <libogg_tc2.h>
 
 typedef struct ogg_write {
     url_t *out;

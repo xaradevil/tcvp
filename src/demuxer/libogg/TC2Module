@@ -1,4 +1,4 @@
-module		ogg
+module		libogg
 name		"TCVP/demux/ogg"
 version		0.1.2
 tc2version	0.4.0

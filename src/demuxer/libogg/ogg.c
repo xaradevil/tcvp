@@ -29,7 +29,7 @@
 #include <tcendian.h>
 #include <ctype.h>
 #include <ogg/ogg.h>
-#include <ogg_tc2.h>
+#include <libogg_tc2.h>
 
 #define BUFFER_SIZE 8500
 #define seek_fuzziness tcvp_demux_ogg_conf_seek_fuzziness
