@@ -161,7 +161,7 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
     if(action){
 	sb->onclick = seek_bar_onclick;
 	sb->action = action;
-	list_push(bt_list, sb);
+	list_push(click_list, sb);
 	XSelectInput(xd, sb->win, ButtonPressMask);
     }
 

@@ -18,6 +18,51 @@
 
 #include "tcvpx.h"
 #include <string.h>
+#include <unistd.h>
+
+extern void *
+scroll_labels(void *p)
+{
+    while(!quit) {
+	list_item *current=NULL;
+	tcwidget_t *w;
+
+	usleep(100000);
+
+	if(mapped==1){
+	    int c = 0;
+	    while((w = list_next(sl_list, &current))!=NULL) {
+		if((w->label.scrolling & TCLABELMANUAL) == 0) {
+		    if(w->label.scrolling & TCLABELSCROLLING) {
+			w->label.s_pos++;
+			w->label.s_pos %= w->label.s_max;
+			if(w->common.repaint) w->common.repaint(w);
+			draw_widget(w);
+			c = 1;
+		    } else if(w->label.scrolling & TCLABELPINGPONG) {
+			w->label.s_pos += w->label.s_dir;
+			if(w->label.s_pos > w->label.s_max-1){
+			    w->label.s_dir = -1;
+			    w->label.s_pos = w->label.s_max-1;
+			} else if(w->label.s_pos <= 0){
+			    w->label.s_dir = 1;
+			    w->label.s_pos = 0;
+			}
+			if(w->common.repaint) w->common.repaint(w);
+			draw_widget(w);
+			c = 1;
+		    }
+		}
+	    }
+	    if(c) {
+		XSync(xd, False);
+	    }
+	}
+	
+    }
+
+    return NULL;
+}
 
 
 static int
@@ -67,9 +112,9 @@ change_label(tclabel_t *txt, char *text)
 	txt->scrolling = TCLABELSTANDARD;
     }
 
-    if(txt->scrolling == TCLABELPINGPONG){
+    if(txt->scrolling & TCLABELPINGPONG){
 	txt->s_width = xgi.width + txt->s_space + 2;
-    } else if(txt->scrolling == TCLABELSCROLLING){
+    } else if(txt->scrolling & TCLABELSCROLLING){
 	txt->s_width = xgi.width + 2;
     } else {
 	txt->s_width = (xgi.width+2 > txt->width)?txt->width:xgi.width + 2;
@@ -86,14 +131,14 @@ change_label(tclabel_t *txt, char *text)
     XFillRectangle(xd, txt->s_text, bgc, 0, 0,
 		   txt->s_width, txt->height);
 
-    if(txt->scrolling == TCLABELSCROLLING) {
+    if(txt->scrolling & TCLABELSCROLLING) {
 	txt->s_max = txt->s_width + txt->s_space;
 	txt->s_pos = 0;
 	XftDrawString8(txt->xftdraw, &txt->xftcolor,
 		       txt->xftfont, txt->xoff,
 		       txt->yoff, txt->text,
 		       strlen(txt->text));
-    } else if(txt->scrolling == TCLABELPINGPONG){
+    } else if(txt->scrolling & TCLABELPINGPONG){
 	txt->s_max = txt->s_width - txt->width;
 	txt->s_pos = txt->s_space/2;
 	txt->s_dir = 1;
@@ -102,10 +147,10 @@ change_label(tclabel_t *txt, char *text)
 		       txt->yoff, txt->text,
 		       strlen(txt->text));
     } else {
-	if(txt->scroll != TCLABELSTANDARD){
-	    txt->s_pos = (txt->width - txt->s_width)/2;
-	} else {
+	if(txt->scroll & TCLABELSTANDARD){
 	    txt->s_pos = 0;
+	} else {
+	    txt->s_pos = (txt->width - txt->s_width)/2;
 	}
 	XftDrawString8(txt->xftdraw, &txt->xftcolor,
 		       txt->xftfont, txt->xoff, txt->yoff,
@@ -127,10 +172,11 @@ repaint_label(tcwidget_t *txt)
     if(mapped==1){
 #if 0
 	XCopyArea(xd, txt->label.s_text, txt->label.pixmap, bgc,
-		  0, 0, txt->label.s_width, txt->label.height,
-		  txt->label.s_pos, 0);
+		  txt->label.s_pos, 0, txt->label.s_width, txt->label.height,
+		  0, 0);
+	XSync(xd, False);
 #else
-	if(txt->label.scrolling == TCLABELSTANDARD){	    
+	if(txt->label.scrolling & TCLABELSTANDARD){	    
 	    XImage *img, *text;
 
 	    img = XGetImage(xd, txt->label.skin->background->pixmap,
@@ -148,11 +194,11 @@ repaint_label(tcwidget_t *txt)
 			      depth, txt->label.color);
 
 	    XPutImage(xd, txt->label.pixmap, bgc, img, 0, 0, 0, 0,
-		      txt->label.width, txt->label.height);
+ 		      txt->label.width, txt->label.height);
 	    XSync(xd, False);
 	    XDestroyImage(img);
 	    XDestroyImage(text);
-	} else if(txt->label.scrolling == TCLABELSCROLLING) {
+	} else if(txt->label.scrolling & TCLABELSCROLLING) {
 	    XImage *img, *text;
 	    Pixmap pmap;
 
@@ -200,7 +246,7 @@ repaint_label(tcwidget_t *txt)
 	    XDestroyImage(img);
 	    XDestroyImage(text);
 	    XFreePixmap(xd, pmap);
-	} else if(txt->label.scrolling == TCLABELPINGPONG) {
+	} else if(txt->label.scrolling & TCLABELPINGPONG) {
 	    XImage *img, *text;
 
 	    img = XGetImage(xd, txt->label.skin->background->pixmap,
@@ -225,6 +271,52 @@ repaint_label(tcwidget_t *txt)
 	}
 #endif
     }
+    return 0;
+}
+
+
+static int
+label_ondrag(tcwidget_t *w, XEvent *xe)
+{
+    if(w->label.scrolling & TCLABELMANUAL) {
+	w->label.s_pos =  w->label.sdrag - (xe->xmotion.x - w->label.xdrag);
+
+	if(w->label.s_pos>=w->label.s_max) {
+	    w->label.s_pos = w->label.s_max-1;
+	}
+	if(w->label.s_pos<0) {
+	    w->label.s_pos = 0;
+	}
+
+	w->label.repaint(w);
+	draw_widget(w);
+	XSync(xd, False);
+    }
+
+    return 0;
+}
+
+
+static int
+label_drag_begin(tcwidget_t *w, XEvent *xe)
+{
+    if((w->label.scrolling & TCLABELSTANDARD) == 0) {
+	w->label.scrolling |= TCLABELMANUAL;
+	w->label.xdrag = xe->xbutton.x;
+	w->label.sdrag = w->label.s_pos;
+    }
+
+    return 0;
+}
+
+
+static int
+label_drag_end(tcwidget_t *w, XEvent *xe)
+{
+    if((w->label.scrolling & TCLABELSTANDARD) == 0) {
+	w->label.scrolling = w->label.scroll;
+    }
+
     return 0;
 }
 
@@ -284,11 +376,6 @@ create_label(skin_t *skin, int x, int y, int width, int height,
 
     txt->pixmap = XCreatePixmap(xd, xw, txt->width, txt->height, depth);
 
-    if(txt->scrolling == TCLABELSTANDARD) {	
-	txt->xftdraw = XftDrawCreate(xd, txt->pixmap, DefaultVisual(xd, xs),
-				     DefaultColormap(xd, xs));
-    }
-
     txt->win = XCreateWindow(xd, xw, txt->x, txt->y,
 			     txt->width, txt->height,
 			     0, CopyFromParent, InputOutput,
@@ -296,15 +383,20 @@ create_label(skin_t *skin, int x, int y, int width, int height,
 
     change_label(txt, text);
 
-    if(txt->scroll != TCLABELSTANDARD) {
+    if((txt->scroll & TCLABELSTANDARD)==0) {
 	list_push(sl_list, txt);
+	list_push(drag_list, txt);
+	txt->ondrag = label_ondrag;
+	txt->drag_begin = label_drag_begin;
+	txt->drag_end = label_drag_end;
+	XSelectInput(xd, txt->win, ButtonPressMask | PointerMotionMask |
+		     ButtonReleaseMask);
     }
     list_push(widget_list, txt);
     if(action){
 	txt->onclick = widget_onclick;
 	txt->action = action;
-
-	list_push(bt_list, txt);
+	list_push(click_list, txt);
 	XSelectInput(xd, txt->win, ButtonPressMask);
     }
 

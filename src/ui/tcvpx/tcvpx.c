@@ -130,11 +130,20 @@ tcvpx_init(char *p)
     sprintf(qn, "%s/timer", qname);
     eventq_attach(qr, qn, EVENTQ_RECV);
 
-    skin=load_skin(tcvp_ui_tcvpx_conf_skin);
+    if((skin=load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){
+	fprintf(stderr, "Unable to load skin: \"%s\"\n",
+		tcvp_ui_tcvpx_conf_skin);
+	return -1;
+    }
 
     create_window(skin);
 
-    create_ui(skin);
+    if(create_ui(skin) != 0){
+	fprintf(stderr, "Unable to load skin: \"%s\"\n",
+		tcvp_ui_tcvpx_conf_skin);
+	return -1;
+    }
+
     update_root(skin);
 
     XMapWindow (xd, xw);

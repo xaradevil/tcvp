@@ -42,7 +42,7 @@ Pixmap root;
 int root_width;
 int root_height;
 int depth;
-
+tcwidget_t *drag;
 
 extern void *
 x11_event(void *p)
@@ -54,6 +54,7 @@ x11_event(void *p)
         XEvent xe;
 
         XNextEvent(xd, &xe);
+/* 	fprintf(stderr, "%d\n", xe.type); */
         switch(xe.type){
 	case Expose:
 	    draw_widgets();
@@ -66,18 +67,51 @@ x11_event(void *p)
 	    }
 	    break;
 
+ 	case ButtonRelease:
+	{
+	    if(drag){
+		if(drag->common.drag_end){
+		    drag->common.drag_end(drag, &xe);
+		    drag = NULL;
+		}
+	    }
+	    break;
+	}
+
+ 	case MotionNotify:
+	{
+	    if(drag){
+		if(drag->common.ondrag){
+		    drag->common.ondrag(drag, &xe);
+		}
+	    }
+	    break;
+	}
+
  	case ButtonPress:
 	{
 	    list_item *current=NULL;
-	    tcwidget_t *bt;
+	    tcwidget_t *w;
 
-	    while((bt = list_next(bt_list, &current))!=NULL) {
-		if(xe.xbutton.window == bt->common.win){
-		    if(bt->common.onclick){
-			bt->common.onclick(bt, &xe);
+	    while((w = list_next(click_list, &current))!=NULL) {
+		if(xe.xbutton.window == w->common.win){
+		    if(w->common.onclick){
+			w->common.onclick(w, &xe);
 		    }
 		}
 	    }
+
+	    while((w = list_next(drag_list, &current))!=NULL) {
+		if(xe.xbutton.window == w->common.win){
+		    if(w->common.enabled) {
+			drag = w;
+			if(w->common.drag_begin){
+			    w->common.drag_begin(w, &xe);
+			}
+		    }
+		}
+	    }
+
 	    break;
 	}
 
@@ -110,7 +144,8 @@ create_window(skin_t *skin)
     XTextProperty windowName;
     char *title = "TCVP";
 
-    bt_list = list_new(TC_LOCK_SLOPPY);
+    click_list = list_new(TC_LOCK_SLOPPY);
+    drag_list = list_new(TC_LOCK_SLOPPY);
     widget_list = list_new(TC_LOCK_SLOPPY);
     sl_list = list_new(TC_LOCK_SLOPPY);
 

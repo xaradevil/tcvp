@@ -19,40 +19,7 @@
 #include "tcvpx.h"
 #include <unistd.h>
 
-list *widget_list, *bt_list, *sl_list;
-
-
-extern void *
-scroll_labels(void *p)
-{
-    while(!quit) {
-	list_item *current=NULL;
-	tcwidget_t *w;
-
-	usleep(100000);
-
-	if(mapped==1){
-	    while((w = list_next(sl_list, &current))!=NULL) {
-		if(w->label.scrolling == TCLABELSCROLLING) {
-		    w->label.s_pos++;
-		    w->label.s_pos %= w->label.s_max;
-		    if(w->common.repaint) w->common.repaint(w);
-		    draw_widget(w);
-		} else if(w->label.scrolling == TCLABELPINGPONG) {
-		    w->label.s_pos += w->label.s_dir;
-		    if(w->label.s_pos % w->label.s_max == 0){
-			w->label.s_dir *= -1;
-		    }
-		    if(w->common.repaint) w->common.repaint(w);
-		    draw_widget(w);
-		}
-	    }
-	}
-	
-    }
-
-    return NULL;
-}
+list *widget_list, *click_list, *sl_list, *drag_list;
 
 
 extern image_info_t*

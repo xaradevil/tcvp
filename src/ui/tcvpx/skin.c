@@ -28,6 +28,7 @@ load_skin(char *skinconf)
 {
     char *tmp;
     skin_t *skin = calloc(sizeof(skin_t), 1);
+    int i=0;
 
     if(!(skin->config = conf_load_file (NULL, skinconf))){
 	fprintf(stderr, "Error loading file.\n");
@@ -47,9 +48,12 @@ load_skin(char *skinconf)
 /*     if(conf_getvalue(skin->config, "name", "%s", &tmp) == 1) */
 /* 	printf("Loaded skin: \"%s\"\n", tmp); */
 
-    /* FIXME: do error checking */
-    conf_getvalue(skin->config, "width", "%d", &skin->width);
-    conf_getvalue(skin->config, "height", "%d", &skin->height);
+    i += conf_getvalue(skin->config, "width", "%d", &skin->width);
+    i += conf_getvalue(skin->config, "height", "%d", &skin->height);
+
+    if(i != 2){
+	return NULL;
+    }
 
     return skin;
 }
@@ -59,7 +63,14 @@ static tcbackground_t*
 create_skinned_background(skin_t *skin, conf_section *sec)
 {
     char *file;
-    conf_getvalue(sec, "background", "%s", &file);
+    int i=0;
+
+    i += conf_getvalue(sec, "background", "%s", &file);
+
+    if(i != 1){
+	return NULL;
+    }
+
     return(create_background(skin, file));
 }
 
@@ -69,9 +80,14 @@ create_skinned_button(skin_t *skin, conf_section *sec, action_cb_t acb)
 {
     char *file;
     int x, y;
+    int i=0;
 
-    conf_getvalue(sec, "image", "%s", &file);
-    conf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += conf_getvalue(sec, "image", "%s", &file);
+    i += conf_getvalue(sec, "position", "%d %d", &x, &y);
+
+    if(i != 3){
+	return NULL;
+    }
 
     return(create_button(skin, x, y, file, acb));
 }
@@ -88,15 +104,24 @@ create_skinned_label(skin_t *skin, conf_section *sec, char *text,
     char *color;
     int alpha;
     int stype;
+    int i=0;
 
-    conf_getvalue(sec, "position", "%d %d", &x, &y);
-    conf_getvalue(sec, "size", "%d %d", &w, &h);
-    conf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
-    conf_getvalue(sec, "font", "%s", &font);
-    if(conf_getvalue(sec, "color", "%s %d", &color, &alpha)==1){
+    i += conf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += conf_getvalue(sec, "size", "%d %d", &w, &h);
+    i += conf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
+    i += conf_getvalue(sec, "font", "%s", &font);
+    if((i += conf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
 	alpha = 0xff;
+	i++;
     }
-    conf_getvalue(sec, "scroll", "%d", &stype);
+    if((i += conf_getvalue(sec, "scroll_style", "%d", &stype))==0){
+	stype = 1;
+	i++;
+    }
+
+    if(i != 10){
+	return NULL;
+    }
 
     return(create_label(skin, x, y, w, h, xoff, yoff, text, font,
 			color, alpha, stype, acb));
@@ -111,12 +136,17 @@ create_skinned_seek_bar(skin_t *skin, conf_section *sec, double position,
     int sp_x, sp_y;
     int ep_x, ep_y;
     char *bg, *indicator;
+    int i=0;
 
-    conf_getvalue(sec, "position", "%d %d", &x, &y);
-    conf_getvalue(sec, "start_position", "%d %d", &sp_x, &sp_y);
-    conf_getvalue(sec, "end_position", "%d %d", &ep_x, &ep_y);
-    conf_getvalue(sec, "background_image", "%s", &bg);
-    conf_getvalue(sec, "indicator_image", "%s", &indicator);
+    i += conf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += conf_getvalue(sec, "start_position", "%d %d", &sp_x, &sp_y);
+    i += conf_getvalue(sec, "end_position", "%d %d", &ep_x, &ep_y);
+    i += conf_getvalue(sec, "background_image", "%s", &bg);
+    i += conf_getvalue(sec, "indicator_image", "%s", &indicator);
+
+    if(i != 8){
+	return NULL;
+    }
 
     return(create_seek_bar(skin, x, y, sp_x, sp_y, ep_x, ep_y, bg,
 			   indicator, position, acb));
@@ -128,7 +158,11 @@ create_ui(skin_t *skin)
 {
     conf_section *sec;
 
-    skin->background = create_skinned_background(skin, skin->config);
+    if((skin->background = create_skinned_background(skin, skin->config)) ==
+       NULL) {
+	/* No background - No good */
+	return -1;
+    }
 
     sec = conf_getsection(skin->config, "buttons/previous");
     if(sec){

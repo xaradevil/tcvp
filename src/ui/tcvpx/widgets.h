@@ -29,12 +29,13 @@
 #define TCBACKGROUND  2
 #define TCSEEKBAR     3
 
-#define TCLABELSTANDARD   0
-#define TCLABELSCROLLING  1
-#define TCLABELPINGPONG   2
+#define TCLABELSTANDARD   (1<<0)
+#define TCLABELSCROLLING  (1<<1)
+#define TCLABELPINGPONG   (1<<2)
+#define TCLABELMANUAL     (1<<3)
 
 typedef union _tcwidget_t tcwidget_t;
-typedef int(*onclick_cb_t)(tcwidget_t *, XEvent *);
+typedef int(*on_xevent_cb_t)(tcwidget_t *, XEvent *);
 typedef int(*action_cb_t)(tcwidget_t *, void *);
 typedef int(*repaint_cb_t)(tcwidget_t *);
 typedef struct _skin_t skin_t;
@@ -43,9 +44,12 @@ typedef struct _skin_t skin_t;
     int type;					\
     int width, height;				\
     Pixmap pixmap;				\
-    Window win;    				\
-    onclick_cb_t onclick;			\
-    action_cb_t action;                         \
+    Window win;					\
+    on_xevent_cb_t onclick;			\
+    on_xevent_cb_t drag_begin;			\
+    on_xevent_cb_t ondrag;			\
+    on_xevent_cb_t drag_end;			\
+    action_cb_t action;				\
     repaint_cb_t repaint;			\
     void *data;					\
     skin_t *skin;				\
@@ -92,6 +96,8 @@ typedef struct {
     int s_space;
     int s_dir;
     Pixmap s_text;
+    int xdrag;
+    int sdrag;
 } tclabel_t;
 
 typedef struct {
@@ -107,7 +113,7 @@ union _tcwidget_t {
     tcseek_bar_t seek_bar;
 };
 
-extern list *widget_list, *bt_list, *sl_list;
+extern list *widget_list, *click_list, *sl_list, *drag_list;
 
 int widget_onclick(tcwidget_t *w, XEvent *xe);
 int draw_widget(tcwidget_t *w);
