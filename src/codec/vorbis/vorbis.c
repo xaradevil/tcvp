@@ -115,6 +115,7 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	} else {
 	    s->audio.sample_rate = vc->vi.rate;
 	    s->audio.channels = vc->vi.channels;
+	    s->audio.bit_rate = vc->vi.bitrate_nominal;
 	    vorbis_synthesis_init(&vc->vd, &vc->vi);
 	    vorbis_block_init(&vc->vd, &vc->vb); 
 	}
@@ -130,7 +131,7 @@ vorbis_free_pipe(tcvp_pipe_t *p)
 
     vorbis_block_clear(&vc->vb);
     vorbis_dsp_clear(&vc->vd);
-        vorbis_comment_clear(&vc->vc);
+    vorbis_comment_clear(&vc->vc);
     vorbis_info_clear(&vc->vi);
 
     if(vc->buf)
