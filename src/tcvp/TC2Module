@@ -1,7 +1,7 @@
 module		tcvp_core
 name		"TCVP"
 version		0.1.4
-tc2version	0.4.0
+tc2version	0.6.0
 sources		tcvp.c event.c
 
 import		"stream"	"open"

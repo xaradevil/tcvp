@@ -1,7 +1,7 @@
 module		lame
 name		"TCVP/codec/lame"
 version		0.1.2
-tc2version	0.4.0
+tc2version	0.6.0
 sources		lame.c
 
 TCVP {

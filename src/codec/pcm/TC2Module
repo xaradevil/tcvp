@@ -1,7 +1,7 @@
 module		pcm
 name		"TCVP/codec/pcm"
 version		0.1.1
-tc2version	0.4.0
+tc2version	0.6.0
 TCVP {
 	filter "decoder/audio/pcm-u8" {
 		alias "decoder/audio/pcm-s32be"

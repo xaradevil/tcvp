@@ -1,7 +1,7 @@
 module		pcmfmt
 name		"TCVP/demux/pcm"
 version		0.1.0
-tc2version	0.4.0
+tc2version	0.6.0
 sources		pcm.c pcmwrite.c wav.c sun.c pcmmod.h
 implement	"audio/basic"	"open"		au_open
 #implement	"audio/x-aiff"	"open"		aiff_open

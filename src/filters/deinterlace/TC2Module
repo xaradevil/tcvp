@@ -1,7 +1,7 @@
 module		deinterlace
 name		"TCVP/filter/deinterlace"
 version		0.1.0
-tc2version	0.4.0
+tc2version	0.6.0
 sources		deinterlace.c
 
 TCVP {

@@ -1,7 +1,7 @@
 module		mad
 name		"TCVP/codec/mad"
 version		0.1.2
-tc2version	0.4.0
+tc2version	0.6.0
 sources		mad.c
 option		output_buffer%i=4800
 option		input_buffer%i=512

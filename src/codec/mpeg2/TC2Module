@@ -1,7 +1,7 @@
 module		mpeg2
 name		"TCVP/codec/mpeg2"
 version		0.1.0
-tc2version	0.4.0
+tc2version	0.6.0
 sources		mpeg2.c
 postinit	mpeg_init
 option		accel%i=0x80000000
