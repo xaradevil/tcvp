@@ -77,6 +77,13 @@ typedef struct avi_index {
     uint32_t size;
 } avi_index_t;
 
+typedef struct avi_stream {
+    int scale;
+    int rate;
+    int sample_size;
+    uint64_t ipts, ptsn, ptsd;
+} avi_stream_t;
+
 typedef struct avi_file {
     FILE *file;
     list **packets;
@@ -88,9 +95,7 @@ typedef struct avi_file {
     int idxok;
     uint32_t movi_start;
     uint64_t *pts;
-    uint64_t *ipts;
-    uint64_t *ptsn;
-    uint64_t *ptsd;
+    avi_stream_t *streams;
 } avi_file_t;
 
 typedef struct avi_packet {
@@ -142,7 +147,7 @@ tag2str(u_char *tag)
 }
 
 static int
-avi_append_index(muxed_stream_t *ms, uint32_t size)
+avi_read_index(muxed_stream_t *ms, uint32_t size)
 {
     avi_file_t *af = ms->private;
     int idxoff;
@@ -151,21 +156,6 @@ avi_append_index(muxed_stream_t *ms, uint32_t size)
 
     af->index = calloc(idxl, sizeof(*af->index));
     af->pts = calloc(idxl, sizeof(*af->pts));
-    af->ipts = calloc(ms->n_streams, sizeof(*af->ipts));
-    af->ptsn = calloc(ms->n_streams, sizeof(*af->ptsn));
-    af->ptsd = calloc(ms->n_streams, sizeof(*af->ptsd));
-    for(i = 0; i < ms->n_streams; i++){
-	switch(ms->streams[i].stream_type){
-	case STREAM_TYPE_VIDEO:
-	    af->ptsn[i] = (uint64_t) 1000000 *
-		ms->streams[i].video.frame_rate.den;
-	    af->ptsd[i] = ms->streams[i].video.frame_rate.num;
-	    break;
-	case STREAM_TYPE_AUDIO:
-	    af->ptsd[i] = ms->streams[i].audio.bit_rate;
-	    break;
-	}
-    }
 
     ix = fread(af->index, sizeof(avi_index_t), idxl, af->file);
     if(ix != idxl)
@@ -179,6 +169,7 @@ avi_append_index(muxed_stream_t *ms, uint32_t size)
     }
 
     for(i = 0; i < af->idxlen; i++){
+	uint64_t mpts = 1;
 	if(!valid_tag(af->index[i].tag, 0)){
 	    fprintf(stderr, "AVI: Invalid tag in index @ %i\n", i);
 	    continue;
@@ -190,16 +181,18 @@ avi_append_index(muxed_stream_t *ms, uint32_t size)
 	    continue;
 	}
 
-	af->pts[i] = af->ipts[s] / af->ptsd[s];
+	af->pts[i] = af->streams[s].ipts / af->streams[s].ptsd;
 
-	switch(ms->streams[s].stream_type){
-	case STREAM_TYPE_AUDIO:
-	    af->ipts[s] += 1000000LL * af->index[i].size * 8;
-	    break;
-	case STREAM_TYPE_VIDEO:
-	    af->ipts[s] += af->ptsn[s];
-	    break;
+	if(ms->streams[s].stream_type == STREAM_TYPE_AUDIO) {
+	    if(!af->streams[s].sample_size){
+		mpts = 1;
+	    } else if(ms->streams[s].audio.block_align){
+		mpts = af->index[i].size / ms->streams[s].audio.block_align;
+	    } else {
+		mpts = af->index[i].size / af->streams[s].sample_size;
+	    }
 	}
+	af->streams[s].ipts += af->streams[s].ptsn * mpts;
     }
 
     return 0;
@@ -287,6 +280,7 @@ avi_header(FILE *f)
 	    ms->n_streams = getu32(f);
 	    ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
 	    af->packets = calloc(ms->n_streams, sizeof(*af->packets));
+	    af->streams = calloc(ms->n_streams, sizeof(*af->streams));
 	    for(i = 0; i < ms->n_streams; i++)
 		af->packets[i] = list_new(TC_LOCK_NONE);
 
@@ -300,7 +294,7 @@ avi_header(FILE *f)
 	}
 	case TAG('s','t','r','h'):{
 	    size_t fp = ftell(f);
-	    uint32_t frn, frd;
+	    uint32_t length;
 
 	    sidx++;
 
@@ -310,11 +304,19 @@ avi_header(FILE *f)
 	    getval(f, "prio", 16);
 	    getval(f, "lang", 16);
 	    getval(f, "init frame", 32);
+	    af->streams[sidx].scale = getu32(f);
+	    af->streams[sidx].rate = getu32(f);
+	    start = getu32(f);
+	    length = getu32(f);
+	    getval(f, "bufsize", 32);
+	    getval(f, "quality", 32);
+	    af->streams[sidx].sample_size = getu32(f);
 
 	    if(stype == TAG('v','i','d','s')){
+		uint32_t frn, frd;
 		ms->streams[sidx].stream_type = STREAM_TYPE_VIDEO;
-		frd = getu32(f);
-		frn = getu32(f);
+		frd = af->streams[sidx].scale;
+		frn = af->streams[sidx].rate;
 		if(frn && frd){
 		    ms->streams[sidx].video.frame_rate.num = frn;
 		    ms->streams[sidx].video.frame_rate.den = frd;
@@ -323,13 +325,11 @@ avi_header(FILE *f)
 		    ms->streams[sidx].video.frame_rate.den = ftime;
 		}
 
-		start = getu32(f);
+		af->streams[sidx].ptsn = 1000000LL * frd;
+		af->streams[sidx].ptsd = frn;
 
-		ms->streams[sidx].video.frames = getu32(f);
+		ms->streams[sidx].video.frames = length;
 
-		getval(f, "bufsize", 32);
-		getval(f, "quality", 32);
-		getval(f, "sample size", 32);
 		getjunk(f, 16);
 		getjunk(f, 16);
 
@@ -341,10 +341,8 @@ avi_header(FILE *f)
 		}
 	    } else if(stype == TAG('a','u','d','s')){
 		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
-		getval(f, "scale", 32);
-		getval(f, "rate", 32);
-		start = getu32(f);
-		getval(f, "length", 32);
+		af->streams[sidx].ptsn = 1000000LL * af->streams[sidx].scale;
+		af->streams[sidx].ptsd = af->streams[sidx].rate;
 	    }
 
 	    ms->streams[sidx].common.start_time = start;
@@ -421,7 +419,7 @@ avi_header(FILE *f)
 	    break;
 	}
 	case TAG('i','d','x','1'):{
-	    avi_append_index(ms, size);
+	    avi_read_index(ms, size);
 	    break;
 	}
 	case TAG('R','I','F','F'):{
