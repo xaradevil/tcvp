@@ -762,6 +762,10 @@ avi_packet(muxed_stream_t *ms, int stream)
 
     if(!ms->used_streams[str]){
 	af->file->seek(af->file, size + (size&1), SEEK_CUR);
+	tried_index = 0;
+	tried_bkup = 0;
+	scan = 0;
+	skipped = 0;
 	goto again;
     }
 
