@@ -38,6 +38,7 @@ struct _skin_t {
     char *playlistfile;
     int enabled;
     int net_wm_support;
+    int x, y;
 };
 
 skin_t* load_skin(char *skinfile);

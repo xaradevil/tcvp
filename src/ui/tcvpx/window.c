@@ -38,7 +38,8 @@ typedef struct _mwmhints {
 
 int mapped=1;
 
-Atom XdndDrop, XdndType, XdndSelection, XdndFinished, tcxa;
+Atom XdndEnter, XdndLeave, XdndPosition, XdndStatus, XdndDrop,
+    XdndType, XdndSelection, XdndFinished, tcvpxa;
 
 Display *xd;
 int xs;
@@ -70,6 +71,8 @@ x11_event(void *p)
 		repaint_widgets();
 		draw_widgets();
 	    }
+	    skin->x = xe.xconfigure.x;
+	    skin->y = xe.xconfigure.y;
 	    break;
 
  	case ButtonRelease:
@@ -182,7 +185,7 @@ x11_event(void *p)
 	    Window selowner = XGetSelectionOwner(xd, XdndSelection);
 
 	    XGetWindowProperty(xd, xe.xselection.requestor,
-			       tcxa, 0, 65536, True, XdndType,
+			       tcvpxa, 0, 65536, True, XdndType,
 			       &ret_type, &ret_format,
 			       &ret_item, &remain_byte,
 			       (unsigned char **)&foo);
@@ -225,9 +228,37 @@ x11_event(void *p)
 	}
 
 	case ClientMessage:
-	    if(xe.xclient.message_type == XdndDrop) {
-		XConvertSelection(xd, XdndSelection, XdndType, tcxa,
+/* 	    fprintf(stderr, "%d\n", xe.xclient.message_type); */
+	    if(xe.xclient.message_type == XdndEnter) {
+/* 		fprintf(stderr, "enter\n"); */
+
+
+	    } else if(xe.xclient.message_type == XdndPosition) {
+		XEvent xevent;
+
+/* 		fprintf(stderr, "position\n"); */
+
+		memset (&xevent, 0, sizeof(xevent));
+		xevent.xany.type = ClientMessage;
+		xevent.xany.display = xd;
+		xevent.xclient.window = xe.xclient.window;
+		xevent.xclient.message_type = XdndStatus;
+		xevent.xclient.format = 32;
+		xevent.xclient.data.l[0] = skin->xw;
+		xevent.xclient.data.l[1] = 1;
+		xevent.xclient.data.l[2] = (skin->x << 16) | skin->y;
+		xevent.xclient.data.l[3] = (skin->width << 16) | skin->height;
+
+		XSendEvent(xd, xe.xclient.window, 0, 0, &xevent);
+
+	    } else if(xe.xclient.message_type == XdndDrop) {
+/* 		fprintf(stderr, "drop\n"); */
+
+		XConvertSelection(xd, XdndSelection, XdndType, tcvpxa,
 				  xe.xclient.window, CurrentTime);
+
+	    } else if(xe.xclient.message_type == XdndLeave) {
+/* 		fprintf(stderr, "leave\n"); */
 	    }
 	    break;
 	}
@@ -404,22 +435,27 @@ create_window(skin_t *skin)
     XSizeHints *sizehints;
     XTextProperty windowName;
     char *title = "TCVP";
-    Atom xdndversion = 4, xa_atom;
+    Atom xdndversion = 3, xa_atom;
 
     skin->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
 			     skin->width, skin->height, 0,
 			     CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
 
-    XSelectInput(xd, skin->xw, ExposureMask | StructureNotifyMask);
+    XSelectInput(xd, skin->xw, ExposureMask | StructureNotifyMask |
+		 EnterWindowMask | LeaveWindowMask);
 
     xa_atom = XInternAtom(xd, "ATOM", False);
 
     XdndDrop = XInternAtom(xd, "XdndDrop", False);
+    XdndPosition = XInternAtom(xd, "XdndPosition", False);
+    XdndStatus = XInternAtom(xd, "XdndStatus", False);
+    XdndEnter = XInternAtom(xd, "XdndEnter", False);
+    XdndLeave = XInternAtom(xd, "XdndLeave", False);
     XdndType = XInternAtom(xd, "text/plain", False);
     XdndFinished = XInternAtom(xd, "XdndFinished", False);
     XdndSelection = XInternAtom(xd, "XdndSelection", False);
-    tcxa = XInternAtom(xd, "TCVPSEL", False);
+    tcvpxa = XInternAtom(xd, "TCVPSEL", False);
 
     memset(&mwmhints, 0, sizeof(MWMHints));
     prop = XInternAtom(xd, "_MOTIF_WM_HINTS", False);
