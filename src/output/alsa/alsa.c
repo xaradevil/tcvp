@@ -328,6 +328,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_U8);
 	ssize = 1;
     } else {
+	fprintf(stderr, "ALSA: unsupported format %s\n", s->audio.codec);
 	goto err;
     }
 
