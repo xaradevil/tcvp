@@ -2,7 +2,7 @@ module		audio
 name		"TCVP/output/audio"
 version		0.1.0
 tc2version	0.4.0
-sources		audio.c
+sources		audio.c conv.c audiomod.h
 postinit	a_init
 implement	"output/audio"	"new"	audio_open
 require		"driver/audio"

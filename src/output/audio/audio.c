@@ -7,15 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
 #include <audio_tc2.h>
+#include <audiomod.h>
 
 #define ptsqsize tcvp_output_audio_conf_pts_qsize
 
@@ -28,12 +26,14 @@
 typedef struct audio_out {
     audio_driver_t *driver;
     tcvp_timer_t *timer;
+    int channels;
     int bpf;
     int rate;
     int state;
     u_char *buf, *head, *tail;
     int bufsize;
     int bbytes;
+    sndconv_t conv;
     pthread_mutex_t mx;
     pthread_cond_t cd;
     pthread_t pth;
@@ -89,6 +89,7 @@ audio_free(void *p)
     if(ao->buf)
 	free(ao->buf);
     free(ao->ptsq);
+    free(tp->format.common.codec);
     free(ao);
 }
 
@@ -165,7 +166,7 @@ audio_input(tcvp_pipe_t *p, packet_t *pk)
 
 	bs = min(count, ao->bufsize - ao->bbytes);
 	bs = min(bs, ao->bufsize - (ao->head - ao->buf));
-	memcpy(ao->head, data, bs);
+	ao->conv(ao->head, data, bs / ao->bpf, ao->channels);
 	data += bs;
 	count -= bs;
 	ao->bbytes += bs;
@@ -267,20 +268,26 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     audio_out_t *ao = p->private;
     audio_driver_t *ad = NULL;
-    audio_stream_t *as = &s->audio;
+    audio_stream_t *as = &p->format.audio;
+    char **formats;
+    sndconv_t conv = NULL;
     int ssize = 0;
     char *sf;
-    int i;
+    int i, j;
 
     if(s->stream_type != STREAM_TYPE_AUDIO)
 	return PROBE_FAIL;
 
-    if(!(sf = strstr(as->codec, "pcm-")))
+    if(!(sf = strstr(s->common.codec, "pcm-")))
 	return PROBE_FAIL;
 
     sf += 4;
+    formats = audio_all_conv(sf);
 
-    for(i = 0; i < output_audio_conf_driver_count; i++){
+    p->format = *s;
+    as->codec = malloc(256);
+
+    for(i = 0; i < output_audio_conf_driver_count && !ad; i++){
 	driver_audio_new_t adn;
 	char buf[256];
 
@@ -289,12 +296,13 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	if(!(adn = tc2_get_symbol(buf, "new")))
 	    continue;
 
-	if((ad = adn(as, ao->conf, ao->timer))){
-	    if(!strcmp(ad->format, sf)){
-		break;
-	    } else {
-		tcfree(ad);
-		ad = NULL;
+	for(j = 0; formats[j] && !ad; j++){
+	    snprintf(as->codec, 256, "audio/pcm-%s", formats[j]);
+	    if((ad = adn(as, ao->conf, ao->timer))){
+		if(!(conv = audio_conv(sf, ad->format))){
+		    tcfree(ad);
+		    ad = NULL;
+		}
 	    }
 	}
     }
@@ -315,13 +323,13 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     ao->driver = ad;
     ao->bpf = as->channels * ssize;
+    ao->channels = as->channels;
     ao->rate = as->sample_rate;
     ao->bufsize = ao->bpf * output_audio_conf_buffer_size;
     ao->buf = malloc(ao->bufsize);
     ao->head = ao->tail = ao->buf;
+    ao->conv = conv;
     pthread_create(&ao->pth, NULL, audio_play, ao);
-
-    p->format = *s;
 
     return PROBE_OK;
 err:
