@@ -30,7 +30,7 @@
 
 typedef struct yuv4mpeg {
     url_t *url;
-    uint64_t pts;
+    uint64_t pts, ptsd;
     int framesize;
     int offsets[3];
     stream_t s;
@@ -86,12 +86,21 @@ y4m_packet(muxed_stream_t *ms, int s)
     yuv4mpeg_t *y4m = ms->private;
     yuv4mpeg_packet_t *yp;
     char buf[256];
+    char *tag = buf;
+    uint64_t pts = y4m->pts;
 
     if(!url_gets(buf, sizeof(buf), y4m->url))
 	return NULL;
 
     if(strncmp(buf, "FRAME", 5))
 	return NULL;
+
+    while((tag = strchr(tag, ' '))){
+	tag++;
+	if(!strncmp(tag, "PTS=", 4)){
+	    pts = strtoull(tag + 4, &tag, 10);
+	}
+    }
 
     yp = tcallocdz(sizeof(*yp), NULL, y4m_free_pk);
     yp->data[0] = malloc(y4m->framesize);
@@ -104,10 +113,9 @@ y4m_packet(muxed_stream_t *ms, int s)
     yp->pk.data = yp->data;
     yp->pk.sizes = yp->size;
     yp->pk.flags = TCVP_PKT_FLAG_PTS | TCVP_PKT_FLAG_KEY;
-    yp->pk.pts = y4m->pts;
+    yp->pk.pts = pts;
 
-    y4m->pts +=
-	27000000 * y4m->s.video.frame_rate.den / y4m->s.video.frame_rate.num;
+    y4m->pts = pts + y4m->ptsd;
 
     return &yp->pk;
 }
@@ -179,6 +187,7 @@ y4m_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     y4m->s.video.aspect.num = width * aspect.num;
     y4m->s.video.aspect.den = height * aspect.den;
     tcreduce(&y4m->s.video.aspect);
+    y4m->ptsd = 27000000LL * rate.den / rate.num;
 
     ms = tcallocdz(sizeof(*ms), NULL, y4m_free);
     ms->n_streams = 1;
