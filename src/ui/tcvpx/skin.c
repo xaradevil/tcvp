@@ -459,9 +459,11 @@ create_skinned_seek_bar(window_t *win, skin_t *skin, tcconf_section_t *sec,
 			    load_image(skin->path, ind_over),
 			    load_image(skin->path, ind_down),
 			    *position, lookup_action, wd);
-    register_varwidget((xtk_widget_t *)s, wd->value);
-    s->ondestroy = destroy_skinned_seek_bar;
-    if(disable) xtk_disable_seek_bar(s);
+    if(s) {
+	register_varwidget((xtk_widget_t *)s, wd->value);
+	s->ondestroy = destroy_skinned_seek_bar;
+	if(disable) xtk_disable_seek_bar(s);
+    }
 
     free(ind_over);
     free(ind_down);
