@@ -60,7 +60,7 @@ tcvp_stop(char *p)
 static int
 tcvp_status(void *p, int state, uint64_t time)
 {
-    fprintf(stderr, "\r%li", time);
+/*     fprintf(stderr, "\r%li", time); */
     if(state == TCVP_STATE_END)
 	tcvp_stop(NULL);
 
