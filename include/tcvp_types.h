@@ -35,6 +35,8 @@ struct packet {
 #define STREAM_TYPE_VIDEO 1
 #define STREAM_TYPE_AUDIO 2
 
+#define PIXEL_FORMATS 3
+
 #define PIXEL_FORMAT_YV12 1
 #define PIXEL_FORMAT_I420 2
 #define PIXEL_FORMAT_YUY2 3
