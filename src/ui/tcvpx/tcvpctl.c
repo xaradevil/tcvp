@@ -102,6 +102,10 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	    }
 
 	    change_text("performer", tcattr_get(st, "performer"));
+	    change_text("album", tcattr_get(st, "album"));
+	    change_text("genre", tcattr_get(st, "genre"));
+	    change_text("year", tcattr_get(st, "year"));
+	    change_text("trackno", tcattr_get(st, "track"));
 	}
 
 	if(st) {

@@ -272,6 +272,30 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 		       NULL, free);
 	    free(data);
 	    break;
+	case TAG('T','A','L','B'):
+	    data = id3v2_getframe(f, &dsize, fflags);
+	    tcattr_set(ms, "album", id3v2_gettext(data, dsize),
+		       NULL, free);
+	    free(data);
+	    break;
+	case TAG('T','C','O','N'):
+	    data = id3v2_getframe(f, &dsize, fflags);
+	    tcattr_set(ms, "genre", id3v2_gettext(data, dsize),
+		       NULL, free);
+	    free(data);
+	    break;
+	case TAG('T','Y','E','R'):
+	    data = id3v2_getframe(f, &dsize, fflags);
+	    tcattr_set(ms, "year", id3v2_gettext(data, dsize),
+		       NULL, free);
+	    free(data);
+	    break;
+	case TAG('T','R','C','K'):
+	    data = id3v2_getframe(f, &dsize, fflags);
+	    tcattr_set(ms, "track", id3v2_gettext(data, dsize),
+		       NULL, free);
+	    free(data);
+	    break;
 	}
 
 	f->seek(f, pos + fsize, SEEK_SET);

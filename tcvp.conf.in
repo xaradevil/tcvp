@@ -22,3 +22,6 @@ output/audio {
 	driver "alsa"	2
 	driver "oss"	1
 }
+
+# This is needed when using xtk due to a missing feature in tc2 
+TC2/unload_modules 0

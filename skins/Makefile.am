@@ -4,6 +4,7 @@ nobase_dist_skin_DATA = \
 	big_blue/background.png \
 	big_blue/big_audio.png \
 	big_blue/big_audio_over.png \
+	big_blue/big_av_info_bg.png \
 	big_blue/big_background.png \
 	big_blue/big_brightness_ctl.png \
 	big_blue/big_close.png \
@@ -20,7 +21,9 @@ nobase_dist_skin_DATA = \
 	big_blue/big_imgslider_ind.png \
 	big_blue/big_imgslider_over.png \
 	big_blue/big_imgslider_pressed.png \
+	big_blue/big_info.png \
 	big_blue/big_info_bg.png \
+	big_blue/big_info_over.png \
 	big_blue/big_next.png \
 	big_blue/big_next_over.png \
 	big_blue/big_next_pressed.png \
@@ -34,6 +37,7 @@ nobase_dist_skin_DATA = \
 	big_blue/big_play_over.png \
 	big_blue/big_play_pressed.png \
 	big_blue/big_playing.png \
+	big_blue/big_plctl_bg.png \
 	big_blue/big_posbg.png \
 	big_blue/big_posslider.png \
 	big_blue/big_posslider_over.png \
@@ -54,6 +58,7 @@ nobase_dist_skin_DATA = \
 	big_blue/big_stopped.png \
 	big_blue/big_timebg.png \
 	big_blue/big_titlebg.png \
+	big_blue/big_uictl_bg.png \
 	big_blue/big_volbg.png \
 	big_blue/big_volslider.png \
 	big_blue/button.png \
