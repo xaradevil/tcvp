@@ -38,7 +38,7 @@ i420_yuy2(int height, const u_char **in, int *istride,
     const u_char *vsrc = in[2];
     const u_char *dst = out[0];
 
-    for(y = 0; y < height; y++){
+    for(y = 0; y < height-1; y++){
 #if __WORDSIZE >= 64
 	int i;
 	uint64_t *ldst = (uint64_t *) dst;
