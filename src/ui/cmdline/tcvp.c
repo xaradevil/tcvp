@@ -115,7 +115,7 @@ tcl_event(void *p)
 		if(!prl)
 		    break;
 	    case TCVP_STATE_PL_END:
-		if(!isdaemon)
+		if(!isdaemon && !sel_ui)
 		    tc2_request(TC2_UNLOAD_ALL, 0);
 		break;
 	    }
