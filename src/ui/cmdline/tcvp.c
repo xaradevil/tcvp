@@ -194,7 +194,7 @@ tcl_intr(void *p)
 
 	switch(ic){
 	case 0:
-	    if(sig == SIGINT && !prl){
+	    if(sig == SIGINT && !prl && !sel_ui){
 		tcvp_event_send(qs, TCVP_PL_NEXT);
 		break;
 	    }
