@@ -54,7 +54,7 @@ struct threads {
     thread_t *cur;
     thread_t *free;
     pthread_mutex_t lock, olock;
-    pthread_cond_t cond;
+    pthread_cond_t cond, ocond;
     thread_t *threads;
     int nthreads;
     thr_packet_t *outq;
@@ -63,24 +63,14 @@ struct threads {
     int qsize, osize;
     int pkc, npk;
     tcvp_pipe_t *pipe;
+    int run;
+    pthread_t oth;
 };
 
 static int
 wait_packet(thread_t *t)
 {
-    threads_t *th = t->th;
-
     pthread_mutex_lock(&t->lock);
-    pthread_mutex_lock(&th->lock);
-    if(!t->nq && !t->free){
-	tc2_print("THREADS", TC2_PRINT_DEBUG+3, "[%i] free\n",
-		  t - th->threads);
-	t->next = th->free;
-	th->free = t;
-	t->free = 1;
-	pthread_cond_broadcast(&th->cond);
-    }
-    pthread_mutex_unlock(&th->lock);
 
     tc2_print("THREADS", TC2_PRINT_DEBUG+3, "[%i] waiting for packets\n",
 	      t - t->th->threads);
@@ -127,9 +117,9 @@ th_input(tcvp_pipe_t *p, packet_t *pk)
     threads_t *th = t->th;
     int oqp;
 
-    pthread_mutex_lock(&th->lock);
+    pthread_mutex_lock(&th->olock);
     while(t->seq - th->oseq >= th->osize && t->run)
-	pthread_cond_wait(&th->cond, &th->lock);
+	pthread_cond_wait(&th->cond, &th->olock);
     if(!t->run)
 	goto end;
 
@@ -147,31 +137,52 @@ th_input(tcvp_pipe_t *p, packet_t *pk)
     th->outq[oqp].pk = pk;
     th->outq[oqp].seq = t->seq;
 
-    if(pthread_mutex_trylock(&th->olock))
-	goto end;
+    pthread_cond_broadcast(&th->ocond);
+end:
+    pthread_mutex_unlock(&th->olock);
 
-    while(th->outq[th->tail].pk){
-	packet_t *opk = th->outq[th->tail].pk;
-	int pkn = th->outq[th->tail].seq;
+    return 0;
+}
+
+static void *
+thr_output(void *p)
+{
+    threads_t *th = p;
+
+    pthread_mutex_lock(&th->olock);
+    while(!th->outq[th->npk / 2].pk && th->run)
+	pthread_cond_wait(&th->ocond, &th->olock);
+    pthread_mutex_unlock(&th->olock);
+    if(!th->run)
+	return NULL;
+
+    while(th->run){
+	packet_t *opk;
+	int pkn;
+
+	pthread_mutex_lock(&th->olock);
+	while(!th->outq[th->tail].pk && th->run)
+	    pthread_cond_wait(&th->ocond, &th->olock);
+	if(!th->run){
+	    pthread_mutex_unlock(&th->olock);
+	    break;
+	}
+
+	opk = th->outq[th->tail].pk;
+	pkn = th->outq[th->tail].seq;
 
 	th->outq[th->tail].pk = NULL;
 	if(++th->tail == th->osize)
 	    th->tail = 0;
 	th->oseq = pkn + 1;
-	pthread_cond_broadcast(&th->cond);
-	pthread_mutex_unlock(&th->lock);
+	pthread_cond_broadcast(&th->ocond);
+	pthread_mutex_unlock(&th->olock);
 
 	tc2_print("THREADS", TC2_PRINT_DEBUG+2, "sending packet %i\n", pkn);
 	th->pipe->next->input(th->pipe->next, opk);
-
-	pthread_mutex_lock(&th->lock);
     }
 
-    pthread_mutex_unlock(&th->olock);
-
-end:
-    pthread_mutex_unlock(&th->lock);
-    return 0;
+    return NULL;
 }
 
 static int
@@ -200,18 +211,27 @@ thr_input(tcvp_pipe_t *p, packet_t *pk)
     th->pkc++;
 
     if(!th->cur || (th->cur->nq && th->pkc > th->npk)){
+	u_int i, mq = -1, tn = 0;
 	pthread_mutex_lock(&th->lock);
-	while(!th->free)
-	    pthread_cond_wait(&th->cond, &th->lock);
-	t = th->free;
-	t->free = 0;
-	th->free = th->free->next;
+
+	for(i = 0; i < th->nthreads; i++){
+	    if(th->threads[i].nq < mq){
+		mq = th->threads[i].nq;
+		tn = i;
+	    }
+	}
+	t = th->threads + tn;
+
+	if(th->cur != t){
+	    th->pkc = 0;
+	    pk->flags |= TCVP_PKT_FLAG_DISCONT;
+	    tc2_print("THREADS", TC2_PRINT_DEBUG, "switching to thread %i\n",
+		      t - th->threads);
+	}
+
 	th->cur = t;
+
 	pthread_mutex_unlock(&th->lock);
-	th->pkc = 0;
-	pk->flags |= TCVP_PKT_FLAG_DISCONT;
-	tc2_print("THREADS", TC2_PRINT_DEBUG, "switching to thread %i\n",
-		  t - th->threads);
     } else {
 	t = th->cur;
     }
@@ -256,6 +276,11 @@ thr_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	pthread_create(&t->thr, NULL, th_run, t);
     }
 
+    if(ps == PROBE_OK){
+	th->run = 1;
+	pthread_create(&th->oth, NULL, thr_output, th);
+    }
+
     return ps;
 }
 
@@ -292,11 +317,20 @@ thr_free(void *p)
 	free(t->pkq);
     }
 
+    if(th->oth){
+	pthread_mutex_lock(&th->olock);
+	th->run = 0;
+	pthread_cond_broadcast(&th->ocond);
+	pthread_mutex_unlock(&th->olock);
+	pthread_join(th->oth, NULL);
+    }
+
     free(th->outq);
     free(th->threads);
     pthread_mutex_destroy(&th->lock);
     pthread_mutex_destroy(&th->olock);
     pthread_cond_destroy(&th->cond);
+    pthread_cond_destroy(&th->ocond);
 
     tc2_request(TC2_DEL_DEPENDENCY, 0, "stream");
 }
@@ -306,15 +340,20 @@ thr_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	muxed_stream_t *ms)
 {
     threads_t *th;
+    int osize = 0;
     int i;
 
     th = tcallocdz(sizeof(*th), NULL, thr_free);
     th->nthreads = 2;
     th->npk = 12;
-    th->qsize = 12;
     tcconf_getvalue(cs, "threads", "%i", &th->nthreads);
     tcconf_getvalue(cs, "min_packets", "%i", &th->npk);
+    th->qsize = th->nthreads * th->npk;
     tcconf_getvalue(cs, "inqueue", "%i", &th->qsize);
+    th->osize = th->nthreads * th->qsize;
+    tcconf_getvalue(cs, "buffer", "%i", osize);
+    if(osize > th->osize)
+	th->osize = osize;
 
     if(th->nthreads < 1){
 	tc2_print("THREADS", TC2_PRINT_ERROR,
@@ -325,6 +364,7 @@ thr_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     pthread_mutex_init(&th->lock, NULL);
     pthread_mutex_init(&th->olock, NULL);
     pthread_cond_init(&th->cond, NULL);
+    pthread_cond_init(&th->ocond, NULL);
     th->threads = calloc(th->nthreads, sizeof(*th->threads));
 
     for(i = 0; i < th->nthreads; i++){
@@ -346,12 +386,8 @@ thr_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	while(te->next)
 	    te = te->next;
 	te->next = th->threads[i].end;
-
-/* 	th->threads[i].next = th->free; */
-/* 	th->free = th->threads + i; */
     }
 
-    th->osize = th->nthreads * th->qsize;
     th->outq = calloc(th->osize, sizeof(*th->outq));
 
     th->pipe = p;
