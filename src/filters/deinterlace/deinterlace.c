@@ -29,12 +29,14 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <tcalloc.h>
+#include <ffmpeg/avcodec.h>
 #include <tcvp_types.h>
 #include <deinterlace_tc2.h>
 
 #define DI_NONE  0
 #define DI_DROP  1
 #define DI_BLEND 2
+#define DI_SPLIT 3
 
 typedef struct deinterlace {
     int method;
@@ -52,20 +54,53 @@ di_drop(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 }
 
 static int
+di_split(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
+{
+    u_char *data[pk->planes], **od;
+    int sizes[pk->planes], *os;
+    int i;
+
+    od = pk->data;
+    os = pk->sizes;
+
+    pk->data = data;
+    pk->sizes = sizes;
+
+    for(i = 0; i < pk->planes; i++){
+	sizes[i] = os[i] * 2;
+	data[i] = od[i];
+    }
+
+    p->next->input(p->next, tcref(pk));
+
+    for(i = 0; i < pk->planes; i++)
+	data[i] += os[i];
+
+    pk->pts += 27000000LL * p->format.video.frame_rate.den /
+	p->format.video.frame_rate.num;
+
+    p->next->input(p->next, tcref(pk));
+
+    pk->data = od;
+    pk->sizes = os;
+
+    tcfree(pk);
+    return 0;
+}
+
+static int
 di_blend(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
-    int i, j, k;
+    AVPicture pic;
+    int i;
 
     for(i = 0; i < 3; i++){
-	int d = i? 2: 1;
-	for(j = 0; j < p->format.video.height / d - 1; j += 2){
-	    for(k = 0; k < p->format.video.width / d; k++){
-		pk->data[i][j * pk->sizes[i] + k] =
-		    (pk->data[i][j * pk->sizes[i] + k] +
-		     pk->data[i][(j+1) * pk->sizes[i] + k]) / 2;
-	    }
-	}
+	pic.data[i] = pk->data[i];
+	pic.linesize[i] = pk->sizes[i];
     }
+
+    avpicture_deinterlace(&pic, &pic, PIX_FMT_YUV420P, p->format.video.width,
+			  p->format.video.height);
 
     return p->next->input(p->next, (tcvp_packet_t *) pk);
 }
@@ -83,7 +118,11 @@ di_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 	    return di_drop(p, pk);
 	case DI_BLEND:
 	    return di_blend(p, pk);
+	case DI_SPLIT:
+	    return di_split(p, pk);
 	}
+    } else {
+	return p->next->input(p->next, (tcvp_packet_t *) pk);
     }
 
     return -1;
@@ -94,15 +133,15 @@ di_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     deinterlace_t *di = p->private;
 
-    if(p->format.video.flags & TCVP_STREAM_FLAG_INTERLACED){
-	switch(di->method){
-	case DI_DROP:
-	    p->format.video.height /= 2;
-	    break;
-	}
-	if(di->method)
-	    p->format.video.flags &= ~TCVP_STREAM_FLAG_INTERLACED;
+    switch(di->method){
+    case DI_SPLIT:
+	p->format.video.frame_rate.num *= 2;
+    case DI_DROP:
+	p->format.video.height /= 2;
+	break;
     }
+    if(di->method)
+	p->format.video.flags &= ~TCVP_STREAM_FLAG_INTERLACED;
 
     return PROBE_OK;
 }
@@ -123,6 +162,8 @@ di_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	di->method = DI_NONE;
     } else if(!strcmp(dm, "blend")){
 	di->method = DI_BLEND;
+    } else if(!strcmp(dm, "split")){
+	di->method = DI_SPLIT;
     } else {
 	tc2_print("DEINTERLACE", TC2_PRINT_WARNING,
 		  "unknown method '%s'\n", dm);
