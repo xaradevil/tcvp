@@ -2,6 +2,9 @@
 # -*- mmm-classes: here-doc -*-
 
 # Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+# Licensed under the Open Software License version 2.0
+
+use strict;
 
 use File::Temp qw/tempdir/;
 use POSIX qw/floor/;
@@ -73,6 +76,8 @@ size 275 14
 background "shade_bg.png"
 END_TCCONF
 
+# generic image helpers
+
 sub save_image {
     my ($img, $d, $f) = @_;
     $f = "$dir/$f";
@@ -120,6 +125,8 @@ sub make_rect {
     save_image($nbg, $bl, $name);
     gimp_image_delete($nbg);
 }
+
+# GUI element creators
 
 sub create_button {
     my ($img, $x, $y, $w, $h, $nx, $ny, $px, $py, $name, $action, @conf) = @_;
@@ -198,6 +205,53 @@ slider [
 END_TCCONF
 }
 
+# font utilities
+
+sub luminance {
+    0.212671 * $_[0] + 0.715160 * $_[1] + 0.072169 * $_[2];
+}
+
+sub text_properties {
+    my ($img, $x, $y, $h) = @_;
+    my ($i, $j, @c, $bl, $dl, $d, $md, @fg, @bg, $tt, $tb);
+    my $w = gimp_image_width($img);
+
+    $d = gimp_image_active_drawable($img);
+    @bg = gimp_drawable_get_pixel($d, $x, $y);
+
+    $md = 0;
+    $tt = -1;
+
+    for($j = 0; $j < $h; $j++){
+	my $rd = 0;
+	my (@rc, @rb);
+
+	@rb = gimp_drawable_get_pixel($d, $x, $j);
+	$bl = luminance(@rb);
+
+	for($i = 0; $i < $w; $i++){
+	    @c = gimp_drawable_get_pixel($d, $i, $j);
+	    $dl = abs(luminance(@c) - $bl);
+	    if($dl > $rd){
+		@rc = @c;
+		$rd = $dl;
+	    }
+	}
+	if($rd > 50){
+	    $tt = $j if $tt < 0;
+	    $tb = $j;
+	}
+	if($rd > $md){
+	    @fg = @rc;
+	    $md = $rd;
+	}
+    }
+
+    return (\@fg, \@bg, $tt, $tb);
+}
+
+# skin processing
+
 sub background {
     my $bg = load_image($main);
     save_image($bg, gimp_image_active_drawable($bg), 'bg.png');
@@ -246,49 +300,6 @@ sub cbuttons {
     gimp_image_delete($bi);
 }
 
-sub luminance {
-    0.212671 * $_[0] + 0.715160 * $_[1] + 0.072169 * $_[2];
-}
-
-sub text_properties {
-    my ($img, $x, $y, $h) = @_;
-    my ($i, $j, @c, $bl, $dl, $d, $md, @fg, @bg, $tt, $tb);
-    my $w = gimp_image_width($img);
-
-    $d = gimp_image_active_drawable($img);
-    @bg = gimp_drawable_get_pixel($d, $x, $y);
-
-    $md = 0;
-    $tt = -1;
-
-    for($j = 0; $j < $h; $j++){
-	my $rd = 0;
-	my (@rc, @rb);
-
-	@rb = gimp_drawable_get_pixel($d, $x, $j);
-	$bl = luminance(@rb);
-
-	for($i = 0; $i < $w; $i++){
-	    @c = gimp_drawable_get_pixel($d, $i, $j);
-	    $dl = abs(luminance(@c) - $bl);
-	    if($dl > $rd){
-		@rc = @c;
-		$rd = $dl;
-	    }
-	}
-	if($rd > 50){
-	    $tt = $j if $tt < 0;
-	    $tb = $j;
-	}
-	if($rd > $md){
-	    @fg = @rc;
-	    $md = $rd;
-	}
-    }
-
-    return (\@fg, \@bg, $tt, $tb);
-}
-
 sub posbar {
     my $pb = load_image($posbar);
     create_slider($pb, 16, 72, 248, 10, 248, 0, 278, 0, 29, 10, 0, 0, 0, 219,
@@ -317,6 +328,7 @@ sub text {
     my $tx = load_image($text);
     my ($fg, $bg) = text_properties($tx, 151, 2, 6);
     my $color = sprintf "rgb:%02x/%02x/%02x", @$fg;
+
     gimp_image_delete($tx);
 
     $skinconf .= <<END_TCCONF;
@@ -371,9 +383,10 @@ sub numbers {
     my $nb = load_image($numbers);
     my ($fg, $bg, $tt, $tb) = text_properties($nb, 96, 6, 13);
     my $color = sprintf "rgb:%02x/%02x/%02x", @$fg;
-    gimp_image_delete($nb);
 
     make_rect(65, 13, 0, 1, 63, 11, $bg, 'timebg.png');
+
+    gimp_image_delete($nb);
 
     my $th = $tb - $tt + 1;
     my $pxs = floor($th * 1.4);
@@ -386,7 +399,7 @@ label [
 	size 65 13
 	text_offset 0 $yoff
 	font 'arial:pixelsize=$pxs:aspect=$asp:weight=bold:spacing=monospace'
-	color "$color" 255
+	color "$color"
 	text '\${time:-    :  } '
 	scroll_style 1
 	align 'right'
