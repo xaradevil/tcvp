@@ -162,6 +162,8 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
     if(!pk->data){
 	ao->data_end = 1;
 	pk->free(pk);
+	if(!ao->bbytes)
+	    tm_settimer(ao->timer, SYSTEM);
 	return 0;
     }
 

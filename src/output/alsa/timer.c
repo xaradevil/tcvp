@@ -273,7 +273,9 @@ open_timer(snd_pcm_t *pcm)
 	at->timers[PCM] = new_timer(SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
 				    card, dev, sdev);
 	at->timer = at->timers[PCM];
-    } else {
+    }
+
+    if(!pcm || !at->timers[PCM]){
 	at->timer = at->timers[SYSTEM];
     }
 
