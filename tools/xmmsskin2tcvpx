@@ -23,7 +23,6 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 use strict;
-
 use File::Temp qw/tempdir/;
 use POSIX qw/floor/;
 use Gimp qw/:auto/;
@@ -307,7 +306,7 @@ text_font [
 	file 'text.png'
 	columns 31
 	rows 3
-	characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=$#ежд?*"
+	characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=\$#\xc5\xd6\xc4?"
 ]
 label [
 	position 112 26
@@ -341,7 +340,7 @@ text_font [
 	file 'text.png'
 	columns 31
 	rows 3
-	characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=$#ежд?*"
+	characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=\$#\xc5\xd6\xc4?"
 ]
 label [
 	position 123 4

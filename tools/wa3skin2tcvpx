@@ -222,7 +222,7 @@ sub get_font {
       $$fnt{name};
     write_image $$fnt{name};
 
-    my $chars = q|ABCDEFGHIJKLMNOPQRSTUVWXYZ\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=$#ÅÖÄ?|;
+    my $chars = q|ABCDEFGHIJKLMNOPQRSTUVWXYZ\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=$#\xc5\xd6\xc4?|;
 
     $$fnt{text} = <<END_TCCONF;
 bitmap [
@@ -546,7 +546,7 @@ Gimp::on_net {
     $xml->parsefile("$sd/skin.xml");
 
     for(keys %layouts){
-	open S, ">:encoding(iso-8859-1)", "$dir/$_.conf" or die;
+	open S, ">$dir/$_.conf" or die;
 	print S "# -*- tcconf -*-\n";
 	print_group \*S, $layouts{$_};
 	close S;
