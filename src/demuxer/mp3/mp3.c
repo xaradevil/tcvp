@@ -548,24 +548,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 	f->seek(f, -4, SEEK_CUR);
     } else {
 	f->seek(f, 44, SEEK_SET);
-	f->read(head, 1, 4, f);
     }
-
-#if 0
-    if(head[0] == 0xff && (head[1] & 0xf6) == 0xf0){
-	mf->header_size = 6;
-	mf->parse_header = aac_header;
-	mf->tag = "AAC";
-    } else if(head[0] == 0x0b && head[1] == 0x77){
-	mf->header_size = 5;
-	mf->parse_header = ac3_header;
-	mf->tag = "AC3";
-    } else {
-	mf->header_size = 3;
-	mf->parse_header = mp3_header;
-	mf->tag = "MP3";
-    }
-#endif
 
     mf->header_size = MAX_HEADER_SIZE;
 
