@@ -13,6 +13,8 @@ import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 import		"tcvp/event"	"send"
 import		"tcvp/event"	"get_qname"
+postinit	x11_init
+shutdown	x11_free
 
 TCVP {
 	event TCVP_SEEK
@@ -24,3 +26,5 @@ TCVP {
 
 option		mouse_delay%i=2
 Delay in seconds before hiding mouse pointer
+
+option		reuse_window%i
