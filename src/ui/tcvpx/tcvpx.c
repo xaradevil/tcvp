@@ -78,16 +78,18 @@ update_time(skin_t *skin)
 	}
     }
 
-    if(s_length > 0){
-	change_seek_bar(skin->seek_bar, (double)s_time/s_length);
-    } else {
-	change_seek_bar(skin->seek_bar, 0);
+    if(skin->seek_bar) {
+	if(s_length > 0){
+	    change_seek_bar(skin->seek_bar, (double)s_time/s_length);
+	} else {
+	    change_seek_bar(skin->seek_bar, 0);
+	}
     }
 
-    snprintf(text, 7, "%3d:%02d", t/60, t%60);
-    change_label(skin->time, text);
-
-    XSync(xd, False);
+    if(skin->time){
+	snprintf(text, 7, "%3d:%02d", t/60, t%60);
+	change_label(skin->time, text);
+    }
     
     return 0;
 }
@@ -158,8 +160,9 @@ tcvpx_init(char *p)
 
     pthread_create(&xth, NULL, x11_event, skin);
     pthread_create(&eth, NULL, tcvp_event, skin);
-    pthread_create(&sth, NULL, scroll_labels, NULL);
-
+    if(list_items(sl_list)>0) {
+	pthread_create(&sth, NULL, scroll_labels, NULL);
+    }
     return 0;
 }
 
@@ -174,7 +177,9 @@ tcvpx_shdn(void)
 
     quit = 1;
 
-    pthread_join(sth, NULL);
+    if(list_items(sl_list)>0) {
+	pthread_join(sth, NULL);
+    }
     /* FIXME: join event thread */
 /*     pthread_join(eth, NULL); */
     pthread_join(xth, NULL);

@@ -112,13 +112,17 @@ tcvp_event(void *p)
 /* 	    printf("%ld (%d/%d)\n", frames, frame_rate_num, frame_rate_den); */
 /* 	    printf("%d\n", s_length); */
 
-	    if(s_length > 0){
-		enable_seek_bar(skin->seek_bar);
-	    } else {
-		disable_seek_bar(skin->seek_bar);
+	    if(skin->seek_bar) {
+		if(s_length > 0){
+		    enable_seek_bar(skin->seek_bar);
+		} else {
+		    disable_seek_bar(skin->seek_bar);
+		}
 	    }
 
-	    change_label(skin->title, title);
+	    if(skin->title) {
+		change_label(skin->title, title);
+	    }
 	    break;
 	}
 	case -1:
