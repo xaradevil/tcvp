@@ -110,9 +110,9 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     if(op->packetno < 3) {
 	vorbis_synthesis_headerin(&vc->vi, &vc->vc, op);
-	return PROBE_AGAIN;
-    } else {
-	if(op->packetno == 3) {
+	if(op->packetno != 3) {	
+	    return PROBE_AGAIN;
+	} else {
 	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels,
 		    vc->vi.rate);
 	    s->audio.sample_rate = 44100;
@@ -120,8 +120,9 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    vorbis_synthesis_init(&vc->vd, &vc->vi);
 	    vorbis_block_init(&vc->vd, &vc->vb); 
 	}
-	return 0;
-    }    
+    }
+    return 0;
+
 }
 
 static int
