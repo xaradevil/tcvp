@@ -23,5 +23,6 @@
 #include <tcvp_types.h>
 
 extern enum CodecID avc_codec_id(char *);
+extern char *avc_codec_name(enum CodecID id);
 
 #endif

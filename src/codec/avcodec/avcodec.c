@@ -230,6 +230,7 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     if(ac->have_params){
 	p->format = *s;
+	p->format.audio.codec = avc_codec_name(ac->ctx->codec_id);
 	p->format.audio.sample_rate = ac->ctx->sample_rate;
 	p->format.audio.channels = ac->ctx->channels;
 	ret = p->next->probe(p->next, NULL, &p->format);
@@ -419,7 +420,7 @@ avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     return p;
 }
 
-static const char *codec_names[][2] = {
+static char *codec_names[][2] = {
     { (char *) CODEC_ID_NONE, "" }, 
     { (char *) CODEC_ID_MPEG1VIDEO, "video/mpeg" },
     { (char *) CODEC_ID_MPEG2VIDEO, "video/mpeg2" },
@@ -480,6 +481,20 @@ avc_codec_id(char *codec)
     for(i = 0; codec_names[i][1]; i++){
 	if(!strcmp(codec, codec_names[i][1])){
 	    return (enum CodecID) codec_names[i][0];
+	}
+    }
+
+    return 0;
+}
+
+extern char *
+avc_codec_name(enum CodecID id)
+{
+    int i;
+
+    for(i = 0; codec_names[i][1]; i++){
+	if((enum CodecID) codec_names[i][0] == id){
+	    return codec_names[i][1];
 	}
     }
 
