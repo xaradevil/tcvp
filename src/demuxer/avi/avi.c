@@ -97,6 +97,7 @@ typedef struct avi_stream {
     avi_index_t *index;
     int idxlen, idxsize;
     uint64_t ipts, ptsn, ptsd;
+    int pkt;
 } avi_stream_t;
 
 typedef struct avi_file {
@@ -637,6 +638,12 @@ avi_alloc_packet(size_t size)
     pk->data = pk->buf;
     pk->asize = size;
 
+    pk->pk.data = (u_char **) &pk->data;
+    pk->pk.sizes = &pk->size;
+    pk->pk.sizes[0] = size;
+    pk->pk.planes = 1;
+    pk->pk.free = avi_free_packet;
+
     return pk;
 }
 
@@ -789,13 +796,8 @@ avi_packet(muxed_stream_t *ms, int stream)
 	url_getc(af->file);
 
     pk->pk.stream = str;
-    pk->pk.data = (u_char **) &pk->data;
-    pk->pk.sizes = &pk->size;
-    pk->pk.sizes[0] = size;
-    pk->pk.planes = 1;
     pk->pk.flags = pflags;
     pk->pk.pts = pts;
-    pk->pk.free = avi_free_packet;
     pk->flags = flags;
 
     af->pkt++;
@@ -876,6 +878,64 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     return time;
 }
 
+static packet_t *
+avi_packet_ni(muxed_stream_t *ms, int str)
+{
+    avi_file_t *af = ms->private;
+    avi_stream_t *as = af->streams + str;
+    avi_packet_t *pk = NULL;
+
+    if(as->pkt < as->idxlen){
+	avi_index_t *ai = as->index + as->pkt++;
+
+	pk = avi_alloc_packet(ai->size);
+	af->file->seek(af->file, ai->offset + 8, SEEK_SET);
+	af->file->read(pk->data, 1, ai->size, af->file);
+	pk->pk.stream = str;
+	pk->pk.flags = TCVP_PKT_FLAG_PTS;
+	if(ai->flags & AVI_FLAG_KEYFRAME)
+	    pk->pk.flags |= TCVP_PKT_FLAG_KEY;
+	pk->pk.pts = ai->pts;
+	pk->flags = ai->flags;
+    }
+
+    return (packet_t *) pk;
+}
+
+static uint64_t
+avi_seek_ni(muxed_stream_t *ms, uint64_t time)
+{
+    avi_file_t *af = ms->private;
+    int i, j;
+
+    for(j = 0; j < ms->n_streams; j++){
+	if(ms->used_streams[j]){
+	    for(i = 0; i < af->streams[j].idxlen; i++){
+		if(time <= af->streams[j].index[i].pts){
+		    if(ms->streams[j].stream_type != STREAM_TYPE_VIDEO ||
+		       (af->streams[j].index[i].flags & AVI_FLAG_KEYFRAME))
+			break;
+		}
+	    }
+	    if(ms->streams[j].stream_type == STREAM_TYPE_VIDEO)
+		time = af->streams[j].index[i].pts;
+	}
+    }
+
+    for(j = 0; j < ms->n_streams; j++){
+	if(ms->used_streams[j]){
+	    for(i = 0; i < af->streams[j].idxlen; i++){
+		if(time <= af->streams[j].index[i].pts){
+		    af->streams[j].pkt = i;
+		    break;
+		}
+	    }
+	}
+    }
+
+    return time;
+}
+
 static void
 avi_free(void *p)
 {
@@ -915,8 +975,13 @@ avi_open(char *file, conf_section *cs)
 	return NULL;
 
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
-    ms->next_packet = avi_packet;
-    ms->seek = avi_seek;
+    if(tcvp_demux_avi_conf_noninterleaved){
+	ms->next_packet = avi_packet_ni;
+	ms->seek = avi_seek_ni;
+    } else {
+	ms->next_packet = avi_packet;
+	ms->seek = avi_seek;
+    }
     ms->file = strdup(file);
 
     return ms;

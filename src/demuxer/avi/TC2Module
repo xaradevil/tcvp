@@ -10,3 +10,4 @@ import		"URL"		"getc"
 option		max_skip%i=16
 option		max_scan%i=2048
 option		backup%i=64
+option		noninterleaved%i=0
