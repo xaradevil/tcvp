@@ -23,3 +23,18 @@ typedef struct tcvp_pl_shuffle_event {
     int type;
     int shuffle;
 } tcvp_pl_shuffle_event_t;
+
+typedef struct tcvp_pl_flags_event {
+    int type;
+    uint32_t flags;
+    int op;
+} tcvp_pl_flags_event_t;
+
+#define TCVP_PL_FLAGS_SET   1
+#define TCVP_PL_FLAGS_OR    2
+#define TCVP_PL_FLAGS_AND   3
+#define TCVP_PL_FLAGS_XOR   4
+
+#define TCVP_PL_FLAG_SHUFFLE (1<<0)
+#define TCVP_PL_FLAG_REPEAT  (1<<1) /* repeat file */
+#define TCVP_PL_FLAG_LREPEAT (1<<2) /* repeat list */

@@ -40,9 +40,8 @@ typedef struct tcvp_playlist {
     int state;
     int cur;
     eventq_t sc, ss;
-    pthread_t eth;
     pthread_mutex_t lock;
-    int shuffle;
+    uint32_t flags;
     tcconf_section_t *conf;
 } tcvp_playlist_t;
 
@@ -81,7 +80,7 @@ pl_add(tcvp_playlist_t *tpl, char **files, int n, int p)
 	tpl->files[p + i] = strdup(files[i]);
     }
 
-    if(tpl->shuffle){
+    if(tpl->flags & TCVP_PL_FLAG_SHUFFLE){
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
 	srand(tv.tv_usec);
@@ -219,7 +218,18 @@ pl_shuffle(tcvp_playlist_t *tpl, int s)
 	    tpl->order[i] = i;
     }
 
-    tpl->shuffle = s;
+    return 0;
+}
+
+static int
+pl_flags(tcvp_playlist_t *tpl, uint32_t flags)
+{
+    uint32_t cf = tpl->flags ^ flags;
+
+    if(cf & TCVP_PL_FLAG_SHUFFLE)
+	pl_shuffle(tpl, flags & TCVP_PL_FLAG_SHUFFLE);
+
+    tpl->flags = flags;
 
     return 0;
 }
@@ -254,10 +264,15 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 
     if(c >= tpl->nf || c < 0){
 	int s = tpl->state;
-	tpl->state = END;
-	if(s == PLAYING)
-	    tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
-	c = c < 0? 0: tpl->nf;
+	if(s == PLAYING){
+	    if(tpl->flags & TCVP_PL_FLAG_LREPEAT){
+		c = c < 0? tpl->nf - 1: 0;
+	    } else {
+		tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
+		c = c < 0? 0: tpl->nf;
+		tpl->state = END;
+	    }
+	}
     }
 
     tpl->cur = c;
@@ -292,8 +307,12 @@ epl_state(tcvp_module_t *p, tcvp_event_t *e)
 	break;
 
     case TCVP_STATE_END:
-	if(tpl->state == PLAYING)
-	    pl_next(tpl, 1);
+	if(tpl->state == PLAYING){
+	    if(tpl->flags & TCVP_PL_FLAG_REPEAT)
+		pl_start(tpl);
+	    else
+		pl_next(tpl, 1);
+	}
 	break;
 
     case TCVP_STATE_PLAYING:
@@ -372,6 +391,37 @@ epl_shuffle(tcvp_module_t *p, tcvp_event_t *e)
     tcvp_playlist_t *tpl = p->private;
     tcvp_pl_shuffle_event_t *te = (tcvp_pl_shuffle_event_t *) e;
     pl_shuffle(tpl, te->shuffle);
+    return 0;
+}
+
+extern int
+epl_flags(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    tcvp_pl_flags_event_t *te = (tcvp_pl_flags_event_t *) e;
+    uint32_t flags = tpl->flags;
+
+    switch(te->op){
+    case TCVP_PL_FLAGS_SET:
+	flags = te->flags;
+	break;
+    case TCVP_PL_FLAGS_OR:
+	flags |= te->flags;
+	break;
+    case TCVP_PL_FLAGS_AND:
+	flags &= te->flags;
+	break;
+    case TCVP_PL_FLAGS_XOR:
+	flags ^= te->flags;
+	break;
+    default:
+	tc2_print("PLAYLIST", TC2_PRINT_WARNING,
+		  "unknown flag op %i\n", te->op);
+	break;
+    }
+
+    pl_flags(tpl, flags);
+
     return 0;
 }
 
@@ -657,4 +707,47 @@ shuffle_deser(int type, u_char *event, int size)
     n++;
     shuffle = *n;
     return tcvp_event_new(type, shuffle);
+}
+
+extern void *
+pl_flags_alloc(int t, va_list args)
+{
+    tcvp_pl_flags_event_t *te = tcvp_event_alloc(t, sizeof(*te), NULL);
+
+    te->flags = va_arg(args, uint32_t);
+    te->op = va_arg(args, int);
+
+    return te;
+}
+
+extern u_char *
+pl_flags_ser(char *name, void *event, int *size)
+{
+    tcvp_pl_flags_event_t *te = event;
+    int s = strlen(name) + 1 + 7;
+    u_char *sb = malloc(s);
+    u_char *p = sb;
+
+    p += sprintf(sb, "%s", name) + 1;
+    st_unaligned32(htob_32(te->flags), p);
+    p += 4;
+    *p++ = te->op;
+
+    *size = s;
+    return sb;
+}
+
+extern void *
+pl_flags_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    uint32_t flags;
+    int op;
+
+    n++;
+    flags = htob_32(unaligned32(n));
+    n += 4;
+    op = *n;
+
+    return tcvp_event_new(type, flags, op);
 }
