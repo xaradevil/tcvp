@@ -100,7 +100,7 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 
     ogg_stream_t *ost = ms->private;
     ogg_page og;
-    ogg_packet op, *p;
+    ogg_packet op;
     char *buf;
 
     while(ogg_stream_packetout(&ost->os, &op) != 1) {
@@ -140,7 +140,6 @@ extern int
 ogg_close(muxed_stream_t *ms)
 {
     ogg_stream_t *os = ms->private;
-    int i;
 
     ogg_sync_clear(&os->oy);
     ogg_stream_clear(&os->os);

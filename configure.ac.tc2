@@ -2,6 +2,8 @@ AC_INIT([TCVP], [0.1.0])
 AC_CONFIG_SRCDIR([interfaces/stream.tc2])
 AM_INIT_AUTOMAKE
 
+CFLAGS=${CFLAGS--O2 -Wall -g}
+
 TC2_INIT
 
 AC_SUBST([CPPFLAGS], [-I\$\(top_srcdir\)/include])

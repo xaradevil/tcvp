@@ -299,7 +299,7 @@ v_open(video_stream_t *vs, conf_section *cs, timer__t *timer)
     tcvp_pipe_t *pipe;
     video_out_t *vo;
     video_driver_t *vd = NULL;
-    color_conv_t cconv;
+    color_conv_t cconv = NULL;
     int i;
 
     for(i = 0; i < output_video_conf_driver_count; i++){

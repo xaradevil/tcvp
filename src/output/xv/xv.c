@@ -127,10 +127,8 @@ xv_open(video_stream_t *vs, conf_section *cs)
     int na;
     Window win;
     int i;
-    GC gc;
     int frames = tcvp_driver_video_xv_conf_frames?: FRAMES;
     int color_key;
-    XEvent xe;
     Atom atm;
     window_manager_t *wm;
     char *display = NULL;

@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <tcvp_types.h>
 #include <a52dec/a52.h>
 #include <a52dec/mm_accel.h>
@@ -138,6 +139,7 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 	}
 	return 6;
     }
+    return 0;
 }
 
 static void
@@ -177,7 +179,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 		ad->fpos += fs;
 	    }
 	} else {
-	    int flags, srate, brate, size, od;
+	    int flags, srate, brate, size = 0, od;
 
 	    for(od = 0; od < psize - 7; od++){
 		if((size = a52_syncinfo(pdata + od, &flags, &srate, &brate)))
@@ -230,7 +232,7 @@ static int
 a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     a52_decode_t *ad = p->private;
-    int flags, srate, bitrate, size;
+    int flags, srate, bitrate, size = 0;
     int od;
 
     for(od = 0; od < pk->sizes[0] - 7; od++){

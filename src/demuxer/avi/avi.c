@@ -88,10 +88,10 @@ avi_header(FILE *f)
     avi_file_t *af;
     uint32_t tag, size, next = 0, stype = 0, sidx = -1;
     uint32_t width = 0, height = 0;
-    uint32_t ftime, start = 0;
+    uint32_t ftime = 0, start = 0;
     char st[5] = {[4] = 0};
     int i;
-    long movi_start;
+    long movi_start = 0;
 
     if(fread(&tag, 4, 1, f) != 1)
 	return NULL;
@@ -348,7 +348,7 @@ valid_tag(char *t, int strict)
 }
 
 static inline int
-tag2str(char *tag)
+tag2str(u_char *tag)
 {
     return (xval[tag[0]] << 4) + xval[tag[1]];    
 }
@@ -356,7 +356,7 @@ tag2str(char *tag)
 static packet_t *
 avi_packet(muxed_stream_t *ms, int stream)
 {
-    char tag[5] = {[4] = 0};
+    u_char tag[5] = {[4] = 0};
     uint32_t size;
     avi_file_t *af = ms->private;
     int str;
@@ -387,7 +387,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 
 	    if(!valid_tag(tag, scan)){
 		if(!scan)
-		    fprintf(stderr, "AVI[%i]: Bad packet header @ %08x\n",
+		    fprintf(stderr, "AVI[%i]: Bad packet header @ %08lx\n",
 			    stream, pos);
 		if(!tried_index && af->idxok > 256){
 		    fprintf(stderr, "AVI: Index => %08x\n",

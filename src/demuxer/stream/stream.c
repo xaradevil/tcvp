@@ -151,7 +151,6 @@ static int
 s_flush(tcvp_pipe_t *p, int drop)
 {
     s_play_t *vp = p->private;
-    int i;
 
     pthread_mutex_lock(&vp->mtx);
     vp->flushing++;

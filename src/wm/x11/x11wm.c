@@ -149,7 +149,6 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     x11_wm_t *xwm;
     Display *dpy;
     Window win;
-    XGCValues gcv;
     char *display = NULL;
 
     if(cs)
