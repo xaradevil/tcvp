@@ -25,7 +25,6 @@
 #include <tclist.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <sys/stat.h>
 #include <tcbyteswap.h>
 #include <avi_tc2.h>
 
@@ -42,7 +41,7 @@ static void avi_free(void *p);
 
 #define TAG(a,b,c,d) (a + (b << 8) + (c << 16) + (d << 24))
 
-#define get4c(t,f) fread(&t, 4, 1, f)
+#define get4c(t,f) f->read(&t, 4, 1, f)
 
 #ifdef DEBUG
 #define getjunk(f,s) do {			\
@@ -58,10 +57,10 @@ static void avi_free(void *p);
 
 #define getuint(s)				\
 static inline uint##s##_t			\
-getu##s(FILE *f)				\
+getu##s(url_t *f)				\
 {						\
     uint##s##_t v;				\
-    fread(&v, sizeof(v), 1, f);			\
+    f->read(&v, sizeof(v), 1, f);		\
     v = htol_##s(v);				\
     return v;					\
 }
@@ -101,7 +100,7 @@ typedef struct avi_stream {
 } avi_stream_t;
 
 typedef struct avi_file {
-    FILE *file;
+    url_t *file;
     list *packets;
     pthread_mutex_t mx;
     int eof;
@@ -212,7 +211,7 @@ avi_read_idx1(muxed_stream_t *ms, uint32_t size)
     avi_idx1_t idx1;
 
     for(i = 0; i < idxl; i++){
-	if(fread(&idx1, sizeof(idx1), 1, af->file) <= 0)
+	if(af->file->read(&idx1, sizeof(idx1), 1, af->file) <= 0)
 	    break;
 
 	if(!valid_tag(idx1.tag, 0)){
@@ -282,12 +281,12 @@ avi_read_super_indx(muxed_stream_t *ms, int s, uint32_t size)
 	getu32(af->file);	/* size */
 	getu32(af->file);	/* duration */
 
-	pos = ftell(af->file);
-	fseek(af->file, offset, SEEK_SET);
+	pos = af->file->tell(af->file);
+	af->file->seek(af->file, offset, SEEK_SET);
 	getu32(af->file);	/* tag */
 	getu32(af->file);	/* size */
 	avi_read_indx(ms);
-	fseek(af->file, pos, SEEK_SET);
+	af->file->seek(af->file, pos, SEEK_SET);
     }
 
     return 0;
@@ -302,8 +301,8 @@ avi_read_indx(muxed_stream_t *ms)
     u_char tag[4];
 
     getu16(af->file);
-    getc(af->file);
-    idxtype = getc(af->file);
+    url_getc(af->file);
+    idxtype = url_getc(af->file);
     entries = getu32(af->file);
     get4c(tag, af->file);
 
@@ -368,7 +367,7 @@ avi_merge_index(muxed_stream_t *ms)
 }
 
 static muxed_stream_t *
-avi_header(FILE *f)
+avi_header(url_t *f)
 {
     muxed_stream_t *ms = NULL;
     avi_file_t *af;
@@ -376,15 +375,13 @@ avi_header(FILE *f)
     uint32_t width = 0, height = 0;
     uint32_t ftime = 0, start = 0;
     char st[5] = {[4] = 0};
-    struct stat sst;
-    off_t fsize, pos;
+    uint64_t fsize, pos;
     int odml_idx = 0;
     stream_t *vs = NULL;
 
-    fstat(fileno(f), &sst);
-    fsize = sst.st_size;
+    fsize = f->size;
 
-    if(fread(&tag, 4, 1, f) != 1)
+    if(f->read(&tag, 4, 1, f) != 1)
 	return NULL;
 
     if(tag != TAG('R','I','F','F'))
@@ -404,17 +401,17 @@ avi_header(FILE *f)
     ms->private = af;
     af->packets = list_new(TC_LOCK_NONE);
 
-    while(fread(&tag, 4, 1, f) == 1){
+    while(f->read(&tag, 4, 1, f) == 1){
 	size = getu32(f);
 	size += size & 1;
-	pos = ftell(f);
+	pos = f->tell(f);
 	*(uint32_t *)st = tag;
 
 	if(pos + size > fsize){
 	    fprintf(stderr,
-		    "AVI: Chunk '%s' exceeds file size.\n"
-		    "     Chunk size %u, remains %lu of file\n",
-		    st, size, fsize - pos);
+		    "AVI: Chunk '%s' @ %llx exceeds file size.\n"
+		    "     Chunk size %u, remains %llu of file\n",
+		    st, pos, size, fsize - pos);
 	}
 
 #ifdef DEBUG
@@ -431,8 +428,8 @@ avi_header(FILE *f)
 	    uint32_t lt = getu32(f);
 	    if(lt == TAG('m','o','v','i')){
 		if(!af->movi_start)
-		    af->movi_start = ftell(f);
-		fseek(f, size-4, SEEK_CUR);
+		    af->movi_start = f->tell(f);
+		f->seek(f, size-4, SEEK_CUR);
 	    } else if(lt == TAG('s','t','r','l')){
 		next = TAG('s','t','r','h');
 	    }
@@ -549,7 +546,7 @@ avi_header(FILE *f)
 		if((cds = size - 40) > 0){
 		    ms->streams[sidx].video.codec_data_size = cds;
 		    ms->streams[sidx].video.codec_data = malloc(cds);
-		    fread(ms->streams[sidx].video.codec_data, 1, cds, f);
+		    f->read(ms->streams[sidx].video.codec_data, 1, cds, f);
 		}
 		break;
 
@@ -574,7 +571,7 @@ avi_header(FILE *f)
 			    cds = size - 18;
 			ms->streams[sidx].video.codec_data_size = cds;
 			ms->streams[sidx].video.codec_data = malloc(cds);
-			fread(ms->streams[sidx].video.codec_data, 1, cds, f);
+			f->read(ms->streams[sidx].video.codec_data, 1, cds, f);
 			af->streams[sidx].wavex = 1;
 		    }
 		}
@@ -610,14 +607,14 @@ avi_header(FILE *f)
 	    break;
 	}
 	default:
-	    fprintf(stderr, "AVI: unknown tag '%s'\n", st);
+	    fprintf(stderr, "AVI: unknown tag '%s' @%llx\n", st, pos);
 	}
-	fseek(f, pos + size, SEEK_SET);
+	f->seek(f, pos + size, SEEK_SET);
     }
 
     avi_merge_index(ms);
 
-    fseek(f, af->movi_start, SEEK_SET);
+    f->seek(f, af->movi_start, SEEK_SET);
 
     return ms;
 }
@@ -667,14 +664,14 @@ avi_packet(muxed_stream_t *ms, int stream)
     uint32_t flags = 0;
     uint64_t pts = 0;
     int pflags = 0;
-    size_t pos;
+    uint64_t pos;
 
     if(stream > -2 && (pk = list_shift(af->packets)))
 	return &pk->pk;
 
     /* FIXME: get rid of gotos */
  again:
-    pos = ftell(af->file);
+    pos = af->file->tell(af->file);
     if(!get4c(tag, af->file))
 	return NULL;
 
@@ -687,35 +684,35 @@ avi_packet(muxed_stream_t *ms, int stream)
 		  !strcmp(tag, "idx1") ||
 		  !strncmp(tag, "ix", 2)){
 	    size = getu32(af->file);
-	    fseek(af->file, size, SEEK_CUR);
+	    af->file->seek(af->file, size, SEEK_CUR);
 	    goto again;
 	}
 
 	if(!scan)
 	    fprintf(stderr,
-		    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08lx\n",
+		    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08llx\n",
 		    tag[0], tag[1], tag[2], tag[3],
 		    strtag(tag, stag), pos);
 	if(!tried_index && af->idxok > 256){
 	    uint64_t p = af->index[af->pkt]->offset;
-	    fprintf(stderr, "AVI: Index => %16lx\n", p);
-	    fseek(af->file, p, SEEK_SET);
+	    fprintf(stderr, "AVI: Index => %16llx\n", p);
+	    af->file->seek(af->file, p, SEEK_SET);
 	    tried_index++;
 	    goto again;
 	} else if(!tried_bkup){
 	    fprintf(stderr, "AVI: Backing up %i bytes.\n", backup);
-	    fseek(af->file, -backup - 4, SEEK_CUR);
+	    af->file->seek(af->file, -backup - 4, SEEK_CUR);
 	    tried_bkup++;
 	    goto again;
 	} else if(skipped < max_skip && af->idxok > 256){
 	    if(!skipped)
 		fprintf(stderr, "AVI: Skipping chunk.\n");
-	    fseek(af->file, af->index[af->pkt]->offset, SEEK_SET);
+	    af->file->seek(af->file, af->index[af->pkt]->offset, SEEK_SET);
 	    af->pkt++;
 	    skipped++;
 	    goto again;
 	} else if(scan < max_scan){
-	    fseek(af->file, -3, SEEK_CUR);
+	    af->file->seek(af->file, -3, SEEK_CUR);
 	    scan++;
 	    goto again;
 	}
@@ -729,11 +726,11 @@ avi_packet(muxed_stream_t *ms, int stream)
 	fprintf(stderr, "AVI: Skipped %i chunks\n", skipped);
 
     if(scan)
-	fprintf(stderr, "AVI: Resuming @%08lx\n", pos);
+	fprintf(stderr, "AVI: Resuming @%08llx\n", pos);
 
     size = getu32(af->file);
     if(size < 0){
-	fprintf(stderr, "AVI: Negative size @%08lx\n", pos);
+	fprintf(stderr, "AVI: Negative size @%08llx\n", pos);
 	scan++;
 	goto again;
     }
@@ -757,14 +754,14 @@ avi_packet(muxed_stream_t *ms, int stream)
     str = tag2str(tag);
 
     if(str >= ms->n_streams){
-	fprintf(stderr, "AVI: Bad stream number %i @%08lx\n",
+	fprintf(stderr, "AVI: Bad stream number %i @%08llx\n",
 		str, pos);
 	scan++;
 	goto again;
     }
 
     if(!ms->used_streams[str]){
-	fseek(af->file, size + (size&1), SEEK_CUR);
+	af->file->seek(af->file, size + (size&1), SEEK_CUR);
 	goto again;
     }
 
@@ -782,9 +779,9 @@ avi_packet(muxed_stream_t *ms, int stream)
     }
 
     pk = avi_alloc_packet(size);
-    fread(pk->data, 1, size, af->file);
+    af->file->read(pk->data, 1, size, af->file);
     if(size & 1)
-	fgetc(af->file);
+	url_getc(af->file);
 
     pk->pk.stream = str;
     pk->pk.data = (u_char **) &pk->data;
@@ -838,7 +835,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     while((pk = list_shift(af->packets)))
 	avi_free_packet(&pk->pk);
 
-    fseek(af->file, pos, SEEK_SET);
+    af->file->seek(af->file, pos, SEEK_SET);
 
     for(i = 0; i < ms->n_streams; i++){
 	if(ms->used_streams[i])
@@ -900,17 +897,17 @@ avi_free(void *p)
     if(af->index)
 	free(af->index);
 
-    fclose(af->file);
+    af->file->close(af->file);
     free(af);
 }
 
 extern muxed_stream_t *
 avi_open(char *file, conf_section *cs)
 {
-    FILE *f;
+    url_t *f;
     muxed_stream_t *ms;
 
-    if(!(f = fopen(file, "r")))
+    if(!(f = url_open(file, "r")))
 	return NULL;
 
     if(!(ms = avi_header(f)))
