@@ -63,6 +63,7 @@ show_help(void)
 	   "   -z      --shuffle             Shuffle files\n"
 	   "   -@ file --playlist=file       Load playlist from file\n"
 	   "   -f      --fullscreen          Fill entire screen\n"
+	   "           --aspect=a[/b]        Force video aspect ratio\n"
 	);
 }
 
@@ -241,6 +242,7 @@ tcl_stop(void)
 #define OPT_TC2_DEBUG 128
 #define OPT_TC2_VERBOSE 129
 #define OPT_TRACE_MALLOC 130
+#define OPT_ASPECT 131
 
 static int
 parse_options(int argc, char **argv)
@@ -259,6 +261,7 @@ parse_options(int argc, char **argv)
 	{"shuffle", no_argument, 0, 'z'},
 	{"playlist", required_argument, 0, '@'},
 	{"fullscreen", required_argument, 0, 'f'},
+	{"aspect", required_argument, 0, OPT_ASPECT},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
@@ -324,6 +327,16 @@ parse_options(int argc, char **argv)
 	case 'f':
 	    conf_setvalue(cf, "video/fullscreen", "%i", 1);
 	    break;
+
+	case OPT_ASPECT: {
+	    float a;
+	    char *t;
+	    a = strtod(optarg, &t);
+	    if(*t++ == '/')
+		a /= strtod(t, NULL);
+	    conf_setvalue(cf, "video/aspect", "%f", a);
+	    break;
+	}
 
 	case OPT_TC2_DEBUG:
 	    tc2_debug(strtol(optarg, NULL, 0));

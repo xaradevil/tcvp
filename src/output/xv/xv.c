@@ -132,9 +132,12 @@ xv_open(video_stream_t *vs, conf_section *cs)
     Atom atm;
     window_manager_t *wm;
     char *display = NULL;
+    float dasp = 0;
 
-    if(cs)
+    if(cs){
 	conf_getvalue(cs, "video/device", "%s", &display);
+	conf_getvalue(cs, "video/aspect", "%f", &dasp);
+    }
 
     XInitThreads();
 
@@ -154,8 +157,20 @@ xv_open(video_stream_t *vs, conf_section *cs)
     xvw->port = xai[0].base_id;
     xvw->width = vs->width;
     xvw->height = vs->height;
+    xvw->dw = vs->width;
+    xvw->dh = vs->height;
     xvw->shm = malloc(frames * sizeof(*xvw->shm));
     xvw->images = malloc(frames * sizeof(*xvw->images));
+
+    if(dasp > 0 || vs->aspect.num){
+	float asp = (float) vs->width / vs->height;
+	if(dasp <= 0)
+	    dasp = (float) vs->aspect.num / vs->aspect.den;
+	if(dasp > asp)
+	    xvw->dw = (float) vs->height * dasp;
+	else
+	    xvw->dh = (float) vs->width / dasp;
+    }
 
     for(i = 0; i < driver_video_xv_conf_attribute_count; i++){
 	char *name = driver_video_xv_conf_attribute[i].name;
@@ -176,7 +191,7 @@ xv_open(video_stream_t *vs, conf_section *cs)
 
     XCloseDisplay(dpy);
 
-    if(!(wm = wm_x11_open(vs->width, vs->height, xv_reconf, xvw, cs, 0))){
+    if(!(wm = wm_x11_open(xvw->dw, xvw->dh, xv_reconf, xvw, cs, 0))){
 	free(xvw);
 	return NULL;
     }

@@ -54,6 +54,9 @@ typedef struct video_stream {
 	int num, den;
     } frame_rate;
     int width, height;
+    struct {
+	int num, den;
+    } aspect;
     u_long frames;
     int pixel_format;
 } video_stream_t;

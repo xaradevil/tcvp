@@ -95,6 +95,7 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     mpeg_dec_t *mpd = p->private;
     int state, ret = PROBE_AGAIN;
+    const sequence_t *seq;
 
     mpeg2_buffer(mpd->mpeg2, pk->data[0], pk->data[0] + pk->sizes[0]);
     mpd->info = mpeg2_info(mpd->mpeg2);
@@ -103,10 +104,13 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	state = mpeg2_parse(mpd->mpeg2);
 	switch(state){
 	case STATE_SEQUENCE:
-	    s->video.width = mpd->info->sequence->picture_width;
-	    s->video.height = mpd->info->sequence->picture_height;
+	    seq = mpd->info->sequence;
+	    s->video.width = seq->picture_width;
+	    s->video.height = seq->picture_height;
+	    s->video.aspect.num = seq->pixel_width * seq->display_width;
+	    s->video.aspect.den = seq->pixel_height * seq->display_height;
 	    s->video.frame_rate.num = 27000000;
-	    s->video.frame_rate.den = mpd->info->sequence->frame_period;
+	    s->video.frame_rate.den = seq->frame_period;
 	    s->video.pixel_format = PIXEL_FORMAT_I420;
 	    ret = PROBE_OK;
 	    break;
