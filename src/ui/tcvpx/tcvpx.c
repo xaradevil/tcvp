@@ -25,6 +25,7 @@
 #include <tcvpx_tc2.h>
 #include <string.h>
 #include <unistd.h>
+#include <tcvp_event.h>
 
 #include "tcvpx.h"
 #include "tcvpctl.h"
@@ -103,7 +104,13 @@ tcvpx_init(char *p)
 extern int
 tcvpx_shdn(void)
 {
+    tcvp_event_t *te;
+
+    quit = 1;
     tcvp_stop(NULL, NULL);
+    te = tcvp_alloc_event(-1);
+    eventq_send(qr, te);
+    tcfree(te);
 
     xtk_shutdown_graphics();
 
