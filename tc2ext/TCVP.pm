@@ -161,7 +161,7 @@ END_C
     ps = $$_{probe}(p, pk, s);
 END_C
 	    print $fh <<END_C;
-    if(ps == PROBE_OK)
+    if(ps == PROBE_OK && p->next)
 	ps = p->next->probe(p->next, pk, &p->format);
     return ps;
 }
@@ -180,7 +180,7 @@ END_C
 		$else = 'else ';
 	    }
 	    print $fh <<END_C;
-    ${else}\{
+    ${else}if(p->next){
 	return p->next->input(p->next, pk);
     }
 }
@@ -191,7 +191,7 @@ $$_{w}flush(tcvp_pipe_t *p, int drop)
 END_C
 	    print $fh "    $$_{flush}(p, drop);\n" if $$_{flush};
 	    print $fh <<END_C;
-    return p->next->flush(p->next, drop);
+    return p->next? p->next->flush(p->next, drop): 0;
 }
 
 END_C
