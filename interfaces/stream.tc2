@@ -1,6 +1,7 @@
-symbol	"open"		muxed_stream_t *(*%s)(char *name, conf_section *)
+symbol	"open"		muxed_stream_t *(*%s)(char *name, conf_section *, tcvp_timer_t **)
 symbol	"validate"	muxed_stream_t *(*%s)(char *name, conf_section *)
 symbol	"next_packet"	packet_t *(*%s)(muxed_stream_t *, int stream)
 symbol	"play"		tcvp_pipe_t *(*%s)(muxed_stream_t *, tcvp_pipe_t **, conf_section *)
+require "timer"
 include
 #include <tcvp_types.h>

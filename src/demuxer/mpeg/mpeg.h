@@ -122,9 +122,9 @@ extern uint32_t mpeg_crc32(const u_char *data, int len);
 extern void mpeg_free(muxed_stream_t *);
 
 extern packet_t *mpegts_packet(muxed_stream_t *ms, int str);
-extern muxed_stream_t *mpegts_open(char *);
+extern muxed_stream_t *mpegts_open(char *, conf_section *, tcvp_timer_t **);
 
 extern packet_t *mpegps_packet(muxed_stream_t *ms, int str);
-extern muxed_stream_t *mpegps_open(char *);
+extern muxed_stream_t *mpegps_open(char *, conf_section *, tcvp_timer_t **);
 
 #endif

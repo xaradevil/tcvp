@@ -359,7 +359,7 @@ t_open(player_t *pl, char *name)
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
     conf_section *prsec;
 
-    if(!(stream = stream_open(name, tp->conf))){
+    if(!(stream = stream_open(name, tp->conf, &tp->timer))){
 	return -1;
     }
 
@@ -622,7 +622,7 @@ t_new(conf_section *cs)
     char qname[16];
 
     tp = calloc(1, sizeof(*tp));
-    pl = malloc(sizeof(*pl));
+    pl = calloc(1, sizeof(*pl));
     pl->start = q_start;
     pl->stop = q_stop;
     pl->seek = q_seek;

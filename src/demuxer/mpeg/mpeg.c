@@ -115,13 +115,13 @@ mpeg_free(muxed_stream_t *ms)
 }
 
 extern muxed_stream_t *
-mpeg_open(char *name, conf_section *cs)
+mpeg_open(char *name, conf_section *cs, tcvp_timer_t **t)
 {
     muxed_stream_t *ms;
 
-    ms = mpegps_open(name);
+    ms = mpegps_open(name, cs, t);
     if(!ms)
-	ms = mpegts_open(name);
+	ms = mpegts_open(name, cs, t);
     if(!ms)
 	return NULL;
 

@@ -29,7 +29,7 @@
 #include <stream_tc2.h>
 
 extern muxed_stream_t *
-s_open(char *name, conf_section *cs)
+s_open(char *name, conf_section *cs, tcvp_timer_t **t)
 {
     char *m = NULL;
     char *ext;
@@ -53,7 +53,7 @@ s_open(char *name, conf_section *cs)
     }
 
     stream_open_t sopen = tc2_get_symbol(m, "open");
-    return sopen(name, cs);
+    return sopen(name, cs, t);
 }
 
 extern packet_t *
@@ -65,7 +65,7 @@ s_next_packet(muxed_stream_t *ms, int stream)
 extern int
 s_validate(char *name, conf_section *cs)
 {
-    muxed_stream_t *ms = s_open(name, cs);
+    muxed_stream_t *ms = s_open(name, cs, NULL);
 
     if(!ms)
 	return -1;
