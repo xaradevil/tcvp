@@ -216,7 +216,8 @@ avi_read_idx1(muxed_stream_t *ms, uint32_t size)
 	    break;
 
 	if(!valid_tag(idx1.tag, 0)){
-	    fprintf(stderr, "AVI: Invalid tag in index @%i\n", i);
+	    if(memcmp(idx1.tag, "rec ", 4))
+		fprintf(stderr, "AVI: Invalid tag in index @%i\n", i);
 	    continue;
 	}
 
@@ -562,17 +563,24 @@ avi_header(url_t *f)
 		ms->streams[sidx].audio.block_align = ba;
 		af->streams[sidx].block_align = ba;
 
-		if(size > 14)
-		    ms->streams[sidx].audio.sample_size = getu16(f);
+		if(size > 14){
+		    int ss = getu16(f);
+		    ms->streams[sidx].audio.sample_size = ss;
+		} else {
+		    ms->streams[sidx].audio.sample_size = 8;
+		}
+
+		if(id == 1 && ms->streams[sidx].audio.sample_size == 8)
+		    ms->streams[sidx].audio.codec = "audio/pcm-u8";
 
 		if(size > 16){
 		    cds = getu16(f);
 		    if(cds > 0){
 			if(cds > size - 18)
 			    cds = size - 18;
-			ms->streams[sidx].video.codec_data_size = cds;
-			ms->streams[sidx].video.codec_data = malloc(cds);
-			f->read(ms->streams[sidx].video.codec_data, 1, cds, f);
+			ms->streams[sidx].audio.codec_data_size = cds;
+			ms->streams[sidx].audio.codec_data = malloc(cds);
+			f->read(ms->streams[sidx].audio.codec_data, 1, cds, f);
 			af->streams[sidx].wavex = 1;
 		    }
 		}
@@ -736,12 +744,12 @@ avi_packet(muxed_stream_t *ms, int stream)
 
     size = getu32(af->file);
 
-    if(!(size & ~0x10)){
+    if(!(size & ~0x12)){
 	fprintf(stderr, "AVI: chunk size %i @%08llx\n", size, pos);
 	af->file->seek(af->file, 8, SEEK_CUR);
 	if(!get4c(tag, af->file))
 	    return NULL;
-	if(valid_tag(tag, 0))
+	if(valid_tag(tag, 0) || !memcmp(tag, "rec ", 4))
 	    tried_bkup++;
 	af->file->seek(af->file, -12, SEEK_CUR);
 	goto again;
