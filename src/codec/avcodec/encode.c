@@ -118,6 +118,8 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	}
 	ctx->sample_aspect_ratio.num = asp.num;
 	ctx->sample_aspect_ratio.den = asp.den;
+	tc2_print("AVCODEC", TC2_PRINT_DEBUG,
+		  "SAR = %i/%i\n", asp.num, asp.den);
 #else
 	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
 #endif
@@ -284,23 +286,14 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     return 0;
 }
 
-extern int
-avc_mpeg4_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
-		  tcvp_timer_t *t, muxed_stream_t *ms)
-{
-    return avc_encvideo_new(p, s, "video/mpeg4", cs);
+#define avc_enc_new(cd)							\
+extern int								\
+avc_##cd##_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,	\
+		      tcvp_timer_t *t, muxed_stream_t *ms)		\
+{									\
+    return avc_encvideo_new(p, s, "video/"#cd, cs);			\
 }
 
-extern int
-avc_mpeg_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
-		 tcvp_timer_t *t, muxed_stream_t *ms)
-{
-    return avc_encvideo_new(p, s, "video/mpeg", cs);
-}
-
-extern int
-avc_mpeg2_enc_new(tcvp_pipe_t * p, stream_t *s, tcconf_section_t *cs,
-		  tcvp_timer_t *t, muxed_stream_t *ms)
-{
-    return avc_encvideo_new(p, s, "video/mpeg2", cs);
-}
+avc_enc_new(mpeg4)
+avc_enc_new(mpeg2)
+avc_enc_new(mpeg)
