@@ -83,6 +83,7 @@ typedef union tcvp_event {
 #define TCVP_STATE_STOPPED 3
 
 #define TCVP_LOAD     10
+#define TCVP_STREAM_INFO 11
 
 extern void *tcvp_alloc_event(int type);
 

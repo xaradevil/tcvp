@@ -27,6 +27,8 @@ tcvp_event(void *p)
 {
     int r = 1;
     skin_t *skin = p;
+    muxed_stream_t *st = NULL;
+    char *title;
 
     while(r){
 	tcvp_event_t *te = eventq_recv(qr);
@@ -48,6 +50,8 @@ tcvp_event(void *p)
 		s_time = 0;
 		s_length = 0;
 		update_time(skin);
+		tcfree(st);
+		st = NULL;
 		if(p_state == PLAYING) {
 		    tcvp_next((tcwidget_t *)skin->background, NULL);
 		}
@@ -59,9 +63,11 @@ tcvp_event(void *p)
 	    update_time(skin);
 	    break;
 
-	case TCVP_LOAD:{
-	    muxed_stream_t *st = te->load.stream;
-	    char *title;
+	case TCVP_LOAD:
+	    if(st)
+		tcfree(st);
+	    st = te->load.stream;
+	    tcref(st);
 
 /* 	    printf("%s %s %s\n", st->title, st->performer, st->file); */
 	    if(st->title){
@@ -81,6 +87,17 @@ tcvp_event(void *p)
 		    *ext = 0;
 	    }
 
+
+	    if(skin->title) {
+		change_label(skin->title, title);
+	    }
+
+	    /* fall through */
+
+	case TCVP_STREAM_INFO:
+	    if(!st)
+		break;
+
 	    if(st->time)
 		s_length = st->time / 1000000;
 
@@ -95,12 +112,8 @@ tcvp_event(void *p)
 		    disable_seek_bar(skin->seek_bar);
 		}
 	    }
-
-	    if(skin->title) {
-		change_label(skin->title, title);
-	    }
 	    break;
-	}
+
 	case -1:
 	    r = 0;
 	    break;
