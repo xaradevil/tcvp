@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -117,6 +117,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	cpattr(ms, u, "performer");
 	cpattr(ms, u, "artist");
 	cpattr(ms, u, "album");
+	cpattr(ms, u, "track");
 
 	a = tcattr_get(ms, "artist");
 	p = tcattr_get(ms, "performer");
