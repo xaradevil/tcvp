@@ -284,6 +284,11 @@ vx_open(video_stream_t *vs, conf_section *cs)
     vidix_grkey_t ck;
     int ckey;
     char *drv = NULL;
+    float dasp = 0;
+    int dw, dh;
+
+    if(cs)
+	conf_getvalue(cs, "video/aspect", "%f", &dasp);
 
     if(!(drvdir = driver_video_vidix_conf_driver_dir)){
 	fprintf(stderr, "VIDIX: No driver dir.\n");
@@ -340,6 +345,22 @@ vx_open(video_stream_t *vs, conf_section *cs)
     vxw->pbc->dest.h = vs->height;
     vxw->pbc->num_frames = frames;
 
+    dw = vs->width;
+    dh = vs->height;
+
+    if(dasp > 0 || vs->aspect.num){
+	float asp = (float) vs->width / vs->height;
+	if(dasp <= 0)
+	    dasp = (float) vs->aspect.num / vs->aspect.den;
+	if(dasp > asp)
+	    dw = (float) vs->height * dasp;
+	else
+	    dh = (float) vs->width / dasp;
+    }
+
+    vxw->pbc->dest.w = dw;
+    vxw->pbc->dest.h = dh;
+
     if(conf_getvalue(cs, "video/color_key", "%i", &ckey) > 0){
 	ck.ckey.red = (ckey >> 16) & 0xff;
 	ck.ckey.green = (ckey >> 8) & 0xff;
@@ -359,7 +380,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
 
     vdlConfigPlayback(vxw->driver, vxw->pbc);
 
-    if(!(vxw->wm = wm_open(vs->width, vs->height, vx_reconf, vxw,
+    if(!(vxw->wm = wm_open(dw, dh, vx_reconf, vxw,
 			   cs, WM_ABSCOORD))){
 	vdlClose(vxdrv);
 	free(vxw);
