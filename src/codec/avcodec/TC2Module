@@ -17,6 +17,8 @@ TCVP {
 		alias "decoder/audio/mace6"
 		alias "decoder/audio/adpcm-ms"
 		alias "decoder/audio/adpcm-ima-qt"
+		alias "decoder/audio/adpcm-ima-dk4"
+		alias "decoder/audio/flac"
 		new avc_new
 		probe avc_probe_audio
 		packet DATA avc_decaudio
