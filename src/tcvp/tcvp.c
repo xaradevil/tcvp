@@ -185,7 +185,6 @@ extern player_t *
 t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 {
     int i;
-    timer_new_t tmnew;
     stream_t *as = NULL, *vs = NULL;
     tcvp_pipe_t **codecs;
     tcvp_pipe_t *demux = NULL;
@@ -242,11 +241,11 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 	}
     }
 
+    if(!timer){
+	timer = timer_new(10000);
+    }
+
     if(vs){
-	if(!timer){
-	    tmnew = tc2_get_symbol("timer", "new");
-	    timer = tmnew(10000);
-	}
 	if((video = output_video_open(&vs->video, cs, timer))){
 	    vcodec->next = video;
 	} else {
