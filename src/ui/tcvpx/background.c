@@ -91,6 +91,7 @@ repaint_background(tcwidget_t *w)
 	Window foo;
 	int x, y;
 
+	XLockDisplay(xd);
 	check_root(w->background.skin);
 
 	XGetWindowAttributes(xd, w->background.win, &wa);
@@ -161,6 +162,8 @@ repaint_background(tcwidget_t *w)
 	XSync(xd, False);
 
 	XDestroyImage(img);
+
+	XUnlockDisplay(xd);
     } else {
 	img = XGetImage(xd, w->background.pixmap, 0, 0, w->background.width,
 			w->background.height, AllPlanes, ZPixmap);
@@ -174,6 +177,7 @@ repaint_background(tcwidget_t *w)
 	XSync(xd, False);
 	XDestroyImage(img);
     }
+
     return 0;
 }
 

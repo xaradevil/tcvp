@@ -78,7 +78,9 @@ create_button(skin_t *skin, int x, int y, char *imagefile,
 	btn->action = action;
 	btn->onclick = widget_onclick;
 	list_push(click_list, btn);
-	XSelectInput(xd, btn->win, ButtonPressMask);
+	XSelectInput(xd, btn->win, ButtonPressMask | ExposureMask);
+    } else {
+	XSelectInput(xd, btn->win, ExposureMask);
     }
 
     return btn;

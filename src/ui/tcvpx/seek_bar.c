@@ -180,7 +180,9 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 	sb->onclick = seek_bar_onclick;
 	sb->action = action;
 	list_push(click_list, sb);
-	XSelectInput(xd, sb->win, ButtonPressMask);
+	XSelectInput(xd, sb->win, ButtonPressMask | ExposureMask);
+    } else {
+	XSelectInput(xd, sb->win, ExposureMask);
     }
 
     return sb;
