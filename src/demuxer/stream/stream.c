@@ -184,8 +184,6 @@ read_stream(void *p)
     muxed_stream_t *ms = vp->stream;
     int i;
 
-/*     vp->streams++; */
-
     while(vp->state != STOP){
 	packet_t *pk;
 	int s;
