@@ -63,11 +63,13 @@ typedef struct mpegpes_packet {
     u_char *hdr;
 } mpegpes_packet_t;
 
-extern struct mpeg_stream_type {
+typedef struct mpeg_stream_type {
     int mpeg_stream_type;
+    int stream_id_base;
     int stream_type;
     char *codec;
-} mpeg_stream_types[256];
+} mpeg_stream_type_t;
+extern mpeg_stream_type_t mpeg_stream_types[];
 
 #define MPEGTS_SYNC 0x47
 
@@ -111,8 +113,8 @@ getuint(64)
 #define PES_FLAG_PTS 0x1
 
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
-extern int codec2stream_type(char *codec);
 extern int stream_type2codec(int st);
+extern mpeg_stream_type_t *mpeg_stream_type(char *codec);
 extern int write_pes_header(u_char *p, int stream_id, int size,
 			    int flags, ...);
 extern uint32_t mpeg_crc32(const u_char *data, int len);

@@ -37,10 +37,11 @@
 typedef struct mpegts_mux {
     int running;
     url_t *out;
-    timer__t *timer;
+    timer__t **timer;
     int bitrate;
     u_char *outbuf;
     int bpos, bsize;
+    uint64_t pcr;
     pthread_mutex_t lock;
     pthread_cond_t cnd;
     int astreams, nstreams;
@@ -131,6 +132,10 @@ tmx_output(void *p)
 	while(tsm->bpos < tsm->bsize && tsm->running)
 	    pthread_cond_wait(&tsm->cnd, &tsm->lock);
 
+	if(tsm->bitrate){
+	    (*tsm->timer)->wait(*tsm->timer, tsm->pcr);
+	    tsm->pcr += 27000000 * tsm->bpos * 8 / tsm->bitrate;
+	}
 	if(tsm->out->write(tsm->outbuf, 188, op, tsm->out) != op)
 	    tsm->running = 0;
 	tsm->bpos = 0;
@@ -275,8 +280,13 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 		int pesflags = 0;
 		int peshl;
 
-		if(pk->flags & TCVP_PKT_FLAG_PTS)
+		if(pk->flags & TCVP_PKT_FLAG_PTS){
 		    pesflags |= PES_FLAG_PTS;
+		    tsm->pcr = pk->pts;
+		    if(tsm->bitrate)
+			tsm->pcr -= 27000000 * tsm->bpos * 8 /
+			    tsm->bitrate;
+		}
 		peshl = write_pes_header(out, tsm->streams[str].stream_id,
 					 size, pesflags, pts / 300);
 		
@@ -292,8 +302,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    tsm->bpos = out - tsm->outbuf;
 	    if(tsm->bpos % 188){
 		fprintf(stderr, "MPEGTS: BUG: bpos %% 188 != 0\n");
-		for(;;)
-		    sleep(1);
+		abort();
 	    }
 	}
 	pthread_cond_broadcast(&tsm->cnd);
@@ -309,16 +318,16 @@ static int
 tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     mpegts_mux_t *tsm = p->private;
-    int stream_type = codec2stream_type(s->common.codec);
+    mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
     int pid;
     uint32_t crc;
 
-    if(stream_type < 0)
+    if(!str_type)
 	return PROBE_FAIL;
 
     pid = tsm->nextpid++;
 
-    *tsm->pmap++ = stream_type;
+    *tsm->pmap++ = str_type->mpeg_stream_type;
     st_unaligned16(htob_16(pid), tsm->pmap);
     tsm->pmap += 2;
     *tsm->pmap++ = 0;
@@ -337,8 +346,7 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     tsm->streams[s->common.index].pid = pid;
-    tsm->streams[s->common.index].stream_id =
-	s->stream_type == STREAM_TYPE_VIDEO? 0xe0: 0xc0;
+    tsm->streams[s->common.index].stream_id = str_type->stream_id_base;
     tsm->nstreams++;
 
     return PROBE_OK;
@@ -407,6 +415,7 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     tsm->out = out;
     tsm->outbuf = malloc(outbuf_size);
     tsm->bsize = outbuf_size;
+    tsm->bitrate = 10000000;
     pthread_mutex_init(&tsm->lock, NULL);
     pthread_cond_init(&tsm->cnd, NULL);
     tsm->nextpid = FIRST_PID;
@@ -414,7 +423,8 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     init_pmt(tsm, tsm->nextpid);
     tsm->nextpid++;
     tsm->running = 1;
-    tsm->psifreq = 16384;
+    tsm->psifreq = 400;
+    tsm->timer = t;
     pthread_create(&tsm->wth, NULL, tmx_output, tsm);
 
     p = tcallocdz(sizeof(*p), NULL, tmx_free);

@@ -120,30 +120,31 @@ mpeg_open(char *name, conf_section *cs)
     return ms;
 }
 
-struct mpeg_stream_type mpeg_stream_types[] = {
-    { 0x01, STREAM_TYPE_VIDEO, "video/mpeg"  },
-    { 0x02, STREAM_TYPE_VIDEO, "video/mpeg"  },
-    { 0x03, STREAM_TYPE_AUDIO, "audio/mpeg"  },
-    { 0x03, STREAM_TYPE_AUDIO, "audio/mp2"   },
-    { 0x03, STREAM_TYPE_AUDIO, "audio/mp3"   },
-    { 0x04, STREAM_TYPE_AUDIO, "audio/mpeg"  },
-    { 0x10, STREAM_TYPE_VIDEO, "video/mpeg4" },
-    { 0x1a, STREAM_TYPE_VIDEO, "video/h264"  }
+mpeg_stream_type_t mpeg_stream_types[] = {
+    { 0x01, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg"  },
+    { 0x02, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg"  },
+    { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mpeg"  },
+    { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp2"   },
+    { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp3"   },
+    { 0x04, 0xc0, STREAM_TYPE_AUDIO, "audio/mpeg"  },
+    { 0x10, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg4" },
+    { 0x1a, 0xe0, STREAM_TYPE_VIDEO, "video/h264"  },
+    { 0x81, 0xbd, STREAM_TYPE_AUDIO, "audio/ac3"   }
 };
 
 static int nstream_types =
     sizeof(mpeg_stream_types) / sizeof(mpeg_stream_types[0]);
 
-extern int
-codec2stream_type(char *codec)
+extern mpeg_stream_type_t *
+mpeg_stream_type(char *codec)
 {
     int i;
 
     for(i = 0; i < nstream_types; i++)
 	if(!strcmp(codec, mpeg_stream_types[i].codec))
-	    return mpeg_stream_types[i].mpeg_stream_type;
+	    return &mpeg_stream_types[i];
 
-    return -1;
+    return NULL;
 }
 
 extern int
