@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -199,6 +199,8 @@ mpeg_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 	    mpd->flush = 1;
 	}
 	mpeg2_tag_picture(mpd->mpeg2, ptsl, ptsh);
+	tc2_print("MPEG2", TC2_PRINT_DEBUG+1, "input pts %llu\n",
+		  pk->pts / 300);
     }
 
     do {
@@ -248,6 +250,9 @@ mpeg_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 		if(mpd->pts != -1LL){
 		    int nf = mpd->info->display_picture->nb_fields;
+
+		    if(nf < 2 && tcvp_codec_mpeg2_conf_force_frame_pic)
+			nf = 2;
 
 		    tc2_print("MPEG2", TC2_PRINT_DEBUG+1, "pts %llu\n",
 			      mpd->pts / 27);
@@ -304,6 +309,9 @@ mpeg_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 		      seq->vbv_buffer_size * 8);
 	    tc2_print("MPEG2", TC2_PRINT_DEBUG, "bit_rate %i\n",
 		      seq->byte_rate * 8);
+	    tc2_print("MPEG2", TC2_PRINT_DEBUG, "frame period %i\n",
+		      seq->frame_period / 27);
+	    tc2_print("MPEG2", TC2_PRINT_DEBUG, "flags %x\n", seq->flags);
 
 	    ret = PROBE_OK;
 	    break;
