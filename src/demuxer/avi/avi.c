@@ -1031,7 +1031,7 @@ aid2codec(int id)
 {
     int i;
 
-    for(i = 0; tcvp_demux_avi_conf_atag_count; i++){
+    for(i = 0; i < tcvp_demux_avi_conf_atag_count; i++){
 	if(id == tcvp_demux_avi_conf_atag[i].tag)
 	    return tcvp_demux_avi_conf_atag[i].codec;
     }
