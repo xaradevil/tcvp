@@ -317,10 +317,16 @@ mp3_header(int c, int d, mp3_frame_t *mf)
 	return -1;
     }
 
+    if(!mf)
+	return 0;
+
     mf->version = (c >> 3) & 0x3;
     mf->layer = 3 - ((c >> 1) & 0x3);
     bx = mf->layer + (mf->layer == 2? ~mf->version & 1: 0);
-    br = d >> 4;
+    br = (d >> 4) & 0xf;
+    if(!bitrates[br][bx])
+	return -1;
+
     sr = (d >> 2) & 3;
     pad = (d >> 1) & 1;
     mf->bitrate = bitrates[br][bx] * 1000;
@@ -431,14 +437,19 @@ mp3_packet(muxed_stream_t *ms, int str)
     }
 
     f = memchr(mp->data, 0xff, size - 2);
-    if(f && !mp3_header(f[1], f[2], &fr)){
-	if((fr.size < size - (f - mp->data)) &&
-	   f[fr.size] == 0xff){
+    if(f && !mp3_header(f[1], f[2], &fr) && fr.bitrate){
+	if((fr.size < size - (f - mp->data) - 3) &&
+	   f[fr.size] == 0xff &&
+	   !mp3_header(f[fr.size+1], f[fr.size+2], NULL)){
 	    int br;
 	    mf->sbr += size * fr.bitrate;
 	    mf->bytes += size;
 	    br = mf->sbr / mf->bytes;
-	    if(br && br != mf->stream.audio.bit_rate){
+	    if(br != mf->stream.audio.bit_rate){
+#ifdef DEBUG
+		fprintf(stderr, "MP3: bitrate %i [%i] @%lx\n",
+			fr.bitrate, br, ftell(mf->file) - size+(f-mp->data));
+#endif
 		mf->stream.audio.bit_rate = br;
 		ms->time = 8000000LL * mf->size / br;
 		tcvp_event_t *te = tcvp_alloc_event(TCVP_STREAM_INFO);
