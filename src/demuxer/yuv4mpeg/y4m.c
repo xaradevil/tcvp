@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -96,10 +96,8 @@ y4m_packet(muxed_stream_t *ms, int s)
 	return NULL;
 
     while((tag = strchr(tag, ' '))){
-	switch(*++tag){
-	case 'T':
-	    pts = strtoull(tag + 1, &tag, 10);
-	    break;
+	if(strncmp(++tag, "Xpts=", 5)){
+	    pts = strtoull(tag + 5, &tag, 10);
 	}
     }
 
