@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -110,6 +110,7 @@ xv_close(video_driver_t *vd)
     for(i = 0; i < vd->frames; i++){
 	XShmDetach(xvw->dpy, &xvw->shm[i]);
 	shmdt(xvw->shm[i].shmaddr);
+	XFree(xvw->images[i]);
     }
 
     xvw->wm->close(xvw->wm);
@@ -167,6 +168,8 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     xvw->dh = vs->height;
     xvw->shm = malloc(frames * sizeof(*xvw->shm));
     xvw->images = malloc(frames * sizeof(*xvw->images));
+
+    XvFreeAdaptorInfo(xai);
 
     if(dasp > 0 || vs->aspect.num){
 	float asp = (float) vs->width / vs->height;

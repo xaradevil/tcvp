@@ -216,6 +216,7 @@ new_pipe(stream_shared_t *sh, muxed_stream_t *ms, stream_t *s)
 	pipe = NULL;
     }
 
+    tcfree(pr);
     return pipe;
 }
 
@@ -647,6 +648,7 @@ s_free(void *p)
 
     tcfree(sp->ms);
     free(sp->streams);
+    free(sp->smap);
     free(sp);
 }
 
