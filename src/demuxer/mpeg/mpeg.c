@@ -87,8 +87,8 @@ mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 	pes->pts = (htob_16(unaligned16(pts+3)) & 0xfffe) >> 1;
 	pes->pts |= (htob_16(unaligned16(pts+1)) & 0xfffe) << 14;
 	pes->pts |= (uint64_t) (*pts & 0xe) << 29;
-/* 	fprintf(stderr, "MPEGPS: stream %x, pts %lli\n", */
-/* 		pes->stream_id, pes->pts); */
+/* 	tc2_print("MPEGPS", TC2_PRINT_DEBUG, "stream %x, pts %lli\n", */
+/* 		  pes->stream_id, pes->pts); */
     }
 
     if(dts){
@@ -141,7 +141,7 @@ mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x04, 0xc0, STREAM_TYPE_AUDIO, "audio/mpeg"  },
     { 0x0f, 0xc0, STREAM_TYPE_AUDIO, "audio/aac"   },
     { 0x10, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg4" },
-    { 0x1a, 0xe0, STREAM_TYPE_VIDEO, "video/h264"  },
+    { 0x1b, 0xe0, STREAM_TYPE_VIDEO, "video/h264"  },
     { 0x81, 0xbd, STREAM_TYPE_AUDIO, "audio/ac3"   }
 };
 
