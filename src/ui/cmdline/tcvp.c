@@ -132,24 +132,47 @@ tcl_play(void *p)
 extern int
 tcl_init(char *p)
 {
+    int i;
     pl = tcvp_new(cf);
     conf_getvalue(cf, "qname", "%s", &qname);
+
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
-    if(nfiles){
+    if(sel_ui) {
+	char *ui = alloca(strlen(sel_ui)+9);
+	int len = 0;
+	char *tmp;
+	char *opt;
+
+	if(!sel_ui)
+	    sel_ui = tcvp_ui_cmdline_conf_ui;
+
+	for(i=0; i<nfiles; i++) {
+	    len += strlen(files[i])+1;
+	}
+	opt = calloc(len + strlen(qname) + 2, 1);
+	tmp = opt;
+
+	strcpy(tmp, qname);
+	tmp += strlen(qname)+1;
+
+	for(i=0; i<nfiles; i++) {
+	    strcpy(tmp, files[i]);
+	    tmp += strlen(files[i])+1;
+	}
+
+	sprintf(ui, "TCVP/ui/%s", sel_ui);
+	tc2_request(TC2_LOAD_MODULE, 1, ui, opt);
+	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
+	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
+    } else if(nfiles) {
 	char qn[strlen(qname)+8];
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
 	pthread_create(&play_thr, NULL, tcl_play, NULL);
-    } else if(sel_ui){
-	char *ui = alloca(strlen(sel_ui)+9);
-	sprintf(ui, "TCVP/ui/%s", sel_ui);
-	tc2_request(TC2_LOAD_MODULE, 1, ui, qname);
-	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
-	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
     } else {
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
