@@ -38,6 +38,7 @@ typedef struct x4_enc {
     x264_t *enc;
     x264_picture_t pic;
     int pts_valid;
+    int idr_interval, idrc;
 } x4_enc_t;
 
 typedef struct x4_packet {
@@ -53,6 +54,22 @@ x4_free_pk(void *p)
     free(xp->data);
 }
 
+static int
+encode_nals(u_char *buf, int size, x264_nal_t *nals, int nnal)
+{
+    u_char *p = buf;
+    int i;
+
+    for(i = 0; i < nnal; i++){
+	int s = x264_nal_encode(p, &size, 1, nals + i);
+	if(s < 0)
+	    return -1;
+	p += s;
+    }
+
+    return p - buf;
+}
+
 extern int
 x4_encode(tcvp_pipe_t *p, packet_t *pk)
 {
@@ -60,7 +77,7 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     x4_packet_t *ep;
     x264_nal_t *nal;
     int nnal, i;
-    u_char *buf, *bp;
+    u_char *buf;
     int bufsize = X4_BUFSIZE;
 
     if(!pk->data)
@@ -79,22 +96,21 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
 	x4->pts_valid = 1;
     }
 
-    if(pk->flags & TCVP_PKT_FLAG_DISCONT)
-	x4->pic.i_type = X264_TYPE_I;
-    else
+    if(pk->flags & TCVP_PKT_FLAG_DISCONT ||
+       (x4->idr_interval && x4->idrc++ == x4->idr_interval)){
+	x4->pic.i_type = X264_TYPE_IDR;
+	x4->idrc = 0;
+    } else {
 	x4->pic.i_type = X264_TYPE_AUTO;
+    }
 
     if(x264_encoder_encode(x4->enc, &nal, &nnal, &x4->pic))
 	return -1;
 
-    bp = buf = malloc(bufsize);
-
-    for(i = 0; i < nnal; i++){
-	int s = x264_nal_encode(bp, &bufsize, 1, nal + i);
-	if(s < 0)
-	    return -1;
-	bp += s;
-    }
+    buf = malloc(bufsize);
+    bufsize = encode_nals(buf, bufsize, nal, nnal);
+    if(bufsize < 0)
+	return -1;
 
     ep = tcallocdz(sizeof(*ep), NULL, x4_free_pk);
     ep->pk.stream = pk->stream;
@@ -109,7 +125,7 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     if(x4->pic.i_type == X264_TYPE_I)
 	ep->pk.flags |= TCVP_PKT_FLAG_KEY;
     ep->data = buf;
-    ep->size = bp - buf;
+    ep->size = bufsize;
     p->next->input(p->next, &ep->pk);
 
     tcfree(pk);
@@ -162,6 +178,7 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     tcconf_getvalue(cs, "cabac", "%i", &x4->params.b_cabac);
     tcconf_getvalue(cs, "qp", "%i", &x4->params.i_qp_constant);
+    tcconf_getvalue(cs, "idr_interval", "%i", &x4->idr_interval);
 
     p->format = *s;
     p->format.common.codec = "video/h264";
