@@ -39,7 +39,7 @@ typedef struct mpegts_mux {
     int running;
     url_t *out;
     timer__t **timer;
-    int bitrate, drate;
+    int bitrate, pad;
     u_char *outbuf;
     int bpos, bsize;
     uint64_t pcr, pcr_int, last_pcr;
@@ -179,7 +179,7 @@ tmx_output(void *p)
 	    (*tsm->timer)->wait(*tsm->timer, tsm->pcr, &tsm->lock);
 	}
 
-	if((tsm->out->flags & URL_FLAG_STREAMED) && mux_mpeg_ts_conf_pad){
+	if((tsm->out->flags & URL_FLAG_STREAMED) && tsm->pad){
 	    ebytes += tsm->bpos;
 	    while(tsm->bpos < tsm->bsize){
 		memcpy(tsm->outbuf + tsm->bpos, tsm->null, 188);
@@ -272,6 +272,7 @@ next_stream(mpegts_mux_t *tsm)
     return s;
 }
 
+#if 0
 static void
 check_rates(mpegts_mux_t *tsm)
 {
@@ -287,6 +288,7 @@ check_rates(mpegts_mux_t *tsm)
 /* 	fprintf(stderr, "warning: total bitrate exceeds output bitrate: %i > %i\n", br, tsm->bitrate); */
     }
 }
+#endif
 
 static int
 tmx_input(tcvp_pipe_t *p, packet_t *pk)
@@ -329,7 +331,6 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	os->dts = dts;
 	if(dts - bdts > 27000000 / 30){
 	    os->bitrate = (27000000LL * os->bytes * 8) / (dts - bdts);
-	    check_rates(tsm);
 	    os->bdts = dts;
 	    os->bytes = 0;
 	}
@@ -575,6 +576,7 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     tsm->outbuf = malloc(outbuf_size);
     tsm->bsize = outbuf_size;
     tsm->bitrate = mux_mpeg_ts_conf_bitrate;
+    tsm->pad = mux_mpeg_ts_conf_pad;
     pthread_mutex_init(&tsm->lock, NULL);
     pthread_cond_init(&tsm->cnd, NULL);
     tsm->nextpid = FIRST_PID;
@@ -587,6 +589,9 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     tsm->null = null_packet();
     tsm->pcr_int = 27000 * mux_mpeg_ts_conf_pcr_interval / 2;
     tsm->start_time = -1;
+
+    conf_getvalue(cs, "bitrate", "%i", &tsm->bitrate);
+    conf_getvalue(cs, "pad", "%i", &tsm->pad);
 
     p = tcallocdz(sizeof(*p), NULL, tmx_free);
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
