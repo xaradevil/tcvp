@@ -22,6 +22,8 @@
 #include <cdda_interface.h>
 #include <cdda_paranoia.h>
 #include <tcstring.h>
+#include <tcalloc.h>
+#include <cdda_mod.h>
 
 #define buffer_size tcvp_input_cdda_conf_buffer
 #define device tcvp_input_cdda_conf_device
@@ -29,23 +31,6 @@
 #define max_retries 64
 
 #define min(a, b) ((a)<(b)?(a):(b))
-
-typedef struct {
-    cdrom_drive *drive;
-    cdrom_paranoia *cdprn;
-    void *header;
-    int header_length;
-    int64_t pos;
-    int64_t data_length;
-    int track;
-    int first_sector;
-    int last_sector;
-    int current_sector;
-    char *buffer;
-    int bufsize;
-    int buffer_pos;
-    int prn_stats[13];
-} cd_data_t;
 
 static char *stat_names[] = {
     "read",
@@ -216,7 +201,7 @@ cd_close(url_t *u)
     free(cdt->buffer);
     free(cdt->header);
     free(cdt);
-    free(u);
+    tcfree(u);
     return 0;
 }
 
@@ -242,7 +227,7 @@ track_open(char *url, char *mode)
     if(track <= 0)
 	return NULL;
 
-    u = calloc(1, sizeof(url_t));
+    u = tcallocz(sizeof(*u));
     u->read = cd_read;
     u->write = NULL;
     u->seek = cd_seek;
@@ -253,6 +238,12 @@ track_open(char *url, char *mode)
 
     cdt->track = track;
     cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
+    if(!cdt->drive){
+	free(cdt);
+	free(u);
+	return NULL;
+    }
+
     cdda_verbose_set(cdt->drive, CDDA_MESSAGE_LOGIT, CDDA_MESSAGE_FORGETIT);
 
     if(cdda_open(cdt->drive) != 0) {
@@ -308,6 +299,9 @@ track_open(char *url, char *mode)
     u->private = cdt;
     u->size = cdt->data_length + cdt->header_length;
 
+    if(tcvp_input_cdda_conf_freedb)
+	cdda_freedb(u, track);
+
     return u;
 }
 
@@ -320,7 +314,7 @@ list_open(char *url, char *mode)
     char *p;
     int i;
 
-    u = calloc(1, sizeof(url_t));
+    u = tcallocz(sizeof(*u));
     u->read = cd_read;
     u->write = NULL;
     u->seek = cd_seek;
