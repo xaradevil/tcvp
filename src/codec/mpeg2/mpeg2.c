@@ -126,8 +126,10 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    p->format.video.height = seq->picture_height;
 	    p->format.video.aspect.num = seq->pixel_width * seq->display_width;
 	    p->format.video.aspect.den = seq->pixel_height*seq->display_height;
+	    tcreduce(&p->format.video.aspect);
 	    p->format.video.frame_rate.num = 27000000;
 	    p->format.video.frame_rate.den = seq->frame_period;
+	    tcreduce(&p->format.video.frame_rate);
 	    p->format.video.pixel_format = PIXEL_FORMAT_I420;
 	    if(!(seq->flags & SEQ_FLAG_PROGRESSIVE_SEQUENCE))
 		p->format.video.flags |= TCVP_STREAM_FLAG_INTERLACED;
