@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -220,6 +220,7 @@ print_info(muxed_stream_t *stream)
     char *performer = tcattr_get(stream, "performer");
     char *title = tcattr_get(stream, "title");
     char *album = tcattr_get(stream, "album");
+    char *track = tcattr_get(stream, "track");
     int i;
 
     if(file)
@@ -230,6 +231,8 @@ print_info(muxed_stream_t *stream)
 	printf("Album:     %s\n", album);
     if(title)
 	printf("Title:     %s\n", title);
+    if(track)
+	printf("Track:     %s\n", track);
     if(stream->time)
 	printf("Length:    %lli:%02lli\n", stream->time / 27000000 / 60,
 	       (stream->time / 27000000) % 60);
