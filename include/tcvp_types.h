@@ -34,8 +34,8 @@ struct packet {
     void *private;
 };
 
-#define PKT_FLAG_PTS  0x1
-#define PKT_FLAG_KEY  0x2
+#define TCVP_PKT_FLAG_PTS  0x1
+#define TCVP_PKT_FLAG_KEY  0x2
 
 
 #define STREAM_TYPE_VIDEO 1

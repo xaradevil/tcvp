@@ -772,9 +772,9 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    af->idxok++;
 	    flags = af->index[af->pkt]->flags;
 	    if(flags & AVI_FLAG_KEYFRAME)
-		flags |= PKT_FLAG_KEY;
+		flags |= TCVP_PKT_FLAG_KEY;
 	    pts = af->index[af->pkt]->pts;
-	    pflags |= PKT_FLAG_PTS;
+	    pflags |= TCVP_PKT_FLAG_PTS;
 	} else {
 	    af->idxok = 0;
 	}

@@ -165,7 +165,7 @@ do_decode(tcvp_pipe_t *p, packet_t *pk)
     psize = pk->sizes[0];
     pdata = pk->data[0];
 
-    if(pk->flags & PKT_FLAG_PTS){
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
 	ad->pts = pk->pts;
 	ad->ptsf = 1;
     }
@@ -214,7 +214,7 @@ do_decode(tcvp_pipe_t *p, packet_t *pk)
 	out->private = outbuf;
 	out->flags = 0;
 	if(ad->ptsf){
-	    out->flags |= PKT_FLAG_PTS;
+	    out->flags |= TCVP_PKT_FLAG_PTS;
 	    out->pts = ad->pts;
 	    ad->ptsf = 0;
 	}

@@ -276,7 +276,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 /* 			    sx, pts, upts, pts - s->pts[sx]); */
 	    s->pts[sx] = pts;
 	    pk->pts = upts;
-	    pk->flags |= PKT_FLAG_PTS;
+	    pk->flags |= TCVP_PKT_FLAG_PTS;
 	}
 	mp->datap += 9 + peshl;
 	mp->data_length -= 9 + peshl;

@@ -145,7 +145,6 @@ avf_free(void *p)
 {
     muxed_stream_t *ms = p;
     avf_stream_t *as = ms->private;
-    int i;
 
     av_close_input_file(as->afc);
 
@@ -217,7 +216,6 @@ avf_open(char *name, conf_section *cs)
 
     as = calloc(1, sizeof(*as));
     as->afc = afc;
-    as->packets = calloc(ms->n_streams, sizeof(list *));
 
     ms->file = strdup(name);
     ms->private = as;

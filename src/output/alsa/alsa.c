@@ -159,7 +159,7 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
 
     count = pk->sizes[0];
     data = pk->data[0];
-    pts = pk->flags & PKT_FLAG_PTS;
+    pts = pk->flags & TCVP_PKT_FLAG_PTS;
 
     while(count > 0){
 	int bs;

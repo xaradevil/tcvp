@@ -162,7 +162,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	return 0;
     }
 
-    if(pk->flags & PKT_FLAG_PTS){
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
 	uint64_t pts = vc->pts / vc->ptsd;
 	uint64_t ptsdiff = pk->pts > pts? pk->pts - pts: pts - pk->pts;
 	if(ptsdiff > 1000000){
@@ -194,7 +194,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    }
 	    out->planes = i;
 
-	    out->flags = PKT_FLAG_PTS;
+	    out->flags = TCVP_PKT_FLAG_PTS;
 	    out->pts = vc->pts / vc->ptsd;
 	    vc->pts += vc->ptsn;
 
