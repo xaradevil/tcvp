@@ -1,0 +1,12 @@
+symbol	"new"		tcvp_pipe_t *(*%s)(tcvp_pipe_t *)
+symbol	"decode"	packet_t *(*%s)(codec_t *, packet_t *)
+symbol	"encode"	packet_t *(*%s)(codec_t *, packet_t *)
+include
+#include <tcvp.h>
+
+typedef struct codec codec_t;
+struct codec {
+    packet_t *(*decode)(codec_t *, packet_t *);
+    packet_t *(*encode)(codec_t *, packet_t *);
+    int (*free)(codec_t *);
+};

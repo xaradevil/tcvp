@@ -1,0 +1,3 @@
+symbol	"open"		tcvp_pipe_t *(*%s)(audio_stream_t *, char *device)
+include
+#include <tcvp.h>
