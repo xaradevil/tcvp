@@ -157,7 +157,7 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     afGetSampleFormat(aff, AF_DEFAULT_TRACK, &sampleFormat, &sampleWidth);
     byteOrder = afGetByteOrder(aff, AF_DEFAULT_TRACK);
-    fn += (byteOrder == AF_BYTEORDER_BIGENDIAN)?1:0;
+/*     fn += (byteOrder == AF_BYTEORDER_BIGENDIAN)?1:0; */
     fn += (sampleFormat == AF_SAMPFMT_TWOSCOMP)?2:0;
     fn += (sampleWidth == 16)?4:0;
 

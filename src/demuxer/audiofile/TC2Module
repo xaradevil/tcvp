@@ -3,5 +3,7 @@ name		"TCVP/demux/audiofile"
 version		0.1.1
 tc2version	0.4.0
 sources		af.c
+implement	"audio/basic"	"open"		af_open
+implement	"audio/x-aiff"	"open"		af_open
 implement	"audio/x-wav"	"open"		af_open
 option		packet_size%i=4096
