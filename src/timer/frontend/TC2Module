@@ -4,3 +4,4 @@ version		0.1.0
 tc2version	0.4.0
 sources		timer.c
 implement	"timer" "new" tm_new
+option		modulate%lf=0.0

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -47,6 +47,8 @@ typedef struct atimer {
     pthread_mutex_t mx;
     pthread_cond_t cd;
     int state;
+    double mod;
+    double mticks;
 } atimer_t;
 
 static void
@@ -147,11 +149,28 @@ tm_tick(tcvp_timer_t *t, uint64_t ticks)
 {
     atimer_t *at = t->private;
 
+    if(at->mod != 0.0){
+	double mticks = at->mticks + ticks * at->mod;
+	double imt = mticks > 0? floor(mticks): ceil(mticks);
+	at->mticks = mticks - imt;
+	ticks += imt;
+    }
+
     pthread_mutex_lock(&at->mx);
     if(at->state == RUN)
 	at->time += ticks;
     pthread_cond_broadcast(&at->cd);
     pthread_mutex_unlock(&at->mx);
+}
+
+static int
+tm_modulate(tcvp_timer_t *t, double mod)
+{
+    atimer_t *at = t->private;
+    if(mod <= -1.0)
+	return -1;
+    at->mod = mod;
+    return 0;
 }
 
 static int
@@ -188,6 +207,7 @@ tm_new(tcconf_section_t *cf)
     pthread_mutex_init(&at->mx, NULL);
     pthread_cond_init(&at->cd, NULL);
     at->state = PAUSE;
+    at->mod = tcvp_timer_conf_modulate;
 
     tm = tcallocdz(sizeof(*tm), NULL, free_timer);
     tm->start = tm_start;
@@ -198,6 +218,7 @@ tm_new(tcconf_section_t *cf)
     tm->interrupt = tm_intr;
     tm->set_driver = tm_setdriver;
     tm->tick = tm_tick;
+    tm->modulate = tm_modulate;
     tm->private = at;
 
     return tm;
