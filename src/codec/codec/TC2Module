@@ -4,3 +4,5 @@ version		0.1.0
 tc2version	0.4.0
 sources		codec.c
 implement	"decoder"	"new"	dec_new
+implement	"encoder"	"new"	enc_new
+option	*suffix suffix%s vcodec%s acodec%s
