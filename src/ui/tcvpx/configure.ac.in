@@ -3,3 +3,5 @@ if test "x$no_x" = x; then
     PKG_CHECK_MODULES(XUI, xft >= 1.0, true, XUI_LIBS="-lXft")
     TC2_ENABLE_MODULE
 fi
+
+AC_CONFIG_FILES([src/ui/tcvpx/skin/Makefile])

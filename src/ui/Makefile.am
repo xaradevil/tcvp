@@ -1,1 +1,0 @@
-SUBDIRS = $(UI_MODULES)

@@ -1,2 +1,1 @@
-tcvp_CPPFLAGS += -DTCVP_CONF=\"${sysconfdir}/tcvp.conf\"
-MODLIBS = -ltc2
+tcvp_MODINC += -DTCVP_CONF=\"${sysconfdir}/tcvp.conf\"

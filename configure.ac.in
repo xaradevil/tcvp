@@ -1,0 +1,4 @@
+CFLAGS=${CFLAGS--O2 -Wall -g}
+AC_C_BIGENDIAN([AC_DEFINE([TCVP_ENDIAN], ["be"])],
+	       [AC_DEFINE([TCVP_ENDIAN], ["le"])])
+AC_SUBST([CPPFLAGS], [-I\$\(top_srcdir\)/include])

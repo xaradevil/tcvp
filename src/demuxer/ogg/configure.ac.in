@@ -1,1 +1,4 @@
 XIPH_PATH_OGG(TC2_ENABLE_MODULE)
+if test x$_tc2_module = xyes; then
+    TC2_ADD_LDFLAGS([-logg])
+fi

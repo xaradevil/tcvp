@@ -1,2 +1,2 @@
-AM_CFLAGS = -DDATADIR=\"$(pkgdatadir)\"
-dist_pkgdata_DATA = magic
+stream_MODINC += -DDATADIR=\"$(pkgdatadir)\"
+dist_pkgdata_DATA = src/demuxer/stream/magic
