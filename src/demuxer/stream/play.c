@@ -579,6 +579,8 @@ s_flush(tcvp_pipe_t *tp, int drop)
     tc2_print("STREAM", TC2_PRINT_DEBUG, "flushing, drop=%i\n", drop);
 
     for(i = 0; i < sp->nstreams; i++){
+	if(!sp->streams[i].packets)
+	    continue;
 	while((pk = tclist_shift(sp->streams[i].packets)))
 	    tcfree(pk);
 	if(sp->streams[i].pipe)
