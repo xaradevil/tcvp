@@ -38,6 +38,10 @@ tcvp_event(void *p)
 		p_state = PLAYING;
 		break;
 
+	    case TCVP_STATE_STOPPED:
+		p_state = PAUSED;
+		break;
+
 	    case TCVP_STATE_ERROR:
 		printf("Error opening file.\n");
 	    case TCVP_STATE_END:
@@ -151,11 +155,13 @@ tcvp_stop(tcwidget_t *w, void *p)
 extern int
 tcvp_play(tcwidget_t *w, void *p)
 {
-    if(current_file != NULL) {
+    if(current_file != NULL && p_state == STOPPED) {
 	tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
 	te->file = current_file;
 	eventq_send(qs, te);
 	tcfree(te);
+	tcvp_pause(NULL, NULL);
+    } else if(p_state == PAUSED) {
 	tcvp_pause(NULL, NULL);
     }
 

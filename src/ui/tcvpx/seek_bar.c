@@ -87,10 +87,12 @@ enable_seek_bar(tcseek_bar_t *w)
 extern int
 change_seek_bar(tcseek_bar_t *w, double position)
 {
-    w->position = position;
-    w->repaint((tcwidget_t *) w);
-    draw_widget((tcwidget_t *) w);
-    XSync(xd, False);
+    if(w->enabled) {
+	w->position = position;
+	w->repaint((tcwidget_t *) w);
+	draw_widget((tcwidget_t *) w);
+	XSync(xd, False);
+    }
 
     return 0;
 }

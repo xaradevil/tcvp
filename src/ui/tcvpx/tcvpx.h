@@ -23,6 +23,7 @@
 
 #define STOPPED 0
 #define PLAYING 1
+#define PAUSED 2
 
 #define TCTIME_ELAPSED   0
 #define TCTIME_REMAINING 1

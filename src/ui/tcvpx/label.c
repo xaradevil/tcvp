@@ -53,66 +53,66 @@ change_label(tclabel_t *txt, char *text)
 {
     free(txt->text);
     txt->text = strdup((text)?text:"");
-    if(mapped==1){
-	XGlyphInfo xgi;
-	XftTextExtents8(xd, txt->xftfont, text, strlen(text), &xgi);
-	txt->text_width = xgi.width+2;
+    XGlyphInfo xgi;
+    XftTextExtents8(xd, txt->xftfont, text, strlen(text), &xgi);
+    txt->text_width = xgi.width+2;
 
 /* 	printf("\"%s\"\nwidth:%d height:%d x:%d y:%d xOff:%d yOff:%d\n", */
 /* 	       text, xgi.width, xgi.height, xgi.x, xgi.y, */
 /* 	       xgi.xOff, xgi.yOff); */
 
-	if(xgi.width+2 > txt->width) {
-	    txt->scrolling = txt->scroll;
+    if(xgi.width+2 > txt->width) {
+	txt->scrolling = txt->scroll;
+    } else {
+	txt->scrolling = TCLABELSTANDARD;
+    }
+
+    if(txt->scrolling == TCLABELPINGPONG){
+	txt->s_width = xgi.width + txt->s_space + 2;
+    } else if(txt->scrolling == TCLABELSCROLLING){
+	txt->s_width = xgi.width + 2;
+    } else {
+	txt->s_width = (xgi.width+2 > txt->width)?txt->width:xgi.width + 2;
+    }
+
+    if(txt->s_text) XFreePixmap(xd, txt->s_text);
+    if(txt->xftdraw) XftDrawDestroy(txt->xftdraw);
+    txt->s_text = XCreatePixmap(xd, xw, txt->s_width,
+				txt->height, depth);
+    txt->xftdraw = XftDrawCreate(xd, txt->s_text,
+				 DefaultVisual(xd, xs),
+				 DefaultColormap(xd, xs));
+
+    XFillRectangle(xd, txt->s_text, bgc, 0, 0,
+		   txt->s_width, txt->height);
+
+    if(txt->scrolling == TCLABELSCROLLING) {
+	txt->s_max = txt->s_width + txt->s_space;
+	txt->s_pos = 0;
+	XftDrawString8(txt->xftdraw, &txt->xftcolor,
+		       txt->xftfont, txt->xoff,
+		       txt->yoff, txt->text,
+		       strlen(txt->text));
+    } else if(txt->scrolling == TCLABELPINGPONG){
+	txt->s_max = txt->s_width - txt->width;
+	txt->s_pos = txt->s_space/2;
+	txt->s_dir = 1;
+	XftDrawString8(txt->xftdraw, &txt->xftcolor,
+		       txt->xftfont, txt->xoff + txt->s_space/2,
+		       txt->yoff, txt->text,
+		       strlen(txt->text));
+    } else {
+	if(txt->scroll != TCLABELSTANDARD){
+	    txt->s_pos = (txt->width - txt->s_width)/2;
 	} else {
-	    txt->scrolling = TCLABELSTANDARD;
-	}
-
-	if(txt->scrolling == TCLABELPINGPONG){
-	    txt->s_width = xgi.width + txt->s_space + 2;
-	} else if(txt->scrolling == TCLABELSCROLLING){
-	    txt->s_width = xgi.width + 2;
-	} else {
-	    txt->s_width = (xgi.width+2 > txt->width)?txt->width:xgi.width + 2;
-	}
-		    
-	if(txt->s_text) XFreePixmap(xd, txt->s_text);
-	if(txt->xftdraw) XftDrawDestroy(txt->xftdraw);
-	txt->s_text = XCreatePixmap(xd, xw, txt->s_width,
-				    txt->height, depth);
-	txt->xftdraw = XftDrawCreate(xd, txt->s_text,
-				     DefaultVisual(xd, xs),
-				     DefaultColormap(xd, xs));
-
-	XFillRectangle(xd, txt->s_text, bgc, 0, 0,
-		       txt->s_width, txt->height);
-
-	if(txt->scrolling == TCLABELSCROLLING) {
-	    txt->s_max = txt->s_width + txt->s_space;
 	    txt->s_pos = 0;
-	    XftDrawString8(txt->xftdraw, &txt->xftcolor,
-			   txt->xftfont, txt->xoff,
-			   txt->yoff, txt->text,
-			   strlen(txt->text));
-	} else if(txt->scrolling == TCLABELPINGPONG){
-	    txt->s_max = txt->s_width - txt->width;
-	    txt->s_pos = txt->s_space/2;
-	    txt->s_dir = 1;
-	    XftDrawString8(txt->xftdraw, &txt->xftcolor,
-			   txt->xftfont, txt->xoff + txt->s_space/2,
-			   txt->yoff, txt->text,
-			   strlen(txt->text));
-	} else {
-	    if(txt->scroll != TCLABELSTANDARD){
-		txt->s_pos = (txt->width - txt->s_width)/2;
-	    } else {
-		txt->s_pos = 0;
-	    }
-	    XftDrawString8(txt->xftdraw, &txt->xftcolor,
-			   txt->xftfont, txt->xoff, txt->yoff,
-			   txt->text, strlen(txt->text));
 	}
+	XftDrawString8(txt->xftdraw, &txt->xftcolor,
+		       txt->xftfont, txt->xoff, txt->yoff,
+		       txt->text, strlen(txt->text));
+    }
 
+    if(mapped==1){
 	txt->repaint((tcwidget_t *) txt);
 	draw_widget((tcwidget_t *) txt);
 	XSync(xd, False);
