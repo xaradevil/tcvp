@@ -1048,6 +1048,7 @@ static char *vcodec_tags[][2] = {
     { "IV31", "video/indeo3" },
     { "IV32", "video/indeo3" },
     { "VP31", "video/vp3"},
+    { "cvid", "video/cinepak"},
     { NULL, NULL }
 };
 
