@@ -25,7 +25,7 @@ typedef struct mp3_file {
     eventq_t qs;
     uint64_t sbr;
     size_t bytes;
-    uint64_t pts;
+    uint64_t samples;
     int fsize;
     char fh;
 } mp3_file_t;
@@ -144,6 +144,7 @@ mp3_getparams(muxed_stream_t *ms)
 
     mf->stream.audio.bit_rate = fr.bitrate;
     mf->stream.audio.codec = codecs[fr.layer];
+    mf->stream.audio.sample_rate = fr.sample_rate;
     if(fr.bitrate)
 	ms->time = 27 * 8000000LL * mf->size / fr.bitrate;
 
@@ -169,7 +170,7 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
 	if(mf->stream.audio.bit_rate)
 	    time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
 
-    mf->pts = time;
+    mf->samples = time * mf->stream.audio.sample_rate;
     mf->fsize = 0;
 
     return time;
@@ -206,7 +207,7 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;
     mp->pk.flags = TCVP_PKT_FLAG_PTS;
-    mp->pk.pts = mf->pts;
+    mp->pk.pts = mf->samples * 27000000 / mf->stream.audio.sample_rate;
 
     pos = mf->file->tell(mf->file);
     size = min(size, mf->size - pos + mf->start);
@@ -227,18 +228,18 @@ mp3_packet(muxed_stream_t *ms, int str)
 
 	if(!mp3_header(fh1, f[2], &fr)){
 	    u_int br;
-	    mf->pts += 1536 * 27000000LL / fr.sample_rate;
+	    mf->samples += 1152;
 	    mf->sbr += (uint64_t) fr.size * fr.bitrate;
 	    mf->bytes += fr.size;
 	    br = mf->sbr / mf->bytes;
 	    if(br != mf->stream.audio.bit_rate){
-#ifdef DEBUG
-		fprintf(stderr, "MP3: bitrate %i [%u] @%lx\n",
-			fr.bitrate, br,
-			mf->file->tell(mf->file) - size + (f - mp->data));
-#endif
 		mf->stream.audio.bit_rate = br;
 		ms->time = 27 * 8000000LL * mf->size / br;
+#ifdef DEBUG
+		fprintf(stderr, "MP3: bitrate %i [%u] %lli s @%llx\n",
+			fr.bitrate, br, ms->time / 27000000,
+			mf->file->tell(mf->file) - size + (f - mp->data));
+#endif
 		tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
 	    }
 	    f += fr.size;
