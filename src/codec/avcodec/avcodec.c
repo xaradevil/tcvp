@@ -79,11 +79,11 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
 	inbuf = ac->inbuf;
 	insize = ac->insize;
 	ac->inbuf = NULL;
-    } else if(pk){
+    } else if(pk->data){
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
     } else {
-	p->next->input(p->next, NULL);
+	p->next->input(p->next, pk);
 	return 0;
     }
 
@@ -266,7 +266,7 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     avc_codec_t *ac = p->private;
     int ret;
 
-    if(do_decaudio(p, pk, 0) < 0)
+    if(do_decaudio(p, pk, 1) < 0)
 	return PROBE_FAIL;
 
     if(ac->have_params){
