@@ -139,7 +139,8 @@ alsa_flush(tcvp_pipe_t *p, int drop)
     if(drop){
 	ao->head = ao->tail = ao->buf;
 	ao->bbytes = 0;
-	snd_pcm_drop(ao->pcm);
+	if(ao->hwp)
+	    snd_pcm_drop(ao->pcm);
     } else {
 	while(ao->bbytes)
 	    pthread_cond_wait(&ao->cd, &ao->mx);
@@ -326,6 +327,8 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     } else if(strstr(s->audio.codec, "pcm-u8")){
 	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_U8);
 	ssize = 1;
+    } else {
+	goto err;
     }
 
     snd_pcm_hw_params_set_rate_near(pcm, hwp, &rate, &tmp);
@@ -336,7 +339,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
 	fprintf(stderr, "ALSA: snd_pcm_hw_parameters failed\n");
-	return PROBE_FAIL;
+	goto err;
     }
 
     ao->hwp = hwp;
@@ -351,6 +354,10 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     p->format = *s;
 
     return PROBE_OK;
+err:
+    snd_pcm_hw_params_free(hwp);
+    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
+    return PROBE_FAIL;
 }
 
 extern tcvp_pipe_t *
