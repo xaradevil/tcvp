@@ -165,6 +165,9 @@ static int
 pl_remove(tcvp_playlist_t *tpl, int s, int n)
 {
     int i, j, nr;
+    u_int un = n;
+
+    tc2_print("PLAYLIST", TC2_PRINT_DEBUG, "pl_remove s=%i n=%i\n", s, n);
 
     pthread_mutex_lock(&tpl->lock);
 
@@ -173,7 +176,10 @@ pl_remove(tcvp_playlist_t *tpl, int s, int n)
     if(s < 0)
 	s = 0;
 
-    nr = min(tpl->nf - s, (unsigned) n);
+    nr = min(tpl->nf - s, un);
+
+    tc2_print("PLAYLIST", TC2_PRINT_DEBUG, "removing %i of %i entries @%i\n",
+	      nr, tpl->nf, s);
 
     for(i = 0; i < nr; i++)
 	free(tpl->files[s + i]);
