@@ -170,7 +170,7 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
 	if(mf->stream.audio.bit_rate)
 	    time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
 
-    mf->samples = time * mf->stream.audio.sample_rate;
+    mf->samples = time / 27000000 * mf->stream.audio.sample_rate;
     mf->fsize = 0;
 
     return time;
