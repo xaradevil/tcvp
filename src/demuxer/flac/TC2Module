@@ -1,0 +1,6 @@
+module		flacfile
+name		"TCVP/format/flac"
+version		0.1.0
+tc2version	0.6.0
+sources		flacread.c flac.h crc.c
+implement	"audio/x-flac" "open" flr_open
