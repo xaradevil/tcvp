@@ -753,6 +753,8 @@ t_new(tcconf_section_t *cs)
     char qname[16];
 
     tp = calloc(1, sizeof(*tp));
+    tp->state = TCVP_STATE_END;
+
     pl = calloc(1, sizeof(*pl));
     pl->start = q_start;
     pl->stop = q_stop;
