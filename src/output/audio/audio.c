@@ -100,8 +100,14 @@ audio_free(void *p)
     ao->state = STOP;
     pthread_cond_broadcast(&ao->cd);
     pthread_mutex_unlock(&ao->mx);
+
+    pthread_join(ao->pth, NULL);
+    pthread_mutex_lock(&ao->mx);
     if(ao->driver)
 	tcfree(ao->driver);
+    ao->driver = NULL;
+    pthread_mutex_unlock(&ao->mx);
+
     if(ao->buf)
 	free(ao->buf);
     free(ao->ptsq);
@@ -147,17 +153,6 @@ audio_input(tcvp_pipe_t *p, packet_t *pk)
 
     if(!pk->data){
 	tcfree(pk);
-	pthread_mutex_lock(&ao->mx);
-	while(ao->bbytes && ao->state == RUN)
-	    pthread_cond_wait(&ao->cd, &ao->mx);
-	ao->state = STOP;
-	pthread_cond_broadcast(&ao->cd);
-	pthread_mutex_unlock(&ao->mx);
-	pthread_join(ao->pth, NULL);
-	pthread_mutex_lock(&ao->mx);
-	tcfree(ao->driver);
-	ao->driver = NULL;
-	pthread_mutex_unlock(&ao->mx);
 	return 0;
     }
 
@@ -343,8 +338,10 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     free(formats);
 
-    if(!ad)
+    if(!ad){
+	fprintf(stderr, "AUDIO: can't find a usable driver\n");
 	return PROBE_FAIL;
+    }
 
     if(!(issize = get_ssize(sf)))
 	goto err;
