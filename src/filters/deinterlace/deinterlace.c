@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -32,29 +32,103 @@
 #include <tcvp_types.h>
 #include <deinterlace_tc2.h>
 
-extern int
-di_input(tcvp_pipe_t *p, packet_t *pk)
+#define DI_NONE  0
+#define DI_DROP  1
+#define DI_BLEND 2
+
+typedef struct deinterlace {
+    int method;
+} deinterlace_t;
+
+static int
+di_drop(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     int i;
 
-    if(pk->data && p->private){
-	for(i = 0; i < pk->planes; i++)
-	    pk->sizes[i] *= 2;
+    for(i = 0; i < pk->planes; i++)
+	pk->sizes[i] *= 2;
+
+    return p->next->input(p->next, (tcvp_packet_t *) pk);
+}
+
+static int
+di_blend(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
+{
+    int i, j, k;
+
+    for(i = 0; i < 3; i++){
+	int d = i? 2: 1;
+	for(j = 0; j < p->format.video.height / d - 1; j += 2){
+	    for(k = 0; k < p->format.video.width / d; k++){
+		pk->data[i][j * pk->sizes[i] + k] =
+		    (pk->data[i][j * pk->sizes[i] + k] +
+		     pk->data[i][(j+1) * pk->sizes[i] + k]) / 2;
+	    }
+	}
     }
 
-    p->next->input(p->next, pk);
-
-    return 0;
+    return p->next->input(p->next, (tcvp_packet_t *) pk);
 }
 
 extern int
-di_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+di_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
+    deinterlace_t *di = p->private;
+
+    if(pk->data){
+	switch(di->method){
+	case DI_NONE:
+	    return p->next->input(p->next, (tcvp_packet_t *) pk);
+	case DI_DROP:
+	    return di_drop(p, pk);
+	case DI_BLEND:
+	    return di_blend(p, pk);
+	}
+    }
+
+    return -1;
+}
+
+extern int
+di_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
+{
+    deinterlace_t *di = p->private;
+
     if(p->format.video.flags & TCVP_STREAM_FLAG_INTERLACED){
-	p->format.video.height /= 2;
-	p->format.video.flags &= ~TCVP_STREAM_FLAG_INTERLACED;
-	p->private = tcalloc(8);
+	switch(di->method){
+	case DI_DROP:
+	    p->format.video.height /= 2;
+	    break;
+	}
+	if(di->method)
+	    p->format.video.flags &= ~TCVP_STREAM_FLAG_INTERLACED;
     }
 
     return PROBE_OK;
+}
+
+extern int
+di_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+       muxed_stream_t *ms)
+{
+    deinterlace_t *di;
+    char *dm = NULL;
+
+    tcconf_getvalue(cs, "method", "%s", &dm);
+    di = tcallocz(sizeof(*di));
+
+    if(!dm || !strcmp(dm, "drop")){
+	di->method = DI_DROP;
+    } else if(!strcmp(dm, "none")){
+	di->method = DI_NONE;
+    } else if(!strcmp(dm, "blend")){
+	di->method = DI_BLEND;
+    } else {
+	tc2_print("DEINTERLACE", TC2_PRINT_WARNING,
+		  "unknown method '%s'\n", dm);
+    }
+
+    p->private = di;
+
+    return 0;
 }

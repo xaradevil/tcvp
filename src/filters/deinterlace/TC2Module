@@ -6,6 +6,7 @@ sources		deinterlace.c
 
 TCVP {
 	filter "filter/deinterlace" {
+		new di_new
 		packet DATA di_input
 		probe di_probe
 	}
