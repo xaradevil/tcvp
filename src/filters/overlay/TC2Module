@@ -1,0 +1,16 @@
+module		overlay
+name		"TCVP/filter/overlay"
+version		0.1.0
+tc2version	0.6.0
+sources		overlay.c
+
+TCVP {
+	filter "filter/overlay" {
+		new ovl_new
+		packet DATA ovl_input
+		probe ovl_probe
+		flush ovl_flush
+	}
+}
+
+option delay%i=4
