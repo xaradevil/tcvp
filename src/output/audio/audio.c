@@ -37,7 +37,6 @@ typedef struct audio_out {
     pthread_mutex_t mx;
     pthread_cond_t cd;
     pthread_t pth;
-    int data_end;
     struct {
 	uint64_t pts;
 	u_char *bp;
@@ -127,13 +126,17 @@ audio_input(tcvp_pipe_t *p, packet_t *pk)
     int pts;
 
     if(!pk->data){
-	ao->data_end = 1;
 	tcfree(pk);
 	pthread_mutex_lock(&ao->mx);
-	if(!ao->bbytes && ao->driver){
-	    tcfree(ao->driver);
-	    ao->driver = NULL;
-	}
+	while(ao->bbytes)
+	    pthread_cond_wait(&ao->cd, &ao->mx);
+	ao->state = STOP;
+	pthread_cond_broadcast(&ao->cd);
+	pthread_mutex_unlock(&ao->mx);
+	pthread_join(ao->pth, NULL);
+	pthread_mutex_lock(&ao->mx);
+	tcfree(ao->driver);
+	ao->driver = NULL;
 	pthread_mutex_unlock(&ao->mx);
 	return 0;
     }
@@ -240,14 +243,6 @@ audio_play(void *p)
 		ao->driver->wait(ao->driver, 1000);
 	    else
 		break;
-	}
-
-	if(!ao->bbytes && ao->data_end){
-	    pthread_mutex_lock(&ao->mx);
-	    if(ao->driver)
-		tcfree(ao->driver);
-	    ao->driver = NULL;
-	    pthread_mutex_unlock(&ao->mx);
 	}
     }
 
