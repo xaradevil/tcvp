@@ -13,6 +13,7 @@
 
 /* packet_t MUST be allocated with tcalloc */
 typedef struct packet {
+    int type;
     int stream;
     u_char **data;
     int *sizes;
@@ -22,6 +23,10 @@ typedef struct packet {
     uint64_t pts, dts;
     void *private;
 } packet_t;
+
+#define TCVP_PKT_TYPE_DATA  0
+#define TCVP_PKT_TYPE_FLUSH 1
+#define TCVP_PKT_TYPE_STILL 2
 
 #define TCVP_PKT_FLAG_PTS        0x1
 #define TCVP_PKT_FLAG_DTS        0x2
