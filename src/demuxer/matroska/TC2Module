@@ -1,0 +1,10 @@
+module		matroska
+name		"TCVP/demux/matroska"
+version		0.1.0
+tc2version	0.6.0
+sources		matroska.c matroska.h ebml.c ebml.h
+implement	"audio/x-matroska"	"open"	msk_open
+implement	"video/x-matroska"	"open"	msk_open
+import		"URL" "open"
+import		"URL" "getc"
+import		"video/x-msvideo" "vcodec"

@@ -16,6 +16,7 @@ module src/codec/x264
 module src/demuxer/avformat
 module src/demuxer/avi
 module src/demuxer/avimage
+module src/demuxer/matroska
 module src/demuxer/mp3
 module src/demuxer/mpeg
 module src/demuxer/mux
