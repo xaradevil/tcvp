@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -49,6 +49,7 @@ typedef struct packet {
 #define TCVP_PKT_FLAG_PTS        0x1
 #define TCVP_PKT_FLAG_DTS        0x2
 #define TCVP_PKT_FLAG_KEY        0x4
+#define TCVP_PKT_FLAG_DISCONT    0x8
 
 #define STREAM_TYPE_VIDEO     1
 #define STREAM_TYPE_AUDIO     2
