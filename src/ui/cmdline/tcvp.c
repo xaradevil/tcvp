@@ -335,8 +335,11 @@ tcl_init(char *p)
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
 
-    if(clr_pl)
+    if(clr_pl){
+	tcvp_event_send(qs, tcvp_event_get("TCVP_PL_STOP"));
+	tcvp_event_send(qs, tcvp_event_get("TCVP_CLOSE"));
 	tcvp_event_send(qs, tcvp_event_get("TCVP_PL_REMOVE"), 0, -1);
+    }
 
     if(!prl){
 	if(nfiles)
