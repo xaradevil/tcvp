@@ -225,6 +225,8 @@ dvd_seek(url_t *u, int64_t offset, int how)
 	d->npack = d->vobu_map->vobu_start_sectors[i-1];
 	d->state = CELL_LOOP;
 	np = (d->npack - d->start_sector) * DVD_VIDEO_LB_LEN;
+	d->bbytes = 0;
+	d->bpos = 0;
     }
 
     d->pos = np;
@@ -258,8 +260,8 @@ dvd_close(url_t *u)
 extern url_t *
 dvd_open(char *url, char *mode)
 {
-    int title = url_dvd_conf_title;
-    int angle = url_dvd_conf_angle;
+    int title = url_dvd_conf_title - 1;
+    int angle = url_dvd_conf_angle - 1;
     int chapter = 0;
     char *device = url_dvd_conf_device;
     dvd_reader_t *dvd;
@@ -289,11 +291,11 @@ dvd_open(char *url, char *mode)
 	if(!*p)
 	    continue;
 	if(!strncmp(p, "title=", 6)){
-	    title = strtol(p + 6, NULL, 0);
+	    title = strtol(p + 6, NULL, 0) - 1;
 	} else if(!strncmp(p, "angle=", 6)){
-	    angle = strtol(p + 6, NULL, 0);
+	    angle = strtol(p + 6, NULL, 0) - 1;
 	} else if(!strncmp(p, "chapter=", 8)){
-	    chapter = strtol(p + 8, NULL, 0);
+	    chapter = strtol(p + 8, NULL, 0) - 1;
 	}
     }
 
