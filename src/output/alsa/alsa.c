@@ -271,11 +271,11 @@ alsa_play(void *p)
 	    pthread_mutex_unlock(&ao->mx);
 	    snd_pcm_wait(ao->pcm, 1000);
 	} else {
-	    if((r = snd_pcm_prepare(ao->pcm)) < 0){
+	    pthread_mutex_unlock(&ao->mx);
+	    if(r < 0 && snd_pcm_prepare(ao->pcm) < 0){
 		fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
 		break;
 	    }
-	    pthread_mutex_unlock(&ao->mx);
 	}
 	if(!ao->bbytes && ao->data_end){
 	    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
@@ -306,6 +306,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     snd_pcm_hw_params_t *hwp;
     snd_pcm_t *pcm = ao->pcm;
     u_int rate = as->sample_rate, channels = as->channels, ptime;
+    int ssize = 0;
     int tmp = 0;
 
     if(s->stream_type != STREAM_TYPE_AUDIO)
@@ -315,7 +316,18 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     snd_pcm_hw_params_any(pcm, hwp);
 
     snd_pcm_hw_params_set_access(pcm, hwp, SND_PCM_ACCESS_RW_INTERLEAVED);
-    snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_S16_LE);
+
+    if(strstr(s->audio.codec, "pcm-s16")){
+	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_S16_LE);
+	ssize = 2;
+    } else if(strstr(s->audio.codec, "pcm-u16")){
+	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_U16_LE);
+	ssize = 2;
+    } else if(strstr(s->audio.codec, "pcm-u8")){
+	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_U8);
+	ssize = 1;
+    }
+
     snd_pcm_hw_params_set_rate_near(pcm, hwp, &rate, &tmp);
     snd_pcm_hw_params_set_channels_near(pcm, hwp, &channels);
 
@@ -328,7 +340,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     ao->hwp = hwp;
-    ao->bpf = as->channels * 2;
+    ao->bpf = as->channels * ssize;
     ao->rate = as->sample_rate;
     ao->bufsize = ao->bpf * output_audio_conf_buffer_size;
     ao->buf = malloc(ao->bufsize);
