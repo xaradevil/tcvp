@@ -24,7 +24,7 @@
 #include <ffmpeg/avcodec.h>
 #include <avcodec_tc2.h>
 
-static enum CodecID avc_codec_id(char *n);
+static enum CodecID avc_codec_id(stream_t *);
 
 extern int
 avc_init(char *arg)
@@ -174,7 +174,7 @@ avc_new(stream_t *s, int mode, tcvp_pipe_t *out)
     AVCodecContext *avctx;
     enum CodecID id;
 
-    id = avc_codec_id(as->codec);
+    id = avc_codec_id(s);
     if(mode == CODEC_MODE_DECODE)
 	avc = avcodec_find_decoder(id);
 
@@ -267,15 +267,28 @@ static const char *codec_names[] = {
     /* various adpcm codecs */
     [CODEC_ID_ADPCM_IMA_QT] = "audio/adpcm-ima-qt",
     [CODEC_ID_ADPCM_IMA_WAV] = "audio/adpcm-ima-wav",
-    [CODEC_ID_ADPCM_MS] = "audio/adpcm-ms"
+    [CODEC_ID_ADPCM_MS] = "audio/adpcm-ms",
+    NULL
 };
 
 static enum CodecID
-avc_codec_id(char *n)
+avc_codec_id(stream_t *s)
 {
     int i;
+    char *n;
 
-    for(i = 0; i < sizeof(codec_names)/sizeof(codec_names[0]); i++){
+    switch(s->stream_type){
+    case STREAM_TYPE_VIDEO:
+	n = s->video.codec;
+	break;
+    case STREAM_TYPE_AUDIO:
+	n = s->audio.codec;
+	break;
+    default:
+	return 0;
+    }
+
+    for(i = 0; codec_names[i]; i++){
 	if(!strcmp(n, codec_names[i])){
 	    return i;
 	}
