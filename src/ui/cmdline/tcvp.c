@@ -239,11 +239,6 @@ tcl_init(char *p)
     char *profile = NULL;
     int i;
 
-    for(i = 0; i < nfiles; i++)
-	files[i] = fullpath(files[i]);
-    for(i = 0; i < npl; i++)
-	playlist[i] = fullpath(playlist[i]);
-
     if(validate){
 	pthread_create(&check_thr, NULL, tcl_check, NULL);
 	return 0;
@@ -584,7 +579,9 @@ parse_options(int argc, char **argv)
 	}
 
 	case 'o':
-	    tcconf_setvalue(cf, "outname", "%s", optarg);
+	    ot = fullpath(optarg);
+	    tcconf_setvalue(cf, "outname", "%s", ot);
+	    free(ot);
 	    break;
 
 	case 'P':
@@ -656,18 +653,23 @@ parse_options(int argc, char **argv)
 extern int
 main(int argc, char **argv)
 {
-    int opt_num;
+    int opt_num, i;
     char userconf[1024];
 
     cf = tcconf_new(NULL);
 
     opt_num = parse_options(argc, argv);
 
-    if(isdaemon)
-	daemon(0, 0);
-
     nfiles = argc - opt_num;
     files = argv + opt_num;
+
+    for(i = 0; i < nfiles; i++)
+	files[i] = fullpath(files[i]);
+    for(i = 0; i < npl; i++)
+	playlist[i] = fullpath(playlist[i]);
+
+    if(isdaemon)
+	daemon(0, 0);
 
     snprintf(userconf, 1024, "%s/.tcvp/tcvp.conf", getenv("HOME"));
 
