@@ -165,8 +165,11 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	    goto out;
 	}
 
+/* 	fprintf(stderr, "VO: %i %i %i\n", */
+/* 		pk->sizes[0], pk->sizes[1], pk->sizes[2]); */
 	planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
-	vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);
+	vo->cconv(vo->vstream->width, vo->vstream->height, pk->data,
+		  pk->sizes, data, strides);
 	if(vo->driver->put_frame)
 	    vo->driver->put_frame(vo->driver, vo->head);
 	v_qpts(vo, pk->pts);

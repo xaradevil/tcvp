@@ -21,7 +21,8 @@
 
 #include <stdint.h>
 
-typedef void (*color_conv_t)(int, const u_char **, int *, u_char **, int *);
+typedef void (*color_conv_t)(int, int, const u_char **, int *, u_char **,
+			     int *);
 extern color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1];
 
 #endif

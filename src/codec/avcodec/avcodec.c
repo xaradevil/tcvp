@@ -249,7 +249,7 @@ static int pixel_fmts[] = {
     [PIX_FMT_YUV422P] = 0,
     [PIX_FMT_YUV444P] = 0,
     [PIX_FMT_RGBA32] = 0,
-    [PIX_FMT_YUV410P] = 0,
+    [PIX_FMT_YUV410P] = PIXEL_FORMAT_YVU9,
     [PIX_FMT_YUV411P] = 0,
     [PIX_FMT_RGB565] = 0,
     [PIX_FMT_RGB555] = 0,
@@ -283,6 +283,14 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    ret = PROBE_AGAIN;
 	    goto out;
 	}
+
+	if(!pixel_fmts[vc->ctx->pix_fmt]){
+	    fprintf(stderr, "avcodec: unknown pixel format %i\n",
+		    vc->ctx->pix_fmt);
+	    ret = PROBE_FAIL;
+	    goto out;
+	}
+
 	p->format = *s;
 	p->format.video.codec = "video/yuv-420";
 	p->format.video.width = vc->ctx->width;

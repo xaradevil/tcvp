@@ -30,7 +30,7 @@
 #endif
 
 static void
-i420_yuy2(int height, const u_char **in, int *istride,
+i420_yuy2(int width, int height, const u_char **in, int *istride,
 	  u_char **out, int *ostride)
 {
     int y;
@@ -73,23 +73,37 @@ i420_yuy2(int height, const u_char **in, int *istride,
     }
 }
 
-#define copy_plane(i, ip, d) do {		\
-    for(j = 0; j < height / d; j++){		\
-	memcpy(out[i] + j * ostride[i],		\
-	       in[ip] + j * istride[i],		\
-	       min(istride[i], ostride[i]));	\
-    }						\
+#define copy_plane(i, ip, d) do {				\
+    int j;							\
+    for(j = 0; j < height / d; j++){				\
+	memcpy(out[i] + j * ostride[i],				\
+	       in[ip] + j * istride[i],				\
+	       min(istride[i], min(ostride[i], width / d)));	\
+    }								\
 } while(0)
 
-#define copy_planar(fin, fout, p0, p1, p2, d0, d1, d2)		\
-static void							\
-fin##_##fout(int height, const u_char **in, int *istride,	\
-	     u_char **out, int *ostride)			\
-{								\
-    int j;							\
-    copy_plane(0, p0, d0);					\
-    copy_plane(1, p1, d1);					\
-    copy_plane(2, p2, d2);					\
+#define exp_plane(i, ip, d, x, y) do {					    \
+    int j, k;								    \
+    int w = min(istride[i], min(ostride[i], width / d));		    \
+    for(j = 0; j < height / d; j++){					    \
+	for(k = 0; k < w; k++){						    \
+	    int p = *(in[ip] + j * istride[i] + k);			    \
+	    int xx, yy;							    \
+	    for(xx = 0; xx < x; xx++)					    \
+		for(yy = 0; yy < y; yy++)				    \
+		    *(out[i] + (y * j + yy) * ostride[i] + x * k + xx) = p; \
+	}								    \
+    }									    \
+} while(0)
+
+#define copy_planar(fin, fout, p0, p1, p2, d0, d1, d2)			\
+static void								\
+fin##_##fout(int width, int height, const u_char **in, int *istride,	\
+	     u_char **out, int *ostride)				\
+{									\
+    copy_plane(0, p0, d0);						\
+    copy_plane(1, p1, d1);						\
+    copy_plane(2, p2, d2);						\
 }
 
 #define alias(f1, f2) f1() __attribute__((alias(#f2)))
@@ -99,10 +113,22 @@ copy_planar(i420, yv12, 0, 2, 1, 1, 2, 2)
 alias(void yv12_i420, i420_yv12);
 alias(void i420_i420, yv12_yv12);
 
+static void
+yvu9_yv12(int width, int height, const u_char **in, int *istride,
+	  u_char **out, int *ostride)
+{
+    copy_plane(0, 0, 1);
+/*     memset(out[1], 0x80, height / 2 * ostride[1]); */
+/*     memset(out[2], 0x80, height / 2 * ostride[2]); */
+    exp_plane(1, 2, 4, 2, 2);
+    exp_plane(2, 1, 4, 2, 2);
+}
+
 color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
     [PIXEL_FORMAT_I420][PIXEL_FORMAT_I420] = i420_i420,
     [PIXEL_FORMAT_YV12][PIXEL_FORMAT_YV12] = yv12_yv12,
     [PIXEL_FORMAT_I420][PIXEL_FORMAT_YV12] = i420_yv12,
     [PIXEL_FORMAT_YV12][PIXEL_FORMAT_I420] = yv12_i420,
     [PIXEL_FORMAT_I420][PIXEL_FORMAT_YUY2] = i420_yuy2,
+    [PIXEL_FORMAT_YVU9][PIXEL_FORMAT_YV12] = yvu9_yv12,
 };

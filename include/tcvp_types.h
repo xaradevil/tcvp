@@ -43,11 +43,12 @@ typedef struct packet {
 #define STREAM_TYPE_AUDIO     2
 #define STREAM_TYPE_MULTIPLEX 3
 
-#define PIXEL_FORMATS 3
+#define PIXEL_FORMATS 4
 
 #define PIXEL_FORMAT_YV12 1
 #define PIXEL_FORMAT_I420 2
 #define PIXEL_FORMAT_YUY2 3
+#define PIXEL_FORMAT_YVU9 4
 
 #define TCVP_STREAM_FLAG_INTERLACED 0x1
 
