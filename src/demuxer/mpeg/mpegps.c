@@ -84,6 +84,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	    pes = malloc(sizeof(*pes));
 	    pes->stream_id = 0xbc;
 	    pes->data = malloc(pklen);
+	    pes->hdr = pes->data;
 	    pklen = s->stream->read(pes->data, 1, pklen, s->stream);
 	    if(pklen < 0)
 		return NULL;
@@ -104,6 +105,11 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	    pes->stream_id = stream_id;
 	    mpegpes_header(pes, pes->hdr, 6);
 	    pes->size = pklen - (pes->data - pes->hdr);
+	    if(pes->stream_id == PRIVATE_STREAM_1){
+		pes->stream_id = *pes->data++;
+		pes->data += 3;
+		pes->size -= 4;
+	    }
 	} else {
 	    char foo[pklen];
 	    if(s->stream->read(foo, 1, pklen, s->stream) < pklen){
@@ -256,8 +262,10 @@ mpegps_open(char *name)
 		    return NULL;
 		}
 	    }
+
 	    if((pk->stream_id & 0xe0) == 0xc0 ||
-	       (pk->stream_id & 0xf0) == 0xe0){
+	       (pk->stream_id & 0xf0) == 0xe0 ||
+	       (pk->stream_id & 0xe0) == 0x80){
 		if(s->imap[pk->stream_id] < 0){
 		    if(ms->n_streams == ns){
 			ns *= 2;
@@ -271,9 +279,12 @@ mpegps_open(char *name)
 		    if(pk->stream_id & 0x20){
 			sp->stream_type = STREAM_TYPE_VIDEO;
 			sp->common.codec = "video/mpeg";
-		    } else {
+		    } else if(pk->stream_id & 0x40){
 			sp->stream_type = STREAM_TYPE_AUDIO;
 			sp->common.codec = "audio/mpeg";
+		    } else {
+			sp->stream_type = STREAM_TYPE_AUDIO;
+			sp->common.codec = "audio/ac3";
 		    }
 		    sp->common.index = ms->n_streams++;
 		    sp++;
