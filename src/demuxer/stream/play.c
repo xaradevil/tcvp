@@ -74,7 +74,7 @@ typedef struct stream_play {
     int nstreams, pstreams;
     int fail;
     int waiting;
-    int nbuf;
+    uint64_t nbuf;
     int state;
     pthread_t rth;
     pthread_mutex_t lock;
@@ -337,7 +337,7 @@ add_stream(stream_player_t *sp, int s)
 
     sp->ms->used_streams[s] = 1;
     if(!(sp->ms->streams[s].common.flags & TCVP_STREAM_FLAG_NOBUFFER))
-	sp->nbuf |= 1 << s;
+	sp->nbuf |= 1ULL << s;
 
     r = 0;
 
@@ -377,7 +377,7 @@ del_stream(stream_player_t *sp, int s)
     }
 
     sp->ms->used_streams[s] = 0;
-    sp->nbuf &= ~(1 << s);
+    sp->nbuf &= ~(1ULL << s);
 
     if(sp->fail == sp->ms->n_streams){
 	tcvp_event_send(sh->sq, TCVP_STATE, TCVP_STATE_ERROR);
@@ -417,7 +417,7 @@ flush_stream(stream_player_t *sp, int sx, int drop)
 
     if(str->probe == PROBE_OK)
 	if(!(sp->ms->streams[sx].common.flags & TCVP_STREAM_FLAG_NOBUFFER))
-	    sp->nbuf |= 1 << sx;
+	    sp->nbuf |= 1ULL << sx;
 
     return 0;
 }
@@ -472,7 +472,7 @@ play_stream(void *p)
 	   sp->ms->used_streams[six]){
 	    if(!(sp->ms->streams[six].common.flags &
 		 TCVP_STREAM_FLAG_NOBUFFER))
-		sp->nbuf |= 1 << six;
+		sp->nbuf |= 1ULL << six;
 	    pthread_cond_broadcast(&sp->cond);
 	}
 	pthread_mutex_unlock(&sp->lock);
@@ -556,7 +556,7 @@ do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
 	    pk = NULL;
 	    pthread_mutex_lock(&sp->lock);
 	    sp->ms->used_streams[ps] = 0;
-	    sp->nbuf &= ~(1 << ps);
+	    sp->nbuf &= ~(1ULL << ps);
 	    pthread_cond_broadcast(&sp->cond);
 	    pthread_mutex_unlock(&sp->lock);
 	} else if(str->starttime == -1LL){
@@ -609,7 +609,7 @@ do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
 		str->headtime = pk->pts;
 	    if(tclist_items(str->packets) > max_packets ||
 	       str->headtime - str->tailtime > buffertime)
-		sp->nbuf &= ~(1 << ps);
+		sp->nbuf &= ~(1ULL << ps);
 	}
 	pthread_cond_broadcast(&sp->cond);
 	pthread_mutex_unlock(&sp->lock);
@@ -623,6 +623,8 @@ static void *
 read_stream(void *p)
 {
     stream_player_t *sp = p;
+
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "read_stream starting\n");
 
     while(waitbuf(sp)){
 	tcvp_packet_t *tpk = NULL;
