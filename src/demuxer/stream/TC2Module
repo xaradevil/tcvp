@@ -14,5 +14,9 @@ import		"Eventq"	"send"
 import		"Eventq"	"attach"
 import		"tcvp/event"		"send"
 import		"tcvp/event"		"get"
-option		buffer%i=4096
+
+option		buffer%i=64
+Number of packets to read ahead for each stream.
+
 option		max_probe%i=1024
+Maximum number of packets read when probing stream parameters.
