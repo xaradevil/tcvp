@@ -94,8 +94,6 @@ extern int quit;
 extern eventq_t qs;
 extern eventq_t qr;
 
-extern int s_time;
-extern int s_length;
 extern tchash_table_t *text_hash;
 
 typedef struct {

@@ -28,8 +28,7 @@
 #include <unistd.h>
 
 static int tcvpstate=-1;
-int s_time;
-int s_length;
+int64_t s_pos, s_length, start_time;
 static int show_time = TCTIME_ELAPSED;
 static muxed_stream_t *st = NULL;
 
@@ -60,7 +59,7 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	case TCVP_STATE_END:
 	{
 	    change_text("state", "stop");
-	    s_time = -1;
+	    s_pos = -1;
 	    update_time();
 	    if(st)
 		tcfree(st);
@@ -70,9 +69,9 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	}
 
     } else if(te->type == TCVP_TIMER) {
-	s_time = ((tcvp_timer_event_t *)te)->time / 27000000;
-	if(s_time > s_length)
-	    s_length = s_time;
+	s_pos = ((tcvp_timer_event_t *)te)->time;
+	if(s_pos-start_time > s_length)
+	    s_length = s_pos-start_time;
 	update_time();
 
     } else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
@@ -114,6 +113,11 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 
 	if(st) {
 	    int i;
+
+	    if(st->n_streams > 0) {
+		start_time = st->streams[0].common.start_time;
+	    }
+
 	    for(i = 0; i < st->n_streams; i++) {
 		if(st->used_streams[i]) {
 		    stream_t *s = &st->streams[i];
@@ -138,7 +142,7 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 		}
 	    }
 	    if(st->time)
-		s_length = st->time / 27000000;
+		s_length = st->time;
 
 	    update_time();
 	}
@@ -206,7 +210,7 @@ extern int
 tcvp_seek(xtk_widget_t *w, void *p)
 {
     double pos = *((double*)p);
-    uint64_t time = s_length * pos * 27000000;
+    uint64_t time = s_length * pos + start_time;
 
     tcvp_event_send(qs, TCVP_SEEK, time, TCVP_SEEK_ABS);
 
@@ -276,22 +280,30 @@ update_time(void)
     double *pos = malloc(sizeof(*pos));
 
     if(show_time == TCTIME_ELAPSED) {
-	t = s_time;
+	if(tcvp_ui_tcvpx_conf_time_offset) {
+	    t = (s_pos - start_time) / 27000000;
+	} else {
+	    t = s_pos / 27000000;
+	}
     } else if(show_time == TCTIME_REMAINING) {
 	sign = '-';
 	if(s_length > 0){
-	    t = s_length - s_time;
+	    t = (s_length - (s_pos - start_time)) / 27000000;
 	} else {
 	    t = 0;
 	}
     }
 
-    *pos = (s_length>0 && s_time>=0)?(double)s_time/s_length:-1;
+    if(s_pos >= 0 && s_length > 0 && s_pos - start_time>=0) {
+	*pos = ((double)(s_pos - start_time)/27000000)/(s_length/27000000);
+    } else {
+	*pos = -1;
+    }
     change_variable("position", pos);
 
     int m = t/60;
 
-    if(s_time >= 0) {
+    if(s_pos >= 0 && s_pos - start_time >= 0) {
 	snprintf(text, 8, "%c%d:%02d", sign, m, t%60);
 	change_text("time", text);
     } else {
