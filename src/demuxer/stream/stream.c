@@ -179,15 +179,19 @@ read_stream(void *p)
 	pthread_mutex_lock(&vp->mtx);
 	while((s = wstream(vp)) >= 0 && vp->state == RUN){
 	    packet_t *p = vp->stream->next_packet(vp->stream, s);
+	    int str;
+
 	    if(!p){
 		vp->streams[s].eof = 1;
 		sem_post(&vp->streams[s].ps);
 		break;
 	    }
+
+	    str = p->stream;
 	    if(p->flags & TCVP_PKT_FLAG_PTS)
-		vp->streams[p->stream].pts = p->pts;
-	    list_push(vp->streams[p->stream].pq, p);
-	    sem_post(&vp->streams[p->stream].ps);
+		vp->streams[str].pts = p->pts;
+	    list_push(vp->streams[str].pq, p);
+	    sem_post(&vp->streams[str].ps);
 	}
 	pthread_mutex_unlock(&vp->mtx);
     }
@@ -374,9 +378,11 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 		li = NULL;
 	    }
 	    if(p != PROBE_OK){
+		pthread_mutex_lock(&vp->mtx);
 		ms->used_streams[i] = 0;
 		freeq(vp, i);
 		list_destroy(vp->streams[i].pq, NULL);
+		pthread_mutex_unlock(&vp->mtx);
 	    }
 	    codecs[i]->flush(codecs[i], 1);
 	}
