@@ -39,8 +39,8 @@ typedef struct mp3_file {
     u_char head[8];
     int hb;
     int fsize;
-    char fh;
     int (*parse_header)(u_char *, mp3_frame_t *);
+    char *tag;
 } mp3_file_t;
 
 #define min(a, b) ((a)<(b)?(a):(b))
@@ -271,7 +271,9 @@ mp3_packet(muxed_stream_t *ms, int str)
     f = mp->data + mf->fsize;
     while(f - mp->data < size - mf->header_size){
 	memcpy(mf->head + mf->hb, f + 1 + mf->hb, mf->header_size - mf->hb);
-	if(!mf->parse_header(mf->head, &fr)){
+	mf->hb = 0;
+	if((f < mp->data || f[0] == 0xff) &&
+	   !mf->parse_header(mf->head, &fr)){
 	    u_int br;
 	    mf->samples += fr.samples;
 	    mf->sbr += (uint64_t) fr.size * fr.bitrate;
@@ -281,8 +283,8 @@ mp3_packet(muxed_stream_t *ms, int str)
 		mf->stream.audio.bit_rate = br;
 		ms->time = 27 * 8000000LL * mf->size / br;
 #ifdef DEBUG
-		fprintf(stderr, "MP3: bitrate %i [%u] %lli s @%llx\n",
-			fr.bitrate, br, ms->time / 27000000,
+		fprintf(stderr, "%s: bitrate %i [%u] %lli s @%llx\n",
+			mf->tag, fr.bitrate, br, ms->time / 27000000,
 			mf->file->tell(mf->file) - size + (f - mp->data));
 #endif
 		tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
@@ -291,10 +293,10 @@ mp3_packet(muxed_stream_t *ms, int str)
 	    bh = 0;
 	} else {
 	    if(!bh++)
-		fprintf(stderr, "MP3: bad header %02x%02x @ %llx\n",
-			mf->head[0], mf->head[1],
-			mf->file->tell(mf->file) - size
-			+ (uint64_t) (f - mp->data));
+		fprintf(stderr, "%s: bad header %02x%02x @ %llx\n",
+			mf->tag, mf->head[0], mf->head[1],
+			mf->file->tell(mf->file) - size +
+			(uint64_t) (f - mp->data));
 	    f++;
 	}
     }
@@ -355,9 +357,11 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
        (head[1] & 0xf6) == 0xf0){
 	mf->header_size = 5;
 	mf->parse_header = aac_header;
+	mf->tag = "AAC";
     } else {
 	mf->header_size = 2;
 	mf->parse_header = mp3_header;
+	mf->tag = "MP3";
     }
 
     if(mp3_getparams(ms)){
