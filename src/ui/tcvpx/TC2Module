@@ -14,3 +14,5 @@ import		"Eventq"	"detach"
 import		"tcvp"		"new"
 import		"image/png"	"read"
 option		skin%s
+option		always_on_top%d=0
+option		sticky%d=0
