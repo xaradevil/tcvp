@@ -83,9 +83,12 @@ avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
 	inbuf = ac->inbuf;
 	insize = ac->insize;
 	ac->inbuf = NULL;
-    } else {
+    } else if(pk){
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
+    } else {
+	p->next->input(p->next, NULL);
+	return 0;
     }
 
     while(insize > 0){
@@ -154,9 +157,12 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 	inbuf = vc->inbuf;
 	insize = vc->insize;
 	vc->inbuf = NULL;
-    } else {
+    } else if(pk){
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
+    } else {
+	p->next->input(p->next, NULL);
+	return 0;
     }
 
     while(insize > 0){

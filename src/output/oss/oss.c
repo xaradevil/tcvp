@@ -85,8 +85,14 @@ static int
 oss_play(tcvp_pipe_t *p, packet_t *pk)
 {
     oss_out_t *ao = p->private;
-    size_t count = pk->sizes[0];
-    u_char *data = pk->data[0];
+    size_t count;
+    u_char *data;
+
+    if(!pk)
+	return 0;
+
+    count = pk->sizes[0];
+    data = pk->data[0];
 
     pthread_mutex_lock(&ao->mx);
     while(ao->state == PAUSE)

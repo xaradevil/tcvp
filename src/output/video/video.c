@@ -84,6 +84,9 @@ v_play(void *p)
 	if(vo->state == STOP)
 	    break;
 
+	if(vo->pts[vo->tail] == -1LL)
+	    break;
+
 	if(vo->timer->wait(vo->timer, vo->pts[vo->tail]) < 0)
 	    continue;
 
@@ -115,6 +118,20 @@ bufr(video_out_t *vo)
     return (float) vo->frames / vo->driver->frames;
 }
 
+static void
+v_qpts(video_out_t *vo, uint64_t pts)
+{
+    pthread_mutex_lock(&vo->smx);
+    if(vo->framecnt){
+	vo->pts[vo->head] = pts;
+	vo->frames++;
+	if(++vo->head == vo->driver->frames)
+	    vo->head = 0;
+	pthread_cond_broadcast(&vo->scd);
+    }
+    pthread_mutex_unlock(&vo->smx);
+}
+
 static int
 v_put(tcvp_pipe_t *p, packet_t *pk)
 {
@@ -122,6 +139,11 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
     u_char *data[4];
     int strides[4];
     int planes;
+
+    if(!pk){
+	v_qpts(vo, -1LL);
+	return 0;
+    }
 
     if(!vo->drop[vo->dropcnt]){
 	pthread_mutex_lock(&vo->smx);
@@ -139,16 +161,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);
 	if(vo->driver->put_frame)
 	    vo->driver->put_frame(vo->driver, vo->head);
-
-	pthread_mutex_lock(&vo->smx);
-	if(vo->framecnt){
-	    vo->pts[vo->head] = pk->pts;
-	    vo->frames++;
-	    if(++vo->head == vo->driver->frames)
-		vo->head = 0;
-	    pthread_cond_broadcast(&vo->scd);
-	}
-	pthread_mutex_unlock(&vo->smx);
+	v_qpts(vo, pk->pts);
     }
 
     if(output_video_conf_framedrop &&

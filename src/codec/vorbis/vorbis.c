@@ -72,7 +72,14 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     VorbisContext_t *vc = p->private;
     int samples, total_samples, total_bytes;
     float **pcm ;
-    ogg_packet *op=(ogg_packet*)pk->data[0];
+    ogg_packet *op;
+
+    if(!pk){
+	p->next->input(p->next, NULL);
+	return 0;
+    }
+
+    op = (ogg_packet *) pk->data[0];
 
     if(vorbis_synthesis(&vc->vb, op) == 0)
 	vorbis_synthesis_blockin(&vc->vd, &vc->vb) ;

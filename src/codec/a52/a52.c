@@ -165,6 +165,11 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	a52_decode(p, in);
     }
 
+    if(!pk){
+	p->next->input(p->next, NULL);
+	return 0;
+    }
+
     while(psize > 0){
 	if(ad->fsize > 0){
 	    int fs = ad->fsize - ad->fpos;

@@ -119,6 +119,8 @@ typedef struct avi_packet {
     uint32_t flags;
     int size;
     u_char *data;
+    u_char *buf;
+    size_t asize;
 } avi_packet_t;
 
 static char xval[] = {
@@ -626,8 +628,21 @@ static void
 avi_free_packet(packet_t *p)
 {
     avi_packet_t *ap = (avi_packet_t *) p;
-    free(ap->data);
+    free(ap->buf);
     free(p);
+}
+
+static avi_packet_t *
+avi_alloc_packet(size_t size)
+{
+    avi_packet_t *pk = malloc(sizeof(*pk));
+
+    pk->buf = malloc(size + 16);
+    memset(pk->buf + size, 0, 16);
+    pk->data = pk->buf;
+    pk->asize = size;
+
+    return pk;
 }
 
 static char *
@@ -657,7 +672,6 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
 	    uint32_t flags = 0;
 	    uint64_t pts = 0;
-	    char *buf;
 	    size_t pos;
 
 	    /* FIXME: get rid of gotos */
@@ -766,13 +780,11 @@ avi_packet(muxed_stream_t *ms, int stream)
 		}
 	    }
 
-	    buf = malloc(size);
-	    fread(buf, 1, size, af->file);
+	    pk = avi_alloc_packet(size);
+	    fread(pk->data, 1, size, af->file);
 	    if(size & 1)
 		fgetc(af->file);
 
-	    pk = malloc(sizeof(*pk));
-	    pk->data = buf;
 	    pk->pk.data = (u_char **) &pk->data;
 	    pk->pk.sizes = &pk->size;
 	    pk->pk.sizes[0] = size;

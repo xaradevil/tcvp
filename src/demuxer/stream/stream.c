@@ -114,6 +114,7 @@ play_stream(void *p)
 	vp->pipes[stream]->input(vp->pipes[stream], pk);
     }
 
+    vp->pipes[stream]->input(vp->pipes[stream], NULL);
     vp->pipes[stream]->flush(vp->pipes[stream], vp->state == STOP);
 
     pthread_mutex_lock(&vp->mtx);

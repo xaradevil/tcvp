@@ -47,6 +47,11 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
     mpeg_dec_t *mpd = p->private;
     int state;
 
+    if(!pk){
+	p->next->input(p->next, NULL);
+	return 0;
+    }
+
     mpeg2_buffer(mpd->mpeg2, pk->data[0], pk->data[0] + pk->sizes[0]);
     if(!mpd->info)
 	mpd->info = mpeg2_info(mpd->mpeg2);

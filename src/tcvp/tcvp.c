@@ -231,7 +231,7 @@ st_ticker(void *p)
 	te->time = time;
 	eventq_send(tp->qt, te);
 	tcfree(te);
-	tp->timer->wait(tp->timer, time += 1000000);
+	tp->timer->wait(tp->timer, time + 1000000);
 	pthread_mutex_lock(&tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
