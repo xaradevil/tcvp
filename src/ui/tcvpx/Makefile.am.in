@@ -1,0 +1,2 @@
+AM_CFLAGS = $(X_CFLAGS)
+MODLIBS = $(X_LIBS) $(X_EXTRA_LIBS) $(X_PRE_LIBS) -lX11 -lXext -lXft
