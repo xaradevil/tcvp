@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tcvp.h>
+#include <tcvp_types.h>
 #include <ffmpeg/avcodec.h>
 #include <avcodec_tc2.h>
 
@@ -207,6 +207,9 @@ avc_new(stream_t *s, int mode, tcvp_pipe_t *out)
 	avctx->width = s->video.width;
 	avctx->height = s->video.height;
 	avctx->frame_rate = s->video.frame_rate * FRAME_RATE_BASE;
+	avctx->workaround_bugs = 0x3ff;
+	avctx->error_resilience = FF_ER_AGGRESSIVE;
+	avctx->error_concealment = 3;
 
 	vc = malloc(sizeof(*vc));
 	vc->ctx = avctx;

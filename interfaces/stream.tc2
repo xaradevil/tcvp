@@ -3,4 +3,4 @@ symbol	"close"		int (*%s)(muxed_stream_t *)
 symbol	"next_packet"	packet_t *(*%s)(muxed_stream_t *, int stream)
 symbol	"play"		tcvp_pipe_t *(*%s)(muxed_stream_t *, tcvp_pipe_t **)
 include
-#include <tcvp.h>
+#include <tcvp_types.h>

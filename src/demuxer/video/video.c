@@ -22,7 +22,7 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <pthread.h>
-#include <tcvp.h>
+#include <tcvp_types.h>
 #include <stream_tc2.h>
 
 

@@ -30,7 +30,7 @@
 #include <X11/extensions/Xvlib.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <tcvp.h>
+#include <tcvp_types.h>
 #include <xv_tc2.h>
 
 #define YUY2 0x32595559

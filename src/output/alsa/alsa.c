@@ -29,7 +29,7 @@
 #include <alsa/asoundlib.h>
 #include <alsa/pcm_plugin.h>
 
-#include <tcvp.h>
+#include <tcvp_types.h>
 #include <alsa_tc2.h>
 
 typedef struct alsa_out {
@@ -55,7 +55,8 @@ alsa_start(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
-    snd_pcm_pause(ao->pcm, 0);
+    if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_PAUSED)
+	snd_pcm_pause(ao->pcm, 0);
 
     return 0;
 }
@@ -65,7 +66,8 @@ alsa_stop(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
-    snd_pcm_pause(ao->pcm, 1);
+    if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING)
+	snd_pcm_pause(ao->pcm, 1);
 
     return 0;
 }
@@ -97,6 +99,7 @@ alsa_play(tcvp_pipe_t *p, packet_t *pk)
 	    snd_pcm_wait(ao->pcm, 1000);
 	} else if(r == -EPIPE){
 	    fprintf(stderr, "ALSA: xrun\n");
+	    snd_pcm_prepare(ao->pcm);
 	} else if(r < 0){
 	    fprintf(stderr, "ALSA: write error: %s\n", snd_strerror(r));
 	    return -1;
