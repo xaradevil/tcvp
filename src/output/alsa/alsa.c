@@ -34,14 +34,20 @@
 #include <alsa_tc2.h>
 #include <alsamod.h>
 
+#define min(a, b)  ((a) < (b)? (a): (b))
+
 typedef struct alsa_out {
     snd_pcm_t *pcm;
     snd_pcm_hw_params_t *hwp;
     int bpf;
     timer__t *timer;
     int state;
+    u_char *buf, *head, *tail;
+    int bufsize;
+    int bbytes;
     pthread_mutex_t mx;
     pthread_cond_t cd;
+    pthread_t pth;
 } alsa_out_t;
 
 static int
@@ -76,6 +82,12 @@ alsa_free(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
+    pthread_mutex_lock(&ao->mx);
+    ao->state = STOP;
+    pthread_cond_broadcast(&ao->cd);
+    pthread_mutex_unlock(&ao->mx);
+    pthread_join(ao->pth, NULL);
+
     snd_pcm_drop(ao->pcm);
     snd_pcm_close(ao->pcm);
     snd_pcm_hw_params_free(ao->hwp);
@@ -92,54 +104,112 @@ alsa_flush(tcvp_pipe_t *p, int drop)
     alsa_out_t *ao = p->private;
     int s;
 
-    if(drop)
+    pthread_mutex_lock(&ao->mx);
+
+    if(drop){
+	ao->head = ao->tail = ao->buf;
+	ao->bbytes = 0;
 	snd_pcm_drop(ao->pcm);
-    else
+    } else {
+	while(ao->bbytes)
+	    pthread_cond_wait(&ao->cd, &ao->mx);
 	snd_pcm_drain(ao->pcm);
+    }
 
     ao->timer->interrupt(ao->timer);
     s = snd_pcm_state(ao->pcm);
     if(s != SND_PCM_STATE_RUNNING && s != SND_PCM_STATE_PREPARED)
 	snd_pcm_prepare(ao->pcm);
 
+    pthread_cond_broadcast(&ao->cd);
+    pthread_mutex_unlock(&ao->mx);
+
     return 0;
 }
 
 static int
-alsa_play(tcvp_pipe_t *p, packet_t *pk)
+alsa_input(tcvp_pipe_t *p, packet_t *pk)
 {
     alsa_out_t *ao = p->private;
-    size_t count = pk->sizes[0] / ao->bpf;
-    u_char *data = pk->data[0];
+    size_t count;
+    u_char *data;
 
-    pthread_mutex_lock(&ao->mx);
-    while(ao->state == PAUSE){
-	pthread_cond_wait(&ao->cd, &ao->mx);
-    }
-    pthread_mutex_unlock(&ao->mx);
+    if(!pk)
+	return 0;
+
+    count = pk->sizes[0];
+    data = pk->data[0];
 
     while(count > 0){
-	int r = snd_pcm_writei(ao->pcm, data, count);
-	if (r == -EAGAIN || (r >= 0 && r < count)) {
-	    snd_pcm_wait(ao->pcm, 1000);
-	} else if(r == -EPIPE){
-	    fprintf(stderr, "ALSA: xrun\n");
-	    snd_pcm_prepare(ao->pcm);
-	} else if(r < 0){
-	    if(snd_pcm_prepare(ao->pcm) < 0){
-		fprintf(stderr, "ALSA: error: %s\n", snd_strerror(r));
-		return -1;
-	    }
-	}
-	if(r > 0){
-	    count -= r;
-	    data += r * ao->bpf;
-	}
+	int bs;
+
+	pthread_mutex_lock(&ao->mx);
+	while(ao->bbytes == ao->bufsize && ao->state != STOP)
+	    pthread_cond_wait(&ao->cd, &ao->mx);
+
+	bs = min(count, ao->bufsize - ao->bbytes);
+	bs = min(bs, ao->bufsize - (ao->head - ao->buf));
+	memcpy(ao->head, data, bs);
+	data += bs;
+	count -= bs;
+	ao->bbytes += bs;
+	ao->head += bs;
+	if(ao->head - ao->buf == ao->bufsize)
+	    ao->head = ao->buf;
+	pthread_cond_broadcast(&ao->cd);
+	pthread_mutex_unlock(&ao->mx);
     }
 
     pk->free(pk);
 
     return 0;
+}
+
+static void *
+alsa_play(void *p)
+{
+    alsa_out_t *ao = p;
+
+    while(ao->state != STOP){
+	int count, r;
+
+	pthread_mutex_lock(&ao->mx);
+	while((!ao->bbytes || ao->state == PAUSE) && ao->state != STOP)
+	    pthread_cond_wait(&ao->cd, &ao->mx);
+	pthread_mutex_unlock(&ao->mx);
+
+	if(ao->state == STOP)
+	    break;
+
+	count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->bpf;
+	r = snd_pcm_writei(ao->pcm, ao->tail, count);
+
+	if (r == -EAGAIN || (r >= 0 && r < count)) {
+	    snd_pcm_wait(ao->pcm, 40);
+	} else if(r < 0){
+	    fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
+	    if(snd_pcm_prepare(ao->pcm) < 0){
+		fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
+		return NULL;
+	    }
+	}
+
+	if(r < 0)
+	    continue;
+
+	count -= r;
+	pthread_mutex_lock(&ao->mx);
+	if(ao->bbytes){
+	    ao->bbytes -= r * ao->bpf;
+	    ao->tail += r * ao->bpf;
+	    if(ao->tail - ao->buf == ao->bufsize)
+		ao->tail = ao->buf;
+	    pthread_cond_broadcast(&ao->cd);
+	}
+	pthread_mutex_unlock(&ao->mx);
+    }
+
+    return NULL;
 }
 
 static snd_pcm_route_ttable_entry_t ttable_6_2[] = {
@@ -172,7 +242,7 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     if(!device)
 	device = "hw:0,0";
 
-    if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, 0) != 0)
+    if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK))
 	return NULL;
 
     snd_pcm_hw_params_malloc(&hwp);
@@ -224,14 +294,18 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ao->pcm = pcm;
     ao->hwp = hwp;
     ao->bpf = as->channels * 2;
+    ao->bufsize = ao->bpf * output_audio_conf_buffer_size;
+    ao->buf = malloc(ao->bufsize);
+    ao->head = ao->tail = ao->buf;
     pthread_mutex_init(&ao->mx, NULL);
     pthread_cond_init(&ao->cd, NULL);
     ao->state = PAUSE;
     if(timer)
 	ao->timer = *timer;
+    pthread_create(&ao->pth, NULL, alsa_play, ao);
 
     tp = calloc(1, sizeof(*tp));
-    tp->input = alsa_play;
+    tp->input = alsa_input;
     tp->start = alsa_start;
     tp->stop = alsa_stop;
     tp->free = alsa_free;
