@@ -159,13 +159,21 @@ oss_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 	return NULL;
     }
 
-    if(strstr(as->codec, "pcm-s16")){
+    if(strstr(as->codec, "pcm-s16le")){
 	ofmt = AFMT_S16_LE;
 	format = "s16le";
 	ssize = 2;
-    } else if(strstr(as->codec, "pcm-u16")){
+    } else if(strstr(as->codec, "pcm-u16le")){
 	ofmt = AFMT_U16_LE;
 	format = "u16le";
+	ssize = 2;
+    } else if(strstr(as->codec, "pcm-s16be")){
+	ofmt = AFMT_S16_BE;
+	format = "s16be";
+	ssize = 2;
+    } else if(strstr(as->codec, "pcm-u16be")){
+	ofmt = AFMT_U16_BE;
+	format = "u16be";
 	ssize = 2;
     } else if(strstr(as->codec, "pcm-u8")){
 	ofmt = AFMT_U8;

@@ -140,6 +140,7 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     snd_pcm_t *pcm;
     u_int rate = as->sample_rate, channels = as->channels, ptime;
     int tmp = 0;
+    snd_pcm_format_t afmt;
     char *format;
     char *device = NULL;
 
@@ -164,20 +165,31 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 
     snd_pcm_hw_params_set_access(pcm, hwp, SND_PCM_ACCESS_RW_INTERLEAVED);
 
-    if(strstr(as->codec, "pcm-s16")){
-	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_S16_LE);
+    if(strstr(as->codec, "pcm-s16le")){
+	afmt = SND_PCM_FORMAT_S16_LE;
 	format = "s16le";
-    } else if(strstr(as->codec, "pcm-u16")){
-	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_U16_LE);
+    } else if(strstr(as->codec, "pcm-u16le")){
+	afmt = SND_PCM_FORMAT_U16_LE;
 	format = "u16le";
+    } else if(strstr(as->codec, "pcm-s16be")){
+	afmt = SND_PCM_FORMAT_S16_BE;
+	format = "s16be";
+    } else if(strstr(as->codec, "pcm-u16be")){
+	afmt = SND_PCM_FORMAT_U16_BE;
+	format = "u16be";
     } else if(strstr(as->codec, "pcm-u8")){
-	snd_pcm_hw_params_set_format(pcm, hwp, SND_PCM_FORMAT_U8);
+	afmt = SND_PCM_FORMAT_U8;
 	format = "u8";
     } else {
 	fprintf(stderr, "ALSA: unsupported format %s\n", as->codec);
 	goto err;
     }
 
+    if(snd_pcm_hw_params_test_format(pcm, hwp, afmt)){
+	fprintf(stderr, "ALSA: unsupported format %s\n", as->codec);
+	goto err;
+    }
+    snd_pcm_hw_params_set_format(pcm, hwp, afmt);
     snd_pcm_hw_params_set_rate_near(pcm, hwp, &rate, &tmp);
     snd_pcm_hw_params_set_channels_near(pcm, hwp, &channels);
 
