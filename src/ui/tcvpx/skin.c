@@ -1022,7 +1022,6 @@ extern int
 on_top_cb(xtk_widget_t *w, int i)
 {
     widget_data_t *wd = xtk_widget_get_data(w);
-    char *d = wd->action_data;
     skin_t *s = wd->skin;
 
     if(i == 0) {

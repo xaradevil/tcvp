@@ -223,6 +223,8 @@ register_textwidget(xtk_widget_t *w, char *text)
     char **keys;
     int n, i;
 
+    tcref(w);
+
     n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
 	char buf[1024];
@@ -252,6 +254,8 @@ unregister_textwidget(xtk_widget_t *w, char *text)
 
     free(keys);
 
+    tcfree(w);
+
     return 0;
 }
 
@@ -261,6 +265,8 @@ register_varwidget(xtk_widget_t *w, char *text)
 {
     char **keys;
     int n, i;
+
+    tcref(w);
 
     n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
@@ -290,6 +296,8 @@ unregister_varwidget(xtk_widget_t *w, char *text)
     }
 
     free(keys);
+
+    tcfree(w);
 
     return 0;
 }
