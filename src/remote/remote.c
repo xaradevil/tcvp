@@ -105,11 +105,11 @@ rm_event(void *p)
 	    uint32_t s = htonl(size);
 	    tcvp_remote_client_t *cl;
 
-/* 	    fprintf(stderr, "REMOTE: serialized %i as %i bytes\n", */
-/* 		    te->type, size); */
+/* 	    fprintf(stderr, "REMOTE: sending %s, %i bytes\n", se, size); */
 	    while((cl = tclist_next(rm->clients, &li))){
-		if(write(cl->socket, &s, 4) < 0 ||
-		   write(cl->socket, se, size) < 0){
+		if(send(cl->socket, &s, 4, MSG_MORE | MSG_NOSIGNAL) < 0 ||
+		   send(cl->socket, se, size, MSG_NOSIGNAL) < 0){
+		    fprintf(stderr, "REMOTE: error sending %s\n", se);
 		    tclist_remove(rm->clients, li);
 		    FD_CLR(cl->socket, &rm->clf);
 		    close(cl->socket);
@@ -315,11 +315,11 @@ rm_new(tcconf_section_t *cs)
     int port = htons(tcvp_addon_remote_conf_port);
     struct sockaddr_in rsa;
 
-    sock = socket(PF_INET, SOCK_STREAM, 0);
+    sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0)
 	return NULL;
 
-    rsa.sin_family = PF_INET;
+    rsa.sin_family = AF_INET;
     rsa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     rsa.sin_port = port;
 
@@ -344,6 +344,7 @@ rm_new(tcconf_section_t *cs)
 	cl = calloc(1, sizeof(*cl));
 	cl->socket = sock;
 	cl->addr = rsa;
+	cl->auth = 1;
 	tclist_push(rm->clients, cl);
 	rm->ssock = -1;
     } else {
