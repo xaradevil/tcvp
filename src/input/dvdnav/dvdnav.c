@@ -448,6 +448,7 @@ dvd_open(char *url, char *mode)
 	pgc_t *pgc = pgcit->pgci_srp[0].pgc;
 	vts_tmapt_t *tmapt = ifo->vts_tmapt;
 	vts_tmap_t *tmap;
+	int spushift = 24;
 	int i;
 
 	tc2_print("DVD", TC2_PRINT_DEBUG, "nr_of_pgci_srp = %i\n",
@@ -461,9 +462,9 @@ dvd_open(char *url, char *mode)
 	tc2_print("DVD", TC2_PRINT_DEBUG, "%i spu streams\n",
 		  vtsi->nr_of_vts_subp_streams);
 
-	df->n_streams =
-	    1 + vtsi->nr_of_vts_audio_streams + vtsi->nr_of_vts_subp_streams;
-	df->streams = calloc(df->n_streams, sizeof(*df->streams));
+	df->n_streams = 1;
+	/* 41 is the maximum allowed number of streams */
+	df->streams = calloc(41, sizeof(*df->streams));
 
 	/* video stream */
 	df->streams[0].stream_type = STREAM_TYPE_VIDEO;
@@ -473,10 +474,12 @@ dvd_open(char *url, char *mode)
 
 	if(vattr->display_aspect_ratio == 0){
 	    df->streams[0].video.aspect.num = 4;
-	    df->streams[0].video.aspect.num = 3;
+	    df->streams[0].video.aspect.den = 3;
+	    spushift = 24;
 	} else if(vattr->display_aspect_ratio == 3){
 	    df->streams[0].video.aspect.num = 16;
-	    df->streams[0].video.aspect.num = 9;
+	    df->streams[0].video.aspect.den = 9;
+	    spushift = 16;
 	}
 
 	df->streams[0].video.height = vattr->video_format? 576: 480;
@@ -497,7 +500,11 @@ dvd_open(char *url, char *mode)
 	/* audio streams */
 	for(i = 0; i < vtsi->nr_of_vts_audio_streams; i++){
 	    audio_attr_t *ast = vtsi->vts_audio_attr + i;
-	    stream_t *st = df->streams + i + 1;
+	    stream_t *st = df->streams + df->n_streams;
+
+	    if(!(pgc->audio_control[i] & 0x8000))
+		continue;
+
 	    st->stream_type = STREAM_TYPE_AUDIO;
 	    st->audio.channels = ast->channels + 1;
 	    st->audio.sample_rate = ast->sample_frequency? 96000: 48000;
@@ -506,38 +513,47 @@ dvd_open(char *url, char *mode)
 
 	    switch(ast->audio_format){
 	    case 0:
-		st->common.index = 0x80 + i;
+		st->common.index = 0x80;
 		st->common.codec = "audio/ac3";
 		break;
 	    case 2:
 	    case 3:
-		st->common.index = 0xc0 + i;
+		st->common.index = 0xc0;
 		st->common.codec = "audio/mpeg";
 		break;
 	    case 4:
-		st->common.index = 0xa0 + i;
+		st->common.index = 0xa0;
 		st->common.codec = "audio/pcm-s16be";
 		st->common.bit_rate =
 		    st->audio.channels * st->audio.sample_rate * 16;
 		break;
 	    case 6:
-		st->common.index = 0x88 + i;
+		st->common.index = 0x88;
 		st->common.codec = "audio/dts";
 		break;
 	    }
+
+	    st->common.index += pgc->audio_control[i] >> 8 & 0x7;
+	    df->n_streams++;
 	}
 
 	/* subtitle streams */
 	for(i = 0; i < vtsi->nr_of_vts_subp_streams; i++){
 	    subp_attr_t *sst = vtsi->vts_subp_attr + i;
-	    stream_t *st = df->streams + i + 1 + vtsi->nr_of_vts_audio_streams;
+	    stream_t *st = df->streams + df->n_streams;
+
+	    if(!(pgc->subp_control[i] & 0x80000000))
+		continue;
+
 	    st->stream_type = STREAM_TYPE_SUBTITLE;
-	    st->common.index = 0x20 + i;
+	    st->common.index = 0x20 + (pgc->subp_control[i]>>spushift & 0x1f);
 	    st->common.codec = "subtitle/dvd";
 	    st->common.codec_data = df->spu_palette;
 	    st->common.codec_data_size = sizeof(df->spu_palette);
 	    st->subtitle.language[0] = sst->lang_code >> 8;
 	    st->subtitle.language[1] = sst->lang_code & 0xff;
+
+	    df->n_streams++;
 	}
 
 	tmap = tmapt->tmap;
