@@ -30,15 +30,6 @@ typedef union stream {
     audio_stream_t audio;
 } stream_t;
 
-typedef struct packet packet_t;
-struct packet {
-    char *data;
-    size_t size;
-    uint64_t pts;
-    void (*free)(packet_t *);
-    void *private;
-};
-
 typedef struct muxed_stream muxed_stream_t;
 struct muxed_stream {
     int n_streams;
