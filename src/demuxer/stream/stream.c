@@ -97,6 +97,7 @@ typedef struct s_play {
     pthread_cond_t cnd;
     eventq_t sq;
     packetq_t *pq;
+    int eof;
 } s_play_t;
 
 typedef struct vp_thread {
@@ -157,11 +158,13 @@ freeq(s_play_t *vp, int i)
 }
 
 static void
-wait_pause(s_play_t *vp, int n)
+wait_pause(s_play_t *vp, int n, int eof)
 {
     int w = 1;
     pthread_mutex_lock(&vp->mtx);
-    while(vp->state == PAUSE && vp->waiting >= n){
+    while((vp->state == PAUSE || (vp->eof && eof)) &&
+	  vp->streams > 0
+	  && vp->waiting >= n){
 	if(w){
 	    vp->waiting++;
 	    pthread_cond_broadcast(&vp->cnd);
@@ -188,7 +191,7 @@ read_stream(void *p)
 	packet_t *pk;
 	int s;
 
-	wait_pause(vp, 0);
+	wait_pause(vp, 0, 1);
 
 	for(i = 0, s = 0; i < ms->n_streams; i++){
 	    if(ms->used_streams[i] && vp->pq[i].count < vp->pq[s].count)
@@ -196,7 +199,8 @@ read_stream(void *p)
 	}
 
 	if(!(pk = ms->next_packet(ms, s))){
-	    break;
+	    vp->eof = 1;
+	    continue;
 	}
 
 	qpk(vp, pk, pk->stream);
@@ -218,7 +222,7 @@ play_stream(void *p)
     packet_t *pk;
 
     while(vp->state != STOP){
-	wait_pause(vp, 1);
+	wait_pause(vp, 1, 0);
 	pk = dqp(vp, str);
 	vp->pipes[str]->input(vp->pipes[str], pk);
 	if(!pk)
@@ -287,6 +291,8 @@ s_flush(tcvp_pipe_t *p, int drop)
 	    }
 	}
     }
+
+    vp->eof = 0;
 
     pthread_mutex_lock(&vp->mtx);
     if(--vp->flushing == 0)
