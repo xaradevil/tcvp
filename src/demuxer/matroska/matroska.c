@@ -948,7 +948,6 @@ msk_codec_aac(matroska_track_t *mt, stream_t *st)
     char *profile = mt->codecid + 12;
     int size = 5;
     u_char *d = malloc(size);
-    int mpeg4 = mt->codecid[10] == '4';
     int pridx, sfidx;
 
     st->common.codec_data = d;
@@ -974,6 +973,7 @@ msk_codec_aac(matroska_track_t *mt, stream_t *st)
 
     if(pridx == 5){
 	mt->audio.samplingfrequency *= 2;
+	st->audio.sample_rate = mt->audio.samplingfrequency;
 	for(sfidx = 0; mt->audio.samplingfrequency < sampling_freqs[sfidx];
 	    sfidx++);
 	*d++ |= sfidx >> 1;
