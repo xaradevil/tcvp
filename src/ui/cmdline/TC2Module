@@ -1,6 +1,6 @@
 program		tcvp
 name		"TCVP/ui/cmdline"
-version		0.1.1
+version		0.1.2
 tc2version	0.4.0
 sources		tcvp.c
 postinit	tcl_init
