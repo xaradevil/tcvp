@@ -22,9 +22,6 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#define _ISOC99_SOURCE
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -192,6 +189,9 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	    mp->size -= 7;
 	    if(mp->flags & PES_FLAG_PTS)
 		mp->pts -= 27000000LL * aup / ms->streams[sx].common.bit_rate;
+	} else if((mp->stream_id & 0xe0) == 0x20){
+	    mp->data++;
+	    mp->size--;
 	} else if(mp->stream_id == DVD_PESID){
 	    dvd_event_t *de = (dvd_event_t *) mp->data;
 	    tcvp_flush_packet_t *fp;
@@ -393,15 +393,165 @@ mpegps_free(void *p)
     mpeg_free(ms);
 }
 
+static int
+mpegps_findpsm(muxed_stream_t *ms, int ns)
+{
+    mpegps_stream_t *s = ms->private;
+    stream_t *sp = ms->streams;
+    mpegpes_packet_t *pk = NULL;
+    u_char *pm;
+    int l, pc = 0;
+
+    do {
+	if(pk)
+	    mpegpes_free(pk);
+	if(!(pk = mpegpes_packet(s, 1))){
+	    break;
+	}
+    } while(pk->stream_id != PROGRAM_STREAM_MAP && pc++ < 16);
+
+    if(!pk || pk->stream_id != PROGRAM_STREAM_MAP){
+	if(pk)
+	    mpegpes_free(pk);
+	return -1;
+    }
+
+    pm = pk->data + 2;
+    l = htob_16(unaligned16(pm));
+    pm += l + 2;
+    l = htob_16(unaligned16(pm));
+    pm += 2;
+
+    while(l > 0){
+	u_int stype = *pm++;
+	u_int sid = *pm++;
+	u_int il = htob_16(unaligned16(pm));
+	int sti;
+
+	pm += 2;
+
+	if(ms->n_streams == ns){
+	    ns *= 2;
+	    ms->streams = realloc(ms->streams, ns * sizeof(*ms->streams));
+	    sp = &ms->streams[ms->n_streams];
+	}
+
+	s->imap[sid] = ms->n_streams;
+	s->map[ms->n_streams] = sid;
+
+	if((sti = stream_type2codec(stype)) >= 0){
+	    memset(sp, 0, sizeof(*sp));
+	    sp->stream_type = mpeg_stream_types[sti].stream_type;
+	    sp->common.codec = mpeg_stream_types[sti].codec;
+	    sp->common.index = ms->n_streams++;
+	    sp->common.start_time = -1;
+
+	    if(sid == PRIVATE_STREAM_1)
+		s->ps1substr = 0;
+
+	    tc2_print("MPEGPS", TC2_PRINT_DEBUG,
+		      "stream %x type %02x\n", sid, stype);
+
+	    while(il > 0){
+		int dl = mpeg_descriptor(sp, pm);
+		pm += dl;
+		il -= dl;
+		l -= dl;
+	    }
+
+	    sp++;
+	} else {
+	    pm += il;
+	    l -= il;
+	}
+	l -= 4;
+    }
+    mpegpes_free(pk);
+    return 0;
+}
+
+static int
+mpegps_findstreams(muxed_stream_t *ms, int ns)
+{
+    mpegps_stream_t *s = ms->private;
+    stream_t *sp = ms->streams;
+    mpegpes_packet_t *pk = NULL;
+    int pc = 0;
+
+    while(pc++ < 4096){
+	if(!(pk = mpegpes_packet(s, 1))){
+	    break;
+	}
+
+	if((pk->stream_id & 0xe0) == 0xc0 ||
+	   (pk->stream_id & 0xf0) == 0xe0 ||
+	   (pk->stream_id & 0xf8) == 0x80 ||
+	   (pk->stream_id & 0xf8) == 0xa0 ||
+	   (pk->stream_id & 0xe0) == 0x20){
+	    if(s->imap[pk->stream_id] < 0){
+		if(ms->n_streams == ns){
+		    ns *= 2;
+		    ms->streams =
+			realloc(ms->streams, ns * sizeof(*ms->streams));
+		    sp = &ms->streams[ms->n_streams];
+		}
+
+		memset(sp, 0, sizeof(*sp));
+		s->imap[pk->stream_id] = ms->n_streams;
+		s->map[ms->n_streams] = pk->stream_id;
+
+		tc2_print("MPEGPS", TC2_PRINT_DEBUG,
+			  "found stream id %02x\n", pk->stream_id);
+
+		if((pk->stream_id & 0xf0) == 0xe0){
+		    sp->stream_type = STREAM_TYPE_VIDEO;
+		    sp->common.codec = "video/mpeg";
+		} else if((pk->stream_id & 0xe0) == 0xc0){
+		    sp->stream_type = STREAM_TYPE_AUDIO;
+		    sp->common.codec = "audio/mpeg";
+		} else if((pk->stream_id & 0xf8) == 0x80){
+		    sp->stream_type = STREAM_TYPE_AUDIO;
+		    sp->common.codec = "audio/ac3";
+		} else if((pk->stream_id & 0xf8) == 0xa0){
+		    sp->stream_type = STREAM_TYPE_AUDIO;
+		    sp->common.codec = "audio/pcm-s16be";
+		    if((pk->data[5] & 0x30) == 0){
+			sp->audio.sample_rate = 48000;
+		    } else if((pk->data[5] & 0x30) == 1){
+			sp->audio.sample_rate = 96000;
+		    } else {
+			tc2_print("MPEGPS", TC2_PRINT_WARNING,
+				  "unknown PCM sample rate %i",
+				  pk->data[5] & 0x30);
+			sp->audio.sample_rate = 48000;
+		    }
+		    sp->audio.channels = (pk->data[5] & 0x7) + 1;
+		    sp->audio.bit_rate =
+			sp->audio.channels * sp->audio.sample_rate * 16;
+		} else if((pk->stream_id & 0xe0) == 0x20) {
+		    sp->stream_type = STREAM_TYPE_SUBTITLE;
+		    sp->common.codec = "subtitle/dvd";
+		}
+		sp->common.index = ms->n_streams++;
+		sp->common.start_time = -1;
+		sp++;
+	    }
+	} else {
+	    tc2_print("MPEGPS", TC2_PRINT_DEBUG,
+		      "unhandled stream id %02x\n", pk->stream_id);
+	}
+	mpegpes_free(pk);
+    }
+
+    return 0;
+}
+
 extern muxed_stream_t *
 mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegps_stream_t *s;
-    mpegpes_packet_t *pk = NULL;
-    u_char *pm;
-    int l, ns, pc = 0;
-    stream_t *sp;
+    int ns;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegps_free);
     ms->next_packet = mpegps_packet;
@@ -415,139 +565,23 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     memset(s->imap, 0xff, 0x100 * sizeof(*s->imap));
     s->map = malloc(0x100 * sizeof(*s->map));
     memset(s->map, 0xff, 0x100 * sizeof(*s->map));
-    sp = ms->streams;
 
     s->stream = tcref(u);
     s->ps1substr = 1;
 
-    do {
-	if(pk)
-	    mpegpes_free(pk);
-	if(!(pk = mpegpes_packet(s, 1))){
-	    break;
-	}
-    } while(pk->stream_id != 0xbc && pc++ < 16);
-
-    if(pk && pk->stream_id == 0xbc){
-	pm = pk->data + 2;
-	l = htob_16(unaligned16(pm));
-	pm += l + 2;
-	l = htob_16(unaligned16(pm));
-	pm += 2;
-
-	while(l > 0){
-	    u_int stype = *pm++;
-	    u_int sid = *pm++;
-	    u_int il = htob_16(unaligned16(pm));
-	    int sti;
-
-	    pm += 2;
-
-	    if(ms->n_streams == ns){
-		ns *= 2;
-		ms->streams = realloc(ms->streams, ns * sizeof(*ms->streams));
-		sp = &ms->streams[ms->n_streams];
-	    }
-
-	    s->imap[sid] = ms->n_streams;
-	    s->map[ms->n_streams] = sid;
-
-	    if((sti = stream_type2codec(stype)) >= 0){
-		memset(sp, 0, sizeof(*sp));
-		sp->stream_type = mpeg_stream_types[sti].stream_type;
-		sp->common.codec = mpeg_stream_types[sti].codec;
-		sp->common.index = ms->n_streams++;
-		sp->common.start_time = -1;
-
-		if(sid == PRIVATE_STREAM_1)
-		    s->ps1substr = 0;
-
-		tc2_print("MPEGPS", TC2_PRINT_DEBUG,
-			  "stream %x type %02x\n", sid, stype);
-
-		while(il > 0){
-		    int dl = mpeg_descriptor(sp, pm);
-		    pm += dl;
-		    il -= dl;
-		    l -= dl;
-		}
-
-		sp++;
-	    } else {
-		pm += il;
-		l -= il;
-	    }
-	    l -= 4;
-	}
-	mpegpes_free(pk);
-    } else {
-	if(pk)
-	    mpegpes_free(pk);
+    if(mpegps_findpsm(ms, ns)){
 	u->seek(u, 0, SEEK_SET);
-	pc = 0;
-	while(pc++ < 128){
-	    if(!(pk = mpegpes_packet(s, 1))){
-		if(!ms->n_streams){
-		    u->seek(u, 0, SEEK_SET);
-		    tcfree(ms);
-		    return NULL;
-		}
-		break;
-	    }
-
-	    if((pk->stream_id & 0xe0) == 0xc0 ||
-	       (pk->stream_id & 0xf0) == 0xe0 ||
-	       (pk->stream_id & 0xf8) == 0x80 ||
-	       (pk->stream_id & 0xf8) == 0xa0){
-		if(s->imap[pk->stream_id] < 0){
-		    if(ms->n_streams == ns){
-			ns *= 2;
-			ms->streams =
-			    realloc(ms->streams, ns * sizeof(*ms->streams));
-			sp = &ms->streams[ms->n_streams];
-		    }
-
-		    memset(sp, 0, sizeof(*sp));
-		    s->imap[pk->stream_id] = ms->n_streams;
-		    s->map[ms->n_streams] = pk->stream_id;
-
-		    tc2_print("MPEGPS", TC2_PRINT_DEBUG,
-			      "found stream id %02x\n", pk->stream_id);
-
-		    if((pk->stream_id & 0xf0) == 0xe0){
-			sp->stream_type = STREAM_TYPE_VIDEO;
-			sp->common.codec = "video/mpeg";
-		    } else if((pk->stream_id & 0xe0) == 0xc0){
-			sp->stream_type = STREAM_TYPE_AUDIO;
-			sp->common.codec = "audio/mpeg";
-		    } else if((pk->stream_id & 0xf8) == 0x80){
-			sp->stream_type = STREAM_TYPE_AUDIO;
-			sp->common.codec = "audio/ac3";
-		    } else if((pk->stream_id & 0xf8) == 0xa0){
-			sp->stream_type = STREAM_TYPE_AUDIO;
-			sp->common.codec = "audio/pcm-s16be";
-			if((pk->data[5] & 0x30) == 0){
-			    sp->audio.sample_rate = 48000;
-			} else if((pk->data[5] & 0x30) == 1){
-			    sp->audio.sample_rate = 96000;
-			} else {
-			    tc2_print("MPEGPS", TC2_PRINT_WARNING,
-				      "unknown PCM sample rate %i",
-				      pk->data[5] & 0x30);
-			    sp->audio.sample_rate = 48000;
-			}
-			sp->audio.channels = (pk->data[5] & 0x7) + 1;
-			sp->audio.bit_rate =
-			    sp->audio.channels * sp->audio.sample_rate * 16;
-		    }
-		    sp->common.index = ms->n_streams++;
-		    sp->common.start_time = -1;
-		    sp++;
-		}
-	    }
-	    mpegpes_free(pk);
-	}
+	mpegps_findstreams(ms, ns);
     }
+
+    if(!ms->n_streams){
+	u->seek(u, 0, SEEK_SET);
+	tcfree(ms);
+	return NULL;
+    }
+
+    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "at %x\n",
+	      s->stream->tell(s->stream));
 
     s->dvd_funcs = tcattr_get(u, "dvd");
 
