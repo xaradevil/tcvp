@@ -28,11 +28,12 @@
 #include <tcvp_types.h>
 #include <tcvp_event.h>
 #include <tcvpx_tc2.h>
+#include <string.h>
 
 #define STOPPED 0
 #define PLAYING 1
 
-static list *bt_list;
+static list *widget_list, *bt_list;
 
 static player_t *pl;
 static eventq_t qs;
@@ -59,36 +60,92 @@ typedef struct {
     int y;
 } pos_t;
 
-typedef struct {
-    int x,y;
-    image_info_t *img;
-    Pixmap pixmap;
-    Window win;
-    int (*onclick)(void *, XEvent *);
-    void *data;
-} image_button_t;
+#define TCIMAGEBUTTON 0
+#define TCLABEL       1
+#define TCBACKGROUND  2
+
+typedef union _tcwidget_t tcwidget_t;
+typedef int(*onclick_cb_t)(tcwidget_t *, XEvent *);
+typedef int(*repaint_cb_t)(tcwidget_t *);
+typedef struct _skin_t skin_t;
 
 typedef struct {
+    int type;
+    int width, height;
+    Pixmap pixmap;
+    Window win;    
+    onclick_cb_t onclick;
+    repaint_cb_t repaint;
+    void *data;
+    skin_t *skin;
     int x,y;
+
+    image_info_t *img;
+} tcbackground_t;
+
+typedef struct {
+    int type;
+    int width, height;
+    Pixmap pixmap;
+    Window win;
+    onclick_cb_t onclick;
+    repaint_cb_t repaint;
+    void *data;
+    skin_t *skin;
+    int x,y;
+
+    image_info_t *img;
+} tcimage_button_t;
+
+typedef struct {
+    int type;
+    int width, height;
+    Pixmap pixmap;
+    Window win;
+    onclick_cb_t onclick;
+    repaint_cb_t repaint;
+    void *data;
+    skin_t *skin;
+    int x,y;
+
     uint32_t color;
     char *font;
     double size;
     XftFont *xftfont;
-    Pixmap pixmap;
-    Window win;
     XftColor xftcolor;
     XftDraw *xftdraw;
-    int width, height;
     int xoff, yoff;
-} text_t;
+    char *text;
+} tclabel_t;
 
 typedef struct {
-    image_info_t *bg_img, *posbg_img, *posslider_img;
-    pos_t pbg_pos;
-    image_button_t playctl[5];
-    text_t time, title;
-    Pixmap bg;
-} skin_t;
+    int type;
+    int width, height;
+    Pixmap pixmap;
+    Window win;    
+    onclick_cb_t onclick;
+    repaint_cb_t repaint;
+    void *data;
+    skin_t *skin;
+    int x,y;
+} tcwidget_common_t;
+
+union _tcwidget_t {
+    int type;
+    tcwidget_common_t common;
+    tcimage_button_t button;
+    tclabel_t label;
+    tcbackground_t background;
+};
+
+struct _skin_t {
+    pos_t pbg_pos, pcpos, closepos;
+    tcimage_button_t *playctl[5], *close;
+    tclabel_t *time, *title;
+    tcbackground_t *background;
+    int width, height;
+    char *path;
+};
 
 #define MWM_HINTS_DECORATIONS   (1L << 1)
 #define PROP_MWM_HINTS_ELEMENTS 5
@@ -100,14 +157,17 @@ typedef struct _mwmhints {
     uint32_t status;
 } MWMHints;
 
-static int update_bg();
-static int update_graphics(skin_t *skin);
-static int update_time(skin_t *skin);
+static int update_root();
+static int update_time(skin_t *);
+static int draw_widget(tcwidget_t *);
+static int change_label(tclabel_t *txt, char *text);
+static int draw_widgets();
+static int repaint_widgets();
 
 
 
 static int
-tcvp_pause(void *p, XEvent *e)
+tcvp_pause(tcwidget_t *p, XEvent *e)
 {
     tcvp_event_t *te = tcvp_alloc_event(TCVP_PAUSE);
     eventq_send(qs, te);
@@ -115,9 +175,8 @@ tcvp_pause(void *p, XEvent *e)
     return 0;
 }
 
-
 static int
-tcvp_stop(void *p, XEvent *e)
+tcvp_stop(tcwidget_t *p, XEvent *e)
 {
     tcvp_event_t *te = tcvp_alloc_event(TCVP_CLOSE);
     p_state = STOPPED;
@@ -127,9 +186,8 @@ tcvp_stop(void *p, XEvent *e)
     return 0;
 }
 
-
 static int
-tcvp_play(void *p, XEvent *e)
+tcvp_play(tcwidget_t *p, XEvent *e)
 {
     if(current_file != NULL) {
 	tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
@@ -142,25 +200,25 @@ tcvp_play(void *p, XEvent *e)
     return 0;
 }
 
-
 static int
-tcvp_next(void *p, XEvent *e)
+tcvp_next(tcwidget_t *p, XEvent *e)
 {
     int state_tmp = p_state;
     tcvp_stop(NULL, NULL);
 
     if((current_file = list_next(files, &flist_curr))!=NULL) {
 	if(state_tmp == PLAYING) tcvp_play(NULL, NULL);
+	change_label(p->common.skin->title, strrchr(current_file, '/'));
     } else { 
 	p_state = STOPPED;
+	change_label(p->common.skin->title, "");
     }
 
     return 0;
 }
 
-
 static int
-tcvp_previous(void *p, XEvent *e)
+tcvp_previous(tcwidget_t *p, XEvent *e)
 {
     int state_tmp = p_state;
 
@@ -168,9 +226,21 @@ tcvp_previous(void *p, XEvent *e)
 
     if((current_file = list_prev(files, &flist_curr))!=NULL) {
 	if(state_tmp == PLAYING) tcvp_play(NULL, NULL);
+	change_label(p->common.skin->title, strrchr(current_file, '/'));
     } else {
 	p_state = STOPPED;
+	change_label(p->common.skin->title, "");
     }
+
+    return 0;
+}
+
+static int
+tcvp_close(tcwidget_t *p, XEvent *e)
+{
+    tcvp_stop(NULL, NULL);
+
+    tc2_request(TC2_UNLOAD_ALL, 0);
 
     return 0;
 }
@@ -184,9 +254,9 @@ tcvp_event(void *p)
 
     while(r){
 	tcvp_event_t *te = eventq_recv(qr);
+/* 	printf("%d\n", te->type); */
 	switch(te->type){
 	case TCVP_STATE:
-/* 	    printf("%d\n", te->state.state); */
 	    switch(te->state.state){
 	    case TCVP_STATE_PLAYING:
 		p_state = PLAYING;
@@ -197,8 +267,11 @@ tcvp_event(void *p)
 	    case TCVP_STATE_END:
 		s_time = 0;
 		update_time(skin);
-		if(p_state == PLAYING)
-		    tcvp_next(NULL, NULL);
+		if(p_state == PLAYING) {
+		    p_state = STOPPED;
+		    /* FIXME */
+/* 		    tcvp_next(NULL, NULL); */
+		}
 	    }
 	    break;
 
@@ -221,7 +294,6 @@ static void *
 x11_event(void *p)
 {
     int run=1;
-    skin_t *skin = p;
 
     while(run){
         XEvent xe;
@@ -229,27 +301,31 @@ x11_event(void *p)
         XNextEvent(xd, &xe);
         switch(xe.type){
 	case Expose:
+	    draw_widgets();
+	    break;
+
 	case ConfigureNotify:
-	    update_graphics(skin);
+	    repaint_widgets();
+	    draw_widgets();
 	    break;
 
  	case ButtonPress:
 	{
 	    list_item *current=NULL;
-	    image_button_t *bt;
+	    tcwidget_t *bt;
 
 	    while((bt = list_next(bt_list, &current))!=NULL) {
-		if(xe.xbutton.window == bt->win){
-		    if(bt->onclick){
-			bt->onclick(bt->data, &xe);
+		if(xe.xbutton.window == bt->common.win){
+		    if(bt->common.onclick){
+			bt->common.onclick(bt, &xe);
 		    }
 		}
 	    }
 	    break;
 	}
-       case DestroyNotify:
-            run = 0;
-            break;
+	case DestroyNotify:
+	    run = 0;
+	    break;
 	}
     }
 
@@ -280,94 +356,9 @@ load_image(char *skinpath, char *file)
 }
 
 
-static skin_t*
-load_skin(char *skinpath)
-{
-    skin_t *skin=malloc(sizeof(skin_t));
-
-    skin->bg_img = load_image(skinpath, "background.png");
-    skin->posbg_img = load_image(skinpath, "posbg.png");
-    skin->posslider_img = load_image(skinpath, "posslider.png");
-
-    skin->pbg_pos.x = 103;
-    skin->pbg_pos.y = 0;
-
-    skin->playctl[0].x = 0+50;
-    skin->playctl[0].y = 0+1;
-    skin->playctl[0].img = load_image(skinpath, "previous.png");
-    skin->playctl[0].onclick = tcvp_previous;
-
-    skin->playctl[1].x = 10+50;
-    skin->playctl[1].y = 0+1;
-    skin->playctl[1].img = load_image(skinpath, "play.png");
-    skin->playctl[1].onclick = tcvp_play;
-
-    skin->playctl[2].x = 20+50;
-    skin->playctl[2].y = 0+1;
-    skin->playctl[2].img = load_image(skinpath, "pause.png");
-    skin->playctl[2].onclick = tcvp_pause;
-
-    skin->playctl[3].x = 30+50;
-    skin->playctl[3].y = 0+1;
-    skin->playctl[3].img = load_image(skinpath, "stop.png");
-    skin->playctl[3].onclick = tcvp_stop;
-
-    skin->playctl[4].x = 40+50;
-    skin->playctl[4].y = 0+1;
-    skin->playctl[4].img = load_image(skinpath, "next.png");
-    skin->playctl[4].onclick = tcvp_next;
-
-    skin->time.x = 12;
-    skin->time.y = 1;
-    skin->time.width = 36;
-    skin->time.height = 10;
-    skin->time.xoff = 0;
-    skin->time.yoff = 7;
-    skin->time.color = 0xFF006030;
-    skin->time.font = "courier";
-    skin->time.size = 10.0;
-
-    skin->title.x = 12;
-    skin->title.y = 10;
-    skin->title.width = 176;
-    skin->title.height = 10;    
-    skin->title.xoff = 0;
-    skin->title.yoff = 7;
-    skin->title.color = 0xFF006030;
-    skin->title.font = "courier";
-    skin->title.size = 10.0;
-
-    return skin;
-}
-
-
-static char*
-alpha_render(unsigned char *img, unsigned char *bg, int x_off, int y_off,
-	     int width, int height, int bwidth, int bheight, int depth)
-{
-    int x,y;
-    unsigned char *ret = malloc(width*height*4);
-
-    for(y=0;y<height;y++){
-	for(x=0;x<width;x++){
-	    int pos = (x+y*width)*4;
-	    int bpos = (x_off+x+(y+y_off)*bwidth)*4;
-	    int b = img[pos+3];
-	    int a = 256-b;
-	    ret[pos+0] = (bg[bpos+0]*a + img[pos+0]*b)/256;
-	    ret[pos+1] = (bg[bpos+1]*a + img[pos+1]*b)/256;
-	    ret[pos+2] = (bg[bpos+2]*a + img[pos+2]*b)/256;
-	    ret[pos+3] = (bg[bpos+3]*a + img[pos+3]*b)/256;
-	}
-    }
-
-    return ret;
-}
-
-
 static int
-alpha_rend(unsigned char *src, unsigned char *dest, int width,
-	   int height, int depth)
+alpha_render(unsigned char *src, unsigned char *dest, int width,
+	     int height, int depth)
 {
     int x,y;
 
@@ -388,7 +379,7 @@ alpha_rend(unsigned char *src, unsigned char *dest, int width,
 
 
 static int
-update_bg()
+update_root()
 {
     XImage *img;
 
@@ -404,29 +395,238 @@ update_bg()
 
 
 static int
-add_button(image_button_t *btn)
+repaint_background(tcwidget_t *w)
 {
-    btn->win = XCreateWindow(xd, xw, btn->x, btn->y,
-			     btn->img->width, btn->img->height,
-			     0, CopyFromParent, InputOutput,
-			     CopyFromParent, 0, 0);
-    btn->pixmap = XCreatePixmap(xd, xw, btn->img->width,
-				btn->img->height, depth);
-    XSelectInput(xd, btn->win, ButtonPressMask);
-    list_push(bt_list, btn);
+    XImage *img;
+    XWindowAttributes wa;
+    Window foo;
+    int x, y;
+
+    XGetWindowAttributes(xd, w->background.win, &wa);
+    XTranslateCoordinates(xd, w->background.win, RootWindow(xd, xs),
+			  wa.x, wa.y, &x, &y, &foo);
+
+    if(x>=0 && y>=0 && x+w->background.width < root_width &&
+       y+w->background.height < root_height) {
+	img = XGetImage(xd, root, x, y, w->background.width,
+			w->background.height, AllPlanes, ZPixmap);
+    } else {
+	Pixmap tmp_p;
+	XImage *tmp_i;
+	int tmp_x, tmp_y, tmp_w, tmp_h, xp, yp;
+
+	tmp_p = XCreatePixmap(xd, xw, w->background.width,
+			      w->background.height, depth);
+	if(x<0) {
+	    tmp_x = 0;
+	    xp = -x;
+	    tmp_w = w->background.width + x;
+	} else if(x+w->background.width >= root_width){ 
+	    tmp_x = x;
+	    xp = 0;
+	    tmp_w = w->background.width -
+		((x + w->background.width) - root_width);
+	} else { 
+	    tmp_x = x;
+	    xp = 0;
+	    tmp_w = w->background.width;
+	}
+
+	if(y<0) {
+	    tmp_y = 0;
+	    yp = -y;
+	    tmp_h = w->background.height + y;
+	} else if(y+w->background.height >= root_height){
+	    tmp_y = y;
+	    yp = 0;
+	    tmp_h = w->background.height -
+		((y + w->background.height) - root_height);
+	} else {
+	    tmp_y = y;
+	    yp = 0;
+	    tmp_h = w->background.height;
+	}
+
+	tmp_i=XGetImage(xd, root, tmp_x, tmp_y, tmp_w, tmp_h,
+			AllPlanes, ZPixmap);
+	XPutImage(xd, tmp_p, bgc, tmp_i, 0, 0, xp, yp, tmp_w, tmp_h);
+	XSync(xd, False);
+	XDestroyImage(tmp_i);
+	img = XGetImage(xd, tmp_p, 0, 0, w->background.width,
+		       w->background.height, AllPlanes, ZPixmap);
+	XSync(xd, False);
+	XFreePixmap(xd, tmp_p);
+    }
+
+    alpha_render(*w->background.img->data, img->data, w->background.width,
+	       w->background.height, depth);
+
+    XPutImage(xd, w->background.pixmap, bgc, img, 0, 0, 0, 0,
+	      w->background.width, w->background.height);
+    XSync(xd, False);
+
+    XDestroyImage(img);
 
     return 0;
 }
 
+static tcbackground_t*
+create_background(skin_t *skin, char *imagefile)
+{
+    char *data;
+    Pixmap maskp;
+    tcbackground_t *bg = calloc(sizeof(tcbackground_t), 1);
+    int x, y;
+
+    bg->type = TCBACKGROUND;
+    bg->x = 0;
+    bg->y = 0;
+    bg->onclick = NULL;
+    bg->repaint = repaint_background;
+    bg->skin = skin;
+    bg->img = load_image(skin->path, imagefile);
+    bg->width = bg->img->width;
+    bg->height = bg->img->height;
+
+    bg->pixmap = XCreatePixmap(xd, xw, bg->width,
+			       bg->height, depth);
+    bg->win = xw;
+
+    data = calloc(bg->width * bg->height,1);
+    for(y=0; y<bg->height; y++){
+	for(x=0; x<bg->width; x+=8){
+	    int i, d=0;
+	    for(i=0;i<8;i++){
+		d |= (bg->img->data[y][(x+i)*4+3]==0)?0:1<<i;
+	    }
+	    data[x/8+y*bg->width/8] = d;
+	}
+    }
+
+    maskp = XCreateBitmapFromData(xd, xw, data, bg->width, bg->height);
+    free(data);
+    XShapeCombineMask(xd, xw, ShapeBounding, 0, 0, maskp, ShapeSet);
+    XSync(xd, False);
+    XFreePixmap(xd, maskp);
+
+    list_push(widget_list, bg);
+
+    return bg;
+}
+
 
 static int
-add_text(text_t *txt)
+repaint_button(tcwidget_t *w)
 {
+    XImage *img;
+
+    img = XGetImage(xd, w->button.skin->background->pixmap,
+		    w->button.x, w->button.y,
+		    w->button.width, w->button.height,
+		    AllPlanes, ZPixmap);
+    alpha_render(*w->button.img->data, img->data, img->width, img->height,
+		 depth);
+    XPutImage(xd, w->button.pixmap, bgc, img, 0, 0, 0, 0,
+	      w->button.img->width, w->button.img->height);
+    XSync(xd, False);
+    XDestroyImage(img);
+
+    return 0;
+}
+
+static tcimage_button_t*
+create_button(skin_t *skin, int x, int y, char *imagefile,
+	      onclick_cb_t onclick)
+{
+    tcimage_button_t *btn = calloc(sizeof(tcimage_button_t), 1);
+
+    btn->type = TCIMAGEBUTTON;
+    btn->x = x;
+    btn->y = y;
+    btn->onclick = onclick;
+    btn->repaint = repaint_button;
+    btn->skin = skin;
+    btn->img = load_image(skin->path, imagefile);
+    btn->width = btn->img->width;
+    btn->height = btn->img->height;
+
+    btn->win = XCreateWindow(xd, xw, btn->x, btn->y,
+			     btn->width, btn->height,
+			     0, CopyFromParent, InputOutput,
+			     CopyFromParent, 0, 0);
+    btn->pixmap = XCreatePixmap(xd, xw, btn->width,
+				btn->height, depth);
+    XSelectInput(xd, btn->win, ButtonPressMask);
+
+    list_push(widget_list, btn);
+    if(onclick) list_push(bt_list, btn);
+
+    return btn;
+}
+
+
+static int
+change_label(tclabel_t *txt, char *text)
+{
+    free(txt->text);
+    txt->text = strdup((text)?text:"");
+    txt->repaint((tcwidget_t *) txt);
+    draw_widget((tcwidget_t *) txt);
+
+    return 0;
+}
+
+static int
+repaint_label(tcwidget_t *txt)
+{
+    XCopyArea(xd, txt->label.skin->background->pixmap,
+	      txt->label.pixmap, bgc,
+	      txt->label.x, txt->label.y,
+	      txt->label.width, txt->label.height, 0, 0);
+    XftDrawString8(txt->label.xftdraw, &txt->label.xftcolor,
+		   txt->label.xftfont, txt->label.xoff,
+		   txt->label.yoff, txt->label.text,
+		   strlen(txt->label.text));
+/*     fprintf(stderr, "\"%s\"@(%d,%d) size=(%d,%d) offset=(%d,%d)\n",  */
+/* 	    txt->label.text, txt->label.x, txt->label.y, */
+/* 	    txt->label.width, txt->label.height, */
+/* 	    txt->label.xoff, txt->label.yoff); */
+
+    return 0;
+}
+
+static tclabel_t*
+create_label(skin_t *skin, int x, int y, int width, int height,
+	     int xoff, int yoff, char *text, char *font,
+	     double size, uint32_t color, onclick_cb_t onclick)
+{
+    tclabel_t *txt = calloc(sizeof(tclabel_t), 1);
+
+    txt->type = TCLABEL;
+    txt->x = x;
+    txt->y = y;
+    txt->width = width;
+    txt->height = height;
+    txt->onclick = onclick;
+    txt->repaint = repaint_label;
+    txt->skin = skin;
+    txt->font = strdup(font);
+    txt->color = color;
+    txt->size = size;
+    txt->xoff = xoff;
+    txt->yoff = yoff;
+    txt->text = strdup((text)?text:"");
+
+    int red = (txt->color & 0xff);
+    int green = (txt->color & 0xff00)>>8;
+    int blue = (txt->color & 0xff0000)>>16;
+    int alpha = (txt->color & 0xff000000)>>24;
+
     XRenderColor xrc = {
-	.red = (txt->color & 0xff)<<8,
-	.green = (txt->color & 0xff00),
-	.blue = (txt->color & 0xff0000)>>8,
-	.alpha = (txt->color & 0xff000000)>>16
+	.red = red + (red<<8),
+	.green = green + (green<<8),
+	.blue = blue + (blue<<8),
+	.alpha = alpha + (alpha<<8)
     };
 
     XftColorAllocValue(xd, DefaultVisual(xd, xs), DefaultColormap(xd, xs),
@@ -438,7 +638,7 @@ add_text(text_t *txt)
     if(txt->xftfont==NULL){
 	fprintf(stderr, "font \"%s\" with size %f not found\n",
 		txt->font, txt->size);
-	return 1;
+	return NULL;
     }
 
     txt->pixmap = XCreatePixmap(xd, xw, txt->width, txt->height, depth);
@@ -451,69 +651,46 @@ add_text(text_t *txt)
 			     0, CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
 
-/*     XSelectInput(xd, txt->win, ButtonPressMask); */
-/*     list_push(bt_list, txt); */
+    list_push(widget_list, txt);
+    if(onclick) list_push(bt_list, txt);
 
-    return 0;
+    return txt;
 }
 
 
-static Pixmap
-render_text(skin_t *skin, text_t *txt, char *data)
+static int
+draw_widget(tcwidget_t *w)
 {
-
-    XCopyArea(xd, skin->bg, txt->pixmap, bgc, txt->x, txt->y,
-	      txt->width, txt->height, 0, 0);
-    XftDrawString8(txt->xftdraw, &txt->xftcolor, txt->xftfont,
-		   txt->xoff, txt->yoff, data, strlen(data));
+    XCopyArea(xd, w->common.pixmap, w->common.win, bgc, 0, 0,
+	      w->common.width, w->common.height, 0, 0);
 
     return 0;
 }
 
 
 static int
-render_buttons(skin_t *skin)
+draw_widgets()
 {
     list_item *current=NULL;
-    image_button_t *bt;
-    XImage *img;
+    tcwidget_t *w;
 
-    while((bt = list_next(bt_list, &current))!=NULL) {
-	img = XGetImage(xd, skin->bg, bt->x, bt->y,
-			bt->img->width, bt->img->height,
-			AllPlanes, ZPixmap);
-
-	alpha_rend(*bt->img->data, img->data, img->width, img->height, depth);
-	XPutImage(xd, bt->pixmap, bgc, img, 0, 0, 0, 0,
-		  bt->img->width, bt->img->height);
-	XSync(xd, False);
-	XDestroyImage(img);
+    while((w = list_next(widget_list, &current))!=NULL) {
+	draw_widget(w);
     }
 
     return 0;
 }
 
-
 static int
-draw_buttons(skin_t *skin)
+repaint_widgets()
 {
     list_item *current=NULL;
-    image_button_t *bt;
+    tcwidget_t *w;
 
-    while((bt = list_next(bt_list, &current))!=NULL) {
-	XCopyArea(xd, bt->pixmap, bt->win, bgc, 0, 0,
-		  bt->img->width, bt->img->height, 0, 0);
+    while((w = list_next(widget_list, &current))!=NULL) {
+	if(w->common.repaint) w->common.repaint(w);
     }
 
-    return 0;
-}
-
-
-static int
-draw_texts(skin_t *skin)
-{
-    XCopyArea(xd, skin->time.pixmap, skin->time.win, bgc, 0, 0,
-	      skin->time.width, skin->time.height, 0, 0);
     return 0;
 }
 
@@ -521,13 +698,59 @@ draw_texts(skin_t *skin)
 static int
 update_time(skin_t *skin)
 {
-    char text[256];
+    char text[7];
     
-    snprintf(text, 128, "% 3d:%02d", s_time/60, s_time%60);
-    render_text(skin, &skin->time, text);
-    draw_texts(skin);
+    snprintf(text, 7, "% 3d:%02d", s_time/60, s_time%60);
+    change_label(skin->time, text);
+
     XSync(xd, False);
     
+    return 0;
+}
+
+
+static skin_t*
+load_skin(char *skinpath)
+{
+    skin_t *skin=malloc(sizeof(skin_t));
+
+    skin->path = skinpath;
+
+    skin->width = 200;
+    skin->height = 20;
+
+    skin->pbg_pos.x = 103;
+    skin->pbg_pos.y = 0;
+    skin->pcpos.x = 50;
+    skin->pcpos.y = 1;
+    skin->closepos.x = 187;
+    skin->closepos.y = 0;
+
+    return skin;
+}
+
+
+static int
+create_ui(skin_t *skin)
+{
+    skin->background = create_background(skin, "background.png");
+    skin->playctl[0] = create_button(skin, skin->pcpos.x+0, skin->pcpos.y+0,
+				     "previous.png", tcvp_previous);
+    skin->playctl[1] = create_button(skin, skin->pcpos.x+10, skin->pcpos.y+0,
+				     "play.png", tcvp_play);
+    skin->playctl[2] = create_button(skin, skin->pcpos.x+20, skin->pcpos.y+0,
+				     "pause.png", tcvp_pause);
+    skin->playctl[3] = create_button(skin, skin->pcpos.x+30, skin->pcpos.y+0,
+				     "stop.png", tcvp_stop);
+    skin->playctl[4] = create_button(skin, skin->pcpos.x+40, skin->pcpos.y+0,
+				     "next.png", tcvp_next);
+    skin->playctl[4] = create_button(skin, skin->closepos.x, skin->closepos.y,
+				     "close.png", tcvp_close);
+    skin->time = create_label(skin, 12, 1, 36, 10, 0, 7, "  0:00", "courier",
+			      10.0, 0xFF006030, NULL);
+    skin->title = create_label(skin, 12, 10, 176, 10, 0, 7, NULL, "courier",
+			       10.0, 0xFF006030, NULL);
+
     return 0;
 }
 
@@ -535,13 +758,11 @@ update_time(skin_t *skin)
 static int 
 init_graphics(skin_t *skin)
 {
-    Pixmap maskp;
     Atom prop;
     MWMHints mwmhints;
-    char *data;
-    int x, y, i;
 
     bt_list = list_new(TC_LOCK_SLOPPY);
+    widget_list = list_new(TC_LOCK_SLOPPY);
 
     XInitThreads();
     xd = XOpenDisplay(NULL);
@@ -553,8 +774,8 @@ init_graphics(skin_t *skin)
     root_height = XDisplayHeight(xd,xs);
     depth = DefaultDepth(xd, xs);
 
-    xw = XCreateWindow (xd, RootWindow(xd, xs),
-			0, 0, 200, 20, 0,
+    xw = XCreateWindow (xd, RootWindow(xd, xs), 0, 0,
+			skin->width, skin->height, 0,
 			CopyFromParent, InputOutput,
 			CopyFromParent, 0, 0);
 
@@ -574,132 +795,13 @@ init_graphics(skin_t *skin)
     XSetBackground(xd, bgc, 0xFFFFFFFF);
     XSetForeground(xd, bgc, 0x00000000);
 
-    data = calloc(skin->bg_img->width * skin->bg_img->height,1);
-    for(y=0; y<skin->bg_img->height; y++){
-	for(x=0; x<skin->bg_img->width; x+=8){
-	    int i, d=0;
-	    for(i=0;i<8;i++){
-		d |= (skin->bg_img->data[y][(x+i)*4+3]==0)?0:1<<i;
-	    }
-	    data[x/8+y*skin->bg_img->width/8] = d;
-	}
-    }
-
-    maskp = XCreateBitmapFromData(xd, xw, data, skin->bg_img->width,
-				  skin->bg_img->height);
-    free(data);
-    XShapeCombineMask(xd, xw, ShapeBounding, 0, 0, maskp, ShapeSet);
-
     root = XCreatePixmap(xd, xw, root_width, root_height, depth);
-    skin->bg = XCreatePixmap(xd, xw, skin->bg_img->width, skin->bg_img->height, depth);
-
-    for(i=0; i<5; i++){
-	add_button(&skin->playctl[i]);
-    }
-    add_text(&skin->time);
 
     XSync(xd, False);
 
     return 0;
 }
 
-
-static int
-update_graphics(skin_t *skin)
-{
-    XImage *img, *bg_img, *bg;
-    char *data;
-    XWindowAttributes wa;
-    Window foo;
-    int x, y;
-
-    XGetWindowAttributes(xd, xw, &wa);
-    XTranslateCoordinates(xd, xw, RootWindow(xd, xs), wa.x, wa.y, &x, &y, &foo);
-
-    if(x>=0 && y>=0 && x+skin->bg_img->width < root_width &&
-       y+skin->bg_img->height < root_height) {
-	bg = XGetImage(xd, root, x, y, skin->bg_img->width, skin->bg_img->height,
-		       AllPlanes, ZPixmap);
-    } else {
-	Pixmap tmp_p;
-	XImage *tmp_i;
-	int tmp_x, tmp_y, tmp_w, tmp_h, xp, yp;
-
-	tmp_p = XCreatePixmap(xd, xw, skin->bg_img->width, skin->bg_img->height, depth);
-	if(x<0) {
-	    tmp_x = 0;
-	    xp = -x;
-	    tmp_w = skin->bg_img->width + x;
-	} else if(x+skin->bg_img->width >= root_width){ 
-	    tmp_x = x;
-	    xp = 0;
-	    tmp_w = skin->bg_img->width - ((x + skin->bg_img->width) - root_width);
-	} else { 
-	    tmp_x = x;
-	    xp = 0;
-	    tmp_w = skin->bg_img->width;
-	}
-
-	if(y<0) {
-	    tmp_y = 0;
-	    yp = -y;
-	    tmp_h = skin->bg_img->height + y;
-	} else if(y+skin->bg_img->height >= root_height){
-	    tmp_y = y;
-	    yp = 0;
-	    tmp_h = skin->bg_img->height - ((y + skin->bg_img->height) - root_height);
-	} else {
-	    tmp_y = y;
-	    yp = 0;
-	    tmp_h = skin->bg_img->height;
-	}
-
-	tmp_i=XGetImage(xd, root, tmp_x, tmp_y, tmp_w, tmp_h, AllPlanes, ZPixmap);
-	XPutImage(xd, tmp_p, bgc, tmp_i, 0, 0, xp, yp, tmp_w, tmp_h);
-	XSync(xd, False);
-	XDestroyImage(tmp_i);
-	bg = XGetImage(xd, tmp_p, 0, 0, skin->bg_img->width, skin->bg_img->height,
-		       AllPlanes, ZPixmap);
-	XSync(xd, False);
-	XFreePixmap(xd, tmp_p);
-    }
-
-    data = alpha_render(*skin->bg_img->data, bg->data, 0, 0, skin->bg_img->width,
-			skin->bg_img->height, skin->bg_img->width, skin->bg_img->height,
-			depth);
-    bg_img = XCreateImage(xd, DefaultVisual(xd, xs), depth,
-			  ZPixmap, 0, data, skin->bg_img->width,
-			  skin->bg_img->height, BitmapPad(xd), 0);
-
-    XPutImage(xd, skin->bg, bgc, bg_img, 0, 0, 0, 0,
-	      skin->bg_img->width, skin->bg_img->height);
-    XSync(xd, False);
-
-    data = alpha_render(*skin->posbg_img->data, bg_img->data,
-			skin->pbg_pos.x, skin->pbg_pos.y,
-			skin->posbg_img->width, skin->posbg_img->height,
-			skin->bg_img->width, skin->bg_img->height,
-			depth);
-    img = XCreateImage(xd, DefaultVisual(xd, xs), depth,
-		       ZPixmap, 0, data, skin->posbg_img->width,
-		       skin->posbg_img->height, BitmapPad(xd), 0);
-    XPutImage(xd, skin->bg, bgc, img, 0, 0, skin->pbg_pos.x, skin->pbg_pos.y,
-	      skin->posbg_img->width, skin->posbg_img->height);
-    XSync(xd, False);
-    XDestroyImage(img);
-
-    XCopyArea(xd, skin->bg, xw, bgc, 0, 0, skin->bg_img->width, skin->bg_img->height, 0, 0);
-    XDestroyImage(bg_img);
-    XDestroyImage(bg);
-
-    render_buttons(skin);
-    draw_buttons(skin);
-
-    update_time(skin);
-    draw_texts(skin);
-
-    return 0;
-}
 
 extern int
 tcvpx_init(char *p)
@@ -741,14 +843,17 @@ tcvpx_init(char *p)
     skin=load_skin(tcvp_ui_tcvpx_conf_skin);
 
     init_graphics(skin);
-
-    update_bg();
+    create_ui(skin);
+    update_root();
 
     XMapWindow (xd, xw);
     XMapSubwindows(xd, xw);
 
     update_time(skin);
-    update_graphics(skin);
+    change_label(skin->title, strrchr(current_file, '/'));
+
+    repaint_widgets();
+    draw_widgets();
 
     XSelectInput(xd, xw, ExposureMask | StructureNotifyMask);
     XSync(xd, False);
@@ -762,7 +867,19 @@ tcvpx_init(char *p)
 extern int
 tcvpx_shdn(void)
 {
+    tcvp_stop(NULL, NULL);
+
+    XDestroyWindow(xd, xw);
+    XSync(xd, False);
+
+    /* FIXME: join event thread */
+/*     pthread_join(eth, NULL); */
+    pthread_join(xth, NULL);
+
+    XCloseDisplay(xd);
+
     eventq_delete(qs);
+
     if(pl)
 	pl->free(pl);
 
