@@ -1,0 +1,13 @@
+# -*- tcconf -*-
+profiles {
+	play {
+		audio {
+			filter [ type "decoder"			]
+			filter [ type "output/audio"		]
+		}
+		video {
+			filter [ type "decoder"			]
+			filter [ type "output/video"		]
+		}
+	}
+}

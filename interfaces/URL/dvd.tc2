@@ -1,4 +1,10 @@
 inherit "URL"
+
 option device%s="/dev/cdroms/cdrom0"
+Default device name.
+
 option title%i=1
+Default title to play.
+
 option buffer%i=4
+Buffer size in DVD sectors of 2048 bytes.
