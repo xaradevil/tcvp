@@ -112,7 +112,7 @@ seek_alloc(int type, va_list args)
 {
     tcvp_seek_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
     te->time = va_arg(args, int64_t);
-    te->how = va_arg(args, int64_t);
+    te->how = va_arg(args, int32_t);
     return te;
 }
 
