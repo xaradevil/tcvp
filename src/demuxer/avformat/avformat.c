@@ -54,8 +54,10 @@ static char *codec_names[] = {
     [CODEC_ID_H264] = "video/h264",
     [CODEC_ID_INDEO3] = "video/indeo3",
     [CODEC_ID_VP3] = "video/vp3",
+    [CODEC_ID_THEORA] = "video/theora",
+    [CODEC_ID_AAC] = "audio/aac",
+    [CODEC_ID_MPEG4AAC] = "audio/aac",
 
-    /* various pcm "codecs" */
     [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
     [CODEC_ID_PCM_S16BE] = "audio/pcm-s16be",
     [CODEC_ID_PCM_U16LE] = "audio/pcm-u16le",
