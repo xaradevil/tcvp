@@ -41,6 +41,7 @@ tcvp_event(void *p)
 		tcvp_stop(NULL, NULL);
 		break;
 	    }
+	    break;
 
 	case TCVP_TIMER:
 	    s_time = te->timer.time/1000000;
