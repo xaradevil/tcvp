@@ -86,7 +86,6 @@ s_validate(char *name, tcconf_section_t *cs)
 #define RUN     1
 #define PAUSE   2
 #define STOP    3
-#define PROBE   4
 
 #define min_buffer tcvp_demux_stream_conf_buffer
 
@@ -177,7 +176,8 @@ read_stream(void *p)
 	if(vp->state == STOP)
 	    break;
 
-	while((s = wstream(vp)) >= 0 && vp->state != STOP){
+	pthread_mutex_lock(&vp->mtx);
+	while((s = wstream(vp)) >= 0 && vp->state == RUN){
 	    packet_t *p = vp->stream->next_packet(vp->stream, s);
 	    if(!p){
 		vp->streams[s].eof = 1;
@@ -189,6 +189,7 @@ read_stream(void *p)
 	    list_push(vp->streams[p->stream].pq, p);
 	    sem_post(&vp->streams[p->stream].ps);
 	}
+	pthread_mutex_unlock(&vp->mtx);
     }
 
     return NULL;
@@ -261,8 +262,8 @@ stop(tcvp_pipe_t *p)
 {
     s_play_t *vp = p->private;
 
-    pthread_mutex_lock(&vp->mtx);
     vp->state = PAUSE;
+    pthread_mutex_lock(&vp->mtx);
     while(vp->waiting < vp->nstreams)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
@@ -306,10 +307,9 @@ s_free(void *p)
     s_play_t *vp = tp->private;
     int i, j;
 
-    stop(tp);
     vp->state = STOP;
-    sem_post(&vp->rsm);
     s_flush(tp, 1);
+    sem_post(&vp->rsm);
     pthread_join(vp->rth, NULL);
     pthread_mutex_lock(&vp->mtx);
     pthread_cond_broadcast(&vp->cnd);
@@ -396,7 +396,7 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
     vp->pipes = calloc(ms->n_streams, sizeof(*vp->pipes));
     vp->threads = calloc(ms->n_streams, sizeof(*vp->threads));
     vp->streams = calloc(ms->n_streams, sizeof(*vp->streams));
-    vp->state = PROBE;
+    vp->state = RUN;
     pthread_mutex_init(&vp->mtx, NULL);
     pthread_cond_init(&vp->cnd, NULL);
     sem_init(&vp->rsm, 0, 0);
