@@ -54,6 +54,8 @@ typedef struct mpeg_packet {
     mpeg_dec_t *mpd;
 } mpeg_packet_t;
 
+#define MPEG_PTS_FLUSH (1<<31)
+
 static void
 mpeg_release_buf(mpeg_dec_t *mpd, mpeg_buf_t *mb)
 {
@@ -189,7 +191,14 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	mpd->info = mpeg2_info(mpd->mpeg2);
 
     if((pk->flags & TCVP_PKT_FLAG_PTS)){
-	mpeg2_tag_picture(mpd->mpeg2, pk->pts, pk->pts >> 32);
+	uint32_t ptsl, ptsh;
+	ptsl = pk->pts;
+	ptsh = pk->pts >> 32;
+	if(mpd->flush > 1){
+	    ptsh |= MPEG_PTS_FLUSH;
+	    mpd->flush = 1;
+	}
+	mpeg2_tag_picture(mpd->mpeg2, ptsl, ptsh);
     }
 
     do {
@@ -204,18 +213,6 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	    break;
 	case STATE_SLICE:
 	case STATE_END:
-#if 0
-	    if(mpd->info->display_picture){
-		if(mpd->flush){
-		    if((mpd->info->display_picture->flags &
-			PIC_MASK_CODING_TYPE) != PIC_FLAG_CODING_TYPE_I)
-			continue;
-		    else
-			mpd->flush = 0;
-		}
-	    }
-#endif
-
 	    if(mpd->info->display_fbuf){
 		mpeg_packet_t *pic = tcallocdz(sizeof(*pic), NULL,
 					       mpeg_free_packet);
@@ -232,8 +229,15 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		pic->sizes[2] = pic->sizes[0]/2;
 
 		if(mpd->info->display_picture->flags & PIC_FLAG_TAGS){
-		    mpd->pts = mpd->info->display_picture->tag |
-			(uint64_t) mpd->info->display_picture->tag2 << 32;
+		    uint32_t ptsh, ptsl;
+		    ptsl = mpd->info->display_picture->tag;
+		    ptsh = mpd->info->display_picture->tag2;
+		    if(mpd->flush && (ptsh & MPEG_PTS_FLUSH)){
+			ptsh &= ~MPEG_PTS_FLUSH;
+			mpd->flush = 0;
+		    }
+		    if(!mpd->flush)
+			mpd->pts = ptsl | (uint64_t) ptsh << 32;
 		}
 
 		if(mpd->pts != -1LL){
@@ -311,7 +315,7 @@ mpeg_flush(tcvp_pipe_t *p, int drop)
     if(drop){
 	/* mpeg2_reset() apparently breaks seeking in some streams */
 /* 	mpeg2_reset(mpd->mpeg2, 1); */
-/* 	mpd->flush = 1; */
+	mpd->flush = 2;
 	mpd->pts = -1LL;
 	/* FIXME: the buffers should be flushed here, but the reference
 	   counting becomes a nightmare */
