@@ -144,7 +144,10 @@ pl_addlist(playlist_t *pl, char *file, int pos)
 
     while(url_gets(buf, 1024, plf)){
 	if(buf[0] != '#'){
-	    buf[strlen(buf)-1] = 0;
+	    int bl = strlen(buf);
+	    buf[bl-1] = 0;
+	    if(buf[bl-2] == '\r')
+		buf[bl-2] = 0;
 	    if(buf[0] == '/' || strchr(buf, ':')){
 		strncpy(line, buf, 1024);
 		line[1023] = 0;
