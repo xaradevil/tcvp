@@ -31,9 +31,20 @@ evt_free(void *p)
     case TCVP_LOAD:
 	tcfree(te->load.stream);
 	break;
+
+    case TCVP_PL_ADD: {
+	int i;
+	for(i = 0; i < te->pl_add.n; i++)
+	    free(te->pl_add.names[i]);
+	free(te->pl_add.names);
+	break;
+    }
+
+    case TCVP_PL_ADDLIST:
+	free(te->pl_addlist.name);
+	break;
     }
 }
-
 
 extern void *
 tcvp_alloc_event(int type, ...)
@@ -72,6 +83,32 @@ tcvp_alloc_event(int type, ...)
     case TCVP_LOAD:
 	te->load.stream = va_arg(args, muxed_stream_t *);
 	tcref(te->load.stream);
+	break;
+
+    case TCVP_PL_ADD: {
+	char **n = va_arg(args, char **);
+	int i;
+	te->pl_add.n = va_arg(args, int);
+	te->pl_add.pos = va_arg(args, int);
+	te->pl_add.names = malloc(te->pl_add.n * sizeof(*te->pl_add.names));
+	for(i = 0; i < te->pl_add.n; i++)
+	    te->pl_add.names[i] = strdup(n[i]);
+	break;
+    }
+
+    case TCVP_PL_ADDLIST:
+	te->pl_addlist.name = strdup(va_arg(args, char *));
+	te->pl_addlist.pos = va_arg(args, int);
+	break;
+
+    case TCVP_PL_REMOVE:
+	te->pl_remove.start = va_arg(args, int);
+	te->pl_remove.n = va_arg(args, int);
+	break;
+
+    case TCVP_PL_SHUFFLE:
+	te->pl_shuffle.start = va_arg(args, int);
+	te->pl_shuffle.n = va_arg(args, int);
 	break;
 
     case TCVP_START:

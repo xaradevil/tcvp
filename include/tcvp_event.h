@@ -53,6 +53,31 @@ typedef struct tcvp_load_event {
     muxed_stream_t *stream;
 } tcvp_load_event_t;
 
+typedef struct tcvp_pl_add_event {
+    int type;
+    char **names;
+    int n;
+    int pos;
+} tcvp_pl_add_event_t;
+
+typedef struct tcvp_pl_addlist_event {
+    int type;
+    char *name;
+    int pos;
+} tcvp_pl_addlist_event_t;
+
+typedef struct tcvp_pl_remove_event {
+    int type;
+    int start;
+    int n;
+} tcvp_pl_remove_event_t;
+
+typedef struct tcvp_pl_shuffle_event {
+    int type;
+    int start;
+    int n;
+} tcvp_pl_shuffle_event_t;
+
 typedef union tcvp_event {
     int type;
     tcvp_key_event_t key;
@@ -61,6 +86,10 @@ typedef union tcvp_event {
     tcvp_timer_event_t timer;
     tcvp_state_event_t state;
     tcvp_load_event_t load;
+    tcvp_pl_add_event_t pl_add;
+    tcvp_pl_addlist_event_t pl_addlist;
+    tcvp_pl_remove_event_t pl_remove;
+    tcvp_pl_shuffle_event_t pl_shuffle;
 } tcvp_event_t;
 
 #define TCVP_KEY       1
@@ -86,10 +115,14 @@ typedef union tcvp_event {
 #define TCVP_LOAD     10
 #define TCVP_STREAM_INFO 11
 
-#define TCVP_PL_START 12
-#define TCVP_PL_STOP  13
-#define TCVP_PL_NEXT  14
-#define TCVP_PL_PREV  15
+#define TCVP_PL_START   12
+#define TCVP_PL_STOP    13
+#define TCVP_PL_NEXT    14
+#define TCVP_PL_PREV    15
+#define TCVP_PL_ADD     16
+#define TCVP_PL_ADDLIST 17
+#define TCVP_PL_REMOVE  18
+#define TCVP_PL_SHUFFLE 19
 
 extern void *tcvp_alloc_event(int type, ...);
 

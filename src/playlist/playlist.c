@@ -51,6 +51,11 @@ pl_add(playlist_t *pl, char **files, int n, int p)
 
     pthread_mutex_lock(&tpl->lock);
 
+    if(p < 0)
+	p = tpl->nf - p + 1;
+    if(p < 0)
+	p = 0;
+
     nf = tpl->nf + n;
 
     if(nf > tpl->af){
@@ -73,6 +78,7 @@ pl_add(playlist_t *pl, char **files, int n, int p)
 static int
 pl_addlist(playlist_t *pl, char *file, int pos)
 {
+    tcvp_playlist_t *tpl = pl->private;
     FILE *plf = fopen(file, "r");
     char buf[1024], *line = alloca(1024), **lp = &line;
     char *d, *l;
@@ -80,6 +86,11 @@ pl_addlist(playlist_t *pl, char *file, int pos)
 
     if(!plf)
 	return -1;
+
+    if(pos < 0)
+	pos = tpl->nf - pos + 1;
+    if(pos < 0)
+	pos = 0;
 
     l = strdup(file);
     d = strrchr(l, '/');
@@ -115,7 +126,12 @@ pl_remove(playlist_t *pl, int s, int n)
 
     pthread_mutex_lock(&tpl->lock);
 
-    nr = min(tpl->nf - s, n);
+    if(s < 0)
+	s = tpl->nf - s + 1;
+    if(s < 0)
+	s = 0;
+
+    nr = min(tpl->nf - s, (unsigned) n);
 
     for(i = 0; i < nr; i++)
 	free(tpl->files[s + i]);
@@ -134,7 +150,7 @@ pl_get(playlist_t *pl, char **d, int s, int n)
 
     pthread_mutex_lock(&tpl->lock);
 
-    ng = min(tpl->nf - s,  n);
+    ng = min(tpl->nf - s,  (unsigned) n);
 
     for(i = 0; i < ng; i++)
 	d[i] = strdup(tpl->files[s + i]);
@@ -156,6 +172,11 @@ pl_shuffle(playlist_t *pl, int s, int n)
     tcvp_playlist_t *tpl = pl->private;
     struct timeval tv;
     int i;
+
+    if(s < 0)
+	s = tpl->nf - s + 1;
+    if(s < 0)
+	s = 0;
 
     n = min(tpl->nf - s, n);
     gettimeofday(&tv, NULL);
@@ -238,7 +259,8 @@ out:
 static void *
 pl_event(void *p)
 {
-    tcvp_playlist_t *tpl = p;
+    playlist_t *pl = p;
+    tcvp_playlist_t *tpl = pl->private;
     int run = 1;
 
     while(run){
@@ -247,6 +269,10 @@ pl_event(void *p)
 	case TCVP_STATE:
 	    switch(te->state.state){
 	    case TCVP_STATE_ERROR:
+		tpl->state = PLAYING;
+		pl_next(tpl, 1);
+		break;
+
 	    case TCVP_STATE_END:
 		if(tpl->state == PLAYING)
 		    pl_next(tpl, 1);
@@ -272,6 +298,22 @@ pl_event(void *p)
 
 	case TCVP_PL_PREV:
 	    pl_next(tpl, -1);
+	    break;
+
+	case TCVP_PL_ADD:
+	    pl_add(pl, te->pl_add.names, te->pl_add.n, te->pl_add.pos);
+	    break;
+
+	case TCVP_PL_ADDLIST:
+	    pl_addlist(pl, te->pl_addlist.name, te->pl_addlist.pos);
+	    break;
+
+	case TCVP_PL_REMOVE:
+	    pl_remove(pl, te->pl_remove.start, te->pl_remove.n);
+	    break;
+
+	case TCVP_PL_SHUFFLE:
+	    pl_shuffle(pl, te->pl_shuffle.start, te->pl_shuffle.n);
 	    break;
 
 	case -1:
@@ -337,8 +379,6 @@ pl_new(conf_section *cs)
     eventq_attach(tpl->qr, qn, EVENTQ_RECV);
     eventq_attach(tpl->ss, qn, EVENTQ_SEND);
 
-    pthread_create(&tpl->eth, NULL, pl_event, tpl);
-
     pl = calloc(1, sizeof(*pl));
     pl->add = pl_add;
     pl->addlist = pl_addlist;
@@ -348,6 +388,8 @@ pl_new(conf_section *cs)
     pl->shuffle = pl_shuffle;
     pl->free = pl_free;
     pl->private = tpl;
+
+    pthread_create(&tpl->eth, NULL, pl_event, pl);
 
     return pl;
 }
