@@ -83,6 +83,7 @@ typedef struct s_play {
     pthread_t *threads;
     int state;
     int flushing;
+    int waiting;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
     eventq_t sq;
@@ -103,9 +104,19 @@ play_stream(void *p)
     packet_t *pk;
 
     while(vp->state != STOP){
+	int w = 1;
 	pthread_mutex_lock(&vp->mtx);
 	while(vp->state == PAUSE){
+	    if(w){
+		vp->waiting++;
+		pthread_cond_broadcast(&vp->cnd);
+		w = 0;
+	    }
 	    pthread_cond_wait(&vp->cnd, &vp->mtx);
+	}
+	if(!w){
+	    vp->waiting--;
+	    pthread_cond_broadcast(&vp->cnd);
 	}
 	pthread_mutex_unlock(&vp->mtx);
 
@@ -152,7 +163,11 @@ stop(tcvp_pipe_t *p)
 {
     s_play_t *vp = p->private;
 
+    pthread_mutex_lock(&vp->mtx);
     vp->state = PAUSE;
+    while(vp->waiting < vp->streams)
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
+    pthread_mutex_unlock(&vp->mtx);
 
     return 0;
 }
