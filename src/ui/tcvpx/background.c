@@ -51,6 +51,10 @@ repaint_background(tcwidget_t *w)
 	XTranslateCoordinates(xd, w->background.win, RootWindow(xd, xs),
 			      wa.x, wa.y, &x, &y, &foo);
 
+	if(x > w->background.width && x <= -w->background.width && 
+	   y > w->background.height && y <= -w->background.height)
+	    return 0;
+
 	if(x>=0 && y>=0 && x+w->background.width < root_width &&
 	   y+w->background.height < root_height) {
 	    img = XGetImage(xd, root, x, y, w->background.width,
