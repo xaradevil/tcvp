@@ -269,6 +269,7 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     p->format.stream_type = STREAM_TYPE_AUDIO;
+    p->format.common.codec = "audio/pcm-s16";
     p->format.audio.sample_rate = srate;
     p->format.audio.channels = 2;
 
