@@ -165,7 +165,10 @@ avfw_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     pthread_mutex_init(&avf->lock, NULL);
     pthread_cond_init(&avf->cnd, NULL);
 
-    url_fopen(&avf->fc.pb, ofn, URL_WRONLY);
+    if(url_fopen(&avf->fc.pb, ofn, URL_WRONLY)){
+	free(avf);
+	return NULL;
+    }
     av_set_parameters(&avf->fc, NULL);
 
     p = tcallocdz(sizeof(*p), NULL, avfw_free);
