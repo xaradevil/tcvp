@@ -340,12 +340,14 @@ del_stream(stream_player_t *sp, int s)
     }
 
     sp->ms->used_streams[s] = 0;
+    sp->nbuf &= ~(1 << s);
 
     if(!--sp->pstreams){
 	pthread_mutex_lock(&sh->lock);
 	if(!--sh->nstreams)
 	    tcvp_event_send(sh->sq, TCVP_STATE, TCVP_STATE_END);
 	pthread_mutex_unlock(&sh->lock);
+	sp->state = STOP;
     }
 
     pthread_cond_broadcast(&sp->cond);
@@ -395,7 +397,8 @@ play_stream(void *p)
     while(waitplay(sp, six)){
 	pthread_mutex_lock(&sp->lock);
 	pk = tclist_shift(str->packets);
-	if(tclist_items(str->packets) < min_buffer){
+	if(tclist_items(str->packets) < min_buffer &&
+	   sp->ms->used_streams[six]){
 	    sp->nbuf |= 1 << six;
 	    pthread_cond_broadcast(&sp->cond);
 	}
@@ -447,9 +450,14 @@ read_stream(void *p)
     stream_shared_t *sh = sp->shared;
 
     while(waitbuf(sp)){
-	packet_t *pk = sp->ms->next_packet(sp->ms, -1);
+	packet_t *pk = NULL;
 	struct sp_stream *str;
 	int ps;
+
+	pthread_mutex_lock(&sp->lock);
+	if(sp->pstreams)
+	    pk = sp->ms->next_packet(sp->ms, -1);
+	pthread_mutex_unlock(&sp->lock);
 
 	if(!pk){
 	    int i;
@@ -493,7 +501,10 @@ read_stream(void *p)
 			      "stream %i end time reached\n", pk->stream);
 		    tcfree(pk);
 		    pk = NULL;
+		    pthread_mutex_lock(&sp->lock);
 		    sp->ms->used_streams[ps] = 0;
+		    sp->nbuf &= ~(1 << ps);
+		    pthread_mutex_unlock(&sp->lock);
 		} else if(str->starttime == -1LL){
 		    tc2_print("STREAM", TC2_PRINT_DEBUG,
 			      "stream %i start %llu\n",
