@@ -2,10 +2,6 @@
 
 - playlist save/restore
 
-- key binding to restore video window size
-
-- key binding for fullscreen video
-
 - Recursively add directories
     When adding a directory to the playlist all files in that
     directory should be recursively added.

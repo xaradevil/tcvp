@@ -39,6 +39,7 @@ typedef struct x11_wm {
     Display *dpy;
     Window win, swin;
     int width, height;
+    int owidth, oheight;
     int vw, vh;
     float aspect;
     wm_update_t update;
@@ -48,7 +49,64 @@ typedef struct x11_wm {
     int color_key;
     int flags;
     eventq_t qs;
+    Atom wm_state;
+    Atom wm_fullscreen;
 } x11_wm_t;
+
+#define WM_STATE_REMOVE 0
+#define WM_STATE_ADD    1
+#define WM_STATE_TOGGLE 2
+
+static void
+x11_fullscreen(x11_wm_t *xwm, int fs)
+{
+    XEvent xev;
+
+    memset(&xev, 0, sizeof(xev));
+    xev.type = ClientMessage;
+    xev.xclient.window = xwm->win;
+    xev.xclient.message_type = xwm->wm_state;
+    xev.xclient.format = 32;
+    xev.xclient.data.l[0] = fs;
+    xev.xclient.data.l[1] = xwm->wm_fullscreen;
+    xev.xclient.data.l[2] = 0;
+
+    XSendEvent(xwm->dpy, RootWindow(xwm->dpy, DefaultScreen(xwm->dpy)), False,
+	       SubstructureNotifyMask, &xev);
+}
+
+static void
+x11_key_event(x11_wm_t *xwm, XKeyEvent *k)
+{
+    int key = XLookupKeysym(k, 0);
+
+    switch(key){
+    case XK_space:
+	tcvp_event_send(xwm->qs, TCVP_PAUSE);
+	break;
+    case XK_Up:
+	tcvp_event_send(xwm->qs, TCVP_SEEK, 27 * 60000000LL,
+			TCVP_SEEK_REL);
+	break;
+    case XK_Down:
+	tcvp_event_send(xwm->qs, TCVP_SEEK, -27 * 60000000LL,
+			TCVP_SEEK_REL);
+	break;
+    case XK_q:
+	tcvp_event_send(xwm->qs, TCVP_CLOSE);
+	break;
+    case XK_Escape:
+	tcvp_event_send(xwm->qs, TCVP_KEY, "escape");
+	break;
+    case XK_f:
+	x11_fullscreen(xwm, WM_STATE_TOGGLE);
+	break;
+    case XK_1:
+	x11_fullscreen(xwm, WM_STATE_REMOVE);
+	XResizeWindow(xwm->dpy, xwm->win, xwm->owidth, xwm->oheight);
+	break;
+    }
+}
 
 static void *
 x11_event(void *p)
@@ -116,27 +174,7 @@ x11_event(void *p)
 	    break;
 	}
 	case KeyPress: {
-	    int key = XLookupKeysym(&xe.xkey, 0);
-
-	    switch(key){
-	    case XK_space:
-		tcvp_event_send(xwm->qs, TCVP_PAUSE);
-		break;
-	    case XK_Up:
-		tcvp_event_send(xwm->qs, TCVP_SEEK, 27 * 60000000LL,
-				TCVP_SEEK_REL);
-		break;
-	    case XK_Down:
-		tcvp_event_send(xwm->qs, TCVP_SEEK, -27 * 60000000LL,
-				TCVP_SEEK_REL);
-		break;
-	    case XK_q:
-		tcvp_event_send(xwm->qs, TCVP_CLOSE);
-		break;
-	    case XK_Escape:
-		tcvp_event_send(xwm->qs, TCVP_KEY, "escape");
-		break;
-	    }
+	    x11_key_event(xwm, &xe.xkey);
 	    break;
 	}
 	case ButtonPress: {
@@ -226,29 +264,6 @@ x11_hidecursor(void *p)
     return NULL;
 }
 
-static void
-x11_fullscreen(x11_wm_t *xwm)
-{
-    XEvent xev;
-    Atom xa_wm_state, xa_fs;
-
-    xa_fs = XInternAtom(xwm->dpy, "_NET_WM_STATE_FULLSCREEN", False);
-    xa_wm_state = XInternAtom(xwm->dpy, "_NET_WM_STATE", False);
-
-    memset(&xev, 0, sizeof(xev));
-    xev.type = ClientMessage;
-    xev.xclient.window = xwm->win;
-    xev.xclient.message_type = xa_wm_state;
-    xev.xclient.format = 32;
-    xev.xclient.data.l[0] = 1;
-    xev.xclient.data.l[1] = xa_fs;
-    xev.xclient.data.l[2] = 0;
-
-    XSendEvent(xwm->dpy, RootWindow(xwm->dpy, DefaultScreen(xwm->dpy)), False,
-	       SubstructureNotifyMask, &xev);
-}
-
-
 extern window_manager_t *
 x11_open(int width, int height, wm_update_t upd, void *cbd,
 	 tcconf_section_t *cs, int flags)
@@ -281,6 +296,8 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     xwm->win = win;
     xwm->width = width;
     xwm->height = height;
+    xwm->owidth = width;
+    xwm->oheight = height;
     xwm->aspect = (float) width / height;
     xwm->update = upd;
     xwm->cbd = cbd;
@@ -288,6 +305,9 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     tcconf_getvalue(cs, "video/color_key", "%i", &xwm->color_key);
     tcconf_getvalue(cs, "video/width", "%i", &xwm->vw);
     tcconf_getvalue(cs, "video/height", "%i", &xwm->vh);
+
+    xwm->wm_state = XInternAtom(dpy, "_NET_WM_STATE", False);
+    xwm->wm_fullscreen = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
 
     xwm->swin = XCreateWindow(dpy, win, 0, 0, width, height, 0, CopyFromParent,
 			      InputOutput, CopyFromParent, 0, NULL);
@@ -312,7 +332,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     XMapSubwindows(xwm->dpy, xwm->win);
 
     if(fs)
-	x11_fullscreen(xwm);
+	x11_fullscreen(xwm, WM_STATE_ADD);
 
     pthread_create(&xwm->eth, NULL, x11_event, xwm);
     pthread_create(&xwm->cth, NULL, x11_hidecursor, xwm);
