@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003, 2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -124,6 +124,13 @@ conv_str(char *s, size_t size, char *fset, char *tset)
     iconv_t ic;
     size_t ib, ob;
 
+    if(!s)
+	return strdup("");
+
+    tc2_print("ID3", TC2_PRINT_DEBUG,
+	      "converting '%.*s' (%li) from %s to %s\n",
+	      size,  s, size, fset, tset);
+
     ic = iconv_open(tset, fset);
     if(ic == (iconv_t) -1){
 	tc2_print("ID3", TC2_PRINT_ERROR, "iconv_open: %s\n", strerror(errno));
@@ -145,6 +152,9 @@ conv_str(char *s, size_t size, char *fset, char *tset)
 		text = realloc(text, size *= 2);
 		ob = size - s;
 		ct = text + s;
+		tc2_print("ID3", TC2_PRINT_DEBUG,
+			  "output buffer full, resizing to %li (%li)\n",
+			  size, ob);
 	    } else {
 		tc2_print("ID3", TC2_PRINT_ERROR,
 			  "iconv: %s\n", strerror(errno));
@@ -153,7 +163,10 @@ conv_str(char *s, size_t size, char *fset, char *tset)
 	}
     }
 
-    *ct = 0;
+    ob = ct - text;
+    text = realloc(text, ob + 1);
+    text[ob] = 0;
+
     iconv_close(ic);
     return text;
 }
@@ -348,7 +361,7 @@ id3v1_strdup(char *p, int s)
     while(!(*e & ~0x20) && e > p)
 	e--;
     s = e - p + 1;
-    return conv_str(p, s, encodings[0], "UTF-8");
+    return conv_str(p, s, tcvp_demux_mp3_conf_id3v1_charset, "UTF-8");
 }
 
 extern int
