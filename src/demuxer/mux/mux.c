@@ -34,7 +34,7 @@
 #include <mux_tc2.h>
 
 typedef struct mux {
-    int nstreams;
+    int nstreams, tstreams;
     int waiting;
     struct {
 	uint64_t time;
@@ -50,7 +50,7 @@ next_stream(mux_t *mx)
     uint64_t t = -1LL;
     int i, s = -1;
 
-    for(i = 0; i < mx->nstreams; i++){
+    for(i = 0; i < mx->tstreams; i++){
 	if(mx->streams[i].time < t){
 	    t = mx->streams[i].time;
 	    s = i;
@@ -72,23 +72,30 @@ mux_packet(tcvp_pipe_t *tp, packet_t *pk)
     else if(pk->flags & TCVP_PKT_FLAG_PTS)
 	mx->streams[pk->stream].time = pk->pts;
 
-/*     tc2_print("MUX", TC2_PRINT_DEBUG, */
-/* 	      "%i time %llu\n", pk->stream, mx->streams[pk->stream].time); */
-
     mx->waiting++;
     pthread_cond_broadcast(&mx->cond);
 
-    while(mx->waiting < mx->nstreams && next_stream(mx) != pk->stream)
+/*     tc2_print("MUX", TC2_PRINT_DEBUG + 1, */
+/* 	      "%i time %llu, ns=%i, w=%i\n", pk->stream, */
+/* 	      mx->streams[pk->stream].time, mx->nstreams, mx->waiting); */
+
+    while(mx->waiting < mx->nstreams || next_stream(mx) != pk->stream)
 	pthread_cond_wait(&mx->cond, &mx->lock);
 
-    mx->waiting--;
-    if(!pk->data)
-	mx->nstreams--;
+/*     tc2_print("MUX", TC2_PRINT_DEBUG + 1, */
+/* 	      "sending packet %i, w=%i\n", pk->stream, mx->waiting); */
 
-    if(pk->data)
+    if(pk->data){
 	mx->streams[pk->stream].time +=
 	    pk->sizes[0] * mx->streams[pk->stream].rate;
+    } else {
+	mx->nstreams--;
+	mx->streams[pk->stream].time = -1LL;
+	tc2_print("MUX", TC2_PRINT_DEBUG,
+		  "stream %i end, ns=%i\n", pk->stream, mx->nstreams);
+    }
 
+    mx->waiting--;
     tp->next->input(tp->next, pk);
 
     pthread_cond_broadcast(&mx->cond);
@@ -102,8 +109,8 @@ mux_probe(tcvp_pipe_t *tp, packet_t *pk, stream_t *s)
     mux_t *mx = tp->private;
 
     tc2_print("MUX", TC2_PRINT_DEBUG, "probe %i\n", pk->stream);
-	mx->streams[pk->stream].rate =
-	    27000000LL * 8 / (s->common.bit_rate? s->common.bit_rate: 320000);
+    if(s->common.bit_rate)
+	mx->streams[pk->stream].rate = 27000000LL * 8 / s->common.bit_rate;
     return tp->next->probe(tp->next, pk, s);
 }
 
@@ -122,6 +129,7 @@ mux_ref(void *p)
 
     pthread_mutex_lock(&mx->lock);
     mx->nstreams++;
+    mx->tstreams++;
     tc2_print("MUX", TC2_PRINT_DEBUG, "ref, nstreams=%i\n", mx->nstreams);
     mx->streams = realloc(mx->streams, mx->nstreams * sizeof(*mx->streams));
     memset(mx->streams + mx->nstreams - 1, 0, sizeof(*mx->streams));
