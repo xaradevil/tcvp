@@ -24,6 +24,9 @@
 
 #include "tcvpx.h"
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "tcvpctl.h"
 #include <X11/Xlib.h>
 
@@ -176,14 +179,24 @@ load_skin(char *skinconf)
     char *tmp;
     skin_t *skin = calloc(sizeof(*skin), 1);
     int i=0;
+    char *conf_tmp;
+    struct stat stat_foo;
+ 
+    if(skinconf[0]!='/' && stat(skinconf, &stat_foo)) {
+	conf_tmp = malloc(strlen(TCVP_SKINS)+strlen(skinconf)+2);
+	sprintf(conf_tmp, "%s/%s", TCVP_SKINS, skinconf);
+    } else {
+	conf_tmp = strdup(skinconf);
+    }
 
-    if(!(skin->config = tcconf_load_file (NULL, skinconf))){
-	tc2_print("TCVPX", TC2_PRINT_ERROR, "Error loading file \"%s\".\n", skinconf);
+    if(!(skin->config = tcconf_load_file (NULL, conf_tmp))){
+	tc2_print("TCVPX", TC2_PRINT_ERROR, "Error loading file \"%s\".\n", conf_tmp);
+	free(conf_tmp);
 	return NULL;
     }
 
-    skin->file = skinconf;
-    skin->path = strdup(skinconf);
+    skin->file = conf_tmp;
+    skin->path = strdup(conf_tmp);
     tmp = strrchr(skin->path, '/');
     if(!tmp){
 	strcpy(skin->path, ".");

@@ -1,0 +1,1 @@
+tcvpx_MODINC += -DTCVP_SKINS=\"${datadir}/tcvp/skins\"
