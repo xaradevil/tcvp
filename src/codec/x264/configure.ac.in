@@ -1,0 +1,4 @@
+AC_ARG_WITH([x264], AC_HELP_STRING([--with-x264=DIR], [x264 source dir]),
+	    TC2_ADD_INC([-I$withval])
+	    TC2_ADD_LDFLAGS([-L$withval -lx264 -lm])
+	    TC2_ENABLE_MODULE)

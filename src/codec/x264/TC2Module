@@ -1,0 +1,13 @@
+module		x264
+name		"TCVP/codec/x264"
+version		0.1.0
+tc2version	0.6.0
+sources		x264.c
+
+TCVP {
+	filter "encoder/video/h264" {
+		new x4_new
+		packet DATA x4_encode
+		probe x4_probe
+	}
+}

@@ -10,6 +10,7 @@ module src/codec/mad
 module src/codec/mpeg2
 module src/codec/pcm
 module src/codec/vorbis
+module src/codec/x264
 module src/demuxer/avformat
 module src/demuxer/avi
 module src/demuxer/avimage
