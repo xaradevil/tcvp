@@ -15,7 +15,6 @@
 #include <pthread.h>
 #include <tcvp_types.h>
 #include <sys/time.h>
-#include <math.h>
 #include <sched.h>
 #include <mpeg_tc2.h>
 #include "mpeg.h"
@@ -206,7 +205,7 @@ tmx_output(void *p)
 	time = tsm->pcr - pcrb;
 	if(time > 27000000 / 10){
 	    int erate = (8 * ebytes * 27000000LL) / time;
-	    uint64_t rs = 0, rss = 0;
+	    uint64_t rs = 0;
 	    int ns;
 
 	    gettimeofday(&tv, NULL);
@@ -220,12 +219,9 @@ tmx_output(void *p)
 		    rs += srate[i];
 		ns = i;
 		rs /= ns;
-		for(i = 0; i < ns; i++)
-		    rss += sqr(srate[i] - rs);
-		rss /= ns;
-		fprintf(stderr, "%lli %7i %7lli %5.0lf %8.3lf %.2f\r",
+		fprintf(stderr, "%lli %7i %7lli %8.3lf %.2f\r",
 			(8 * bytes * 27000) / time,
-			mrate / 1000, rs / 1000, sqrt(rss) / 1000,
+			mrate / 1000, rs / 1000,
 			(double) (tsm->pcr - tsm->start_time) / 27000000,
 			(float) rs / tsm->bitrate);
 		mrate = 0;
