@@ -335,7 +335,6 @@ sub text {
 label [
 	position 112 26
 	size 153 8
-	text_offset 0 7
 	font 'Arial:pixelsize=8:aspect=1.1'
 	color "$color" 255
 	text '\${title:u} - \${performer:u}'
@@ -345,7 +344,6 @@ label [
 label [
 	position 111 43
 	size 15 8
-	text_offset 0 6
 	font 'Arial:pixelsize=8:spacing=monospace:aspect=1.1'
 	color "$color" 255
 	text '\${audio_bitrate:-0}'
@@ -354,7 +352,6 @@ label [
 label [
 	position 156 43
 	size 10 8
-	text_offset 0 6
 	font 'Arial:pixelsize=8:spacing=monospace:aspect=1.1'
 	color "$color" 255
 	text '\${audio_samplerate:-0}'
@@ -368,7 +365,6 @@ END_TCCONF
 label [
 	position 130 4
 	size 30 6
-	text_offset 0 6
 	font 'arial:pixelsize=8:spacing=monospace:aspect=1.1'
 	color '$color'
 	text '\${time} '
@@ -397,7 +393,6 @@ sub numbers {
 label [
 	position 36 26
 	size 65 13
-	text_offset 0 $yoff
 	font 'arial:pixelsize=$pxs:aspect=$asp:weight=bold:spacing=monospace'
 	color "$color"
 	text '\${time:-    :  } '
