@@ -207,10 +207,11 @@ print_stream(stream_t *s)
 	if(s->video.width)
 	    printf(", %ix%i", s->video.width, s->video.height);
 	if(s->video.frame_rate.den)
-	    printf(", %lf fps",
+	    printf(", %.2lf fps",
 		   (double) s->video.frame_rate.num / s->video.frame_rate.den);
 	if(s->video.aspect.den)
-	    printf(", aspect %lf",
+	    printf(", aspect %i/%i (%.2lf)",
+		   s->video.aspect.num, s->video.aspect.den,
 		   (double) s->video.aspect.num / s->video.aspect.den);
 	break;
     }
