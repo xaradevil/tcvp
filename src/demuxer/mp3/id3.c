@@ -32,13 +32,15 @@ getuint(32)
 getuint(64)
 
 static inline uint32_t
-getss32(url_t *f)
+getss32(url_t *f, int version)
 {
     uint32_t v;
     v = getu32(f);
-    v = (v & 0x7fffff) | ((v & ~0xffffff) >> 1);
-    v = (v & 0x7fff) | ((v & ~0xffff) >> 1);
-    v = (v & 0x7f) | ((v & ~0xff) >> 1);
+    if(version > 3){
+	v = (v & 0x7fffff) | ((v & ~0xffffff) >> 1);
+	v = (v & 0x7fff) | ((v & ~0xffff) >> 1);
+	v = (v & 0x7f) | ((v & ~0xff) >> 1);
+    }
     return v;
 }
 
@@ -137,7 +139,8 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	goto err;
     }
 
-    size = getss32(f);
+    version >>= 8;
+    size = getss32(f, version);
     tsize = size + ((flags & ID3v2_FLAG_FOOT)? 20: 10);
 
 #ifdef DEBUG
@@ -145,7 +148,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 #endif
 
     if(flags & ID3v2_FLAG_EXTH){
-	uint32_t esize = getss32(f);
+	uint32_t esize = getss32(f, version);
 	f->seek(f, esize - 4, SEEK_CUR);
 	size -= esize;
     }
@@ -160,7 +163,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	if(!tag)
 	    break;
 
-	dsize = fsize = getss32(f);
+	dsize = fsize = getss32(f, version);
 	fflags = getu16(f);
 	pos = f->tell(f);
 
@@ -175,7 +178,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	if(fflags & ID3v2_FFLAG_CRYPT)
 	    url_getc(f);
 	if(fflags & ID3v2_FFLAG_DLEN)
-	    dlen = getss32(f);
+	    dlen = getss32(f, version);
 
 	switch(tag){
 	case TAG('T','I','T','2'):
