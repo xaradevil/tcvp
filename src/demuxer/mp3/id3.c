@@ -409,6 +409,9 @@ id3v1_tag(url_t *f, muxed_stream_t *ms)
 	if(!tcattr_get(ms, "performer"))
 	    tcattr_set(ms, "performer", id3v1_strdup(buf + 33, 30),
 		       NULL, free);
+	if(!tcattr_get(ms, "album"))
+	    tcattr_set(ms, "album", id3v1_strdup(buf + 63, 30),
+		       NULL, free);
 	ts = 128;
     }
 
