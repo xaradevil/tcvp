@@ -262,7 +262,7 @@ add_stream(stream_player_t *sp, int s)
     sp->streams[s].starttime = -1LL;
 
     sp->ms->used_streams[s] = 1;
-    sp->nbuf++;
+    sp->nbuf |= 1 << s;
 
     r = 0;
 
@@ -356,7 +356,7 @@ play_stream(void *p)
 	pthread_mutex_lock(&sp->lock);
 	pk = tclist_shift(str->packets);
 	if(tclist_items(str->packets) < min_buffer){
-	    sp->nbuf++;
+	    sp->nbuf |= 1 << six;
 	    pthread_cond_broadcast(&sp->cond);
 	}
 	pthread_mutex_unlock(&sp->lock);
@@ -441,6 +441,7 @@ read_stream(void *p)
 		sh->starttime = pk->pts;
 		if(sh->playtime != -1LL)
 		    sh->endtime = sh->starttime + sh->playtime;
+		sh->timer->reset(sh->timer, sh->starttime);
 		tc2_print("STREAM", TC2_PRINT_DEBUG, "start %llu, end %llu\n",
 			  sh->starttime / 27, sh->endtime / 27);
 	    }
@@ -487,7 +488,7 @@ read_stream(void *p)
 		if(str->packets){
 		    tclist_push(str->packets, pk);
 		    if(tclist_items(str->packets) > min_buffer)
-			sp->nbuf--;
+			sp->nbuf &= ~(1 << ps);
 		}
 		pthread_cond_broadcast(&sp->cond);
 		pthread_mutex_unlock(&sp->lock);
@@ -556,7 +557,7 @@ s_flush(tcvp_pipe_t *tp, int drop)
 	if(sp->streams[i].pipe)
 	    sp->streams[i].pipe->flush(sp->streams[i].pipe, drop);
 	if(sp->streams[i].probe == PROBE_OK)
-	    sp->nbuf++;
+	    sp->nbuf |= 1 << i;
     }
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "flush complete\n", drop);
