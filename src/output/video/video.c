@@ -46,7 +46,21 @@ typedef struct video_out {
     pthread_t thr;
     int head, tail;
     sem_t hsem, tsem;
+    int *drop;
+    int dropcnt;
+    int framecnt;
 } video_out_t;
+
+#define DROPLEN 4
+
+static int drops[][DROPLEN] = {
+    {0, 0, 0, 0},
+    {1, 0, 0, 0},
+    {1, 0, 1, 0},
+    {1, 1, 1, 0}
+};
+
+static float drop_thresholds[] = {0.5, 0.25, 0.125, 0};
 
 static void *
 v_play(void *p)
@@ -112,18 +126,36 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
     int strides[4];
     int planes;
 
-    sem_wait(&vo->hsem);
+    if(!vo->drop[vo->dropcnt]){
+	sem_wait(&vo->hsem);
 
-    planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
-    vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);
+	planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
+	vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);
 
-    vo->pts[vo->head] = pk->pts;
+	vo->pts[vo->head] = pk->pts;
 
-    if(++vo->head == vo->driver->frames){
-	vo->head = 0;
+	if(++vo->head == vo->driver->frames){
+	    vo->head = 0;
+	}
+
+	sem_post(&vo->tsem);
     }
 
-    sem_post(&vo->tsem);
+    if(++vo->framecnt > vo->driver->frames){
+	int i, bf;
+	float bfr;
+
+	if(++vo->dropcnt == DROPLEN)
+	    vo->dropcnt = 0;
+
+	bf = vo->head - vo->tail;
+	if(bf < 0)
+	    bf += vo->driver->frames;
+	bfr = (float) bf / vo->driver->frames;
+
+	for(i = 0; bfr < drop_thresholds[i]; i++);
+	vo->drop = drops[i];
+    }
 
     pk->free(pk);
 
@@ -169,6 +201,8 @@ v_flush(tcvp_pipe_t *p, int drop)
 	vo->tail = vo->head;
 	sem_post(&vo->hsem);
     }
+
+    vo->framecnt = 0;
 
     return 0;
 }
@@ -237,7 +271,7 @@ v_open(video_stream_t *vs, char *device, timer__t *timer)
     if(!vd)
 	return NULL;
 
-    vo = malloc(sizeof(*vo));
+    vo = calloc(1, sizeof(*vo));
     vo->driver = vd;
     vo->vstream = vs;
     vo->timer = timer;
@@ -250,6 +284,7 @@ v_open(video_stream_t *vs, char *device, timer__t *timer)
     pthread_mutex_init(&vo->smx, NULL);
     pthread_cond_init(&vo->scd, NULL);
     vo->state = PAUSE;
+    vo->drop = drops[0];
     pthread_create(&vo->thr, NULL, v_play, vo);
 
     pipe = malloc(sizeof(*pipe));
