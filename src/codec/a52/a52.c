@@ -141,12 +141,12 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 	return 6;
     case A52_3F2R | A52_LFE:
 	for (i = 0; i < 256; i++) {
-	    s16[6*i] = convert (f[i]);
-	    s16[6*i+1] = convert (f[i+512]);
-	    s16[6*i+2] = convert (f[i+768]);
-	    s16[6*i+3] = convert (f[i+1024]);
-	    s16[6*i+4] = convert (f[i+256]);
-	    s16[6*i+5] = convert (f[i+1280]);
+	    s16[6*i] = convert (f[i+256]);
+	    s16[6*i+1] = convert (f[i+768]);
+	    s16[6*i+2] = convert (f[i+1024]);
+	    s16[6*i+3] = convert (f[i+1280]);
+	    s16[6*i+4] = convert (f[i+512]);
+	    s16[6*i+5] = convert (f[i]);
 	}
 	return 6;
     default:
