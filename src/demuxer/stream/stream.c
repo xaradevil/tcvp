@@ -135,13 +135,11 @@ dqp(s_play_t *vp, int s)
     while(!pq->count && vp->state != STOP)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
 
-    if(vp->state != STOP){
-	pk = pq->q[pq->tail];
-	if(++pq->tail == QSIZE)
-	    pq->tail = 0;
-	pq->count--;
-	pthread_cond_broadcast(&vp->cnd);
-    }
+    pk = pq->q[pq->tail];
+    if(++pq->tail == QSIZE)
+	pq->tail = 0;
+    pq->count--;
+    pthread_cond_broadcast(&vp->cnd);
 
     pthread_mutex_unlock(&vp->mtx);
 
@@ -283,7 +281,8 @@ s_flush(tcvp_pipe_t *p, int drop)
 	    if(drop){
 		while(vp->pq[i].count){
 		    packet_t *pk = dqp(vp, i);
-		    pk->free(pk);
+		    if(pk)
+			pk->free(pk);
 		}
 	    }
 	}
@@ -318,6 +317,8 @@ s_free(tcvp_pipe_t *p)
 	    j++;
 	}
     }
+
+    s_flush(p, 1);
 
     pthread_mutex_lock(&vp->mtx);
     while(vp->flushing)
