@@ -82,14 +82,13 @@ audio_free(void *p)
     ao->state = STOP;
     pthread_cond_broadcast(&ao->cd);
     pthread_mutex_unlock(&ao->mx);
-    if(ao->pth)
-	pthread_join(ao->pth, NULL);
     if(ao->driver)
 	tcfree(ao->driver);
     if(ao->buf)
 	free(ao->buf);
     free(ao->ptsq);
     free(tp->format.common.codec);
+    tcfree(ao->conf);
     free(ao);
 }
 
@@ -323,6 +322,8 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    }
 	}
     }
+
+    free(formats);
 
     if(!ad)
 	return PROBE_FAIL;

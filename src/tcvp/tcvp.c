@@ -126,6 +126,7 @@ do_close(tcvp_player_t *tp)
 	for(i = 0; i < tp->nstreams; i++)
 	    if(tp->streams[i])
 		tcfree(tp->streams[i]);
+	free(tp->streams);
 	tp->streams = NULL;
     }
 

@@ -146,6 +146,7 @@ new_timer(int res, int class, int sclass, int card, int dev, int subdev)
     snd_timer_poll_descriptors(timer, atm->pfd, atm->npfd);
     atm->class = class;
 
+    snd_config_update_free_global();
     return atm;
 }
 

@@ -272,11 +272,9 @@ tcl_init(char *p)
     }
     tcfree(tcvp_conf);
 
-    modnames = realloc(modnames, (nadd + tcvp_ui_cmdline_conf_module_count) *
-		       sizeof(*modnames));
-    memcpy(modnames + nadd, tcvp_ui_cmdline_conf_module,
-	   tcvp_ui_cmdline_conf_module_count * sizeof(*modnames));
-    nadd += tcvp_ui_cmdline_conf_module_count;
+    for(i = 0; i < tcvp_ui_cmdline_conf_module_count; i++)
+	add_module(tcvp_ui_cmdline_conf_module[i]);
+
     modules = calloc(nadd, sizeof(*modules));
     for(i = 0; i < nadd; i++){
 	tcvp_module_new_t anf;
@@ -411,9 +409,12 @@ tcl_stop(void)
 
     if(modules){
 	int i;
-	for(i = 0; i < nadd; i++)
+	for(i = 0; i < nadd; i++){
 	    if(modules[i])
 		tcfree(modules[i]);
+	    if(modnames[i])
+		free(modnames[i]);
+	}
 	free(modules);
 	free(modnames);
     }

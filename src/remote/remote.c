@@ -95,7 +95,8 @@ rm_event(void *p)
 
 	if(te->type == -1){
 	    run = 0;
-	    continue;
+	    tcfree(te);
+	    break;
 	}
 
 	if(tcattr_get(te, "addr"))
@@ -307,6 +308,7 @@ rm_free(void *p)
 	eventq_delete(rm->st);
     if(rm->conf)
 	tcfree(rm->conf);
+    free(rm);
 }
 
 static int
@@ -442,5 +444,12 @@ rm_init(char *p)
     get_event("TCVP_LOAD", STATUS);
     get_event("TCVP_QUERY", CONTROL);
 
+    return 0;
+}
+
+extern int
+rm_shdn(void)
+{
+    free(event_types);
     return 0;
 }
