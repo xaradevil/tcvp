@@ -38,7 +38,7 @@ static int validate;
 static player_t *pl;
 static eventq_t qr;
 static char *qname;
-static char *sel_ui = NULL;
+static char *sel_ui;
 
 static void
 show_help(void)
@@ -134,6 +134,9 @@ tcl_init(char *p)
 {
     pl = tcvp_new(cf);
     conf_getvalue(cf, "qname", "%s", &qname);
+    if(!sel_ui)
+	sel_ui = tcvp_ui_cmdline_conf_ui;
+
     if(nfiles){
 	char qn[strlen(qname)+8];
 	qr = eventq_new(tcref);
@@ -141,15 +144,15 @@ tcl_init(char *p)
 	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
 	pthread_create(&play_thr, NULL, tcl_play, NULL);
-    } else if(tcvp_ui_cmdline_conf_ui || sel_ui){
-	char *ui = alloca(strlen((!sel_ui)?tcvp_ui_cmdline_conf_ui:sel_ui)+9);
-	sprintf(ui, "TCVP/ui/%s", (!sel_ui)?tcvp_ui_cmdline_conf_ui:sel_ui);
+    } else if(sel_ui){
+	char *ui = alloca(strlen(sel_ui)+9);
+	sprintf(ui, "TCVP/ui/%s", sel_ui);
 	tc2_request(TC2_LOAD_MODULE, 1, ui, qname);
 	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
 	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
     } else {
 	show_help();
-	tc2_request(TC2_UNLOAD_MODULE, 0, MODULE_INFO.name);
+	tc2_request(TC2_UNLOAD_ALL, 0);
     }
 
     return 0;
