@@ -738,6 +738,9 @@ avi_packet(muxed_stream_t *ms, int stream)
     size = getu32(af->file);
     str = tag2str(tag);
 
+    if(size > 1 << 24)
+	goto again;
+
     if(!(size & ~0x12)){
 	char tag[4];
 	af->file->seek(af->file, 8, SEEK_CUR);
