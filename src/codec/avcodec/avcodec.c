@@ -405,7 +405,7 @@ static char *codec_names[][2] = {
     { (char *) CODEC_ID_MPEG2VIDEO, "video/mpeg2" },
     { (char *) CODEC_ID_H263, "video/h263" },
     { (char *) CODEC_ID_RV10, "video/rv10" },
-    { (char *) CODEC_ID_MP3, "audio/mp2" },
+    { (char *) CODEC_ID_MP2, "audio/mp2" },
     { (char *) CODEC_ID_MP3, "audio/mp3" },
     { (char *) CODEC_ID_MP3, "audio/mpeg" },
     { (char *) CODEC_ID_VORBIS, "audio/vorbis" },

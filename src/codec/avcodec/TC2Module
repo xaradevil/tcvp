@@ -2,7 +2,7 @@ module		avcodec
 name		"TCVP/codec/avcodec"
 version		0.1.1
 tc2version	0.6.0
-sources		avcodec.c encode.c avc.h
+sources		avcodec.c encode.c avc.h audioenc.c
 postinit	avc_init
 
 TCVP {
@@ -81,5 +81,19 @@ TCVP {
 		packet DATA avc_encvid
 		probe avc_encvideo_probe
 		flush avc_encvid_flush
+	}
+
+	filter "encoder/audio/mp2" {
+		new avc_mp2_enc_new
+		packet DATA avc_audioenc
+		probe avc_audioenc_probe
+		flush avc_audioenc_flush
+	}
+
+	filter "encoder/audio/ac3" {
+		new avc_ac3_enc_new
+		packet DATA avc_audioenc
+		probe avc_audioenc_probe
+		flush avc_audioenc_flush
 	}
 }
