@@ -149,6 +149,7 @@ tcvpx_free(void *p)
     
     cleanup_skins();
     free_dynamic();
+    free_ctl();
 
     if(qs)
 	eventq_delete(qs);

@@ -65,7 +65,7 @@ extern void cleanup_skins(void);
 extern int init_dynamic(void);
 extern void free_dynamic(void);
 
-extern int init_events(void);
+extern void free_ctl(void);
 
 extern int parse_text(char *text, char *result, int len);
 extern int parse_variable(char *text, void **result, void **def);

@@ -57,7 +57,6 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	    break;
 
 	case TCVP_STATE_END:
-	{
 	    change_text("state", "stop");
 	    s_pos = -1;
 	    update_time();
@@ -65,7 +64,6 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 		tcfree(st);
 	    st = NULL;
 	    break;
-	}
 	}
 
     } else if(te->type == TCVP_TIMER) {
@@ -329,4 +327,10 @@ tcvp_playlist_remove(xtk_widget_t *w, void *p)
     tcvp_event_send(qs, TCVP_PL_REMOVE, pos, num);
 
     return 0;
+}
+
+extern void
+free_ctl(void)
+{
+    tcfree(st);
 }

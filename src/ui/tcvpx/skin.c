@@ -261,6 +261,7 @@ load_skin(char *skinconf)
 static void
 free_skin(skin_t *skin)
 {
+    free(skin->file);
     free(skin->path);
     tcfree(skin->config);
     tchash_destroy(skin->id_hash, NULL);

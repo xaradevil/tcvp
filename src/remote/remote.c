@@ -126,8 +126,10 @@ rm_event(void *p)
 	    break;
 	}
 
-	if(tcattr_get(te, "addr"))
+	if(tcattr_get(te, "addr")){
+	    tcfree(te);
 	    continue;
+	}
 
 	se = tcvp_event_serialize(te, &size);
 	if(se){
