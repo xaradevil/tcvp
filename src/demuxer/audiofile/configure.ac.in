@@ -1,0 +1,2 @@
+AM_PATH_AUDIOFILE(0.2.3, [DEMUXER_MODULES="$DEMUXER_MODULES audiofile"],
+	  AC_MSG_WARN([audiofile not found]))

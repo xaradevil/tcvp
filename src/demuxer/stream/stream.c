@@ -43,6 +43,8 @@ s_open(char *name, conf_section *cs)
 	    m = "video/x-avi";
 	} else if(!strcmp(ext, "mp3")){
 	    m = "audio/mp3";
+	} else if(!strcmp(ext, "wav")){
+	    m = "audio/x-wav";
 	}
     }
 

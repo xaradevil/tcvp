@@ -1,0 +1,1 @@
+MODLIBS = -lcdda_interface -lcdda_paranoia

@@ -1,0 +1,9 @@
+module		audiofile
+name		"TCVP/demux/audiofile"
+version		0.1.0
+tc2version	0.4.0
+sources		af.c
+implement	"audio/x-wav"	"open"		af_open
+implement	"audio/x-wav"	"next_packet"	af_next_packet
+import		"URL"		"open"
+option		packet_size%i=4096

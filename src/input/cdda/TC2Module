@@ -1,0 +1,11 @@
+module		cdda
+name		"TCVP/input/cdda"
+version		0.1.0
+tc2version	0.4.0
+sources		cdda.c
+implement	"URL/cdda"	"open"	cd_open
+implement	"URL/cdda"	"read"	cd_read
+implement	"URL/cdda"	"seek"	cd_seek
+implement	"URL/cdda"	"close"	cd_close
+option		device%s="/dev/cdroms/cdrom0"
+option		buffer%i=8192

@@ -13,6 +13,7 @@ AC_CONFIG_FILES([Makefile
 		 lib/Makefile
 		 src/Makefile
 		 src/demuxer/Makefile
+		 src/demuxer/audiofile/Makefile
 		 src/demuxer/avformat/Makefile
 		 src/demuxer/avi/Makefile
 		 src/demuxer/mp3/Makefile
@@ -29,6 +30,8 @@ AC_CONFIG_FILES([Makefile
 		 src/codec/pcm/Makefile
 		 src/filters/Makefile
 		 src/filters/deinterlace/Makefile
+		 src/input/Makefile
+		 src/input/cdda/Makefile
 		 src/output/Makefile
 		 src/output/drivers/Makefile
 		 src/output/drivers/vidix/Makefile
@@ -57,6 +60,7 @@ echo The following TCVP modules will be built:
 echo Codec modules..........: $CODEC_MODULES
 echo Demuxer modules........: $DEMUXER_MODULES
 echo Filter Modules.........: $FILTERS_MODULES
+echo Input modules..........: $INPUT_MODULES
 echo Output modules.........: $OUTPUT_MODULES
 echo Driver modules.........: $DRIVERS_MODULES
 echo User interface modules.: $UI_MODULES
