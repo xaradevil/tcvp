@@ -183,9 +183,7 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 	    }
 	    out->planes = i;
 
-	    if(vc->frame->pts){
-		vc->pts = vc->ptsd * vc->frame->pts;
-	    } else if(pk->pts){
+	    if(pk->pts){
 		uint64_t pts = vc->pts / vc->ptsd;
 		uint64_t ptsdiff = pk->pts > pts? pk->pts - pts: pts - pk->pts;
 		if(ptsdiff > 1000000){
