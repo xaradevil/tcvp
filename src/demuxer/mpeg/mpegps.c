@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -67,7 +67,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	    } else if(zc >= 2 && scode == 1){
 		break;
 	    } else if(scode < 0){
-		tc2_print("MPEGPS", TC2_PRINT_DEBUG, "zc=%i, scode=%x\n",
+		tc2_print("MPEGPS", TC2_PRINT_DEBUG+1, "zc=%i, scode=%x\n",
 			  zc, scode);
 		return NULL;
 	    } else {
@@ -76,7 +76,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	} while(!scode || i--);
 
 	if(zc < 2 || scode != 1){
-	    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "zc=%i, scode=%x\n",
+	    tc2_print("MPEGPS", TC2_PRINT_DEBUG+1, "zc=%i, scode=%x\n",
 		      zc, scode);
 	    return NULL;
 	}
@@ -416,6 +416,8 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
     u_char *pm;
     int l, pc = 0;
 
+    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "searching for PSM\n");
+
     do {
 	if(pk)
 	    mpegpes_free(pk);
@@ -425,10 +427,14 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
     } while(pk->stream_id != PROGRAM_STREAM_MAP && pc++ < 16);
 
     if(!pk || pk->stream_id != PROGRAM_STREAM_MAP){
+	tc2_print("MPEGPS", TC2_PRINT_DEBUG,
+		  "PSM not found after %i packets, giving up\n", pc - 1);
 	if(pk)
 	    mpegpes_free(pk);
 	return -1;
     }
+
+    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "PSM found at packet %i\n", pc - 1);
 
     pm = pk->data + 2;
     l = htob_16(unaligned16(pm));
@@ -495,6 +501,8 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
     mpegpes_packet_t *pk = NULL;
     int pc = 0;
 
+    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "searching for streams\n");
+
     while(pc++ < 4096){
 	if(!(pk = mpegpes_packet(s, 1))){
 	    break;
@@ -516,7 +524,8 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 		s->map[ms->n_streams] = pk->stream_id;
 
 		tc2_print("MPEGPS", TC2_PRINT_DEBUG,
-			  "found stream id %02x\n", pk->stream_id);
+			  "  found stream id %02x @ packet %i\n",
+			  pk->stream_id, pc - 1);
 
 		if(ISVIDEO(pk->stream_id)){
 		    sp->stream_type = STREAM_TYPE_VIDEO;
@@ -570,6 +579,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     muxed_stream_t *ms;
     mpegps_stream_t *s;
     int ns, i;
+    int nonspu = 0;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegps_free);
     ms->next_packet = mpegps_packet;
@@ -590,6 +600,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->dvd_info = tcattr_get(u, "dvd");
 
     if(s->dvd_info){
+	tc2_print("MPEGPS", TC2_PRINT_DEBUG, "DVD info present\n");
 	ms->n_streams = s->dvd_info->n_streams;
 	ms->streams =
 	    realloc(ms->streams, ms->n_streams * sizeof(*ms->streams));
@@ -612,11 +623,16 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     }
 
     for(i = 0; i < ms->n_streams; i++){
-	ms->streams[i].common.flags |= TCVP_STREAM_FLAG_TRUNCATED;
-	if(ms->streams[i].stream_type == STREAM_TYPE_SUBTITLE)
-	    ms->streams[i].common.flags |= TCVP_STREAM_FLAG_NOBUFFER;
 	tc2_print("MPEGPS", TC2_PRINT_DEBUG, "map %x -> %i\n",
 		  s->map[i], i);
+	if(ms->streams[i].stream_type != STREAM_TYPE_SUBTITLE)
+	    nonspu++;
+    }
+
+    for(i = 0; i < ms->n_streams; i++){
+	ms->streams[i].common.flags |= TCVP_STREAM_FLAG_TRUNCATED;
+	if(ms->streams[i].stream_type == STREAM_TYPE_SUBTITLE && nonspu)
+	    ms->streams[i].common.flags |= TCVP_STREAM_FLAG_NOBUFFER;
     }
 
     tc2_print("MPEGPS", TC2_PRINT_DEBUG, "at %x\n",
@@ -626,14 +642,22 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	uint64_t stime, etime = -1, tt;
 	uint64_t spos, epos;
 
+	tc2_print("MPEGPS", TC2_PRINT_DEBUG, "determining stream length\n");
+
 	u->seek(u, 0, SEEK_SET);
 	stime = get_time(s);
 	spos = u->tell(u);
+
+	tc2_print("MPEGPS", TC2_PRINT_DEBUG, "start timestamp %lli us @%lli\n",
+		  stime / 27, spos);
 
 	u->seek(u, -1048576, SEEK_END);
 	while((tt = get_time(s)) != -1)
 	    etime = tt;
 	epos = u->tell(u);
+
+	tc2_print("MPEGPS", TC2_PRINT_DEBUG, "end timestamp %lli us @%lli\n",
+		  etime / 27, epos);
 
 	if(stime != -1 && etime != -1){
 	    uint64_t dt = etime - stime;
