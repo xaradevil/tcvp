@@ -438,6 +438,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *l, *w;
     tcconf_section_t *bfnt = NULL;
+    image_t *bg_img;
 
     i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
     i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
@@ -506,8 +507,11 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     xtk_widget_label_set_align(l, align);
     xtk_widget_label_set_scroll(l, stype);
 
+    bg_img = load_image(skin->path, bg);
     w = xtk_widget_image_create(win, x, y, width, height);
-    xtk_widget_image_set_image(w, load_image(skin->path, bg));
+    xtk_widget_image_set_image(w, bg_img);
+    tcfree(bg_img);
+
     xtk_widget_show(w);
 
     register_textwidget(l, text);
@@ -541,7 +545,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int x, y;
     int sp_x, sp_y;
     int ep_x, ep_y;
-    int xd, yd, sx, sy;
+    int xd=0, yd=0, sx=0, sy=0;
     char *bg, *indicator, *value, *ind_over = NULL, *ind_down = NULL;
     int i=0;
     char *action = NULL;
