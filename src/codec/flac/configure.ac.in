@@ -1,0 +1,2 @@
+TC2_CHECK_LIBS([libFLAC, FLAC, FLAC__stream_decoder_new, -lm,
+		FLAC/stream_decoder.h])

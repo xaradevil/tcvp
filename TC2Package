@@ -7,6 +7,7 @@ module src/codec/dts
 module src/codec/dvdsub
 module src/codec/faac
 module src/codec/faad
+module src/codec/flac
 module src/codec/lame
 module src/codec/mad
 module src/codec/mpeg2

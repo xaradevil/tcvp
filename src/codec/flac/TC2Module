@@ -1,0 +1,12 @@
+module		flac
+name		"TCVP/codec/flac"
+version		0.1.0
+tc2version	0.6.0
+sources		flacdec.c
+TCVP {
+	filter "decoder/audio/flac" {
+		new flacdec_new
+		probe flacdec_probe
+		packet DATA flacdec_decode
+	}
+}
