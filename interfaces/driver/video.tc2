@@ -8,6 +8,7 @@ struct video_driver {
     int pixel_format;
     int (*get_frame)(video_driver_t *, int, u_char **, int *stride);
     int (*show_frame)(video_driver_t *, int);
+    int (*put_frame)(video_driver_t *, int);
     int (*close)(video_driver_t *);
     void *private;
 };

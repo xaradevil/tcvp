@@ -1,5 +1,6 @@
 symbol	"open"	tcvp_pipe_t *(*%s)(video_stream_t *, conf_section *, timer__t *)
 require "timer"
 option	*driver name%s priority%i
+option  framedrop%i=0
 include
 #include <tcvp_types.h>

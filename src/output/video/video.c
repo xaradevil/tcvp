@@ -60,7 +60,7 @@ static int drops[][DROPLEN] = {
     {1, 1, 1, 0}
 };
 
-static float drop_thresholds[] = {0.3, 0.2, 0.1, 0};
+static float drop_thresholds[] = {0.2, 0.13, 0.066, 0};
 
 static void *
 v_play(void *p)
@@ -131,7 +131,8 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 
 	planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
 	vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);
-
+	if(vo->driver->put_frame)
+	    vo->driver->put_frame(vo->driver, vo->head);
 	vo->pts[vo->head] = pk->pts;
 
 	if(++vo->head == vo->driver->frames){
@@ -141,7 +142,8 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	sem_post(&vo->tsem);
     }
 
-    if(++vo->framecnt > vo->driver->frames){
+    if(output_video_conf_framedrop &&
+       ++vo->framecnt > vo->driver->frames * 2){
 	int i, bf;
 	float bfr;
 
