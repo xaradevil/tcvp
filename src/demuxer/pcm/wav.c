@@ -173,6 +173,8 @@ wav_close(pcm_write_t *pcm)
     uint64_t size = pcm->u->tell(pcm->u);
     uint32_t v = size - 8;
 
+    tc2_print("WAV", TC2_PRINT_DEBUG, "updating header\n");
+
     pcm->u->seek(pcm->u, 4, SEEK_SET);
     url_putu32l(pcm->u, v);
 
@@ -197,6 +199,7 @@ wav_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     pcm->u->write(head, 1, hsize, pcm->u);
+    free(head);
 
     pcm->probed = 1;
     pcm->close = wav_close;
