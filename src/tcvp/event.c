@@ -14,6 +14,8 @@
 #include <tcvp_mod.h>
 #include <tcvp_core_tc2.h>
 
+/* key */
+
 static void
 key_free(void *p)
 {
@@ -29,22 +31,13 @@ key_alloc(int type, va_list args)
     return te;
 }
 
+/* open */
+
 static void
 open_free(void *p)
 {
     tcvp_open_event_t *te = p;
     free(te->file);
-}
-
-static void
-open_multi_free(void *p)
-{
-    tcvp_open_multi_event_t *te = p;
-    int i;
-
-    for(i = 0; i < te->nfiles; i++)
-	free(te->files[i]);
-    free(te->files);
 }
 
 static void *
@@ -83,6 +76,19 @@ open_deser(int type, u_char *event, int size)
     return tcvp_event_new(type, n);
 }
 
+/* open_multi */
+
+static void
+open_multi_free(void *p)
+{
+    tcvp_open_multi_event_t *te = p;
+    int i;
+
+    for(i = 0; i < te->nfiles; i++)
+	free(te->files[i]);
+    free(te->files);
+}
+
 static void *
 open_multi_alloc(int type, va_list args)
 {
@@ -98,6 +104,8 @@ open_multi_alloc(int type, va_list args)
 	te->files[i] = strdup(files[i]);
     return te;
 }
+
+/* seek */
 
 static void *
 seek_alloc(int type, va_list args)
@@ -145,6 +153,8 @@ seek_deser(int type, u_char *event, int size)
     return tcvp_event_new(type, time, how);
 }
 
+/* timer */
+
 static void *
 timer_alloc(int type, va_list args)
 {
@@ -185,6 +195,8 @@ timer_deser(int type, u_char *event, int size)
     return tcvp_event_new(type, time);
 }
 
+/* state */
+
 static void *
 state_alloc(int type, va_list args)
 {
@@ -220,6 +232,8 @@ state_deser(int type, u_char *event, int size)
     return tcvp_event_new(type, state);
 }
 
+/* load */
+
 static void
 load_free(void *p)
 {
@@ -233,6 +247,89 @@ load_alloc(int type, va_list args)
     tcvp_load_event_t *te = tcvp_event_alloc(type, sizeof(*te), load_free);
     te->stream = va_arg(args, muxed_stream_t *);
     tcref(te->stream);
+    return te;
+}
+
+/* FIXME: incomplete serialization */
+static u_char *
+load_ser(char *name, void *event, int *ssize)
+{
+    tcvp_load_event_t *te = event;
+    char *file, *title, *artist, *performer, *album;
+    u_char *sb, *p;
+    int size;
+
+#define get_attr(attr) do {				\
+	if((attr = tcattr_get(te->stream, #attr)))	\
+	    size += strlen(#attr) + strlen(attr) + 2;	\
+    } while(0)
+
+#define write_attr(attr) do {					\
+	if(attr)						\
+	    p += sprintf(p, "%s%c%s%c", #attr, 0, attr, 0);	\
+    } while(0)
+
+    size = strlen(name) + 1 + 8 + 1;
+    get_attr(file);
+    get_attr(title);
+    get_attr(artist);
+    get_attr(performer);
+    get_attr(album);
+
+    sb = malloc(size);
+    p = sb;
+    p += sprintf(p, "%s", name);
+    p++;
+    st_unaligned64(htob_64(te->stream->time), p);
+    p += 8;
+    write_attr(file);
+    write_attr(title);
+    write_attr(artist);
+    write_attr(performer);
+    write_attr(album);
+    *p = 0;
+
+    *ssize = size;
+    return sb;
+}
+
+static void *
+load_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    muxed_stream_t *ms;
+    tcvp_event_t *te;
+
+    if(!n)
+	return NULL;
+    n++;
+    size -= n - event;
+    if(size < 9)
+	return NULL;
+
+    ms = tcallocz(sizeof(*ms));
+    ms->time = htob_64(unaligned64(n));
+    n += 8;
+    size -= 8;
+
+    while(size > 0 && *n){
+	u_char *v = memchr(n, 0, size);
+	u_char *na;
+
+	if(!v)
+	    break;
+	v++;
+	size -= v - n;
+	na = memchr(v, 0, size);
+	if(!na)
+	    break;
+	size -= na - v;
+	tcattr_set(ms, n, strdup(v), NULL, free);
+	n = na + 1;
+    }
+
+    te = tcvp_event_new(type, ms);
+    tcfree(ms);
     return te;
 }
 
@@ -252,7 +349,7 @@ static struct {
     { "TCVP_CLOSE",       NULL,             NULL,      NULL        },
     { "TCVP_TIMER",       timer_alloc,      timer_ser, timer_deser },
     { "TCVP_STATE",       state_alloc,      state_ser, state_deser },
-    { "TCVP_LOAD",        load_alloc,       NULL,      NULL        },
+    { "TCVP_LOAD",        load_alloc,       load_ser,  load_deser  },
     { "TCVP_STREAM_INFO", NULL,             NULL,      NULL        },
 };
 
