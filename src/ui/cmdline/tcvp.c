@@ -179,6 +179,11 @@ tcl_init(char *p)
 	return 0;
     }
 
+    aonames = realloc(aonames, (nadd + tcvp_ui_cmdline_conf_addon_count) *
+		      sizeof(*aonames));
+    memcpy(aonames + nadd, tcvp_ui_cmdline_conf_addon,
+	   tcvp_ui_cmdline_conf_addon_count * sizeof(*aonames));
+    nadd += tcvp_ui_cmdline_conf_addon_count;
     addons = calloc(nadd, sizeof(*addons));
     for(i = 0; i < nadd; i++){
 	char an[strlen(aonames[i]) + 16];

@@ -18,3 +18,4 @@ import		"Eventq"	"detach"
 import		"playlist"	"new"
 require		"tcvp/addon"
 option		ui%s
+option		*addon%s
