@@ -1,0 +1,11 @@
+module		avcodec
+name		"TCVP/codec/avcodec"
+version		0.1.0
+tc2version	0.4.0
+sources		avcodec.c
+postinit	avc_init
+implement	"codec/audio/mp3"	"new"	avc_new
+implement	"codec/audio/ac3"	"new"	avc_new
+implement	"codec/audio/mp2"	"new"	avc_new
+implement	"codec/video/mpeg4"	"new"	avc_new
+implement	"codec/video/mpeg"	"new"	avc_new

@@ -1,1 +1,1 @@
-SUBDIRS = pcm
+SUBDIRS = avcodec pcm
