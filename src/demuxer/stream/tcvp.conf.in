@@ -14,3 +14,5 @@ suffix '.h264'	'video/x-h264'		'raw'
 suffix '.ac3'	'audio/ac3'		'ac3'
 suffix '.a52'	'audio/ac3'		'ac3'
 suffix '.ts'	'video/mpeg'		'mpeg-ts'
+suffix '.mkv'	'video/x-matroska'	NULL
+suffix '.mka'	'audio/x-matroska'	NULL
