@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -204,7 +204,9 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    }
 
 	    if(!size){
-		ret = -1;
+		/* there was no sync info in this packet. this is
+		   really an error but we return success anyway to make
+		   some broken files playable. */
 		break;
 	    }
 
