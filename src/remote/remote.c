@@ -218,12 +218,12 @@ send_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 static int
 recv_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 {
-    char l;
+    u_char l;
 
     while(recv(cl->socket, &l, 1, MSG_NOSIGNAL) == 1 && l > 0){
 	char *f = malloc(l + 1);
 	recv(cl->socket, f, l, MSG_NOSIGNAL);
-	f[(int)l] = 0;
+	f[l] = 0;
 	tcconf_setvalue(rm->conf, "feature", "%s", f);
 	free(f);
     }
