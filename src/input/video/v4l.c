@@ -120,7 +120,7 @@ v4l_get_buffer_mmap(v4l_t *v4l)
     v4l->frame = v4l->buffers[v4l->buf.v4lb.index].buf;
     pts = (uint64_t) v4l->buf.v4lb.timestamp.tv_sec * 27000000LL +
 	v4l->buf.v4lb.timestamp.tv_usec * 27;
-    v4l->fhsize = sprintf(v4l->fhead, "FRAME PTS=%llu\n", pts);
+    v4l->fhsize = sprintf(v4l->fhead, "FRAME T%llu\n", pts);
     tc2_print("V4L2", TC2_PRINT_VERBOSE+1, "pts = %lli\n", pts / 27);
 
     return 0;

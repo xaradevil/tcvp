@@ -96,9 +96,10 @@ y4m_packet(muxed_stream_t *ms, int s)
 	return NULL;
 
     while((tag = strchr(tag, ' '))){
-	tag++;
-	if(!strncmp(tag, "PTS=", 4)){
-	    pts = strtoull(tag + 4, &tag, 10);
+	switch(*++tag){
+	case 'T':
+	    pts = strtoull(tag + 1, &tag, 10);
+	    break;
 	}
     }
 
