@@ -142,6 +142,8 @@ tcl_init(char *p)
 	char *ui = alloca(strlen(tcvp_ui_cmdline_conf_ui) + 9);
 	sprintf(ui, "TCVP/ui/%s", tcvp_ui_cmdline_conf_ui);
 	tc2_request(TC2_LOAD_MODULE, 1, ui, qname);
+	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
+	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
     } else {
 	show_help();
 	tc2_request(TC2_UNLOAD_MODULE, 0, MODULE_INFO.name);
