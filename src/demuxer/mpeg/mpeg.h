@@ -25,13 +25,7 @@
 #ifndef _MPEG_H
 #define _MPEG_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <tcstring.h>
 #include <tctypes.h>
-#include <tcalloc.h>
-#include <tcendian.h>
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
 
@@ -117,11 +111,9 @@ extern int write_pes_header(u_char *p, int stream_id, int size,
 extern uint32_t mpeg_crc32(const u_char *data, int len);
 extern void mpeg_free(muxed_stream_t *);
 
-extern packet_t *mpegts_packet(muxed_stream_t *ms, int str);
 extern muxed_stream_t *mpegts_open(char *, url_t *, tcconf_section_t *,
 				   tcvp_timer_t *);
 
-extern packet_t *mpegps_packet(muxed_stream_t *ms, int str);
 extern muxed_stream_t *mpegps_open(char *, url_t *, tcconf_section_t *,
 				   tcvp_timer_t *);
 

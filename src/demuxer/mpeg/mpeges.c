@@ -22,8 +22,8 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <tcendian.h>
