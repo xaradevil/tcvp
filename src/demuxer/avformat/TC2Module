@@ -2,8 +2,9 @@ module		avformat
 name		"TCVP/demux/avformat"
 version		0.1.0
 tc2version	0.4.0
-sources		avformat.c
+sources		avformat.c avfwrite.c avf.h
 postinit	avf_init
 implement	"video/mpeg"		"open"	avf_open
 implement	"video/quicktime"	"open"	avf_open
 implement	"audio/mpeg"		"open"	avf_open
+implement	"mux/avi"		"new"	avfw_new

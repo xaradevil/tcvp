@@ -20,12 +20,10 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tclist.h>
-#include <pthread.h>
 #include <tcalloc.h>
 #include <ffmpeg/avformat.h>
+#include <avf.h>
 #include <avformat_tc2.h>
-
 
 extern int
 avf_init(char *p)
@@ -37,6 +35,7 @@ avf_init(char *p)
 static char *codec_names[] = {
     [CODEC_ID_NONE] = NULL, 
     [CODEC_ID_MPEG1VIDEO] = "video/mpeg",
+    [CODEC_ID_MPEG2VIDEO] = "video/mpeg2",
     [CODEC_ID_H263] = "video/h263",
     [CODEC_ID_RV10] = "video/rv10",
     [CODEC_ID_MP2] = "audio/mp2",
@@ -84,6 +83,19 @@ static char *codec_names[] = {
     [CODEC_ID_ADPCM_MS] = "audio/adpcm-ms"
 };
 
+extern enum CodecID
+avf_codec_id(char *codec)
+{
+    int i;
+
+    for(i = 0; i < sizeof(codec_names)/sizeof(codec_names[0]); i++){
+	if(codec_names[i] && !strcmp(codec, codec_names[i])){
+	    return i;
+	}
+    }
+
+    return 0;
+}
 
 typedef struct {
     AVFormatContext *afc;
