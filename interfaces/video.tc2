@@ -1,0 +1,47 @@
+symbol	"open"		muxed_stream_t *(*%s)(char *name);
+symbol	"close"		int (*%s)(muxed_stream_t *)
+symbol	"next_packet"	packet_t *(*%s)(muxed_stream_t *, int stream);
+include
+#include <stdint.h>
+#include <sys/types.h>
+
+#define STREAM_TYPE_VIDEO 1
+#define STREAM_TYPE_AUDIO 2
+
+typedef struct video_stream {
+    int stream_type;
+    float frame_rate;
+    int width, height;
+    char *codec;
+} video_stream_t;
+
+typedef struct audio_stream {
+    int stream_type;
+    int sample_rate;
+    int channels;
+    char *codec;
+} audio_stream_t;
+
+typedef union stream {
+    int stream_type;
+    video_stream_t video;
+    audio_stream_t audio;
+} stream_t;
+
+typedef struct packet packet_t;
+struct packet {
+    char *data;
+    size_t size;
+    uint64_t pts;
+    void (*free)(packet_t *);
+};
+
+typedef struct muxed_stream muxed_stream_t;
+struct muxed_stream {
+    int n_streams;
+    stream_t *streams;
+    int *used_streams;
+    packet_t *(*next_packet)(muxed_stream_t *, int stream);
+    int (*close)(muxed_stream_t *);
+    void *private;
+};
