@@ -25,10 +25,6 @@
 #include <tcconf.h>
 #include <tclist.h>
 
-#ifdef DMALLOC
-#include <dmalloc.h>
-#endif
-
 typedef struct _tcbackground_t		tcbackground_t;
 typedef struct _tcbox_t			tcbox_t;
 typedef struct _tcseek_bar_t		tcseek_bar_t;

@@ -5,13 +5,19 @@ tc2version	0.4.0
 sources		dynamic.c skin.c tcvpctl.c tcvpx.c
 postinit	tcvpx_init
 shutdown	tcvpx_shdn
+
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
 import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
+
 import		"tcvp"		"new"
+import		"tcvp"		"get_event"
+import		"tcvp"		"alloc_event"
+import		"tcvp"		"send_event"
+
 import		"image/png"	"read"
 
 import		"xtk"		"update_root"

@@ -22,10 +22,6 @@
 #include "tcvpx_tc2.h"
 #include <tchash.h>
 
-#ifdef DMALLOC
-#include <dmalloc.h>
-#endif
-
 #define STOPPED 0
 #define PLAYING 1
 #define PAUSED 2
@@ -47,33 +43,35 @@ typedef struct {
     list *templates;
 } skin_t;
 
-skin_t* load_skin(char *skinfile);
-int create_ui(window_t *win, skin_t *skin, tcconf_section_t *config, 
+extern skin_t* load_skin(char *skinfile);
+extern int create_ui(window_t *win, skin_t *skin, tcconf_section_t *config, 
 	      hash_table *parameters);
 
-int init_skins(void);
+extern int init_skins(void);
 extern void cleanup_skins(void);
 
-int init_dynamic(void);
+extern int init_dynamic(void);
 extern void free_dynamic(void);
 
-int parse_text(char *text, char *result);
-int parse_variable(char *text, void **result, void **def);
+extern int init_events(void);
 
-int change_text(char *key, char *text);
-int change_variable(char *key, void *data);
+extern int parse_text(char *text, char *result);
+extern int parse_variable(char *text, void **result, void **def);
 
-int unregister_textwidget(xtk_widget_t *w, char *text);
-int register_textwidget(xtk_widget_t *w, char *text);
+extern int change_text(char *key, char *text);
+extern int change_variable(char *key, void *data);
 
-int unregister_varwidget(xtk_widget_t *w, char *text);
-int register_varwidget(xtk_widget_t *w, char *text);
+extern int unregister_textwidget(xtk_widget_t *w, char *text);
+extern int register_textwidget(xtk_widget_t *w, char *text);
 
-int update_time(void);
-int update_state(char *state);
+extern int unregister_varwidget(xtk_widget_t *w, char *text);
+extern int register_varwidget(xtk_widget_t *w, char *text);
 
-void *tcvp_event(void *p);
-int toggle_time(xtk_widget_t *w, void *p);
+extern int update_time(void);
+extern int update_state(char *state);
+
+extern void *tcvp_event(void *p);
+extern int toggle_time(xtk_widget_t *w, void *p);
 
 extern int quit;
 

@@ -17,7 +17,6 @@
 **/
 
 #include "tcvpx.h"
-#include <tcvp_event.h>
 #include "tcvpctl.h"
 #include <string.h>
 #include <unistd.h>
@@ -26,6 +25,28 @@ static int tcvpstate=-1;
 int s_time;
 int s_length;
 static int show_time = TCTIME_ELAPSED;
+static int TCVP_STATE, TCVP_TIMER, TCVP_LOAD, TCVP_STREAM_INFO,
+    TCVP_PAUSE, TCVP_SEEK, TCVP_CLOSE, TCVP_PL_STOP, TCVP_PL_START,
+    TCVP_PL_NEXT, TCVP_PL_PREV, TCVP_PL_ADD;
+
+extern int
+init_events(void)
+{
+    TCVP_STATE = tcvp_get_event("TCVP_STATE");
+    TCVP_TIMER = tcvp_get_event("TCVP_TIMER");
+    TCVP_LOAD = tcvp_get_event("TCVP_LOAD");
+    TCVP_STREAM_INFO = tcvp_get_event("TCVP_STREAM_INFO");
+    TCVP_PAUSE = tcvp_get_event("TCVP_PAUSE");
+    TCVP_SEEK = tcvp_get_event("TCVP_SEEK"); 
+    TCVP_CLOSE = tcvp_get_event("TCVP_CLOSE");
+    TCVP_PL_STOP = tcvp_get_event("TCVP_PL_STOP");
+    TCVP_PL_START = tcvp_get_event("TCVP_PL_START");
+    TCVP_PL_NEXT = tcvp_get_event("TCVP_PL_NEXT");
+    TCVP_PL_PREV = tcvp_get_event("TCVP_PL_PREV");
+    TCVP_PL_ADD = tcvp_get_event("TCVP_PL_ADD");
+
+    return 0;
+}
 
 extern void *
 tcvp_event(void *p)
@@ -35,11 +56,11 @@ tcvp_event(void *p)
 
     while(!quit){
 	tcvp_event_t *te = eventq_recv(qr);
-	switch(te->type){
 
-	case TCVP_STATE:
-	    tcvpstate = te->state.state;
-	    switch(te->state.state) {
+	if(te->type == TCVP_STATE) {
+	    tcvpstate = ((tcvp_state_event_t *)te)->state;
+
+	    switch(((tcvp_state_event_t *)te)->state) {
 	    case TCVP_STATE_PL_END:
 		tcvp_stop(NULL, NULL);
 		break;
@@ -59,19 +80,17 @@ tcvp_event(void *p)
 		st = NULL;
 		break;
 	    }
-	    break;
 
-	case TCVP_TIMER:
-	    s_time = te->timer.time / 27000000;
+	} else if(te->type == TCVP_TIMER) {
+	    s_time = ((tcvp_timer_event_t *)te)->time / 27000000;
 	    if(s_time > s_length)
 		s_length = s_time;
 	    update_time();
-	    break;
 
-	case TCVP_LOAD:
+	} else if(te->type == TCVP_LOAD) {
 	    if(st)
 		tcfree(st);
-	    st = te->load.stream;
+	    st = ((tcvp_load_event_t *)te)->stream;
 	    tcref(st);
 
 	    s_length = 0;
@@ -83,7 +102,7 @@ tcvp_event(void *p)
 		char *ext;
 
 		title = strrchr(st->file, '/');
-		title = strdup(title? title + 1: te->load.stream->file);
+		title = strdup(title? title + 1: st->file);
 		ext = strrchr(title, '.');
 		if(ext)
 		    *ext = 0;
@@ -94,12 +113,8 @@ tcvp_event(void *p)
 
 	    change_text("performer", st->performer);
 
-	    /* fall through */
-
-	case TCVP_STREAM_INFO:
-	    if(!st)
-		break;
-	    {
+	} else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
+	    if(st) {
 		int i;
 		for(i = 0; i < st->n_streams; i++) {
 		    if(st->used_streams[i]) {
@@ -127,12 +142,10 @@ tcvp_event(void *p)
 
 	    update_time();
 
-	    break;
-
-	case -1:
+	} else if(te->type == -1) {
 	    quit = 1;
-	    break;
 	}
+
 	tcfree(te);
     }
     return NULL;
@@ -142,9 +155,7 @@ tcvp_event(void *p)
 extern int
 tcvp_pause(xtk_widget_t *w, void *p)
 {
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_PAUSE);
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_send_event(qs, TCVP_PAUSE);
     return 0;
 }
 
@@ -152,14 +163,8 @@ tcvp_pause(xtk_widget_t *w, void *p)
 extern int
 tcvp_stop(xtk_widget_t *w, void *p)
 {
-    tcvp_event_t *te;
-    te = tcvp_alloc_event(TCVP_PL_STOP);
-    eventq_send(qs, te);
-    tcfree(te);
-
-    te = tcvp_alloc_event(TCVP_CLOSE);
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_send_event(qs, TCVP_PL_STOP);
+    tcvp_send_event(qs, TCVP_CLOSE);
 
     return 0;
 }
@@ -172,15 +177,10 @@ tcvp_play(xtk_widget_t *w, void *p)
 	tcvp_pause(w, p);
     } else {
 	if(tcvpstate != TCVP_STATE_PLAYING) {
-	    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_START);
-	    eventq_send(qs, te);
-	    tcfree(te);
+	    tcvp_send_event(qs, TCVP_PL_START);
 	} else {
 	    tcvp_stop(w, p);
-
-	    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_START);
-	    eventq_send(qs, te);
-	    tcfree(te);
+	    tcvp_send_event(qs, TCVP_PL_START);
 	}
     }
 
@@ -191,9 +191,7 @@ tcvp_play(xtk_widget_t *w, void *p)
 extern int
 tcvp_next(xtk_widget_t *w, void *p)
 {
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_NEXT);
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_send_event(qs, TCVP_PL_NEXT);
 
     return 0;
 }
@@ -202,9 +200,7 @@ tcvp_next(xtk_widget_t *w, void *p)
 extern int
 tcvp_previous(xtk_widget_t *w, void *p)
 {
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_PREV);
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_send_event(qs, TCVP_PL_PREV);
 
     return 0;
 }
@@ -216,9 +212,8 @@ tcvp_seek(xtk_widget_t *w, void *p)
     double pos = *((double*)p);
     uint64_t time = s_length * pos * 27000000;
 
-    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, time, TCVP_SEEK_ABS);
-    eventq_send(qs, se);
-    tcfree(se);
+    tcvp_send_event(qs, TCVP_SEEK, time, TCVP_SEEK_ABS);
+
     return 0;
 }
 
@@ -229,9 +224,8 @@ tcvp_seek_rel(xtk_widget_t *w, void *p)
     char *d = ((widget_data_t *)w->data)->action_data;
     uint64_t time = strtol(d, NULL, 0) * 27000000;
 
-    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, time, TCVP_SEEK_REL);
-    eventq_send(qs, se);
-    tcfree(se);
+    tcvp_send_event(qs, TCVP_SEEK, time, TCVP_SEEK_REL);
+
     return 0;
 }
 
@@ -250,9 +244,7 @@ extern int
 tcvp_add_file(char *file)
 {
 /*     fprintf(stderr, "%s\n", file); */
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_ADD, &file, 1, -1);
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_send_event(qs, TCVP_PL_ADD, &file, 1, -1);
 
     return 0;
 }

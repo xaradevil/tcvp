@@ -25,11 +25,9 @@
 #include <tcvpx_tc2.h>
 #include <string.h>
 #include <unistd.h>
-#include <tcvp_event.h>
 
 #include "tcvpx.h"
 #include "tcvpctl.h"
-#include <tcvp_event.h>
 
 #define xpos tcvp_ui_tcvpx_conf_xposition
 #define ypos tcvp_ui_tcvpx_conf_yposition
@@ -68,6 +66,8 @@ tcvpx_init(char *p)
 
     init_dynamic();
     init_skins();
+    init_events();
+
     xtk_init_graphics();
     xtk_set_dnd_cb(tcvp_add_file);
 
@@ -131,12 +131,12 @@ tcvpx_init(char *p)
 extern int
 tcvpx_shdn(void)
 {
-    tcvp_event_t *te;
+/*     tcvp_event_t *te; */
 
     tcvp_stop(NULL, NULL);
-    te = tcvp_alloc_event(-1);
-    eventq_send(qr, te);
-    tcfree(te);
+/*     te = tcvp_alloc_event(-1); */
+/*     eventq_send(qr, te); */
+/*     tcfree(te); */
 
     xtk_shutdown_graphics();
 
@@ -148,7 +148,6 @@ tcvpx_shdn(void)
     eventq_delete(qs);
     eventq_delete(qr);
 
-#undef free
     if(pl)
 	pl->free(pl);
 
