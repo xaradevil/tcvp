@@ -138,6 +138,7 @@ t_open(char *name)
     timer__t *timer = NULL;
     tcvp_player_t *tp;
     player_t *pl;
+    int ac, vc;
 
     if((stream = stream_open(name)) == NULL)
 	return NULL;
@@ -151,12 +152,14 @@ t_open(char *name)
 		vs = st;
 		codecs[i] = vcodec;
 		stream->used_streams[i] = 1;
+		vc = i;
 	    }
 	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO && !as){
 	    if((acodec = codec_new(st, CODEC_MODE_DECODE))){
 		as = &stream->streams[i];
 		codecs[i] = acodec;
 		stream->used_streams[i] = 1;
+		ac = i;
 	    }
 	}
     }
@@ -175,7 +178,10 @@ t_open(char *name)
 	if((sound = output_audio_open(&as->audio, NULL, vs? &timer: NULL))){
 	    acodec->next = sound;
 	} else {
+	    stream->used_streams[ac] = 0;
+	    codecs[ac] = NULL;
 	    acodec->free(acodec);
+	    acodec = NULL;
 	}
     }
 
@@ -187,7 +193,10 @@ t_open(char *name)
 	if((video = output_video_open(&vs->video, NULL, timer))){
 	    vcodec->next = video;
 	} else {
+	    stream->used_streams[vc] = 0;
+	    codecs[vc] = NULL;
 	    vcodec->free(vcodec);
+	    vcodec = NULL;
 	}
     }
 
