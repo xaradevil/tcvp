@@ -40,103 +40,42 @@
 
 #define FRAMES 64
 
-#define PLAY  1
-#define PAUSE 2
-#define STOP  3
-
-typedef struct xv_frame {
-    XvImage *image;
-    uint64_t pts;
-} xv_frame_t;
-
 typedef struct xv_window {
     Display *dpy;
     Window win;
     GC gc;
     XvPortID port;
-    timer__t *timer;
     int width, height;
-    int frames;
     XShmSegmentInfo *shm;
-    xv_frame_t *images;
-    int state;
-    pthread_mutex_t smx;
-    pthread_cond_t scd;
-    pthread_t thr;
-    int head, tail;
-    sem_t hsem, tsem;
+    XvImage **images;
 } xv_window_t;
 
-static void *
-xv_play(void *p)
+static int
+xv_show(video_driver_t *vd, int frame)
 {
-    xv_window_t *xvw = p;
+    xv_window_t *xvw = vd->private;
 
-#if 0
-    int f = 0;
-    struct timeval tv;
-    uint64_t lu = 0, st;
-    uint64_t lpts = 0;
+    XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
+		  xvw->images[frame],
+		  0, 0, xvw->width, xvw->height,
+		  0, 0, xvw->width, xvw->height,
+		  False);
+    XSync(xvw->dpy, False);
 
-    gettimeofday(&tv, NULL);
-    st = tv.tv_sec * 1000000 + tv.tv_usec;
-#endif
-
-    while(xvw->state != STOP){
-	pthread_mutex_lock(&xvw->smx);
-	while(xvw->state == PAUSE){
-	    pthread_cond_wait(&xvw->scd, &xvw->smx);
-	}
-	pthread_mutex_unlock(&xvw->smx);
-
-	sem_wait(&xvw->tsem);
-
-	xvw->timer->wait(xvw->timer, xvw->images[xvw->tail].pts);
-
-#if 0
-	if(!(++f & 0x3f)){
-	    uint64_t us;
-	    gettimeofday(&tv, NULL);
-	    us = tv.tv_sec * 1000000 + tv.tv_usec - st;
-
-	    fprintf(stderr, "pts = %li, dpts = %li, us = %li, dus = %li\n",
-		    xvw->images[xvw->tail].pts,
-		    xvw->images[xvw->tail].pts - lpts,
-		    us, us - lu);
-	    lu = us;
-	    lpts = xvw->images[xvw->tail].pts;
-	}
-#endif
-
-	XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
-		      xvw->images[xvw->tail].image,
-		      0, 0, xvw->width, xvw->height,
-		      0, 0, xvw->width, xvw->height,
-		      False);
-	XSync(xvw->dpy, False);
-	sem_post(&xvw->hsem);
-
-	if(++xvw->tail == xvw->frames){
-	    xvw->tail = 0;
-	}
-    }
-
-    return NULL;
+    return 0;
 }
 
 static int
-xv_put(tcvp_pipe_t *p, packet_t *pk)
+xv_put(video_driver_t *vd, packet_t *pk, int frame)
 {
-    xv_window_t *xvw = p->private;
+    xv_window_t *xvw = vd->private;
     int i, j;
-    XvImage *xi = xvw->images[xvw->head].image;
+    XvImage *xi = xvw->images[frame];
     u_char *tmp;
 
     tmp = pk->data[1];
     pk->data[1] = pk->data[2];
     pk->data[2] = tmp;
-
-    sem_wait(&xvw->hsem);
 
     for(i = 0; i < 3; i++){
 	for(j = 0; j < xvw->height / (i? 2: 1); j++){
@@ -146,55 +85,20 @@ xv_put(tcvp_pipe_t *p, packet_t *pk)
 	}
     }
 
-    xvw->images[xvw->head].pts = pk->pts;
-
-    sem_post(&xvw->tsem);
-
-    if(++xvw->head == xvw->frames){
-	xvw->head = 0;
-    }
-
     pk->free(pk);
 
     return 0;
 }
 
 static int
-xv_start(tcvp_pipe_t *p)
+xv_close(video_driver_t *vd)
 {
-    xv_window_t *xvw = p->private;
-
-    pthread_mutex_lock(&xvw->smx);
-    xvw->state = PLAY;
-    pthread_cond_broadcast(&xvw->scd);
-    pthread_mutex_unlock(&xvw->smx);
-
-    return 0;
-}
-
-static int
-xv_stop(tcvp_pipe_t *p)
-{
-    xv_window_t *xvw = p->private;
-
-    xvw->state = PAUSE;
-
-    return 0;
-}
-
-static int
-xv_free(tcvp_pipe_t *p)
-{
-    xv_window_t *xvw = p->private;
+    xv_window_t *xvw = vd->private;
     int i;
-
-    xvw->state = STOP;
-    sem_post(&xvw->tsem);
-    pthread_join(xvw->thr, NULL);
 
     XDestroyWindow(xvw->dpy, xvw->win);
 
-    for(i = 0; i < xvw->frames; i++){
+    for(i = 0; i < vd->frames; i++){
 	XShmDetach(xvw->dpy, &xvw->shm[i]);
 	shmdt(xvw->shm[i].shmaddr);
     }
@@ -202,23 +106,18 @@ xv_free(tcvp_pipe_t *p)
     XSync(xvw->dpy, False);
     XCloseDisplay(xvw->dpy);
 
-    pthread_mutex_destroy(&xvw->smx);
-    pthread_cond_destroy(&xvw->scd);
-    sem_destroy(&xvw->hsem);
-    sem_destroy(&xvw->tsem);
-
     free(xvw->images);
     free(xvw->shm);
     free(xvw);
-    free(p);
+    free(vd);
 
     return 0;
 }
 
-extern tcvp_pipe_t *
-xv_open(video_stream_t *vs, char *display, timer__t *timer)
+extern video_driver_t *
+xv_open(video_stream_t *vs, char *display)
 {
-    tcvp_pipe_t *pipe;
+    video_driver_t *vd;
     xv_window_t *xvw;
     Display *dpy;
     int ver, rev, rb, evb, erb;
@@ -227,19 +126,22 @@ xv_open(video_stream_t *vs, char *display, timer__t *timer)
     Window win;
     int i;
     GC gc;
+    int frames = FRAMES;
+    int color_key;
+    XEvent xe;
 
     XInitThreads();
 
     if((dpy = XOpenDisplay(display)) == NULL)
 	return NULL;
 
-    XvQueryExtension(dpy, &ver, &rev, &rb, &evb, &erb);
-/*     printf("Xv %d.%d found.\n", ver, rev); */
+    if(XvQueryExtension(dpy, &ver, &rev, &rb, &evb, &erb) != Success)
+	return NULL;
 
     XvQueryAdaptors(dpy, RootWindow(dpy, DefaultScreen(dpy)), &na, &xai);
+    if(!na)
+	return NULL;
 
-/*     XvSetPortAttribute(dpy, xai[0].base_id, */
-/* 		       XInternAtom(dpy, "XV_FILTER", True), 1); */
     gc = DefaultGC(dpy, DefaultScreen(dpy));
 
     win = XCreateWindow(dpy, RootWindow(dpy, DefaultScreen(dpy)),
@@ -251,14 +153,12 @@ xv_open(video_stream_t *vs, char *display, timer__t *timer)
     xvw->win = win;
     xvw->gc = gc;
     xvw->port = xai[0].base_id;
-    xvw->timer = timer;
     xvw->width = vs->width;
     xvw->height = vs->height;
-    xvw->frames = FRAMES;
-    xvw->shm = malloc(xvw->frames * sizeof(*xvw->shm));
-    xvw->images = malloc(xvw->frames * sizeof(*xvw->images));
+    xvw->shm = malloc(frames * sizeof(*xvw->shm));
+    xvw->images = malloc(frames * sizeof(*xvw->images));
 
-    for(i = 0; i < xvw->frames; i++){
+    for(i = 0; i < frames; i++){
 	XvImage *xvi;
 	XShmSegmentInfo *shm = &xvw->shm[i];
 
@@ -271,28 +171,31 @@ xv_open(video_stream_t *vs, char *display, timer__t *timer)
 	XShmAttach(dpy, shm);
 	shmctl(shm->shmid, IPC_RMID, NULL); /* delete now in case we crash */
 
-	xvw->images[i].image = xvi;
+	xvw->images[i] = xvi;
     }
 
-    xvw->head = 0;
-    xvw->tail = 0;
-    sem_init(&xvw->hsem, 0, xvw->frames);
-    sem_init(&xvw->tsem, 0, 0);
+    vd = malloc(sizeof(*vd));
+    vd->frames = frames;
+    vd->put_frame = xv_put;
+    vd->show_frame = xv_show;
+    vd->close = xv_close;
+    vd->private = xvw;
 
-    pthread_mutex_init(&xvw->smx, NULL);
-    pthread_cond_init(&xvw->scd, NULL);
-    xvw->state = PAUSE;
-    pthread_create(&xvw->thr, NULL, xv_play, xvw);
-
-    pipe = malloc(sizeof(*pipe));
-    pipe->input = xv_put;
-    pipe->start = xv_start;
-    pipe->stop = xv_stop;
-    pipe->free = xv_free;
-    pipe->private = xvw;
-
+    XSelectInput(dpy, win, MapNotify | ExposureMask);
     XMapWindow(dpy, win);
     XSync(dpy, False);
+    XNextEvent(dpy, &xe);
+    XSelectInput(dpy, win, 0);
 
-    return pipe;
+    XvGetPortAttribute(dpy, xvw->port,
+		       XInternAtom(dpy, "XV_COLORKEY", True), &color_key);
+    XSetForeground(dpy, gc, color_key);
+    XFillRectangle(dpy, win, gc, 0, 0, xvw->width, xvw->height);
+    XvSetPortAttribute(dpy, xvw->port,
+		       XInternAtom(dpy, "XV_AUTOPAINT_COLORKEY", True), 0);
+    XvSetPortAttribute(dpy, xvw->port,
+		       XInternAtom(dpy, "XV_FILTER", True), 0);
+    XSync(dpy, False);
+
+    return vd;
 }
