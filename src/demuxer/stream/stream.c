@@ -132,7 +132,7 @@ dqp(s_play_t *vp, int s)
     packetq_t *pq = vp->pq + s;
 
     pthread_mutex_lock(&vp->mtx);
-    while(!pq->count && vp->state != STOP)
+    while(!pq->count)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
 
     pk = pq->q[pq->tail];
@@ -205,11 +205,6 @@ read_stream(void *p)
     for(i = 0; i < ms->n_streams; i++)
 	if(ms->used_streams[i])
 	    qpk(vp, NULL, i);
-
-    pthread_mutex_lock(&vp->mtx);
-    vp->streams--;
-    pthread_cond_broadcast(&vp->cnd);
-    pthread_mutex_unlock(&vp->mtx);
 
     return NULL;
 }
