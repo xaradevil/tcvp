@@ -79,6 +79,9 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     enum CodecID id;
 
     id = avc_codec_id(s->common.codec);
+    if(id == CODEC_ID_MPEG1VIDEO)
+	id = CODEC_ID_MPEG2VIDEO;
+
     avc = avcodec_find_decoder(id);
 
     if(avc == NULL){

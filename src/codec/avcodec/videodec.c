@@ -186,6 +186,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	}
 #endif
 	ret = PROBE_OK;
+	avcodec_flush_buffers(vc->ctx);
     } else {
 	ret = PROBE_AGAIN;
     }
