@@ -443,13 +443,13 @@ mp3_packet(muxed_stream_t *ms, int str)
 	if((fr.size < size - (f - mp->data) - 3) &&
 	   f[fr.size] == 0xff &&
 	   !mp3_header(f[fr.size+1], f[fr.size+2], NULL)){
-	    int br;
-	    mf->sbr += size * fr.bitrate;
+	    u_int br;
+	    mf->sbr += (uint64_t) size * fr.bitrate;
 	    mf->bytes += size;
 	    br = mf->sbr / mf->bytes;
 	    if(br != mf->stream.audio.bit_rate){
 #ifdef DEBUG
-		fprintf(stderr, "MP3: bitrate %i [%i] @%lx\n",
+		fprintf(stderr, "MP3: bitrate %i [%u] @%lx\n",
 			fr.bitrate, br,
 			mf->file->tell(mf->file) - size+(f-mp->data));
 #endif
