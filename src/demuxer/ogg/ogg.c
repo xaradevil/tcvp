@@ -22,6 +22,7 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <tcalloc.h>
+#include <tcbyteswap.h>
 #include <pthread.h>
 #include <ogg/ogg.h>
 #include <ogg_tc2.h>
@@ -158,10 +159,60 @@ ogg_free(void *p)
     free(ms->streams);
     free(ms->used_streams);
     free(ms->file);
+    if(ms->title)
+	free(ms->title);
+    if(ms->performer)
+	free(ms->performer);
 
     free(os);
 }
 
+/* Hack to fetch the title information without libvorbis. */
+static int
+ogg_title(muxed_stream_t *ms, char *buf)
+{
+    char *p = buf + 0x66;
+    int s, n, i;
+
+    if(strncmp(p, "vorbis", 6))
+	return -1;
+
+    p += 6;
+    s = htol_32(*(int32_t *) p);
+
+    p += s + 4;
+    n = htol_32(*(int32_t *) p);
+    p += 4;
+
+    for(i = 0; i < n; i++){
+	char *t, *v;
+	int tl, vl;
+
+	s = htol_32(*(int32_t *) p);
+	t = p + 4;
+	p += s + 4;
+
+	v = memchr(t, '=', s);
+	if(!v)
+	    continue;
+
+	tl = v - t;
+	vl = s - tl - 1;
+	v++;
+
+	if(!strncmp(t, "title", tl)){
+	    ms->title = malloc(vl + 1);
+	    strncpy(ms->title, v, vl);
+	    ms->title[vl] = 0;
+	} else if(!strncmp(t, "artist", tl)){
+	    ms->performer = malloc(vl + 1);
+	    strncpy(ms->performer, v, vl);
+	    ms->performer[vl] = 0;
+	}
+    }
+
+    return 0;
+}
 
 extern muxed_stream_t *
 ogg_open(char *name, conf_section *cs)
@@ -185,7 +236,7 @@ ogg_open(char *name, conf_section *cs)
     ms = tcallocd(sizeof(*ms), NULL, ogg_free);
     memset(ms, 0, sizeof(*ms));
     ms->n_streams = 1;
-    ms->streams = malloc(sizeof(stream_t));
+    ms->streams = calloc(1, sizeof(*ms->streams));
 
     ms->streams[0].stream_type = STREAM_TYPE_AUDIO;
     ms->streams[0].audio.codec = "audio/vorbis";
@@ -205,6 +256,8 @@ ogg_open(char *name, conf_section *cs)
     buf=ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
     
     l=fread(buf, 1, BUFFER_SIZE, ost->f);
+    ogg_title(ms, buf);
+
     ogg_sync_wrote(&ost->oy, l);
     ogg_sync_pageout(&ost->oy, &og);
 
