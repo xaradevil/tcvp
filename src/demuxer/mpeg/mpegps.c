@@ -14,16 +14,23 @@
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <tcbyteswap.h>
+#include <pthread.h>
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
 typedef struct mpegps_stream {
     url_t *stream;
-    int *imap;
+    int *imap, *map;
     int rate;
+    int64_t pts_offset;
     uint64_t time;
+    eventq_t qr;
+    dvd_functions_t *dvd_funcs;
+    pthread_t eth;
 } mpegps_stream_t;
+
+static int TCVP_BUTTON, TCVP_KEY;
 
 static mpegpes_packet_t *
 mpegpes_packet(url_t *u, int pedantic)
@@ -84,17 +91,6 @@ mpegpes_packet(url_t *u, int pedantic)
 	} else if((stream_id & 0xe0) == 0xc0 ||
 		  (stream_id & 0xf0) == 0xe0 ||
 		  stream_id == PRIVATE_STREAM_1){
-#if 0
-	} else if(stream_id >= PRIVATE_STREAM_1 &&
-		  stream_id != PADDING_STREAM &&
-		  stream_id != PRIVATE_STREAM_2 &&
-		  stream_id != ECM_STREAM &&
-		  stream_id != EMM_STREAM &&
-		  stream_id != PROGRAM_STREAM_DIRECTORY &&
-		  stream_id != DSMCC_STREAM &&
-		  stream_id != H222_E_STREAM &&
-		  stream_id != SYSTEM_HEADER){
-#endif
 	    pes = malloc(sizeof(*pes));
 	    pes->hdr = malloc(pklen);
 	    pklen = u->read(pes->hdr, 1, pklen, u);
@@ -108,6 +104,12 @@ mpegpes_packet(url_t *u, int pedantic)
 		pes->data += 3;
 		pes->size -= 4;
 	    }
+	} else if(stream_id == DVD_PESID){
+	    pes = malloc(sizeof(*pes));
+	    pes->stream_id = stream_id;
+	    pes->data = malloc(pklen);
+	    pes->hdr = pes->data;
+	    u->read(pes->data, 1, pklen, u);
 	} else {
 	    char foo[pklen];
 	    if(u->read(foo, 1, pklen, u) < pklen){
@@ -147,10 +149,38 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	    mpegpes_free(mp);
 	if(!(mp = mpegpes_packet(s->stream, 0)))
 	    return NULL;
+	if(mp->stream_id == DVD_PESID){
+	    dvd_event_t *de = (dvd_event_t *) mp->data;
+	    switch(de->type){
+	    case DVD_PTSSKIP:
+		s->pts_offset = de->ptsskip.offset;
+		fprintf(stderr, "MPEGPS: pts offset %lli\n",
+			s->pts_offset);
+		break;
+	    case DVD_FLUSH:
+		pk = tcallocdz(sizeof(*pk), NULL, mpegps_free_pk);
+		pk->type = TCVP_PKT_TYPE_FLUSH;
+		pk->stream = de->flush.drop;
+		pk->private = mp;
+		return pk;
+	    case DVD_STILL:
+		pk = tcallocdz(sizeof(*pk), NULL, mpegps_free_pk);
+		pk->type = TCVP_PKT_TYPE_STILL;
+		pk->private = mp;
+		return pk;
+	    case DVD_AUDIO_ID:
+		s->imap[s->map[1]] = -1;
+		s->imap[de->audio.id] = 1;
+		s->map[1] = de->audio.id;
+		break;
+	    }
+	    continue;
+	}
+
 	sx = s->imap[mp->stream_id];
     } while(sx < 0 || !ms->used_streams[sx]);	
 
-    pk = tcallocd(sizeof(*pk), NULL, mpegps_free_pk);
+    pk = tcallocdz(sizeof(*pk), NULL, mpegps_free_pk);
     pk->stream = sx;
     pk->data = &mp->data;
     pk->sizes = &mp->size;
@@ -159,6 +189,8 @@ mpegps_packet(muxed_stream_t *ms, int str)
     pk->private = mp;
 
     if(mp->flags & PES_FLAG_PTS){
+	mp->pts += s->pts_offset;
+	mp->dts += s->pts_offset;
 	pk->pts = mp->pts * 300;
 	pk->flags |= TCVP_PKT_FLAG_PTS;
 	if(mp->pts)
@@ -223,7 +255,35 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
 	s->rate = s->stream->tell(s->stream) * 90 / st;
     } while(llabs(st - time) > 90000 && c++ < 512);
 
+    s->pts_offset = 0;
+
     return st * 300;
+}
+
+static void *
+mpegps_event(void *p)
+{
+    mpegps_stream_t *s = p;
+    int run = 1;
+
+    while(run){
+	tcvp_event_t *te = eventq_recv(s->qr);
+	if(te->type == TCVP_BUTTON){
+	    tcvp_button_event_t *be = (tcvp_button_event_t *) te;
+	    if(be->button == 1 &&
+	       be->action == TCVP_BUTTON_PRESS)
+		s->dvd_funcs->button(s->stream, be->x, be->y);
+	} else if(te->type == TCVP_KEY){
+	    tcvp_key_event_t *ke = (tcvp_key_event_t *) te;
+	    if(!strcmp(ke->key, "escape"))
+		s->dvd_funcs->menu(s->stream);
+	} else if(te->type == -1){
+	    run = 0;
+	}
+	tcfree(te);
+    }
+
+    return NULL;
 }
 
 static void
@@ -235,6 +295,13 @@ mpegps_free(void *p)
     if(s->stream)
 	s->stream->close(s->stream);
     free(s->imap);
+    free(s->map);
+
+    if(s->qr){
+	tcvp_event_send(s->qr, -1);
+	pthread_join(s->eth, NULL);
+	eventq_delete(s->qr);
+    }
     free(s);
 
     mpeg_free(ms);
@@ -262,6 +329,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     ms->streams = calloc(ns, sizeof(*ms->streams));
     s->imap = malloc(0x100 * sizeof(*s->imap));
     memset(s->imap, 0xff, 0x100 * sizeof(*s->imap));
+    s->map = malloc(0x100 * sizeof(*s->map));
+    memset(s->map, 0xff, 0x100 * sizeof(*s->map));
     sp = ms->streams;
 
     do {
@@ -294,6 +363,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    }
 
 	    s->imap[sid] = ms->n_streams;
+	    s->map[ms->n_streams] = sid;
 
 	    if((sti = stream_type2codec(stype)) >= 0){
 		memset(sp, 0, sizeof(*sp));
@@ -344,6 +414,10 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 		    memset(sp, 0, sizeof(*sp));
 		    s->imap[pk->stream_id] = ms->n_streams;
+		    s->map[ms->n_streams] = pk->stream_id;
+
+		    fprintf(stderr, "MPEGPS: found stream id %02x\n",
+			    pk->stream_id);
 
 		    if(pk->stream_id & 0x20){
 			sp->stream_type = STREAM_TYPE_VIDEO;
@@ -382,5 +456,21 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     s->stream = tcref(u);
     s->stream->seek(s->stream, 0, SEEK_SET);
+
+    s->dvd_funcs = tcattr_get(u, "dvd");
+    if(s->dvd_funcs){
+	char *qname, *qn;
+	tcconf_getvalue(cs, "qname", "%s", &qname);
+	qn = alloca(strlen(qname) + 10);
+	s->qr = eventq_new(tcref);
+	sprintf(qn, "%s/control", qname);
+	eventq_attach(s->qr, qn, EVENTQ_RECV);
+	free(qname);
+	TCVP_BUTTON = tcvp_event_get("TCVP_BUTTON");
+	TCVP_KEY = tcvp_event_get("TCVP_KEY");
+	pthread_create(&s->eth, NULL, mpegps_event, s);
+	s->dvd_funcs->enable(u, 1);
+    }
+
     return ms;
 }
