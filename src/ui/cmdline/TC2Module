@@ -16,4 +16,5 @@ import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 import		"playlist"	"new"
+require		"tcvp/addon"
 option		ui%s

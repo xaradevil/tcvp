@@ -34,11 +34,17 @@ static playlist_t *pll;
 static int shuffle;
 static char *skin;
 static int prl;
+static char **aonames;
+static int nadd;
+static tcvp_addon_t **addons;
 
 static int TCVP_STATE;
 static int TCVP_LOAD;
 static int TCVP_PL_START;
 static int TCVP_PL_NEXT;
+static int TCVP_PL_ADD;
+static int TCVP_PL_ADDLIST;
+static int TCVP_PL_SHUFFLE;
 static int TCVP_OPEN_MULTI;
 static int TCVP_START;
 
@@ -53,7 +59,7 @@ show_help(void)
 {
     /* FIXME: better helpscreen */
     printf("TCVP help\n"
-	   "   -h      --help                This helpscreen\n"
+	   "   -h      --help                This text\n"
 	   "   -A dev  --audio-device=dev    Select audio device\n"
 	   "   -V dev  --video-device=dev    Select video device\n"
 	   "   -a #    --audio-stream=#      Select audio stream\n"
@@ -165,35 +171,74 @@ tcl_check(void *p)
 extern int
 tcl_init(char *p)
 {
-    char *qname;
+    char *qname = NULL, *qn;
     int i;
-
-    pl = tcvp_new(cf);
-    tcconf_getvalue(cf, "qname", "%s", &qname);
 
     if(validate){
 	pthread_create(&check_thr, NULL, tcl_check, NULL);
 	return 0;
     }
 
+    addons = calloc(nadd, sizeof(*addons));
+    for(i = 0; i < nadd; i++){
+	char an[strlen(aonames[i]) + 16];
+	tcvp_addon_new_t anf;
+
+	sprintf(an, "tcvp/addon/%s", aonames[i]);
+	anf = tc2_get_symbol(an, "new");
+	if(anf){
+	    addons[i] = anf(cf);
+	    if(!qname)
+		tcconf_getvalue(cf, "qname", "%s", &qname);
+	}
+    }
+
+    if(!qname){
+	pl = tcvp_new(cf);
+	pll = playlist_new(cf);
+	tcconf_getvalue(cf, "qname", "%s", &qname);
+    } else {
+	/* Make sure the event types get registered */
+	/* FIXME: do it in a nicer way */
+	tc2_request(TC2_LOAD_MODULE, 1, "tcvp", NULL);
+	tc2_request(TC2_ADD_DEPENDENCY, 1, "tcvp");
+	tc2_request(TC2_UNLOAD_MODULE, 1, "tcvp");
+
+	tc2_request(TC2_LOAD_MODULE, 1, "playlist", NULL);
+	tc2_request(TC2_ADD_DEPENDENCY, 1, "playlist");
+	tc2_request(TC2_UNLOAD_MODULE, 1, "playlist");
+    }
+
+    for(i = 0; i < nadd; i++)
+	if(addons[i])
+	    addons[i]->init(addons[i]);
+
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
     TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
     TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
     TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
+    TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
+    TCVP_PL_ADDLIST = tcvp_event_get("TCVP_PL_ADDLIST");
+    TCVP_PL_SHUFFLE = tcvp_event_get("TCVP_PL_SHUFFLE");
     TCVP_OPEN_MULTI = tcvp_event_get("TCVP_OPEN_MULTI");
     TCVP_START = tcvp_event_get("TCVP_START");
 
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
-    if(!prl){
-	pll = playlist_new(cf);
-	pll->add(pll, files, nfiles, 0);
-	for(i = 0; i < npl; i++)
-	    nfiles += pll->addlist(pll, playlist[i], nfiles);
-	if(shuffle)
-	    pll->shuffle(pll, 0, nfiles);
+    qn = alloca(strlen(qname)+9);
+    qs = eventq_new(NULL);
+    sprintf(qn, "%s/control", qname);
+    eventq_attach(qs, qn, EVENTQ_SEND);
 
+    if(!prl){
+	if(nfiles)
+	    tcvp_event_send(qs, TCVP_PL_ADD, files, nfiles, -1);
+	for(i = 0; i < npl; i++)
+	    tcvp_event_send(qs, TCVP_PL_ADDLIST, playlist[i], -1);
+	nfiles += npl;
+	if(shuffle)
+	    tcvp_event_send(qs, TCVP_PL_SHUFFLE, 0, -1);
     }
 
     if(sel_ui){
@@ -208,17 +253,12 @@ tcl_init(char *p)
 	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
 	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
     } else if(nfiles) {
-	char qn[strlen(qname)+9];
 	struct sigaction sa;
 
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
-
-	qs = eventq_new(NULL);
-	sprintf(qn, "%s/control", qname);
-	eventq_attach(qs, qn, EVENTQ_SEND);
 
 	if(prl){
 	    tcvp_event_send(qs, TCVP_OPEN_MULTI, nfiles, files);
@@ -249,6 +289,15 @@ tcl_stop(void)
     if(validate)
 	pthread_join(check_thr, NULL);
 
+    if(addons){
+	int i;
+	for(i = 0; i < nadd; i++)
+	    if(addons[i])
+		tcfree(addons[i]);
+	free(addons);
+	free(aonames);
+    }
+
     if(pl)
 	pl->free(pl);
 
@@ -263,10 +312,12 @@ tcl_stop(void)
 	sem_post(&psm);
 	pthread_join(intr_thr, NULL);
 	signal(SIGINT, SIG_DFL);
-	eventq_delete(qs);
 	eventq_delete(qr);
 	sem_destroy(&psm);
     }
+
+    if(qs)
+	eventq_delete(qs);
 
     return 0;
 }
@@ -301,6 +352,7 @@ parse_options(int argc, char **argv)
 	{"profile", required_argument, 0, 'P'},
 	{"skin", required_argument, 0, OPT_SKIN},
 	{"parallel", no_argument, 0, 'p'},
+	{"addon", required_argument, 0, 'x'},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
@@ -309,7 +361,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:p",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:px:",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -396,6 +448,11 @@ parse_options(int argc, char **argv)
 
 	case 'p':
 	    prl = 1;
+	    break;
+
+	case 'x':
+	    aonames = realloc(aonames, (nadd + 1) * sizeof(*aonames));
+	    aonames[nadd++] = optarg;
 	    break;
 
 	case OPT_TC2_DEBUG:
