@@ -2,7 +2,7 @@ module		mpeg
 name		"TCVP/demux/mpeg"
 version		0.1.0
 tc2version	0.4.0
-sources		mpegts.c
+sources		mpeg.c mpegps.c mpegts.c mpeg.h
 implement	"video/mpeg"	"open"		mpeg_open
 import		"URL"		"open"
 import		"URL"		"getc"

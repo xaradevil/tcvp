@@ -24,46 +24,9 @@
 #include <tclist.h>
 #include <tcalloc.h>
 #include <tcbyteswap.h>
-#include <pthread.h>
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
-
-typedef struct mpegts_packet {
-    int transport_error;
-    int unit_start;
-    int priority;
-    int pid;
-    int scrambling;
-    int adaptation;
-    int cont_counter;
-    struct adaptation_field {
-	int discontinuity;
-	int random_access;
-	int es_priority;
-	int pcr_flag;
-	int opcr_flag;
-	int splicing_point;
-	int transport_private;
-	int extension;
-	uint64_t pcr;
-	uint64_t opcr;
-	int splice_countdown;
-    } adaptation_field;
-    int data_length;
-    u_char *datap, data[184];
-} mpegts_packet_t;
-
-typedef struct mpeg_stream {
-    url_t *stream;
-    int bs, br;
-    uint32_t bits;
-    int *map, *imap;
-    uint64_t *pts;
-} mpeg_stream_t;
-
-#define min(a,b) ((a)<(b)?(a):(b))
-
-#define MPEGTS_SYNC 0x47
+#include "mpeg.h"
 
 static uint64_t
 getbits(mpeg_stream_t *s, int bits, char *name)
@@ -116,12 +79,16 @@ mpegts_read_packet(mpeg_stream_t *s)
 
     do {
 	int i = 1024;
+	int sync = 0;
 	error = 0;
 
-	while(--i)
-	    if(getbits(s, 8, "sync") == MPEGTS_SYNC)
+	while(--i){
+	    sync = getbits(s, 8, "sync");
+	    if(sync == MPEGTS_SYNC || sync < 0)
 		break;
-	if(!i){
+	}
+	if(sync != MPEGTS_SYNC){
+	    free(mp);
 	    fprintf(stderr, "MPEGTS: can't find sync byte, @ %lx\n",
 		    s->stream->tell(s->stream));
 	    return NULL;
@@ -227,7 +194,7 @@ mpegts_free_pk(packet_t *p)
     free(p);
 }
 
-static packet_t *
+extern packet_t *
 mpegts_packet(muxed_stream_t *ms, int str)
 {
     mpeg_stream_t *s = ms->private;
@@ -258,52 +225,32 @@ mpegts_packet(muxed_stream_t *ms, int str)
     pk->private = mp;
 
     if(mp->unit_start){
-	uint64_t pts = 0, upts = 0;
-	int peshl = mp->datap[8];
-	if(mp->datap[7] & 0x80){
-	    pts = (htob_16(unaligned16(mp->datap+12)) & 0xfffe) >> 1;
-	    pts |= (htob_16(unaligned16(mp->datap+10)) & 0xfffe) << 14;
-	    pts |= (uint64_t) (mp->datap[9] & 0xe) << 29;
+	mpegpes_packet_t pes;
+	int hlen;
 
-	    if(pts < s->pts[sx] &&
-	       s->pts[sx] - pts > 24000){
-		fprintf(stderr, "MPEGTS: PTS discontinuous\n");
-	    }
-	    upts = pts;
+	mpegpes_header(&pes, mp->datap, 0);
+	hlen = pes.data - mp->datap;
+	if(pes.pts_flag){
+	    uint64_t upts = pes.pts;
 	    upts *= 100ULL;
 	    upts /= 9ULL;
-/* 		    fprintf(stderr, "MPEGTS: sx = %i, pts = %10llu, upts = %15llu, dpts = %lli\n", */
-/* 			    sx, pts, upts, pts - s->pts[sx]); */
-	    s->pts[sx] = pts;
+	    if(pes.pts < s->pts[sx] &&
+	       s->pts[sx] - pes.pts > 24000){
+		fprintf(stderr, "MPEGTS: PTS discontinuous\n");
+	    }
+	    s->pts[sx] = pes.pts;
 	    pk->pts = upts;
 	    pk->flags |= TCVP_PKT_FLAG_PTS;
 	}
-	mp->datap += 9 + peshl;
-	mp->data_length -= 9 + peshl;
+
+	mp->datap += hlen;
+	mp->data_length -= hlen;
     }
 
     return pk;
 }
 
-static void
-mpeg_free(void *p)
-{
-    muxed_stream_t *ms = p;
-    mpeg_stream_t *s = ms->private;
-
-    if(ms->file)
-	free(ms->file);
-    if(ms->title)
-	free(ms->title);
-    if(ms->performer)
-	free(ms->performer);
-
-    s->stream->close(s->stream);
-    free(s->map);
-    free(s);
-}
-
-static int
+extern int
 mpegts_getinfo(muxed_stream_t *ms)
 {
     mpeg_stream_t *s = ms->private;
@@ -359,7 +306,6 @@ mpegts_getinfo(muxed_stream_t *ms)
 
     np = ns = n;
     ms->streams = calloc(ns, sizeof(*ms->streams));
-    s->map = malloc(ns * sizeof(*s->map));
     s->imap = malloc((1 << 13) * sizeof(*s->imap));
     memset(s->imap, 0xff, (1 << 13) * sizeof(*s->imap));
     sp = ms->streams;
@@ -385,12 +331,10 @@ mpegts_getinfo(muxed_stream_t *ms)
 	seclen -= 16 + pi_len;
 	for(i = 0; i < seclen;){
 	    int stype, epid, esil;
-	    int typeok = 1;
 
 	    if(ms->n_streams == ns){
 		ns *= 2;
 		ms->streams = realloc(ms->streams, ns * sizeof(*ms->streams));
-		s->map = realloc(s->map, ns * sizeof(s->map));
 		sp = &ms->streams[ms->n_streams];
 	    }
 
@@ -400,31 +344,14 @@ mpegts_getinfo(muxed_stream_t *ms)
 	    dp += 5 + esil;
 	    i += 5 + esil;
 
-	    s->map[ms->n_streams] = epid;
 	    s->imap[epid] = ms->n_streams;
-
-	    switch(stype){
-	    case 1:
-	    case 2:
-		sp->stream_type = STREAM_TYPE_VIDEO;
-		sp->common.codec = "video/mpeg";
-		break;
-
-	    case 3:
-	    case 4:
-		sp->stream_type = STREAM_TYPE_AUDIO;
-		sp->common.codec = "audio/mpeg";
-		break;
-
-	    default:
-		typeok = 0;
-		break;
-	    }
 
 	    fprintf(stderr, "MPEGTS: program %i => PID %x, type %x\n",
 		    prg, epid, stype);
 
-	    if(typeok){
+	    if(mpeg_stream_types[stype].stream_type){
+		sp->stream_type = mpeg_stream_types[stype].stream_type;
+		sp->common.codec = mpeg_stream_types[stype].codec;
 		ms->n_streams++;
 		sp++;
 	    }
@@ -437,32 +364,4 @@ mpegts_getinfo(muxed_stream_t *ms)
     free(mp);
 
     return 0;
-}
-
-extern muxed_stream_t *
-mpeg_open(char *name, conf_section *cs)
-{
-    muxed_stream_t *ms;
-    mpeg_stream_t *mf;
-    url_t *f;
-
-    if(!(f = url_open(name, "r")))
-	return NULL;
-
-    ms = tcallocd(sizeof(*ms), NULL, mpeg_free);
-    memset(ms, 0, sizeof(*ms));
-    ms->file = strdup(name);
-
-    mf = calloc(1, sizeof(*mf));
-    mf->stream = f;
-
-    ms->private = mf;
-
-    mpegts_getinfo(ms);
-    ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
-    ms->next_packet = mpegts_packet;
-
-    mf->pts = calloc(ms->n_streams, sizeof(*mf->pts));
-
-    return ms;
 }
