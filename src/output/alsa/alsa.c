@@ -108,7 +108,8 @@ alsa_free(void *p)
     ao->state = STOP;
     pthread_cond_broadcast(&ao->cd);
     pthread_mutex_unlock(&ao->mx);
-    pthread_join(ao->pth, NULL);
+    if(ao->pth)
+	pthread_join(ao->pth, NULL);
 
     if(ao->hwp){
 	snd_pcm_hw_params_free(ao->hwp);
@@ -328,6 +329,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     ao->buf = malloc(ao->bufsize);
     ao->head = ao->tail = ao->buf;
     ao->can_pause = snd_pcm_hw_params_can_pause(hwp);
+    pthread_create(&ao->pth, NULL, alsa_play, ao);
 
     p->format = *s;
 
@@ -361,7 +363,6 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     if(timer)
 	ao->timer = *timer;
     ao->ptsq = calloc(ptsqsize, sizeof(*ao->ptsq));
-    pthread_create(&ao->pth, NULL, alsa_play, ao);
 
     tp = tcallocdz(sizeof(*tp), NULL, alsa_free);
     tp->input = alsa_input;
