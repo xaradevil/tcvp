@@ -137,11 +137,11 @@ tcvp_event(void *p)
 			}
 		    }
 		}
-	    }
-	    if(st->time)
-		s_length = st->time / 27000000;
+		if(st->time)
+		    s_length = st->time / 27000000;
 
-	    update_time();
+		update_time();
+	    }
 
 	} else if(te->type == -1) {
 	    quit = 1;
