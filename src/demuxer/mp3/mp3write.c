@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -93,9 +93,9 @@ mp3w_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
 {
     mp3_write_t *mw;
-    char *url;
+    char *url = NULL;
     url_t *u;
-    int i;
+    int i, ret = -1;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
 	return -1;
@@ -106,10 +106,10 @@ mp3w_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     }
 
     if(!codecs[i].codec)
-	return -1;
+	goto out;
 
     if(!(u = url_open(url, "w")))
-	return -1;
+	goto out;
 
     if(codecs[i].id3)
 	id3v2_write_tag(u, ms);
@@ -120,5 +120,9 @@ mp3w_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     p->private = mw;
 
-    return 0;
+    ret = 0;
+
+  out:
+    free(url);
+    return ret;
 }
