@@ -56,6 +56,7 @@ typedef struct video_out {
     int framecnt;
     tcconf_section_t *conf;
     int end;
+    int discard;
 } video_out_t;
 
 #define DROPLEN 8
@@ -83,7 +84,7 @@ static void *
 v_play(void *p)
 {
     video_out_t *vo = p;
-/*     int64_t lpts = 0, dt, dpts, lt = 0, tm, dpt; */
+    int64_t lpts = 0, dt, dpts, lt = 0, tm, dpt;
 
     pthread_mutex_lock(&vo->smx);
 
@@ -97,14 +98,14 @@ v_play(void *p)
 	if(vo->pts[vo->tail] == -1LL)
 	    break;
 
-/* 	dpts = vo->pts[vo->tail] - lpts; */
-/* 	lpts = vo->pts[vo->tail]; */
-/* 	tm = vo->timer->read(vo->timer); */
-/* 	dt = tm - lt; */
-/* 	lt = tm; */
-/* 	dpt = vo->pts[vo->tail] - tm; */
+	dpts = vo->pts[vo->tail] - lpts;
+	lpts = vo->pts[vo->tail];
+	tm = vo->timer->read(vo->timer);
+	dt = tm - lt;
+	lt = tm;
+	dpt = vo->pts[vo->tail] - tm;
 
-/* 	fprintf(stderr, "VO: pts = %llu, dt = %lli, dpts = %lli pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames); */
+	tc2_print("VIDEO", TC2_PRINT_DEBUG+1, "pts = %llu, dt = %lli, dpts = %lli pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames);
 
 	if(vo->timer->wait(vo->timer, vo->pts[vo->tail], &vo->smx) < 0)
 	    continue;
@@ -162,6 +163,11 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	goto out;
     }
 
+    if(vo->discard){
+	vo->discard--;
+	goto out;
+    }
+
     if(!vo->drop[vo->dropcnt]){
 	pthread_mutex_lock(&vo->smx);
 	vo->framecnt++;
@@ -205,6 +211,7 @@ v_start(tcvp_pipe_t *p)
 {
     video_out_t *vo = p->private;
 
+    tc2_print("VIDEO", TC2_PRINT_DEBUG, "start\n");
     pthread_mutex_lock(&vo->smx);
     vo->state = PLAY;
     pthread_cond_broadcast(&vo->scd);
@@ -218,6 +225,7 @@ v_stop(tcvp_pipe_t *p)
 {
     video_out_t *vo = p->private;
 
+    tc2_print("VIDEO", TC2_PRINT_DEBUG, "stop\n");
     pthread_mutex_lock(&vo->smx);
     vo->state = PAUSE;
     if(vo->timer)
@@ -369,6 +377,7 @@ v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
     vo->drop = drops[0];
     vo->conf = tcref(cs);
     vo->timer = tcref(timer);
+    vo->discard = tcvp_output_video_conf_discard;
     pthread_create(&vo->thr, NULL, v_play, vo);
 
     pipe = tcallocdz(sizeof(*pipe), NULL, v_free);

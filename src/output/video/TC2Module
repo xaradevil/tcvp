@@ -6,3 +6,6 @@ sources		video.c colors.c vid_priv.h
 postinit	v_init
 implement	"output/video"	"new"	v_open
 require		"driver/video"
+
+option	discard%i=0
+Number of initial frames to discard.
