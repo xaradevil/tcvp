@@ -154,6 +154,7 @@ cd_close(url_t *u)
 
     cdda_close(cdt->drive);
     free(cdt->buffer);
+    free(cdt->header);
     free(cdt);
     free(u);
     return 0;
@@ -194,12 +195,25 @@ cd_open(char *url, char *mode)
 
     cdt = calloc(sizeof(cd_data_t), 1);
 
-    cdt->buffer = calloc(buffer_size, 1);
     cdt->track = track;
     cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
     cdda_verbose_set(cdt->drive, CDDA_MESSAGE_PRINTIT, CDDA_MESSAGE_FORGETIT);
 
-    cdda_open(cdt->drive);
+    if(cdda_open(cdt->drive) != 0) {
+	free(cdt);
+	free(u);
+	return NULL;
+    }
+
+    if(cdt->track > cdda_tracks(cdt->drive) || 
+       cdda_track_audiop(cdt->drive, cdt->track) == 0) {
+	free(cdt);
+	free(u);
+	return NULL;
+    }
+
+    cdt->buffer = calloc(buffer_size, 1);
+
     cdt->first_sector = cdda_track_firstsector(cdt->drive, cdt->track);
     cdt->last_sector = cdda_track_lastsector(cdt->drive, cdt->track);
 
@@ -227,10 +241,7 @@ cd_open(char *url, char *mode)
 	i32[10] = cdt->data_length;
     }
     u->private = cdt;
-
-/*     *(url_http_t *)u->private = *hf; */
-/*     u->flags = URL_FLAG_STREAMED; */
-/*     u->size = hf->size; */
+    u->size = cdt->data_length + cdt->header_length;
 
     return u;
 }

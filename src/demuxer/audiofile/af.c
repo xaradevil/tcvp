@@ -68,7 +68,6 @@ aff_destroy(AFvirtualfile *vfile)
     vfile->closure = NULL;
 }
 
-
 static long
 aff_seek(AFvirtualfile *vfile, long offset, int is_relative)
 {
@@ -84,7 +83,6 @@ aff_tell(AFvirtualfile *vfile)
     url_t *f = vfile->closure;
     return f->tell(f);
 }
-
 
 
 static void
