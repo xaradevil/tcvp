@@ -110,7 +110,7 @@ static int
 tm_wait(timer__t *t, uint64_t time)
 {
     alsa_timer_t *at = t->private;
-    int intr, wait;
+    int intr = 1, wait;
 
     pthread_mutex_lock(&at->mx);
     wait = ++at->wait;
