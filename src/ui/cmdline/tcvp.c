@@ -110,9 +110,11 @@ tcl_intr(void *p)
 {
     struct timeval tv;
     uint64_t lt = 0;
+    int ic = 0;
 
     while(intr){
 	uint64_t t;
+	tcvp_event_t *te;
 
 	sem_wait(&psm);
 	if(!intr)
@@ -121,14 +123,22 @@ tcl_intr(void *p)
 	gettimeofday(&tv, NULL);
 	t = 1000000LL * tv.tv_sec + tv.tv_usec;
 	
-	if(t - lt < 200000){
-	    tc2_request(TC2_UNLOAD_ALL, 0);
-	} else {
-	    tcvp_event_t *te;
+	if(t - lt < 500000)
+	    ic++;
+
+	switch(ic){
+	case 0:
 	    te = tcvp_alloc_event(TCVP_PL_NEXT);
 	    eventq_send(qs, te);
 	    tcfree(te);
+	    break;
+	case 1:
+	    tc2_request(TC2_UNLOAD_ALL, 0);
+	    break;
+	case 2:
+	    exit(0);
 	}
+
 	lt = t;
     }
 
@@ -216,6 +226,12 @@ tcl_stop(void)
     if(validate)
 	pthread_join(check_thr, NULL);
 
+    if(pl)
+	pl->free(pl);
+
+    if(pll)
+	pll->free(pll);
+
     if(qr){
 	tcvp_event_t *te = tcvp_alloc_event(-1);
 	eventq_send(qr, te);
@@ -229,12 +245,6 @@ tcl_stop(void)
 	eventq_delete(qr);
 	sem_destroy(&psm);
     }
-
-    if(pl)
-	pl->free(pl);
-
-    if(pll)
-	pll->free(pll);
 
     return 0;
 }
