@@ -64,9 +64,9 @@ alsa_stop(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
-    ao->state = PAUSE;
     if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING)
 	snd_pcm_pause(ao->pcm, 1);
+    ao->state = PAUSE;
 
     return 0;
 }
