@@ -134,6 +134,9 @@ tcvp_event(void *p)
 			    sprintf(buf, "%.1f",
 				    (double)s->audio.sample_rate/1000);
 			    change_text("audio_samplerate", buf);
+
+			    sprintf(buf, "%d", s->audio.channels);
+			    change_text("audio_channels", buf);
 			}
 		    }
 		}
@@ -142,7 +145,6 @@ tcvp_event(void *p)
 
 		update_time();
 	    }
-
 	} else if(te->type == -1) {
 	    quit = 1;
 	}
