@@ -219,11 +219,12 @@ static void *
 st_ticker(void *p)
 {
     tcvp_player_t *tp = p;
-    uint64_t time = 0;
+    uint64_t time;
 
     pthread_mutex_lock(&tp->tmx);
     while(tp->state != TCVP_STATE_END){
 	pthread_mutex_unlock(&tp->tmx);
+	time = tp->timer->read(tp->timer);
 	if(tp->timer->wait(tp->timer, time += 1000000) == 0){
 	    tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER);
 	    te->time = time;
