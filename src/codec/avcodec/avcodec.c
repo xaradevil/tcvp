@@ -189,7 +189,7 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 
 	    if(vc->frame->pts){
 		out->pts = vc->frame->pts;
-		vc->pts = 1000000 * vc->frame->pts;
+		vc->pts = vc->ptsd * vc->frame->pts;
 	    } else {
 		out->pts = vc->pts / vc->ptsd;
 	    }
@@ -213,6 +213,9 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 	    }
 	}
     }
+
+    if(!pk->sizes[0])
+	vc->pts += vc->ptsn;
 
     pk->free(pk);
 
