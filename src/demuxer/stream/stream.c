@@ -157,15 +157,16 @@ freeq(s_play_t *vp, int i)
 }
 
 static void
-wait_pause(s_play_t *vp)
+wait_pause(s_play_t *vp, int n)
 {
     int w = 1;
     pthread_mutex_lock(&vp->mtx);
-    while(vp->state == PAUSE){
+    while(vp->state == PAUSE && vp->waiting >= n){
 	if(w){
 	    vp->waiting++;
 	    pthread_cond_broadcast(&vp->cnd);
 	    w = 0;
+	    n = 0;
 	}
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     }
@@ -183,13 +184,13 @@ read_stream(void *p)
     muxed_stream_t *ms = vp->stream;
     int i;
 
-    vp->streams++;
+/*     vp->streams++; */
 
     while(vp->state != STOP){
 	packet_t *pk;
 	int s;
 
-	wait_pause(vp);
+	wait_pause(vp, 0);
 
 	for(i = 0, s = 0; i < ms->n_streams; i++){
 	    if(ms->used_streams[i] && vp->pq[i].count < vp->pq[s].count)
@@ -224,7 +225,7 @@ play_stream(void *p)
     packet_t *pk;
 
     while(vp->state != STOP){
-	wait_pause(vp);
+	wait_pause(vp, 1);
 	pk = dqp(vp, str);
 	vp->pipes[str]->input(vp->pipes[str], pk);
 	if(!pk)
@@ -268,7 +269,7 @@ stop(tcvp_pipe_t *p)
 
     pthread_mutex_lock(&vp->mtx);
     vp->state = PAUSE;
-    while(vp->waiting < vp->streams)
+    while(vp->waiting < vp->streams + 1)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
 
@@ -319,14 +320,9 @@ s_free(tcvp_pipe_t *p)
     for(i = 0, j = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
 	    pthread_join(vp->threads[j], NULL);
-	    j++;
-	}
-    }
-
-    for(i = 0; i < vp->stream->n_streams; i++){
-	if(vp->stream->used_streams[i]){
 	    freeq(vp, i);
 	    free(vp->pq[i].q);
+	    j++;
 	}
     }
 
