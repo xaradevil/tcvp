@@ -210,7 +210,7 @@ tcvp_seek(xtk_widget_t *w, void *p)
     double pos = *((double*)p);
     uint64_t time = s_length * pos + start_time;
 
-    tcvp_event_send(qs, TCVP_SEEK, time, TCVP_SEEK_ABS);
+    tcvp_event_send(qs, TCVP_SEEK, time / 27000, TCVP_SEEK_ABS);
 
     return 0;
 }
@@ -222,9 +222,9 @@ tcvp_seek_rel(xtk_widget_t *w, void *p)
     widget_data_t *wd = xtk_widget_get_data(w);
     if(wd) {
 	char *d = wd->action_data;
-	uint64_t time = strtol(d, NULL, 0) * 27000000;
+	uint64_t time = strtol(d, NULL, 0);
 
-	tcvp_event_send(qs, TCVP_SEEK, time, TCVP_SEEK_REL);
+	tcvp_event_send(qs, TCVP_SEEK, time * 1000, TCVP_SEEK_REL);
     }
 
     return 0;
