@@ -1,7 +1,6 @@
 name "TCVP"
 version 0.2.0-pre
 module src/event
-module src/demuxer/audiofile
 module src/demuxer/avformat
 module src/demuxer/avi
 module src/demuxer/avimage
