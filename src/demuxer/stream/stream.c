@@ -468,6 +468,7 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
     int pcnt[ms->n_streams];
     int pstat[ms->n_streams];
     int stime[ms->n_streams];
+    int packets = 0;
     int spc = 0;
     int i;
 
@@ -486,10 +487,11 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 	packet_t *pk = ms->next_packet(ms, -1);
 	int st, ci;
 
-	if(!pk || !pk->data){
+	if(!pk || !pk->data ||
+	   ++packets > tcvp_demux_stream_conf_magic_size * ms->n_streams){
 	    if(pk)
 		tcfree(pk);
-	    continue;
+	    break;
 	}
 
 	st = pk->stream;
