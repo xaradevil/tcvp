@@ -147,6 +147,16 @@ dqp(s_play_t *vp, int s)
 }
 
 static void
+freeq(s_play_t *vp, int i)
+{
+    while(vp->pq[i].count){
+	packet_t *pk = dqp(vp, i);
+	if(pk)
+	    pk->free(pk);
+    }
+}
+
+static void
 wait_pause(s_play_t *vp)
 {
     int w = 1;
@@ -279,11 +289,7 @@ s_flush(tcvp_pipe_t *p, int drop)
 	if(vp->stream->used_streams[i]){
 	    vp->pipes[i]->flush(vp->pipes[i], drop);
 	    if(drop){
-		while(vp->pq[i].count){
-		    packet_t *pk = dqp(vp, i);
-		    if(pk)
-			pk->free(pk);
-		}
+		freeq(vp, i);
 	    }
 	}
     }
@@ -313,12 +319,16 @@ s_free(tcvp_pipe_t *p)
     for(i = 0, j = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
 	    pthread_join(vp->threads[j], NULL);
-	    free(vp->pq[i].q);
 	    j++;
 	}
     }
 
-    s_flush(p, 1);
+    for(i = 0; i < vp->stream->n_streams; i++){
+	if(vp->stream->used_streams[i]){
+	    freeq(vp, i);
+	    free(vp->pq[i].q);
+	}
+    }
 
     pthread_mutex_lock(&vp->mtx);
     while(vp->flushing)
