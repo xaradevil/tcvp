@@ -1,3 +1,18 @@
 - proper key handling
+
 - playlist save/restore
+
 - key binding to restore video window size
+
+- key binding for fullscreen video
+
+- Recursively add directories
+    When adding a directory to the playlist all files in that
+    directory should be recursively added.
+
+- Persistent video windows
+    Do not close and open a new window when changing file or stoping.
+
+- DVD subtitle support
+
+- On screen display
