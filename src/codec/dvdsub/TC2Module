@@ -1,0 +1,14 @@
+module		dvdsub
+name		"TCVP/codec/dvdsub"
+version		0.1.0
+tc2version	0.6.0
+sources		dvdsub.c
+
+TCVP {
+	filter "decoder/subtitle/dvd" {
+		new dvdsub_new
+		probe dvdsub_probe
+		flush dvdsub_flush
+		packet DATA dvdsub_decode
+	}
+}
