@@ -31,10 +31,15 @@ static pthread_t play_thr;
 static int nfiles;
 char **files;
 sem_t psm;
+int intr;
 
 static void
 sigint(int s)
 {
+    if(intr)
+	return;
+
+    intr = 1;
     sem_post(&psm);
 }
 
@@ -57,13 +62,17 @@ tcvp_play(void *p)
 
     for(i = 0; i < nfiles; i++){
 	player_t *pl;
+	intr = 0;
 
 	if(!(pl = tcvp_open(files[i], tcvp_update, NULL, cf)))
 	    continue;
-
+	printf("Playing \"%s\"...\n", files[i]);
 	pl->start(pl);
 	sem_wait(&psm);
 	pl->close(pl);
+	if(intr){
+	    sem_wait(&psm);
+	}
     }
 
     conf_free(cf);
