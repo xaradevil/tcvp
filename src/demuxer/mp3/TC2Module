@@ -2,13 +2,15 @@ module		mp3
 name		"TCVP/demux/mp3"
 version		0.1.0
 tc2version	0.4.0
-sources		mp3.c
+sources		mp3.c mp3write.c
 postinit	mp3_init
 implement	"audio/mpeg"	"open"		mp3_open
+implement	"mux/mp3"	"new"		mp3w_new
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
 import		"Eventq"	"attach"
+import		"URL"		"open"
 import		"URL"		"getc"
 import		"tcvp/event"	"send"
 import		"tcvp/event"	"get"
