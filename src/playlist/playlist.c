@@ -85,7 +85,7 @@ pl_addlist(playlist_t *pl, char *file, int pos)
     d = strrchr(l, '/');
 
     if(d){
-	*d = 0;
+	*(d+1) = 0;
 	d = l;
     } else {
 	d = "";
@@ -94,7 +94,11 @@ pl_addlist(playlist_t *pl, char *file, int pos)
     while(fgets(buf, 1024, plf)){
 	if(buf[0] != '#'){
 	    buf[strlen(buf)-1] = 0;
-	    snprintf(line, 1024, "%s/%s", d, buf);
+	    if(buf[0] == '/') {
+		snprintf(line, 1024, "%s", buf);
+	    } else {
+		snprintf(line, 1024, "%s%s", d, buf);
+	    }
 	    pl_add(pl, lp, 1, pos + n++);
 	}
     }
