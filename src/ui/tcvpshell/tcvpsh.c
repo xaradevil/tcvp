@@ -48,11 +48,14 @@ static command *play_cmd, *pause_cmd, *stop_cmd;
 extern int
 tcvpsh_init(char *p)
 {
-    char *qname, *qn;
+    char *qname = NULL, *qn;
     tcconf_section_t *cs = tc2_get_conf(MODULE_INFO.name);
 
-    if(!cs || tcconf_getvalue(cs, "qname", "%s", &qname) <= 0){
+    if(!cs)
 	cs = tcconf_new(NULL);
+    else
+	tcconf_getvalue(cs, "qname", "%s", &qname);
+    if(!qname){
 	pl = tcvp_new(cs);
 	tcconf_getvalue(cs, "qname", "%s", &qname);
     }
