@@ -116,10 +116,6 @@ tcvpx_shdn(void)
 
     xtk_shutdown_graphics();
 
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_CLOSE);
-    eventq_send(qr, te);
-    tcfree(te);
-
     pthread_join(eth, NULL);
 
     eventq_delete(qs);
