@@ -211,7 +211,7 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 
     c = tpl->cur + dir;
 
-    if(c >= tpl->nf){
+    if(c >= tpl->nf || c < 0){
 	if(tpl->state == PLAYING){
 	    tcvp_state_event_t *te;
 	    tpl->state = STOPPED;
@@ -220,12 +220,6 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 	    eventq_send(tpl->ss, te);
 	    tcfree(te);
 	}
-	goto out;
-    }
-
-    if(c < 0){
-	tpl->state = STOPPED;
-	ret = -1;
 	goto out;
     }
 
