@@ -22,20 +22,10 @@ static magic_t file_magic;
 #endif
 
 #define magic_size tcvp_demux_stream_conf_magic_size
+#define suffix_map tcvp_demux_stream_conf_suffix
+#define suffix_map_size tcvp_demux_stream_conf_suffix_count
 
 static int TCVP_STATE;
-
-static char *suffix_map[][3] = {
-    { ".ogg", "audio/x-ogg", "mux/ogg" },
-    { ".avi", "video/x-avi", "mux/avi" },
-    { ".mp3", "audio/mpeg", "mux/mp3" },
-    { ".wav", "audio/x-wav", "mux/wav" },
-    { ".mov", "video/quicktime", "mux/quicktime" },
-    { ".mpg", "video/mpeg", "mux/mpeg-ps" },
-    { ".mpeg", "video/mpeg", "mux/mpeg-ps" },
-    { ".aac", "audio/x-aac", "mux/aac" },
-    { NULL, NULL, NULL }
-};
 
 static void
 cpattr(void *d, void *s, char *a)
@@ -84,9 +74,9 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	char *s = strrchr(name, '.');
 	if(s){
 	    int i;
-	    for(i = 0; suffix_map[i][0]; i++){
-		if(!strcmp(s, suffix_map[i][0])){
-		    m = strdup(suffix_map[i][1]);
+	    for(i = 0; i < suffix_map_size; i++){
+		if(!strcmp(s, suffix_map[i].suffix)){
+		    m = strdup(suffix_map[i].demuxer);
 		    break;
 		}
 	    }
@@ -165,16 +155,19 @@ s_open_mux(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     if((sf = strrchr(name, '.'))){
 	int i;
-	for(i = 0; suffix_map[i][0]; i++){
-	    if(!strcmp(sf, suffix_map[i][0])){
-		m = strdup(suffix_map[i][2]);
+	for(i = 0; i < suffix_map_size; i++){
+	    if(!strcmp(sf, suffix_map[i].suffix)){
+		m = suffix_map[i].muxer;
 		break;
 	    }
 	}
     }
 
-    if(m)
-	mnew = tc2_get_symbol(m, "new");
+    if(m){
+	char mb[strlen(m) + 5];
+	sprintf(mb, "mux/%s", m);
+	mnew = tc2_get_symbol(mb, "new");
+    }
 
     free(name);
     return mnew? mnew(s, cs, t, ms): NULL;
