@@ -283,6 +283,8 @@ s_flush(tcvp_pipe_t *p, int drop)
     vp->flushing++;
     pthread_mutex_unlock(&vp->mtx);
 
+    while(!sem_trywait(&vp->rsm));
+
     for(i = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
 	    vp->pipes[i]->flush(vp->pipes[i], drop);
