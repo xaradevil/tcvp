@@ -82,7 +82,7 @@ pcm_packet(muxed_stream_t *ms, int str)
     ep->size = size;
 
     pcm->pts +=
-	size / pcm->s.audio.block_align * 27000000 / pcm->s.audio.sample_rate;
+	size/pcm->s.audio.block_align * 27000000LL / pcm->s.audio.sample_rate;
 
     return &ep->pk;
 }
