@@ -454,10 +454,8 @@ read_stream(void *p)
 	struct sp_stream *str;
 	int ps;
 
-	pthread_mutex_lock(&sp->lock);
 	if(sp->pstreams)
 	    pk = sp->ms->next_packet(sp->ms, -1);
-	pthread_mutex_unlock(&sp->lock);
 
 	if(!pk){
 	    int i;
