@@ -239,6 +239,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	int fflags, dlen = 0;
 	u_char *data = NULL;
 	off_t pos;
+	char stag[5];
 
 	if(!tag)
 	    break;
@@ -247,11 +248,8 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	fflags = getu16(f);
 	pos = f->tell(f);
 
-#ifdef DEBUG
-	char stag[5];
-	fprintf(stderr, "MP3: %s size=%x flags=%x\n",
-		tag2str(stag, tag), fsize, fflags);
-#endif
+	tc2_print("ID3", TC2_PRINT_DEBUG, "tag %s size=%x flags=%x\n",
+		  tag2str(stag, tag), fsize, fflags);
 
 	if(fflags & ID3v2_FFLAG_GID)
 	    url_getc(f);
@@ -369,7 +367,7 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
     p = tag;
 
     p += sprintf(tag, "ID3%c%c%c", 4, 0, 0);
-    st_ss32(tagsize, p);
+    st_ss32(tagsize - 10, p);
     p += 4;
 
     if(artist)
