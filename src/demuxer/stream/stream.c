@@ -351,9 +351,7 @@ play_stream(void *p)
     pk->stream = str;
     pk->data = NULL;
     vp->pipes[str]->input(vp->pipes[str], pk);
-
-    if(vp->state != STOP)
-	vp->pipes[str]->flush(vp->pipes[str], 0);
+    vp->pipes[str]->flush(vp->pipes[str], vp->state == STOP);
 
     pthread_mutex_lock(&vp->mtx);
     vp->nstreams--;
@@ -412,6 +410,8 @@ s_flush(tcvp_pipe_t *p, int drop)
 		freeq(vp, i);
 		while(!sem_trywait(&vp->streams[i].ps));
 	    }
+	    vp->streams[i].pts = 0;
+	    vp->streams[i].pts_offset = 0;
 	}
 	vp->eof = 0;
     }
@@ -432,7 +432,6 @@ s_free(void *p)
     int i, j;
 
     vp->state = STOP;
-    s_flush(tp, 1);
     sem_post(&vp->rsm);
     pthread_join(vp->rth, NULL);
     pthread_mutex_lock(&vp->mtx);
