@@ -243,7 +243,6 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	do {
 	    mpegts_packet_t *mp = mpegts_read_packet(s);
-	    uint64_t pts = 0, upts = 0;
 
 	    if(!mp)
 		abort();
@@ -255,7 +254,16 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		continue;
 	    }
 
+	    pk = malloc(sizeof(*pk));
+	    pk->data = &mp->datap;
+	    pk->sizes = &mp->data_length;
+	    pk->planes = 1;
+	    pk->flags = 0;
+	    pk->free = mpegts_free_pk;
+	    pk->private = mp;
+
 	    if(mp->unit_start){
+		uint64_t pts = 0, upts = 0;
 		int peshl = mp->datap[8];
 		if(mp->datap[7] & 0x80){
 		    pts = (htob_16(unaligned16(mp->datap+12)) & 0xfffe) >> 1;
@@ -273,18 +281,12 @@ mpegts_packet(muxed_stream_t *ms, int str)
 /* 		    fprintf(stderr, "MPEGTS: sx = %i, pts = %10llu, upts = %15llu, dpts = %lli\n", */
 /* 			    sx, pts, upts, pts - s->pts[sx]); */
 		    s->pts[sx] = pts;
+		    pk->pts = upts;
+		    pk->flags |= PKT_FLAG_PTS;
 		}
 		mp->datap += 9 + peshl;
 		mp->data_length -= 9 + peshl;
 	    }
-
-	    pk = malloc(sizeof(*pk));
-	    pk->data = &mp->datap;
-	    pk->sizes = &mp->data_length;
-	    pk->planes = 1;
-	    pk->pts = upts;
-	    pk->free = mpegts_free_pk;
-	    pk->private = mp;
 
 	    if(sx != str){
 		list_push(s->packets[sx], pk);

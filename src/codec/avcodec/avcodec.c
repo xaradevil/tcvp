@@ -166,13 +166,12 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 	return 0;
     }
 
-    if(pk->pts){
+    if(pk->flags & PKT_FLAG_PTS){
 	uint64_t pts = vc->pts / vc->ptsd;
 	uint64_t ptsdiff = pk->pts > pts? pk->pts - pts: pts - pk->pts;
 	if(ptsdiff > 1000000){
 	    vc->pts = pk->pts * vc->ptsd;
 	}
-	pk->pts = 0;
     }
 
     while(insize > 0){
@@ -199,6 +198,7 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 	    }
 	    out->planes = i;
 
+	    out->flags = PKT_FLAG_PTS;
 	    out->pts = vc->pts / vc->ptsd;
 	    vc->pts += vc->ptsn;
 

@@ -150,7 +150,7 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
     alsa_out_t *ao = p->private;
     size_t count;
     u_char *data;
-    uint64_t pts;
+    int pts;
 
     if(!pk){
 	ao->data_end = 1;
@@ -159,7 +159,7 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
 
     count = pk->sizes[0];
     data = pk->data[0];
-    pts = pk->pts;
+    pts = pk->flags & PKT_FLAG_PTS;
 
     while(count > 0){
 	int bs;

@@ -61,7 +61,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
     if(!mpd->info)
 	mpd->info = mpeg2_info(mpd->mpeg2);
 
-    if(pk->pts && !mpd->ptsc){
+    if((pk->flags & PKT_FLAG_PTS) && !mpd->ptsc){
 	uint64_t pts = mpd->pts / 27;
 	uint64_t ptsdiff = pk->pts>pts? pk->pts-pts: pts-pk->pts;
 	mpd->npts = pk->pts * 27;
@@ -92,6 +92,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		    mpd->pc = 0;
 		}
 
+		pic->pk.flags = PKT_FLAG_PTS;
 		pic->pk.pts = mpd->pts / 27;
 		mpd->pts += mpd->info->sequence->frame_period;
 		pic->pk.free = mpeg_free_pk;

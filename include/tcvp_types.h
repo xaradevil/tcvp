@@ -27,10 +27,15 @@ struct packet {
     u_char **data;
     int *sizes;
     int planes;
+    int flags;
     uint64_t pts;
     void (*free)(packet_t *);
     void *private;
 };
+
+#define PKT_FLAG_PTS  0x1
+#define PKT_FLAG_KEY  0x2
+
 
 #define STREAM_TYPE_VIDEO 1
 #define STREAM_TYPE_AUDIO 2

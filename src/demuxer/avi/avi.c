@@ -672,6 +672,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
 	    uint32_t flags = 0;
 	    uint64_t pts = 0;
+	    int pflags = 0;
 	    size_t pos;
 
 	    /* FIXME: get rid of gotos */
@@ -774,7 +775,10 @@ avi_packet(muxed_stream_t *ms, int stream)
 		if(af->index[af->pkt]->offset == pos){
 		    af->idxok++;
 		    flags = af->index[af->pkt]->flags;
+		    if(flags & AVI_FLAG_KEYFRAME)
+			flags |= PKT_FLAG_KEY;
 		    pts = af->index[af->pkt]->pts;
+		    pflags |= PKT_FLAG_PTS;
 		} else {
 		    af->idxok = 0;
 		}
@@ -789,6 +793,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    pk->pk.sizes = &pk->size;
 	    pk->pk.sizes[0] = size;
 	    pk->pk.planes = 1;
+	    pk->pk.flags = pflags;
 	    pk->pk.pts = pts;
 	    pk->pk.free = avi_free_packet;
 	    pk->flags = flags;

@@ -229,6 +229,7 @@ do_decode(tcvp_pipe_t *p)
 		md->out->pk.pts = md->npts - ((md->out->dp - md->out->data) /
 		    md->synth.pcm.channels) * 1000000 /
 		    md->frame.header.samplerate;
+		md->out->pk.flags |= PKT_FLAG_PTS;
 	    }
 	}
 	output(p, &md->frame.header, &md->synth.pcm);
@@ -273,7 +274,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     d = pk->data[0];
     size = pk->sizes[0];
 
-    if(pk->pts && md->ptsc <= 0){
+    if((pk->flags & PKT_FLAG_PTS) && md->ptsc <= 0){
 	md->npts = pk->pts;
 	md->ptsc = md->bs;
     }

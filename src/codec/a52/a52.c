@@ -33,6 +33,8 @@ typedef struct a52_decode {
     int flags;
     char buf[3840];
     int fsize, fpos;
+    uint64_t pts;
+    int ptsf;
 } a52_decode_t;
 
 /* float to int convertion from a52dec by Aaron Holtzman and Michel
@@ -173,6 +175,11 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
     psize = pk->sizes[0];
     pdata = pk->data[0];
 
+    if(pk->flags & PKT_FLAG_PTS){
+	ad->pts = pk->pts;
+	ad->ptsf = 1;
+    }
+
     while(psize > 0){
 	if(ad->fsize > 0){
 	    int fs = ad->fsize - ad->fpos;
@@ -223,6 +230,12 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    out->planes = 1;
 	    out->free = a52_free_pk;
 	    out->private = outbuf;
+	    out->flags = 0;
+	    if(ad->ptsf){
+		out->flags |= PKT_FLAG_PTS;
+		out->pts = ad->pts;
+		ad->ptsf = 0;
+	    }
 
 	    p->next->input(p->next, out);
 	}
