@@ -362,7 +362,7 @@ tcl_init(char *p)
     for(i = 0; i < ncmds; i++)
 	tcvp_event_send(qs, tcvp_event_get(commands[i]));
 
-    if(!have_cmds){
+    if(!have_cmds && (sel_ui || !strstr(qname, "remote"))){
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
