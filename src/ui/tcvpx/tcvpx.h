@@ -32,6 +32,8 @@
 int init_graphics();
 int create_window(skin_t *);
 int destroy_window(skin_t *);
+int wm_set_sticky(skin_t *, int);
+int wm_set_always_on_top(skin_t *, int);
 int update_time();
 int update_title(char *title);
 int update_state(char *state);

@@ -32,6 +32,9 @@ typedef struct _mwmhints {
     uint32_t status;
 } MWMHints;
 
+#define _NET_WM_STATE_REMOVE        0
+#define _NET_WM_STATE_ADD           1
+#define _NET_WM_STATE_TOGGLE        2
 
 int mapped=1;
 
@@ -193,6 +196,127 @@ x11_event(void *p)
 }
 
 
+static int
+check_wm(skin_t *skin)
+{
+    Atom supporting, xa_window;
+    Atom r_type;
+    int r_format, r, ret = 0;
+    unsigned long count, bytes_remain;
+    unsigned char *p = NULL, *p2 = NULL;
+    
+
+    xa_window = XInternAtom(xd, "WINDOW", True);
+    supporting = XInternAtom(xd, "_NET_SUPPORTING_WM_CHECK", True);
+
+    r = XGetWindowProperty(xd, RootWindow(xd, xs), supporting,
+			   0, 1, False, xa_window, &r_type, &r_format,
+			   &count, &bytes_remain, &p);
+
+    if(r == Success && p && r_type == xa_window && r_format == 32 &&
+       count == 1) {
+	Window w = *(Window *)p;
+
+	r = XGetWindowProperty(xd, w, supporting, 0, 1,
+			       False, xa_window, &r_type, &r_format,
+			       &count, &bytes_remain, &p2);
+	
+	if (r == Success && p2 && *p2 == *p &&
+	    r_type == xa_window && r_format == 32 && count == 1) {
+	    ret = 1;
+	}
+    }
+
+    if (p) {
+	XFree(p);
+
+	if (p2) {
+	    XFree(p2);
+	}
+    }
+
+    return ret;
+}
+
+
+static int
+wm_set_property(skin_t *skin, char *atom, int enabled)
+{
+    XEvent xev;
+    Atom xa_wm_state, xa_prop;
+
+    xa_prop = XInternAtom(xd, atom, False);
+    xa_wm_state = XInternAtom(xd, "_NET_WM_STATE", False);
+
+    xev.type = ClientMessage;
+    xev.xclient.type = ClientMessage;
+    xev.xclient.window = skin->xw;
+    xev.xclient.message_type = xa_wm_state;
+    xev.xclient.format = 32;
+    xev.xclient.data.l[0] = (enabled>0)?_NET_WM_STATE_ADD:_NET_WM_STATE_REMOVE;
+    xev.xclient.data.l[1] = xa_prop;
+    xev.xclient.data.l[2] = 0;
+
+    XSendEvent(xd, RootWindow(xd, xs), False,
+	       SubstructureNotifyMask, (XEvent *) & xev);
+
+    return 0;
+}
+
+
+extern int
+wm_set_sticky(skin_t *skin, int enabled)
+{
+    Atom xa_wm_desktop;
+    XEvent xev;
+
+    int current_desktop = 0;
+    Atom xa_cardinal, xa_current_desktop;
+    Atom r_type;
+    int r_format, ret;
+    unsigned long count, bytes_remain;
+    unsigned char *p = NULL;
+
+    wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
+
+
+    
+
+    xa_cardinal = XInternAtom(xd, "CARDINAL", True);
+    xa_current_desktop = XInternAtom(xd, "_NET_CURRENT_DESKTOP", True);
+
+    ret = XGetWindowProperty(xd, RootWindow(xd, xs), xa_current_desktop,
+			     0, 1, False, xa_current_desktop, &r_type, &r_format,
+			     &count, &bytes_remain, &p);
+    if(ret == Success && p && r_type == xa_cardinal && r_format == 32 &&
+       count == 1) {
+	current_desktop = *(long *)p;
+    }
+
+    xa_wm_desktop = XInternAtom(xd, "_NET_WM_DESKTOP", False);
+
+    xev.type = ClientMessage;
+    xev.xclient.type = ClientMessage;
+    xev.xclient.window = skin->xw;
+    xev.xclient.message_type = xa_wm_desktop;
+    xev.xclient.format = 32;
+    xev.xclient.data.l[0] = (enabled>0)?-1:current_desktop;
+
+    XSendEvent(xd, RootWindow(xd, xs), False,
+	       SubstructureNotifyMask, (XEvent *) & xev);
+
+    return 0;
+}
+
+
+extern int
+wm_set_always_on_top(skin_t *skin, int enabled)
+{
+    wm_set_property(skin, "_NET_WM_STATE_STAYS_ON_TOP", 1);
+    return 0;
+}
+
+
 extern int
 init_graphics()
 {
@@ -228,7 +352,7 @@ create_window(skin_t *skin)
     XSizeHints *sizehints;
     XTextProperty windowName;
     char *title = "TCVP";
-    Atom xdndversion = 4, xa_atom, xa_cardinal;
+    Atom xdndversion = 4, xa_atom;
 
     skin->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
 			     skin->width, skin->height, 0,
@@ -238,7 +362,6 @@ create_window(skin_t *skin)
     XSelectInput(xd, skin->xw, ExposureMask | StructureNotifyMask);
 
     xa_atom = XInternAtom(xd, "ATOM", False);
-    xa_cardinal = XInternAtom(xd, "CARDINAL", False);
 
     XdndDrop = XInternAtom(xd, "XdndDrop", False);
     XdndType = XInternAtom(xd, "text/plain", False);
@@ -254,39 +377,15 @@ create_window(skin_t *skin)
 		    (unsigned char *) &mwmhints,
 		    PROP_MWM_HINTS_ELEMENTS);
 
+/*     fprintf(stderr, "%d\n", check_wm(skin)); */
+
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
-	Atom xa_wm_desktop, xa_win_state;
-	Atom xa_wm_state, xa_sticky;
-	int desktop = -1;
-	int i=1;
-
-	xa_wm_desktop = XInternAtom(xd, "_NET_WM_DESKTOP", False);
-	XChangeProperty(xd, skin->xw, xa_wm_desktop, xa_cardinal, 32,
-			PropModeReplace, (unsigned char *) &desktop, 1);
-
-	xa_win_state = XInternAtom(xd, "_WIN_STATE", False);
-	XChangeProperty(xd, skin->xw, xa_win_state, xa_cardinal, 32,
-			PropModeReplace, (unsigned char *) &i, 1);
-
-
-	xa_wm_state = XInternAtom(xd, "_NET_WM_STATE", False);
-	xa_sticky = XInternAtom(xd, "_NET_WM_STATE_STICKY", False);
-
-	XChangeProperty(xd, skin->xw, xa_wm_state, xa_atom, 32,
-			PropModeAppend, (unsigned char *) &xa_sticky, 1);
-
+	wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
     }
 
     if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
-	Atom xa_wm_state, xa_on_top;
-
-	xa_wm_state = XInternAtom(xd, "_NET_WM_STATE", False);
-	xa_on_top = XInternAtom(xd, "_NET_WM_STATE_STAYS_ON_TOP", False);
-
-	XChangeProperty(xd, skin->xw, xa_wm_state, xa_atom, 32,
-			PropModeAppend, (unsigned char *) &xa_on_top, 1);
+	wm_set_property(skin, "_NET_WM_STATE_STAYS_ON_TOP", 1);
     }
-
 
     prop = XInternAtom(xd, "XdndAware", False);
     XChangeProperty(xd, skin->xw, prop, xa_atom, 32,

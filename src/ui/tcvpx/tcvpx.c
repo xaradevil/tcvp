@@ -201,6 +201,15 @@ tcvpx_init(char *p)
     XMapWindow (xd, skin->xw);
     XMapSubwindows(xd, skin->xw);
 
+    if(tcvp_ui_tcvpx_conf_sticky != 0) {
+	wm_set_sticky(skin, 1);
+    }
+
+    if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
+	wm_set_always_on_top(skin, 1);
+    }
+
+
     update_time(skin);
     
     repaint_widgets();
