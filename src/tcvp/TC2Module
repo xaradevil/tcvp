@@ -11,6 +11,7 @@ implement	"tcvp"		"register_event"	reg_event
 implement	"tcvp"		"send_event"		send_event
 implement	"tcvp"		"get_event"		get_event
 implement	"tcvp"		"delete_event"		del_event
+implement	"tcvp"		"alloc_event"		alloc_event
 
 import		"stream"	"open"
 import		"stream"	"play"

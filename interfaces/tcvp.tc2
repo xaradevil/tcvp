@@ -3,6 +3,7 @@ symbol "register_event"	int (*%s)(char *name, tcvp_event_alloc_t)
 symbol "send_event"	int (*%s)(eventq_t q, int type, ...)
 symbol "get_event"	int (*%s)(char *name)
 symbol "delete_event"	int (*%s)(char *name)
+symbol "alloc_event"	void *(*%s)(int type, int size, tc_free_fn)
 include
 #include <stdint.h>
 #include <stdarg.h>

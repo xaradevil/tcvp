@@ -113,7 +113,7 @@ send_event(eventq_t q, int type, ...)
     return ret;
 }
 
-static void *
+extern void *
 alloc_event(int type, int size, tc_free_fn ff)
 {
     tcvp_event_t *te;
