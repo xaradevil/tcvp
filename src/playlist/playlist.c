@@ -308,7 +308,6 @@ pl_event(void *p)
 	    pl_shuffle(pl, te->pl_shuffle.start, te->pl_shuffle.n);
 	} else if(te->type == -1){
 	    run = 0;
-	    break;
 	}
 	tcfree(te);
     }
