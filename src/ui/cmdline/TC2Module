@@ -18,4 +18,8 @@ import		"Eventq"	"detach"
 import		"playlist"	"new"
 require		"tcvp/addon"
 option		ui%s
+Default user interface module.
 option		*addon%s
+Additional modules to load.
+option		autoplay%i=1
+Start playing automatically.
