@@ -262,6 +262,7 @@ tcl_stop(void)
 	intr = 0;
 	sem_post(&psm);
 	pthread_join(intr_thr, NULL);
+	signal(SIGINT, SIG_DFL);
 	eventq_delete(qs);
 	eventq_delete(qr);
 	sem_destroy(&psm);
