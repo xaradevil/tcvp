@@ -347,8 +347,9 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 	    int st = 0;
 	    do {
 		packet_t *pk = get_packet(vp, i);
-		if(!pk->data){
-		    pk->free(pk);
+		if(!pk || !pk->data){
+		    if(pk)
+			pk->free(pk);
 		    break;
 		}
 		if(!st && pk->flags & TCVP_PKT_FLAG_PTS)
