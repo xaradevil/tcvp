@@ -34,7 +34,7 @@ profiles {
 			filter [ type "decoder"			]
 			filter [
 				type "mux/jpeg"
-				interval 1000  # ms between saved frames
+				interval 1000  # ms between frames
 			]
 		}
 	}
