@@ -1,2 +1,3 @@
 inherit "filter"
-option	buffer_size%i=96000
+option	buffer_size%i=12000
+Size of audio buffer in samples.  Increase it if you get skips.
