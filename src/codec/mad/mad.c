@@ -26,6 +26,8 @@
 #include <mad.h>
 #include <mad_tc2.h>
 
+#define MAD_BUFFER_SIZE (3*8065)
+
 typedef struct mad_packet {
     packet_t pk;
     int16_t *data;
@@ -42,7 +44,7 @@ typedef struct mad_dec {
     packet_t *in;
     mad_packet_t *out;
     int bs, pfs;
-    u_char buf[3*8065];
+    u_char buf[MAD_BUFFER_SIZE];
 } mad_dec_t;
 
 typedef struct mp3_frame {
@@ -195,6 +197,8 @@ do_decode(tcvp_pipe_t *p)
 {
     mad_dec_t *md = p->private;
 
+    mad_stream_buffer(&md->stream, md->buf, md->bs);
+
     while(!md->flush){
 	if(mad_frame_decode(&md->frame, &md->stream) < 0){
 	    if(MAD_RECOVERABLE(md->stream.error))
@@ -215,9 +219,8 @@ static int
 decode(tcvp_pipe_t *p, packet_t *pk)
 {
     mad_dec_t *md = p->private;
-    mp3_frame_t mf;
-    u_char *d, *s;
-    int size, ffs = 0, lfs = 0;
+    u_char *d;
+    int size;
 
     if(md->in){
 	packet_t *in = md->in;
@@ -230,6 +233,9 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     pthread_mutex_lock(&md->lock);
 
     if(!pk){
+	if(md->bs)
+	    do_decode(p);
+
 	if(md->out && md->out->dp != md->out->data){
 	    md->out->size = (md->out->dp - md->out->data) * 2;
 	    p->next->input(p->next, &md->out->pk);
@@ -242,73 +248,21 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     d = pk->data[0];
     size = pk->sizes[0];
 
-    if(size < 8065){
-	memcpy(md->buf + md->bs, d, size);
-	md->bs += size;
-	if(md->bs >= 2*8065){
-	    d = md->buf;
-	    size = md->bs;
-	    md->pfs = 0;
-	    md->bs = 0;
-	} else {
-	    goto out;
-	}
-    }
-	
+    while(size > 0){
+	int bs = min(size, MAD_BUFFER_SIZE - md->bs);
+	memcpy(md->buf + md->bs, d, bs);
+	md->bs += bs;
+	size -= bs;
+	d += bs;
 
-    if(md->pfs){
-	int b = min(md->pfs, size);
-	memcpy(md->buf + md->bs, d, b);
-	md->bs += b;
-	d += b;
-	size -= b;
-	md->pfs -= b;
-	if(md->pfs){
-	    goto out;
-	}
-    }
-
-    s = d;
-
-    while(size > 4){
-	if(d[0] != 0xff || mp3_header(d, &mf) < 0){
-	    if(!strncmp(d, "TAG", 3))
-		goto out;
-	    d++;
-	    size--;
-	    continue;
-	}
-
-	if(mf.size > size)
-	    break;
-
-	if(!ffs && md->bs){
-	    memcpy(md->buf + md->bs, d, mf.size);
-	    md->bs += mf.size;
-	    ffs = mf.size;
-	}
-
-	d += mf.size;
-	size -= mf.size;
-	lfs = mf.size;
-    }
-
-    if(md->bs && !md->pfs){
-	mad_stream_buffer(&md->stream, md->buf, md->bs);
-	if(do_decode(p) != MAD_ERROR_BUFLEN){
-	    s += ffs;
-	}
-	md->bs = 0;
-    }
-
-    mad_stream_buffer(&md->stream, s, d - s);
-    if(do_decode(p) == MAD_ERROR_BUFLEN){
-	memmove(md->buf + md->bs, d - lfs, lfs + size);
-	md->bs += lfs + size;
-	if(lfs){
-	    md->pfs = mf.size - size;
-	} else {
-	    md->pfs = 0;
+	if(md->bs == MAD_BUFFER_SIZE){
+	    if(do_decode(p)){
+		int rs = md->bs - (md->stream.this_frame - md->buf);
+		memmove(md->buf, md->stream.this_frame, rs);
+		md->bs = rs;
+	    } else {
+		md->bs = 0;
+	    }
 	}
     }
 
