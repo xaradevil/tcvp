@@ -63,7 +63,7 @@ sub save_image {
 
 sub write_image {
     my ($id) = @_;
-    die "$id undefined\n" unless exists $images{$id}{img};
+    warn "$id undefined" and return unless exists $images{$id}{img};
     save_image $images{$id}{img}, "$id.png";
 }
 
@@ -128,7 +128,11 @@ sub save_rect {
     gimp_layer_set_offsets($l, 0, 0);
     gimp_floating_sel_anchor($l);
     gimp_drawable_set_pixel($tl, 0, 0, 4, \@tl);
-    gimp_drawable_set_pixel($tl, $w - 1, $h - 1, 4, \@br) if $s;
+    gimp_drawable_set_pixel($d, $x, $y, 4, \@tl);
+    if($s){
+	gimp_drawable_set_pixel($tl, $w - 1, $h - 1, 4, \@br);
+	gimp_drawable_set_pixel($d, $r, $b, 4, \@br);
+    }
     $images{$out}{img} = $img;
     $images{$out}{width} = $w;
     $images{$out}{height} = $h;
@@ -141,6 +145,7 @@ sub text_properties {
     my ($i, $j, @c, $d, $md, @fg, @bg, $tt, $tb);
     my $w = gimp_image_width($img);
     my $h = gimp_image_height($img);
+    my %cc;
 
     $d = gimp_image_active_drawable($img);
 
@@ -149,24 +154,23 @@ sub text_properties {
 
     for($j = 0; $j < $h and $j < 3 * $th; $j++){
 	my $rd = 0;
-	my (@rc, @rb);
 
 	for($i = 0; $i < $w; $i++){
 	    @c = gimp_drawable_get_pixel($d, $i, $j);
-	    if($c[3] > $rd){
-		@rc = @c;
-		$rd = $c[3];
-	    }
+	    $rd = $c[3] if $c[3] > $rd;
+	    $cc{$c[0] + ($c[1] << 8) + ($c[2] << 16)}++ if $c[3] > 200;
 	}
 	if($rd > 50){
 	    $tt = $j % $th if $tt < 0;
 	    $tb = $j % $th;
 	}
-	if($rd > $md){
-	    @fg = @rc;
-	    $md = $rd;
-	}
     }
+
+    my $c;
+    for(keys %cc){
+	$c = $_ if $cc{$_} > $cc{$c};
+    }
+    @fg = ($c & 0xff, ($c >> 8) & 0xff, ($c >> 16) & 0xff);
 
     return (\@fg, $tt, $tb);
 }
@@ -180,13 +184,14 @@ sub get_font {
     my($color, $tt, $tb) = text_properties $img, $$fnt{charheight};
     my $th = $tb - $tt + 1;
     my $pxs = floor($th * 1.4);
-    my $yoff = $pxs + $tt - 3;
     my $asp = $$fnt{charwidth} / ($$fnt{charheight} / 1.3);
-    $fonts{$f}{face} = "arial:pixelsize=$pxs:aspect=$asp:weight=bold";
-    $fonts{$f}{color} = sprintf "rgb:%02x/%02x/%02x", @$color;
-    $fonts{$f}{yoffset} = $yoff;
+    $$fnt{face} = "arial:pixelsize=$pxs:aspect=$asp:weight=bold";
+    $$fnt{color} = sprintf "rgb:%02x/%02x/%02x", @$color;
+    $$fnt{top} = $tt;
+    $$fnt{bottom} = $tb;
+    $$fnt{height} = $th;
 
-    return $fonts{$f};
+    return $fnt;
 }
 
 sub tag_name {
@@ -204,12 +209,27 @@ my %actions = (prev => 'previous',
 	       close => 'close_ui',
 	       switch => sub { sprintf "replace_ui($container.%s.conf)", @_ });
 
-my %display = (songname => { text => q/'${title:u} - ${performer:u}'/,
-			     align => q/'left'/,
-			     scroll_style => 2 },
-	       time => { text => q/'${time} '/,
-			 align => q/'right'/,
-			 action => q/'toggle_time'/});
+my %display = (songname =>
+	       { text => q/'${title:u} - ${performer:u}'/,
+		 align => q/left/,
+		 scroll_style => 2 },
+	       time =>
+	       { text => q/'${time} '/,
+		 align => q/right/,
+		 action => q/'toggle_time'/},
+	       songinfo =>
+	       { text => q/'${audio_bitrate} kbps  ${audio_samplerate} kHz'/,
+		 scroll_style => 2 });
+
+my %sliders = (seek =>
+	       { action => q/'seek'/,
+		 value => q/'${position}'/ },
+	       volume =>
+	       { action => q/'change_pcm_volume,set_variable(pcm_volume)'/,
+		 value => q/'${pcm_volume}'/},
+	       pan =>
+	       { action => q/'change_balance,set_variable(balance)'/,
+		 value => q/'${balance:-%f0.5}'/});
 
 sub action {
     my($ac, $prm) = @_;
@@ -341,8 +361,8 @@ END_TCCONF
 	  print "*** font $attr{font} not found\n" and return;
 	my $d = $display{lc $attr{display}} or
 	  print "*** display $attr{display} not found\n" and return;
-	my $dh = $attr{h} - $$font{charheight};
-	my $h = $$font{charheight};
+	my $dh = $attr{h} - $$font{charheight} + $$font{top};
+	my $h = $$font{height};
 	my $y = $attr{'y'} + floor($dh / 2);
 	$$lc .= <<END_TCCONF;
 label [
@@ -350,12 +370,70 @@ label [
 	position $attr{x} $y
 	font '$$font{face}'
 	color '$$font{color}'
-	text_offset 0 $$font{yoffset}
 END_TCCONF
+	my $a;
+	$$lc .= "\talign '$a'\n" if $a = $attr{align} || $$d{align};
 	map { $$lc .= "\t$_ $$d{$_}\n" if exists $$d{$_} }
-	  'text', 'action', 'align', 'scroll_style';
+	  'text', 'action', 'scroll_style';
 	$$lc .= "]\n";
 	update_size $group, $attr{x}, $y, $attr{w}, $h;
+    } elsif($tag eq 'status'){			  # status
+	$$lc .= <<END_TCCONF;
+state [
+	position $attr{x} $attr{y}
+	value '\${state:-stop}'
+END_TCCONF
+	for('stop', 'play', 'pause'){
+	    my $im = $attr{$_ . 'bitmap'};
+	    if($im){
+		$$lc .= "\timage '$_' '$im.png'\n";
+		write_image $im;
+	    }
+	}
+	$$lc .= "]\n";
+	update_size $group, $attr{x}, $attr{w}, $attr{'y'}, $attr{h};
+    } elsif($tag eq 'slider'){			  # slider
+	my($x, $y, $w, $h, $id) = @attr{'x', 'y', 'w', 'h', 'id'};
+	my($thumb, $ht, $dt) = @attr{'thumb', 'hoverthumb', 'downthumb'};
+	my $dir = lc $attr{orientation} || 'horizontal';
+	my($sx, $sy, $ex, $ey);
+	my $th = $images{$thumb};
+	if($dir eq 'horizontal'){
+	    $sx = floor($$th{width} / 2);
+	    $ex = floor($w - $$th{width} / 2);
+	    $sy = $ey = floor($h / 2);
+	} elsif($dir eq 'vertical'){
+	    $sx = $ex = floor($w / 2);
+	    $sy = floor($h - $$th{height} / 2);
+	    $ey = floor($$th{height} / 2);
+	} else {
+	    return;
+	}
+	$$lc .= <<END_TCCONF;
+slider [
+	position $x $y
+	background '$id.png'
+	indicator '$thumb.png'
+END_TCCONF
+	make_rect $w, $h, 0, 0, 0, 0, 0, "$id.png";
+	write_image $thumb;
+	if($ht){
+	    $$lc .= "\tmouse_over '$ht.png'\n";
+	    write_image $ht;
+	}
+	if($dt){
+	    $$lc .= "\tpressed '$dt.png'\n";
+	    write_image $dt;
+	}
+	$$lc .= <<END_TCCONF;
+	start_position $sx $sy
+	end_position $ex $ey
+END_TCCONF
+	my $sl = $sliders{lc $attr{action}};
+	map { $$lc .= "\t$_ $$sl{$_}\n" if exists $$sl{$_} }
+	  'value', 'action' if $sl;
+	$$lc .= "]\n";
+	update_size $group, $x, $y, $w, $h;
     }
 }
 
