@@ -48,6 +48,7 @@ tcvpx_init(tcvp_module_t *tm)
     tcvpx_t *tx = tm->private;
     char *qname = NULL, *qn, *skinfile = tcvp_ui_tcvpx_conf_skin;
     skin_t *skin;
+    widget_data_t *wd;
 
     if(!tcconf_getvalue(tx->conf, "features/ui", "") &&
        tcconf_getvalue(tx->conf, "force_ui", ""))
@@ -74,7 +75,17 @@ tcvpx_init(tcvp_module_t *tm)
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
-    xtk_window_set_title(skin->window, "TCVP");
+    xtk_window_set_class(skin->window, "TCVP");
+
+    wd = calloc(sizeof(*wd), 1);
+    xtk_widget_container_set_data(skin->window, wd);
+
+    if(tcvp_ui_tcvpx_conf_change_window_title) {
+	wd->value = tcvp_ui_tcvpx_conf_window_title;
+	register_textwidget(skin->window, wd->value);
+    } else {
+	xtk_window_set_title(skin->window, "TCVP");
+    }
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
 	tc2_print("TCVPX", TC2_PRINT_ERROR,

@@ -107,6 +107,10 @@ change_text(char *key, char *text)
 	    parse_text(ad->value, buf, 1024);
 	    xtk_widget_label_set_text(w, buf);
 	    xtk_widget_state_set_state(w, buf);
+	    XTK_WINDOW(w, win);
+	    if(win){
+		xtk_window_set_title(w, buf);
+	    }
 	}
     }
 

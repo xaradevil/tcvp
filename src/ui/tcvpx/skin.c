@@ -666,7 +666,7 @@ create_skinned_state(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	xtk_widget_state_set_action(s, lookup_action);
 
 	register_textwidget((xtk_widget_t *)s, wd->value);
-	s->on_destroy = destroy_skinned_state;
+ 	s->on_destroy = destroy_skinned_state;
     }
 
     free(bg);
@@ -710,6 +710,11 @@ tcvp_close_ui(xtk_widget_t *w, void *p)
     skin_t *s = ((widget_data_t *)w->data)->skin;
     xtk_widget_t *win = s->window;
 
+    widget_data_t *wd = win->data;
+
+    unregister_textwidget(win, wd->value);
+    free(wd);
+
     xtk_window_destroy(win);
     free_skin(s);
 
@@ -725,6 +730,7 @@ static skin_t*
 tcvp_open_ui(xtk_widget_t *w, void *p)
 {
     char *buf;
+    widget_data_t *wd;
     char *uifile = ((widget_data_t *)w->data)->action_data; 
     skin_t *s = ((widget_data_t *)w->data)->skin;
 
@@ -738,7 +744,6 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
-    xtk_window_set_title(skin->window, "TCVP");
 
     create_ui(skin->window, skin, skin->config, NULL);
 
@@ -752,6 +757,16 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
     if((s->state & ST_ON_TOP) != 0) {
 	xtk_window_set_always_on_top(skin->window, 1);
 	skin->state |= ST_ON_TOP;
+    }
+
+    wd = calloc(sizeof(*wd), 1);
+    xtk_widget_container_set_data(skin->window, wd);
+
+    if(tcvp_ui_tcvpx_conf_change_window_title) {
+	wd->value = tcvp_ui_tcvpx_conf_window_title;
+	register_textwidget(skin->window, wd->value);
+    } else {
+	xtk_window_set_title(skin->window, "TCVP");
     }
 
     ui_count++;
