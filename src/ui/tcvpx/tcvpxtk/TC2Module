@@ -2,9 +2,8 @@ module		tcvpxtk
 name		"TCVP/ui/tcvpxtk"
 version		0.1.0
 tc2version	0.4.0
-sources		background.c button.c label.c seek_bar.c state.c widget.c window.c
+sources		background.c box.c button.c label.c seek_bar.c state.c widget.c window.c
 import		"image" "free"
-
 implement	"xtk"	"update_root"		update_root
 implement	"xtk"	"create_background"	create_background
 implement	"xtk"	"create_button"		create_button
@@ -28,3 +27,7 @@ implement	"xtk"	"widget_cmp"		widget_cmp
 implement	"xtk"	"draw_widgets"		draw_widgets
 implement	"xtk"	"repaint_widgets"	repaint_widgets
 implement	"xtk"	"set_dnd_cb"		set_dnd_cb
+implement	"xtk"	"get_window_position"	get_win_pos
+implement	"xtk"	"set_window_position"	set_win_pos
+implement	"xtk"	"create_box"		create_box
+implement	"xtk"	"box_get_subwindow"	box_get_subwindow

@@ -30,6 +30,10 @@ repaint_state(xtk_widget_t *xw)
 			w->state.x, w->state.y,
 			w->state.width, w->state.height,
 			AllPlanes, ZPixmap);
+	if(w->state.background) {
+	    alpha_render(*w->state.background->data, img->data, img->width,
+			 img->height, depth);
+	}
 	alpha_render(*w->state.images[w->state.active_state]->data,
 		     img->data, img->width, img->height, depth);
 	XPutImage(xd, w->state.pixmap, w->background.window->bgc, img,
@@ -81,9 +85,9 @@ change_state(tcstate_t *st, char *state)
 
 
 extern tcstate_t*
-create_state(window_t *window, int x, int y, int num_states,
-	     image_info_t **images, char **states, char *state,
-	     action_cb_t action, void *data)
+create_state(window_t *window, int x, int y, image_info_t *bg,
+	     int num_states, image_info_t **images, char **states,
+	     char *state, action_cb_t action, void *data)
 {
     int i;
     tcstate_t *st = calloc(sizeof(tcstate_t), 1);
@@ -95,6 +99,7 @@ create_state(window_t *window, int x, int y, int num_states,
     st->repaint = repaint_state;
     st->destroy = destroy_state;
     st->window = window;
+    st->background = bg;
     st->num_states = num_states;
     st->states = malloc(num_states * sizeof(*st->states));
     st->images = malloc(num_states * sizeof(*st->images));

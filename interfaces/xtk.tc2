@@ -2,18 +2,21 @@ symbol	"update_root"		int (*%s)(window_t *window)
 
 symbol	"create_background"	xtk_widget_t *(*%s)(window_t *window, image_info_t *image)
 
-symbol	"create_button"		xtk_widget_t *(*%s)(window_t *window, int x, int y, image_info_t *imagefile, image_info_t *over_image, image_info_t *down_image, action_cb_t action, void *data)
+symbol	"create_button"		xtk_widget_t *(*%s)(window_t *window, int x, int y, image_info_t *background, image_info_t *imagefile, image_info_t *over_image, image_info_t *down_image, action_cb_t action, void *data)
 
 symbol	"change_label"		int (*%s)(xtk_widget_t *txt, char *text)
-symbol	"create_label"		xtk_widget_t *(*%s)(window_t *window, int x, int y, int width, int height, int xoff, int yoff, char *text, char *font, char *color, short alpha, int scroll, action_cb_t action, void *data)
+symbol	"create_label"		xtk_widget_t *(*%s)(window_t *window, int x, int y, int width, int height, int xoff, int yoff, image_info_t *background, char *text, char *font, char *color, short alpha, int scroll, action_cb_t action, void *data)
 
 symbol	"change_seek_bar"	int (*%s)(xtk_widget_t *sb, double position)
 symbol	"create_seek_bar"	xtk_widget_t *(*%s)(window_t *window, int x, int y, int sp_x, int sp_y, int ep_x, int ep_y, image_info_t *bg, image_info_t *indicator, double position, action_cb_t action, void *data)
 symbol	"enable_seek_bar"	int (*%s)(xtk_widget_t *sb)
 symbol	"disable_seek_bar"	int (*%s)(xtk_widget_t *sb)
 
-symbol	"create_state"		xtk_widget_t *(*%s)(window_t *window, int x, int y, int num_states, image_info_t **imagefiles, char **states, char *state, action_cb_t action, void *data)
+symbol	"create_state"		xtk_widget_t *(*%s)(window_t *window, int x, int y, image_info_t *background, int num_states, image_info_t **imagefiles, char **states, char *state, action_cb_t action, void *data)
 symbol	"change_state"		int (*%s)(xtk_widget_t* st, char *state)
+
+symbol	"create_box"		xtk_widget_t *(*%s)(window_t *window, int x, int y, int width, int height, void *data)
+symbol	"box_get_subwindow"	window_t *(*%s)(xtk_widget_t *xw);
 
 symbol	"init_graphics"		int (*%s)()
 symbol	"shutdown_graphics"	int (*%s)()
@@ -31,14 +34,16 @@ symbol	"draw_widgets"		int (*%s)()
 symbol	"repaint_widgets"	int (*%s)()
 symbol	"set_dnd_cb"		int (*%s)(int(*)(char *))
 
-include
-#include <X11/Xlib.h>
+symbol	"get_window_position"	xtk_position_t *(*%s)(window_t *window)
+symbol	"set_window_position"	int (*%s)(window_t *window, xtk_position_t *position)
 
+include
 #define TCIMAGEBUTTON 0
 #define TCLABEL       1
 #define TCBACKGROUND  2
 #define TCSEEKBAR     3
 #define TCSTATE       4
+#define TCBOX         5
 
 typedef struct _window_t		window_t;
 
@@ -57,3 +62,8 @@ typedef int(*widget_cb_t)(xtk_widget_t *);
 struct _xtk_widget_t {
     WIDGET_COMMON;
 };
+
+typedef struct {
+    int x;
+    int y;
+} xtk_position_t;

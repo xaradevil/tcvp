@@ -77,7 +77,7 @@ tcvpx_init(char *p)
 
     skin->window = xtk_create_window("TCVP", skin->width, skin->height);
     
-    if(create_ui(skin) != 0){
+    if(create_ui(skin->window, skin, skin->config) != 0){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n",
 		tcvp_ui_tcvpx_conf_skin);
 	return -1;
@@ -89,11 +89,15 @@ tcvpx_init(char *p)
 
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
 	xtk_set_sticky(skin->window, 1);
+	skin->state |= ST_STICKY;
     }
 
     if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
 	xtk_set_always_on_top(skin->window, 1);
+	skin->state |= ST_ON_TOP;
     }
+
+    update_time();
 
     xtk_repaint_widgets();
     xtk_draw_widgets();

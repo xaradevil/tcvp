@@ -56,31 +56,42 @@ alpha_render(unsigned char *src, unsigned char *dest,
 }
 
 
-extern int
-draw_widget(tcwidget_t *w)
+static int 
+draw_window(window_t *win)
 {
-    if(w->common.window->mapped==1){
-	XCopyArea(xd, w->common.pixmap, w->common.win, w->common.window->bgc,
-		  0, 0, w->common.width, w->common.height, 0, 0);
+    if(win->mapped==1){
+	list_item *current=NULL;
+	tcwidget_t *w;
+	while((w = list_next(win->widgets, &current))!=NULL) {
+	    draw_widget(w);
+	}
     }
     return 0;
 }
 
+extern int
+draw_widget(tcwidget_t *w)
+{
+    if(w->common.window->mapped==1){
+	XCopyArea(xd, w->common.pixmap, w->common.win,
+		  w->common.window->bgc, 0, 0, w->common.width,
+		  w->common.height, 0, 0);
+
+	if(w->type == TCBOX) {
+	    draw_window(w->box.subwindow);
+	}
+    }
+    return 0;
+}
 
 extern int
 draw_widgets()
 {
     list_item *currentwin=NULL;
-    tcwidget_t *w;
     window_t *win;
 
     while((win = list_next(window_list, &currentwin))!=NULL) {
-	if(win->mapped==1){
-	    list_item *current=NULL;
-	    while((w = list_next(win->widgets, &current))!=NULL) {
-		draw_widget(w);
-	    }
-	}
+	draw_window(win);
     }
 
     XSync(xd, False);
@@ -89,20 +100,31 @@ draw_widgets()
 }
 
 
+static int 
+repaint_window(window_t *win)
+{
+    if(win->mapped==1){
+	tcwidget_t *w;
+	list_item *current=NULL;
+	while((w = list_next(win->widgets, &current))!=NULL) {
+	    if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
+	    if(w->type == TCBOX) {
+		repaint_window(w->box.subwindow);
+	    }
+	}
+    }
+
+    return 0;
+}
+
 extern int
 repaint_widgets()
 {
     list_item *currentwin=NULL;
-    tcwidget_t *w;
     window_t *win;
 
     while((win = list_next(window_list, &currentwin))!=NULL) {
-	if(win->mapped==1){
-	    list_item *current=NULL;
-	    while((w = list_next(win->widgets, &current))!=NULL) {
-		if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
-	    }
-	}
+	repaint_window(win);
     }
 
     return 0;
@@ -149,7 +171,9 @@ destroy_widget(tcwidget_t *w)
 	w->common.ondestroy((xtk_widget_t *) w);
     }
 
-    XDestroyWindow(xd, w->common.win);
+    if(w->type != TCBACKGROUND) {
+	XDestroyWindow(xd, w->common.win);
+    }
     XFreePixmap(xd, w->common.pixmap);
 
     if(w->common.destroy) {

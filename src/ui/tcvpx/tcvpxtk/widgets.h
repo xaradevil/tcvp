@@ -25,6 +25,9 @@
 #include <tcconf.h>
 #include <tclist.h>
 
+#ifdef DMALLOC
+#include <dmalloc.h>
+#endif
 
 #define TCLABELSTANDARD   (1<<0)
 #define TCLABELSCROLLING  (1<<1)
@@ -32,6 +35,7 @@
 #define TCLABELMANUAL     (1<<3)
 
 typedef struct _tcbackground_t		tcbackground_t;
+typedef struct _tcbox_t			tcbox_t;
 typedef struct _tcseek_bar_t		tcseek_bar_t;
 typedef struct _tcimage_button_t	tcimage_button_t;
 typedef struct _tcstate_t		tcstate_t;
@@ -47,7 +51,8 @@ typedef int(*on_xevent_cb_t)(xtk_widget_t *, void *);
     Pixmap pixmap;				\
     Window win;					\
     int x,y;					\
-    int enabled;       				\
+    int enabled;				\
+    image_info_t *background;			\
     on_xevent_cb_t onclick;			\
     on_xevent_cb_t onpress;			\
     on_xevent_cb_t drag_begin;			\
@@ -71,9 +76,13 @@ struct _tcbackground_t{
     Atom xa_rootpmap;
 };
 
+struct _tcbox_t{
+    WIDGET_COMMON_XTK;
+    window_t *subwindow;
+};
+
 struct _tcseek_bar_t{
     WIDGET_COMMON_XTK;
-    image_info_t *background;
     image_info_t *indicator;
     int start_x, start_y;
     int end_x, end_y;
@@ -129,6 +138,7 @@ union _tcwidget_t {
     tcbackground_t background;
     tcseek_bar_t seek_bar;
     tcstate_t state;
+    tcbox_t box;
 };
 
 struct _window_t {
@@ -136,11 +146,13 @@ struct _window_t {
     list *widgets;
     Window xw;
     GC wgc, bgc;
+    window_t *parent;
     int width, height;
     int enabled;
     int net_wm_support;
     int x, y;
     int mapped;
+    int subwindow;
     void *data;
 };
 

@@ -37,6 +37,10 @@ import		"xtk"		"widget_cmp"
 import		"xtk"		"draw_widgets"
 import		"xtk"		"repaint_widgets"
 import		"xtk"		"set_dnd_cb"
+import		"xtk"		"get_window_position"
+import		"xtk"		"set_window_position"
+import		"xtk"		"create_box"
+import		"xtk"		"box_get_subwindow"
 
 option		skin%s
 option		always_on_top%d=0

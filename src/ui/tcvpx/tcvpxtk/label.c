@@ -196,6 +196,10 @@ repaint_label(xtk_widget_t *xw)
 				 AllPlanes, ZPixmap);
 		XSync(xd, False);
 
+		if(txt->label.background) {
+		    alpha_render(*txt->label.background->data, img->data,
+				 img->width, img->height, depth);
+		}
 		alpha_render_text(text->data, img->data, txt->label.width,
 				  txt->label.height, txt->label.s_width,
 				  txt->label.height, txt->label.s_pos, 0,
@@ -244,6 +248,10 @@ repaint_label(xtk_widget_t *xw)
 				 AllPlanes, ZPixmap);
 		XSync(xd, False);
 
+		if(txt->label.background) {
+		    alpha_render(*txt->label.background->data, img->data,
+				 img->width, img->height, depth);
+		}
 		alpha_render_text(text->data, img->data, txt->label.width,
 				  txt->label.height, txt->label.width,
 				  txt->label.height, 0, 0, depth,
@@ -267,6 +275,10 @@ repaint_label(xtk_widget_t *xw)
 				 AllPlanes, ZPixmap);
 		XSync(xd, False);
 
+		if(txt->label.background) {
+		    alpha_render(*txt->label.background->data, img->data,
+				 img->width, img->height, depth);
+		}
 		alpha_render_text(text->data, img->data, txt->label.width,
 				  txt->label.height, txt->label.width,
 				  txt->label.height, 0, 0, depth,
@@ -355,7 +367,7 @@ destroy_label(xtk_widget_t *xw)
 
 extern tclabel_t*
 create_label(window_t *window, int x, int y, int width, int height,
-	     int xoff, int yoff, char *text, char *font,
+	     int xoff, int yoff, image_info_t *bg, char *text, char *font,
 	     char *color, short alpha, int scroll, action_cb_t action,
 	     void *data)
 {
@@ -390,6 +402,7 @@ create_label(window_t *window, int x, int y, int width, int height,
     txt->alpha = alpha;
     txt->xoff = xoff;
     txt->yoff = yoff;
+    txt->background = bg;
     txt->scroll = scroll;
     txt->s_pos = 0;
     txt->s_max = 0;

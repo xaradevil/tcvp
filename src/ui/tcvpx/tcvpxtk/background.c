@@ -46,10 +46,7 @@ static int
 check_root(window_t *window)
 {
     if(window->background->xa_rootpmap != None) {
-	Pixmap p = get_root(window);
-	if(p != window->background->xa_rootpmap) {
-	    root = p;
-	}
+	root = get_root(window);
     }
 
     return 0;
@@ -59,7 +56,8 @@ extern int
 update_root(window_t *window)
 {
     if(window->background->transparent){
-	window->background->xa_rootpmap = XInternAtom(xd, "_XROOTPMAP_ID", True);
+	window->background->xa_rootpmap =
+	    XInternAtom(xd, "_XROOTPMAP_ID", True);
 
 	if(window->background->xa_rootpmap != None) {
 	    root = get_root(window);
@@ -87,96 +85,132 @@ repaint_background(xtk_widget_t *xw)
     XImage *img;
     GC bgc = w->background.window->bgc;
 
-    if(w->background.transparent){
-	XWindowAttributes wa;
-	Window foo;
-	int x, y;
-
-	XLockDisplay(xd);
-	check_root(w->background.window);
-
-	XGetWindowAttributes(xd, w->background.win, &wa);
-	XTranslateCoordinates(xd, w->background.win, RootWindow(xd, xs),
-			      wa.x, wa.y, &x, &y, &foo);
-
-	if(x > w->background.width && x <= -w->background.width && 
-	   y > w->background.height && y <= -w->background.height)
-	    return 0;
-
-	if(x>=0 && y>=0 && x+w->background.width < root_width &&
-	   y+w->background.height < root_height) {
-	    img = XGetImage(xd, root, x, y, w->background.width,
-			    w->background.height, AllPlanes, ZPixmap);
-	} else {
-	    int tmp_x, tmp_y, tmp_w, tmp_h, xp, yp;
-	    Pixmap pmap;
-
-	    if(x<0) {
-		tmp_x = 0;
-		xp = -x;
-		tmp_w = w->background.width + x;
-	    } else if(x+w->background.width >= root_width){ 
-		tmp_x = x;
-		xp = 0;
-		tmp_w = w->background.width -
-		    ((x + w->background.width) - root_width);
-	    } else { 
-		tmp_x = x;
-		xp = 0;
-		tmp_w = w->background.width;
-	    }
-
-	    if(y<0) {
-		tmp_y = 0;
-		yp = -y;
-		tmp_h = w->background.height + y;
-	    } else if(y+w->background.height >= root_height){
-		tmp_y = y;
-		yp = 0;
-		tmp_h = w->background.height -
-		    ((y + w->background.height) - root_height);
-	    } else {
-		tmp_y = y;
-		yp = 0;
-		tmp_h = w->background.height;
-	    }
-
-	    pmap = XCreatePixmap(xd, w->background.window->xw,
-				 w->background.width,
-				 w->background.height, depth);
-
-	    XCopyArea(xd, root, pmap, bgc, tmp_x, tmp_y, tmp_w, tmp_h, xp, yp);
-	    img = XGetImage(xd, pmap, 0, 0, w->background.width,
-			    w->background.height,
+    if(w->background.window->subwindow) {
+	if(w->background.transparent){
+	    img = XGetImage(xd, w->background.window->parent->background->pixmap,
+			    w->background.window->x, w->background.window->y,
+			    w->background.width, w->background.height,
 			    AllPlanes, ZPixmap);
 
 	    XSync(xd, False);
-	    XFreePixmap(xd, pmap);
+
+	    alpha_render(*w->background.img->data, img->data,
+			 w->background.width, w->background.height, depth);
+
+	    XPutImage(xd, w->background.pixmap, bgc, img, 0, 0, 0, 0,
+		      w->background.width, w->background.height);
+	    XSync(xd, False);
+
+	    XDestroyImage(img);
+	} else {
+	    img = XGetImage(xd, w->background.pixmap, 0, 0,
+			    w->background.width, w->background.height,
+			    AllPlanes, ZPixmap);
+
+	    memcpy(img->data, *w->background.img->data,
+		   w->background.width * w->background.height * 4);
+
+	    XPutImage(xd, w->background.pixmap, bgc, img, 0, 0, 0, 0,
+		      w->background.width, w->background.height);
+
+	    XSync(xd, False);
+	    XDestroyImage(img);
 	}
-	XSync(xd, False);
 
-	alpha_render(*w->background.img->data, img->data, w->background.width,
-		     w->background.height, depth);
-
-	XPutImage(xd, w->background.pixmap, bgc, img, 0, 0, 0, 0,
-		  w->background.width, w->background.height);
-	XSync(xd, False);
-
-	XDestroyImage(img);
-
-	XUnlockDisplay(xd);
     } else {
-	img = XGetImage(xd, w->background.pixmap, 0, 0, w->background.width,
-			w->background.height, AllPlanes, ZPixmap);
+	if(w->background.transparent){
+	    XWindowAttributes wa;
+	    Window foo;
+	    int x, y;
 
-	memcpy(img->data, *w->background.img->data,
-	       w->background.width * w->background.height * 4);
+	    XLockDisplay(xd);
+	    check_root(w->background.window);
 
-	XPutImage(xd, w->background.pixmap, bgc, img, 0, 0, 0, 0,
-		  w->background.width, w->background.height);
+	    XGetWindowAttributes(xd, w->background.win, &wa);
+	    XTranslateCoordinates(xd, w->background.win, RootWindow(xd, xs),
+				  wa.x, wa.y, &x, &y, &foo);
 
-	XSync(xd, False);
-	XDestroyImage(img);
+	    if(x > w->background.width && x <= -w->background.width && 
+	       y > w->background.height && y <= -w->background.height)
+		return 0;
+
+	    if(x>=0 && y>=0 && x+w->background.width < root_width &&
+	       y+w->background.height < root_height) {
+		img = XGetImage(xd, root, x, y, w->background.width,
+				w->background.height, AllPlanes, ZPixmap);
+	    } else {
+		int tmp_x, tmp_y, tmp_w, tmp_h, xp, yp;
+		Pixmap pmap;
+
+		if(x<0) {
+		    tmp_x = 0;
+		    xp = -x;
+		    tmp_w = w->background.width + x;
+		} else if(x+w->background.width >= root_width){ 
+		    tmp_x = x;
+		    xp = 0;
+		    tmp_w = w->background.width -
+			((x + w->background.width) - root_width);
+		} else { 
+		    tmp_x = x;
+		    xp = 0;
+		    tmp_w = w->background.width;
+		}
+
+		if(y<0) {
+		    tmp_y = 0;
+		    yp = -y;
+		    tmp_h = w->background.height + y;
+		} else if(y+w->background.height >= root_height){
+		    tmp_y = y;
+		    yp = 0;
+		    tmp_h = w->background.height -
+			((y + w->background.height) - root_height);
+		} else {
+		    tmp_y = y;
+		    yp = 0;
+		    tmp_h = w->background.height;
+		}
+
+		pmap = XCreatePixmap(xd, w->background.window->xw,
+				     w->background.width,
+				     w->background.height, depth);
+
+		XCopyArea(xd, root, pmap, bgc, tmp_x, tmp_y, tmp_w, tmp_h,
+			  xp, yp);
+		img = XGetImage(xd, pmap, 0, 0, w->background.width,
+				w->background.height,
+				AllPlanes, ZPixmap);
+
+		XSync(xd, False);
+		XFreePixmap(xd, pmap);
+	    }
+	    XSync(xd, False);
+
+	    alpha_render(*w->background.img->data, img->data,
+			 w->background.width, w->background.height, depth);
+
+	    XPutImage(xd, w->background.pixmap, bgc, img, 0, 0, 0, 0,
+		      w->background.width, w->background.height);
+	    XSync(xd, False);
+
+	    XDestroyImage(img);
+
+	    XUnlockDisplay(xd);
+	} else {
+	    img = XGetImage(xd, w->background.pixmap, 0, 0,
+			    w->background.width, w->background.height,
+			    AllPlanes, ZPixmap);
+
+	    memcpy(img->data, *w->background.img->data,
+		   w->background.width * w->background.height * 4);
+
+	    XPutImage(xd, w->background.pixmap, bgc, img, 0, 0, 0, 0,
+		      w->background.width, w->background.height);
+
+	    XSync(xd, False);
+	    XDestroyImage(img);
+	}
     }
 
     return 0;
@@ -190,7 +224,7 @@ destroy_background(xtk_widget_t *xw)
     free(*w->background.img->data);
     free(w->background.img->data);
     free(w->background.img);
-
+    w->background.window->background = NULL;
     return 0;
 }
 
@@ -219,11 +253,11 @@ create_background(window_t *window, image_info_t *image)
     bg->win = window->xw;
     bg->enabled = 1;
 
-    data = calloc(bg->width * bg->height,1);
+    data = calloc(bg->width * bg->height, 1);
     for(y=0; y<bg->height; y++){
 	for(x=0; x<bg->width; x+=8){
 	    int i, d=0;
-	    for(i=0;i<8;i++){
+	    for(i=0;i<8 && x+i<bg->width;i++){
 		d |= (bg->img->data[y][(x+i)*4+3]==0)?0:1<<i;
 		if(bg->img->data[y][(x+i)*4+3]>0 &&
 		   bg->img->data[y][(x+i)*4+3]<255){
@@ -234,14 +268,21 @@ create_background(window_t *window, image_info_t *image)
 	}
     }
 
-    maskp = XCreateBitmapFromData(xd, window->xw, data, bg->width, bg->height);
+    if(!window->subwindow) {
+	maskp = XCreateBitmapFromData(xd, window->xw, data, bg->width,
+				      bg->height);
+	XShapeCombineMask(xd, window->xw, ShapeBounding, 0, 0, maskp,
+			  ShapeSet);
+	XSync(xd, False);
+	XFreePixmap(xd, maskp);
+    }
     free(data);
-    XShapeCombineMask(xd, window->xw, ShapeBounding, 0, 0, maskp, ShapeSet);
-    XSync(xd, False);
-    XFreePixmap(xd, maskp);
 
     list_push(widget_list, bg);
 
+    if(window->background) {
+	free(window->background);
+    }
     window->background = bg;
 
     list_push(window->widgets, bg);

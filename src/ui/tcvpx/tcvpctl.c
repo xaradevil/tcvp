@@ -98,7 +98,31 @@ tcvp_event(void *p)
 	case TCVP_STREAM_INFO:
 	    if(!st)
 		break;
-
+	    {
+		int i;
+		for(i = 0; i < st->n_streams; i++) {
+		    if(st->used_streams[i]) {
+			stream_t *s = &st->streams[i];
+			if(s->stream_type == STREAM_TYPE_VIDEO) {
+			    char *buf = malloc(10);
+			    buf = malloc(10);
+			    sprintf(buf, "%.3f",
+				    (double)s->video.frame_rate.num /
+				    s->video.frame_rate.den);
+			    change_text("video_framerate", buf);
+			} else if(s->stream_type == STREAM_TYPE_AUDIO) {
+			    char *buf = malloc(10);
+			    sprintf(buf, "%d", s->audio.bit_rate/1000);
+			    change_text("audio_bitrate", buf);
+			    
+			    buf = malloc(10);
+			    sprintf(buf, "%.1f",
+				    (double)s->audio.sample_rate/1000);
+			    change_text("audio_samplerate", buf);
+			}
+		    }
+		}
+	    }
 	    if(st->time)
 		s_length = st->time / 27000000;
 
@@ -197,6 +221,19 @@ tcvp_seek(xtk_widget_t *w, void *p)
 
 
 extern int
+tcvp_seek_rel(xtk_widget_t *w, void *p)
+{
+    char *d = ((action_data_t *)w->data)->data;
+    uint64_t time = strtol(d, NULL, 0) * 27000000;
+
+    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, time, TCVP_SEEK_REL);
+    eventq_send(qs, se);
+    tcfree(se);
+    return 0;
+}
+
+
+extern int
 tcvp_quit()
 {
     quit = 1;
@@ -204,8 +241,6 @@ tcvp_quit()
     tcvp_stop(NULL, NULL);
 
     tc2_request(TC2_UNLOAD_ALL, 0);
-
-/*     XSync(xd, False); */
 
     return 0;
 }

@@ -113,7 +113,6 @@ x11_event(void *p)
 		    }
 		}
 	    }
-
 	    break;
 	}
 
@@ -125,34 +124,33 @@ x11_event(void *p)
 	    break;
 	}
 
- 	case ButtonPress:
-	{
-	    list_item *current=NULL;
-	    tcwidget_t *w;
+ 	case ButtonPress:	
+	    if(xe.xbutton.button == 1) {
+		list_item *current=NULL;
+		tcwidget_t *w;
 
-	    while((w = list_next(click_list, &current))!=NULL) {
-		if(xe.xbutton.window == w->common.win){
-		    if(w->common.enabled && w->common.onpress){
-			w->common.onpress((xtk_widget_t *) w, &xe);
-		    }
-		    if(w->common.enabled && w->common.onclick){
-			cbt = w;
-		    }
-		    if(w->common.enabled && w->common.press){
-			w->common.press((xtk_widget_t *) w, &xe);
-			pbt = w;
-		    }
-		    if(w->common.enabled && w->common.ondrag) {
-			drag = w;
-			if(w->common.drag_begin){
-			    w->common.drag_begin((xtk_widget_t *) w, &xe);
+		while((w = list_next(click_list, &current))!=NULL) {
+		    if(xe.xbutton.window == w->common.win){
+			if(w->common.enabled && w->common.onpress){
+			    w->common.onpress((xtk_widget_t *) w, &xe);
+			}
+			if(w->common.enabled && w->common.onclick){
+			    cbt = w;
+			}
+			if(w->common.enabled && w->common.press){
+			    w->common.press((xtk_widget_t *) w, &xe);
+			    pbt = w;
+			}
+			if(w->common.enabled && w->common.ondrag) {
+			    drag = w;
+			    if(w->common.drag_begin){
+				w->common.drag_begin((xtk_widget_t *) w, &xe);
+			    }
 			}
 		    }
 		}
 	    }
-
 	    break;
-	}
 
  	case EnterNotify:
 	{
@@ -379,9 +377,9 @@ set_sticky(window_t *window, int enabled)
 	    xa_current_desktop = XInternAtom(xd, "_NET_CURRENT_DESKTOP", True);
 
 	    ret = XGetWindowProperty(xd, RootWindow(xd, xs),
-				     xa_current_desktop,
-				     0, 1, False, xa_current_desktop, &r_type,
-				     &r_format, &count, &bytes_remain, &p);
+				     xa_current_desktop, 0, 1, False,
+				     xa_cardinal, &r_type, &r_format,
+				     &count, &bytes_remain, &p);
 
 	    if(ret == Success && p && r_type == xa_cardinal &&
 	       r_format == 32 && count == 1) {
@@ -587,9 +585,20 @@ create_window(char *title, int width, int height)
 extern int
 show_window(window_t *window)
 {
-    XMapWindow (xd, window->xw);
+    tcwidget_t *w;
+    list_item *current=NULL;
+
+    if(!window->subwindow) {
+	XMapWindow (xd, window->xw);
+    }
     XMapSubwindows(xd, window->xw);
     window->mapped = 1;
+
+    while((w = list_next(window->widgets, &current))!=NULL) {
+	if(w->type == TCBOX) {
+	    show_window(w->box.subwindow);
+	}
+    }
 
     return 0;
 }
@@ -598,9 +607,20 @@ show_window(window_t *window)
 extern int
 hide_window(window_t *window)
 {
-    XUnmapWindow (xd, window->xw);
+    tcwidget_t *w;
+    list_item *current=NULL;
+
+    if(!window->subwindow) {
+	XUnmapWindow (xd, window->xw);
+    }
     XUnmapSubwindows(xd, window->xw);
     window->mapped = 0;
+
+    while((w = list_next(window->widgets, &current))!=NULL) {
+	if(w->type == TCBOX) {
+	    show_window(w->box.subwindow);
+	}
+    }
 
     return 0;
 }
@@ -615,13 +635,38 @@ destroy_window(window_t *window)
     list_delete(window_list, window, widget_cmp, NULL);
 
     while((w = list_pop(window->widgets))!=NULL) {
+	if(w->type == TCBOX) {
+	    destroy_window(w->box.subwindow);
+	}
 	destroy_widget(w);
     }
 
     list_destroy(window->widgets, NULL);
+    if(!window->subwindow){
+	XDestroyWindow(xd, window->xw);
+    }
+    if(window->background) {
+	free(window->background);
+    }
     XFreeGC(xd, window->bgc);
     XFreeGC(xd, window->wgc);
     free(window);
 
+    return 0;
+}
+
+extern xtk_position_t*
+get_win_pos(window_t *win)
+{
+    xtk_position_t *pos = malloc(sizeof(*pos));
+    pos->x = win->x;
+    pos->y = win->y;
+    return pos;
+}
+
+extern int
+set_win_pos(window_t *win, xtk_position_t *pos)
+{
+    XMoveWindow(xd, win->xw, pos->x, pos->y);
     return 0;
 }

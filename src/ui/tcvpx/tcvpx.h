@@ -29,16 +29,20 @@
 #define TCTIME_ELAPSED   0
 #define TCTIME_REMAINING 1
 
+#define ST_STICKY (1<<0)
+#define ST_ON_TOP (1<<1)
+
 typedef struct {
     conf_section *config;
     char *file;
     char *path;
     int width, height;
     window_t *window;
+    int state;
 } skin_t;
 
 skin_t* load_skin(char *skinfile);
-int create_ui(skin_t *skin);
+int create_ui(window_t *win, skin_t *skin, conf_section *config);
 
 int register_actions(void);
 extern void cleanup_actions(void);

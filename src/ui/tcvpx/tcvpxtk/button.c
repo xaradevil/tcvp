@@ -29,6 +29,10 @@ repaint_button(xtk_widget_t *xw)
 			w->button.x, w->button.y,
 			w->button.width, w->button.height,
 			AllPlanes, ZPixmap);
+	if(w->button.background) {
+	    alpha_render(*w->button.background->data, img->data, img->width,
+			 img->height, depth);
+	}
 	alpha_render(*w->button.img->data, img->data, img->width,
 		     img->height, depth);
 	XPutImage(xd, w->button.pixmap, w->background.window->bgc, img,
@@ -112,9 +116,9 @@ exit_button(xtk_widget_t *xw, void *xe)
 
 
 extern tcimage_button_t*
-create_button(window_t *window, int x, int y, image_info_t *image,
-	      image_info_t *over_image, image_info_t *down_image,
-	      action_cb_t action, void *data)
+create_button(window_t *window, int x, int y, image_info_t *bg,
+	      image_info_t *image, image_info_t *over_image,
+	      image_info_t *down_image, action_cb_t action, void *data)
 {
     tcimage_button_t *btn = calloc(sizeof(tcimage_button_t), 1);
     long emask = 0;
@@ -125,6 +129,7 @@ create_button(window_t *window, int x, int y, image_info_t *image,
     btn->repaint = repaint_button;
     btn->destroy = destroy_button;
     btn->window = window;
+    btn->background = bg;
     btn->img = btn->bgimg = image;
     btn->width = btn->img->width;
     btn->height = btn->img->height;
