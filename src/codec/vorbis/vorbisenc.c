@@ -35,7 +35,7 @@
 typedef struct vorbis_packet {
     tcvp_data_packet_t pk;
     u_char *data;
-    int size[2];
+    int size;
 } vorbis_packet_t;
 
 typedef struct vorbis_enc {
@@ -75,10 +75,10 @@ ve_alloc(int s, ogg_packet *op, int samples)
     vorbis_packet_t *vp = tcallocdz(sizeof(*vp), NULL, ve_free_pk);
     vp->pk.stream = s;
     vp->pk.data = &vp->data;
-    vp->pk.sizes = vp->size;
+    vp->pk.sizes = &vp->size;
     vp->pk.planes = 1;
-    vp->size[0] = op->bytes;
-    vp->size[1] = samples;
+    vp->pk.samples = samples;
+    vp->size = op->bytes;
     vp->data = malloc(op->bytes);
     memcpy(vp->data, op->packet, op->bytes);
 
