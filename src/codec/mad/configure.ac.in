@@ -1,0 +1,3 @@
+AC_CHECK_LIB(mad, mad_decoder_init,
+	     [CODEC_MODULES="$CODEC_MODULES mad"],
+	     AC_MSG_WARN([libmad not found. Get it from http://www.underbit.com/products/mad]))
