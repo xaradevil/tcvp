@@ -121,7 +121,7 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    vorbis_block_init(&vc->vd, &vc->vb); 
 	}
     }
-    return 0;
+    return PROBE_OK;
 
 }
 
