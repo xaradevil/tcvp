@@ -212,6 +212,8 @@ v_start(tcvp_pipe_t *p)
     video_out_t *vo = p->private;
 
     tc2_print("VIDEO", TC2_PRINT_DEBUG, "start\n");
+    if(vo->state == PLAY)
+	return 0;
     pthread_mutex_lock(&vo->smx);
     vo->state = PLAY;
     pthread_cond_broadcast(&vo->scd);
@@ -226,6 +228,8 @@ v_stop(tcvp_pipe_t *p)
     video_out_t *vo = p->private;
 
     tc2_print("VIDEO", TC2_PRINT_DEBUG, "stop\n");
+    if(vo->state == PAUSE)
+	return 0;
     pthread_mutex_lock(&vo->smx);
     vo->state = PAUSE;
     if(vo->timer)
