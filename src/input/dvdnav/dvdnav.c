@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <tcalloc.h>
 #include <dvdnav/dvdnav.h>
+#include <dvdnav/ifo_read.h>
 #include <dvdnav_tc2.h>
 
 #define DVD_SECTOR_SIZE 2048
@@ -295,6 +296,13 @@ dvd_close(url_t *u)
     return 0;
 }
 
+static void
+dvd_free_info(void *p)
+{
+    dvd_functions_t *df = p;
+    free(df->streams);
+}
+
 extern url_t *
 dvd_open(char *url, char *mode)
 {
@@ -306,6 +314,8 @@ dvd_open(char *url, char *mode)
     char *device = url_dvd_conf_device;
     dvd_functions_t *df;
     dvdnav_t *dvd;
+    dvd_reader_t *dvdr = NULL;
+    ifo_handle_t *ifo = NULL;
     char *p, *tmp;
     dvd_t *d;
     url_t *u;
@@ -394,6 +404,99 @@ dvd_open(char *url, char *mode)
 	}
     }
 
+    df = calloc(1, sizeof(*df));
+    df->button = dvd_button;
+    df->enable = dvd_enable;
+    df->menu = dvd_menu;
+
+    dvdr = DVDOpen(device);
+    ifo = ifoOpen(dvdr, title);
+    if(ifo){
+	pgcit_t *pgcit = ifo->vts_pgcit;
+	vtsi_mat_t *vtsi = ifo->vtsi_mat;
+	video_attr_t *vattr = &vtsi->vtsm_video_attr;
+	pgc_t *pgc = pgcit->pgci_srp[0].pgc;
+	int i;
+
+	for(i = 0; i < 16; i++)
+	    df->spu_palette[i] = pgc->palette[i];
+
+	df->n_streams =
+	    1 + vtsi->nr_of_vts_audio_streams + vtsi->nr_of_vts_subp_streams;
+	df->streams = calloc(df->n_streams, sizeof(*df->streams));
+	df->streams[0].stream_type = STREAM_TYPE_VIDEO;
+	df->streams[0].common.index = 0xe0;
+	df->streams[0].common.codec =
+	    vattr->mpeg_version? "video/mpeg": "video/mpeg2";
+
+	if(vattr->display_aspect_ratio == 0){
+	    df->streams[0].video.aspect.num = 4;
+	    df->streams[0].video.aspect.num = 3;
+	} else if(vattr->display_aspect_ratio == 3){
+	    df->streams[0].video.aspect.num = 16;
+	    df->streams[0].video.aspect.num = 9;
+	}
+
+	df->streams[0].video.height = vattr->video_format? 576: 480;
+	switch(vattr->picture_size){
+	case 0:
+	    df->streams[0].video.width = 720;
+	    break;
+	case 1:
+	    df->streams[0].video.width = 704;
+	    break;
+	case 3:
+	    df->streams[0].video.height /= 2;
+	case 2:
+	    df->streams[0].video.width = 352;
+	    break;
+	}
+
+	for(i = 0; i < vtsi->nr_of_vts_audio_streams; i++){
+	    audio_attr_t *ast = vtsi->vts_audio_attr + i;
+	    stream_t *st = df->streams + i + 1;
+	    st->stream_type = STREAM_TYPE_AUDIO;
+	    st->audio.channels = ast->channels + 1;
+	    st->audio.sample_rate = ast->sample_frequency? 96000: 48000;
+	    st->audio.language[0] = ast->lang_code >> 8;
+	    st->audio.language[1] = ast->lang_code & 0xff;
+
+	    switch(ast->audio_format){
+	    case 0:
+		st->common.index = 0x80 + i;
+		st->common.codec = "audio/ac3";
+		break;
+	    case 2:
+	    case 3:
+		st->common.index = 0xc0 + i;
+		st->common.codec = "audio/mpeg";
+		break;
+	    case 4:
+		st->common.index = 0xa0 + i;
+		st->common.codec = "audio/pcm-s16be";
+		st->common.bit_rate =
+		    st->audio.channels * st->audio.sample_rate * 16;
+		break;
+	    case 6:
+		st->common.index = 0x88 + i;
+		st->common.codec = "audio/dts";
+		break;
+	    }
+	}
+
+	for(i = 0; i < vtsi->nr_of_vts_subp_streams; i++){
+	    subp_attr_t *sst = vtsi->vts_subp_attr + i;
+	    stream_t *st = df->streams + i + 1 + vtsi->nr_of_vts_audio_streams;
+	    st->stream_type = STREAM_TYPE_SUBTITLE;
+	    st->common.index = 0x20 + i;
+	    st->common.codec = "subtitle/dvd";
+	    st->common.codec_data = df->spu_palette;
+	    st->common.codec_data_size = sizeof(df->spu_palette);
+	    st->subtitle.language[0] = sst->lang_code >> 8;
+	    st->subtitle.language[1] = sst->lang_code & 0xff;
+	}
+    }
+
     d = calloc(1, sizeof(*d));
     d->dvd = dvd;
     d->angle = angle;
@@ -408,18 +511,19 @@ dvd_open(char *url, char *mode)
     u->private = d;
     u->size = (uint64_t) len * DVD_SECTOR_SIZE;
 
-    df = calloc(1, sizeof(*df));
-    df->button = dvd_button;
-    df->enable = dvd_enable;
-    df->menu = dvd_menu;
-    tcattr_set(u, "dvd", df, NULL, free);
+    tcattr_set(u, "dvd", df, NULL, dvd_free_info);
 
+  out:
+    if(dvdr)
+	DVDClose(dvdr);
+    if(ifo)
+	ifoClose(ifo);
     free(url);
     return u;
 
-err:
+  err:
     if(dvd)
 	dvdnav_close(dvd);
-    free(url);
-    return NULL;
+    u = NULL;
+    goto out;
 }

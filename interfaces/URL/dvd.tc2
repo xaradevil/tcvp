@@ -16,10 +16,15 @@ option language%s="en"
 Default language for menus etc.
 
 include
+#include <tcvp_types.h>
+
 typedef struct dvd_functions {
     void (*enable)(url_t *, int);
     void (*button)(url_t *, int x, int y);
     void (*menu)(url_t *);
+    int n_streams;
+    stream_t *streams;
+    uint32_t spu_palette[16];
 } dvd_functions_t;
 
 #define DVD_PESID 0xfc
