@@ -197,6 +197,7 @@ typedef struct s_play {
 	list *pq;
 	sem_t ps;
 	uint64_t pts;
+	uint64_t pts_offset;
     } *streams;
     int eof;
     uint64_t start_time, end_time;
@@ -274,10 +275,21 @@ read_stream(void *_p)
 	    int str;
 
 	    if(p){
+		struct sp_stream *st;
 		p->stream += vp->streams[s].soff;
 		str = p->stream;
-		if(p->flags & TCVP_PKT_FLAG_PTS)
-		    vp->streams[str].pts = p->pts;
+		st = &vp->streams[str];
+		if(p->flags & TCVP_PKT_FLAG_PTS){
+		    uint64_t pts = p->pts + st->pts_offset;
+		    if(pts < st->pts && st->pts - pts > 27000000){
+			st->pts_offset = st->pts - pts;
+			pts = st->pts;
+		    }
+		    st->pts = pts;
+		    p->pts = pts;
+		    if(p->flags & TCVP_PKT_FLAG_DTS)
+			p->dts += st->pts_offset;
+		}
 		list_push(vp->streams[str].pq, p);
 		sem_post(&vp->streams[str].ps);
 	    } else {
