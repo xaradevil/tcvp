@@ -28,3 +28,4 @@ option		mouse_delay%i=2
 Delay in seconds before hiding mouse pointer
 
 option		reuse_window%i
+option		subwindow%i=1

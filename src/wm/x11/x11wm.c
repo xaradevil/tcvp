@@ -69,11 +69,7 @@ typedef struct x11_wm {
 #define WM_STATE_TOGGLE 2
 
 static pthread_mutex_t x11_lock;
-static char *x11_dpyname;
-static Display *x11_dpy;
-static Window x11_win;
-static int x11_fullscr;
-static int x11_crshidden;
+static x11_wm_t *x11_xwm;
 
 static void
 x11_fullscreen(x11_wm_t *xwm, int fs)
@@ -266,8 +262,8 @@ x11_event(void *p)
 				      xe.xbutton.x, xe.xbutton.y,
 				      &bx, &by, &foo);
 	    } else {
-		bx -= xwm->dx;
-		by -= xwm->dy;
+		bx = xe.xbutton.x - xwm->dx;
+		by = xe.xbutton.y - xwm->dy;
 	    }
 
 	    bx = bx * xwm->vw / xwm->width;
@@ -294,71 +290,6 @@ x11_event(void *p)
     return NULL;
 }
 
-static int
-x11_close(window_manager_t *wm)
-{
-    x11_wm_t *xwm = wm->private;
-
-    if(xwm->root){
-	Atom xa_rootpmap = XInternAtom(xwm->dpy, "_XROOTPMAP_ID", True);
-
-	if(xa_rootpmap != None){
-	    Atom xa_pmap = XInternAtom(xwm->dpy, "PIXMAP", True);
-	    Atom aret;
-	    int fret;
-	    unsigned long nitems = 0, remain;
-	    unsigned char *buf;
-
-	    XGetWindowProperty(xwm->dpy, xwm->win, xa_rootpmap, 0, 1, False,
-			       xa_pmap, &aret, &fret, &nitems, &remain, &buf);
-	    if(nitems > 0){
-		Pixmap rpm = *((Pixmap*)buf);
-		XSetWindowBackgroundPixmap(xwm->dpy, xwm->win, rpm);
-		XFree(buf);
-	    }
-	}
-
-	xwm->run_event = 0;
-	XClearArea(xwm->dpy, xwm->win, 0, 0, 0, 0, True);
-	XSync(xwm->dpy, False);
-    }
-
-    pthread_mutex_lock(&xwm->mouse_lock);
-    xwm->run_mouse = 0;
-    pthread_cond_broadcast(&xwm->mouse_cond);
-    pthread_mutex_unlock(&xwm->mouse_lock);
-    pthread_join(xwm->cth, NULL);
-
-    if(xwm->ourwin)
-	XDestroyWindow(xwm->dpy, tcvp_wm_x11_conf_reuse_window?
-		       xwm->swin: xwm->win);
-    else if(xwm->swin != None)
-	XDestroyWindow(xwm->dpy, xwm->swin);
-    XSync(xwm->dpy, False);
-
-    pthread_join(xwm->eth, NULL);
-
-    if(tcvp_wm_x11_conf_reuse_window && xwm->ourwin){
-	XSelectInput(xwm->dpy, xwm->win, 0);
-
-	pthread_mutex_lock(&x11_lock);
-	x11_dpyname = xwm->dpyname;
-	x11_dpy = xwm->dpy;
-	x11_win = xwm->win;
-	x11_fullscr = xwm->fullscreen;
-	pthread_mutex_unlock(&x11_lock);
-    } else {
-	XCloseDisplay(xwm->dpy);
-	free(xwm->dpyname);
-    }
-
-    eventq_delete(xwm->qs);
-    free(xwm);
-    free(wm);
-
-    return 0;
-}
-
 static void *
 x11_hidecursor(void *p)
 {
@@ -372,9 +303,6 @@ x11_hidecursor(void *p)
     struct timeval stime;
 
     tc2_print("X11", TC2_PRINT_DEBUG, "cursor hider starting\n");
-
-    if(tcvp_wm_x11_conf_reuse_window && xwm->ourwin)
-	hidden = x11_crshidden;
 
     XAllocNamedColor(xwm->dpy,
 		     DefaultColormap(xwm->dpy, DefaultScreen(xwm->dpy)),
@@ -410,6 +338,7 @@ x11_hidecursor(void *p)
 		tc2_print("X11", TC2_PRINT_DEBUG, "unhiding cursor\n");
 		XUndefineCursor(xwm->dpy, xwm->win);
 	    }
+	    XSync(xwm->dpy, False);
 	    hidden = hide;
 	}
 
@@ -420,12 +349,96 @@ x11_hidecursor(void *p)
 
     XFreeCursor(xwm->dpy, crs);
 
-    if(tcvp_wm_x11_conf_reuse_window && xwm->ourwin)
-	x11_crshidden = hidden;
-
     tc2_print("X11", TC2_PRINT_DEBUG, "cursor hider done\n");
 
     return NULL;
+}
+
+static int wm_noop(void *d, int event, int x, int y, int w, int h)
+{
+    return 0;
+}
+
+static int
+x11_close(window_manager_t *wm)
+{
+    x11_wm_t *xwm = wm->private;
+
+    if(tcvp_wm_x11_conf_reuse_window){
+	pthread_mutex_lock(&x11_lock);
+	if(!x11_xwm){
+#if 0
+	    if(!xwm->root)
+		XSelectInput(xwm->dpy, xwm->win, KeyPressMask |
+			     ButtonPressMask | PointerMotionMask);
+	    else
+		XSelectInput(xwm->dpy, xwm->win, 0);
+	    if(xwm->swin != None)
+		XSelectInput(xwm->dpy, xwm->swin, 0);
+#endif
+	    xwm->update = wm_noop;
+	    x11_xwm = tcref(xwm);
+	}
+	pthread_mutex_unlock(&x11_lock);
+    }
+
+    tcfree(xwm);
+    free(wm);
+
+    return 0;
+}
+
+static void
+x11_freewm(void *p)
+{
+    x11_wm_t *xwm = p;
+
+    if(xwm->root){
+	Atom xa_rootpmap = XInternAtom(xwm->dpy, "_XROOTPMAP_ID", True);
+
+	if(xa_rootpmap != None){
+	    Atom xa_pmap = XInternAtom(xwm->dpy, "PIXMAP", True);
+	    Atom aret;
+	    int fret;
+	    unsigned long nitems = 0, remain;
+	    unsigned char *buf;
+
+	    XGetWindowProperty(xwm->dpy, xwm->win, xa_rootpmap, 0, 1, False,
+			       xa_pmap, &aret, &fret, &nitems, &remain, &buf);
+	    if(nitems > 0){
+		Pixmap rpm = *((Pixmap*)buf);
+		XSetWindowBackgroundPixmap(xwm->dpy, xwm->win, rpm);
+		XFree(buf);
+	    }
+	}
+    }
+
+    tc2_print("X11", TC2_PRINT_DEBUG, "stopping cursor hider\n");
+
+    pthread_mutex_lock(&xwm->mouse_lock);
+    xwm->run_mouse = 0;
+    pthread_cond_broadcast(&xwm->mouse_cond);
+    pthread_mutex_unlock(&xwm->mouse_lock);
+    pthread_join(xwm->cth, NULL);
+
+    if(xwm->swin == None){
+	xwm->run_event = 0;
+	XClearArea(xwm->dpy, xwm->win, 0, 0, 0, 0, True);
+    } else {
+	if(xwm->ourwin)
+	    XDestroyWindow(xwm->dpy, xwm->win);
+	else
+	    XDestroyWindow(xwm->dpy, xwm->swin);
+    }
+
+    XSync(xwm->dpy, False);
+
+    tc2_print("X11", TC2_PRINT_DEBUG, "waiting for event listener\n");
+    pthread_join(xwm->eth, NULL);
+
+    XCloseDisplay(xwm->dpy);
+    free(xwm->dpyname);
+    eventq_delete(xwm->qs);
 }
 
 static int
@@ -476,13 +489,12 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 	 tcconf_section_t *cs, int flags)
 {
     window_manager_t *wm = NULL;
-    x11_wm_t *xwm;
-    Display *dpy = NULL;
-    Window win = None;
+    x11_wm_t *xwm = NULL;
     char *display = NULL;
     char *qname, *qn;
     int fs = 0;
     char *window = NULL;
+    int subwin = tcvp_wm_x11_conf_subwindow;
 
     if(cs){
 	tcconf_getvalue(cs, "video/device", "%s", &display);
@@ -494,32 +506,41 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 
     if(tcvp_wm_x11_conf_reuse_window && !window){
 	pthread_mutex_lock(&x11_lock);
-	if(x11_dpy && ((!x11_dpyname && !display) ||
-		       !strcmp(x11_dpyname, display))){
-	    dpy = x11_dpy;
-	    win = x11_win;
-	    fs = x11_fullscr;
-
-	    free(x11_dpyname);
-	    x11_dpyname = NULL;
-	    x11_dpy = NULL;
-	    x11_win = None;
+	if(x11_xwm && ((!x11_xwm->dpyname && !display) ||
+		       !strcmp(x11_xwm->dpyname, display))){
+	    xwm = x11_xwm;
+	    x11_xwm = NULL;
 	}
 	pthread_mutex_unlock(&x11_lock);
     }
 
-    if(!dpy){
-	dpy = XOpenDisplay(display);
+    if(!xwm){
+	Display *dpy = XOpenDisplay(display);
 	if(!dpy){
 	    tc2_print("X11WM", TC2_PRINT_ERROR, "can't open display %s\n",
 		      display);
 	    goto out;
 	}
+
+	xwm = tcallocdz(sizeof(*xwm), NULL, x11_freewm);
+	xwm->dpyname = display? strdup(display): display;
+	xwm->dpy = dpy;
+
+	qname = tcvp_event_get_qname(cs);
+	qn = malloc(strlen(qname) + 9);
+	sprintf(qn, "%s/control", qname);
+	xwm->qs = eventq_new(NULL);
+	eventq_attach(xwm->qs, qn, EVENTQ_SEND);
+	free(qname);
+	free(qn);
+
+	check_wm(xwm);
+	xwm->wm_state = XInternAtom(xwm->dpy, "_NET_WM_STATE", False);
+	xwm->wm_fullscreen =
+	    XInternAtom(xwm->dpy, "_NET_WM_STATE_FULLSCREEN", False);
     }
 
-    xwm = calloc(1, sizeof(*xwm));
-    xwm->dpyname = display? strdup(display): display;
-    xwm->dpy = dpy;
+
     xwm->width = width;
     xwm->height = height;
     xwm->owidth = width;
@@ -532,47 +553,44 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     tcconf_getvalue(cs, "video/width", "%i", &xwm->vw);
     tcconf_getvalue(cs, "video/height", "%i", &xwm->vh);
 
-    check_wm(xwm);
-    xwm->wm_state = XInternAtom(dpy, "_NET_WM_STATE", False);
-    xwm->wm_fullscreen = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
-
     if(window){
 	if(!strcmp(window, "root"))
-	    xwm->win = DefaultRootWindow(dpy);
+	    xwm->win = DefaultRootWindow(xwm->dpy);
 	else
 	    xwm->win = strtoul(window, NULL, 0);
-	if(xwm->win == DefaultRootWindow(dpy))
+	if(xwm->win == DefaultRootWindow(xwm->dpy)){
 	    xwm->root = 1;
-	x11_update_win(xwm);
+	    fs = 1;
+	    subwin = 0;
+	}
     } else {
-	if(win != None){
+	if(xwm->win != None){
 	    if(!fs){
-		XResizeWindow(dpy, win, width, height);
-		XSync(dpy, False);
+		XResizeWindow(xwm->dpy, xwm->win, width, height);
+		XSync(xwm->dpy, False);
 	    }
-	    xwm->win = win;
 	} else {
-	    xwm->win = XCreateWindow(dpy, RootWindow(dpy, DefaultScreen(dpy)),
+	    xwm->win = XCreateWindow(xwm->dpy, DefaultRootWindow(xwm->dpy),
 				     0, 0, width, height, 0, CopyFromParent,
 				     InputOutput, CopyFromParent, 0, NULL);
-	    XSetWindowBackground(dpy, xwm->win, 0);
+	    XSetWindowBackground(xwm->dpy, xwm->win, 0);
 	}
 	xwm->ww = width;
 	xwm->wh = height;
 	xwm->ourwin = 1;
     }
 
-    if(xwm->root){
-	fs = 1;
+    x11_update_win(xwm);
+
+    if(!subwin){
 	xwm->swin = None;
 	x11_pixmap_bg(xwm);
     } else {
-	x11_update_win(xwm);
-	xwm->swin = XCreateWindow(dpy, xwm->win, xwm->dx, xwm->dy,
+	xwm->swin = XCreateWindow(xwm->dpy, xwm->win, xwm->dx, xwm->dy,
 				  xwm->width, xwm->height, 0,
 				  CopyFromParent, InputOutput,
 				  CopyFromParent, 0, NULL);
-	XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
+	XSetWindowBackground(xwm->dpy, xwm->swin, xwm->color_key);
     }
 
     if(xwm->swin != None)
@@ -580,13 +598,6 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     else
 	xwm->update(xwm->cbd, WM_MOVE, xwm->dx, xwm->dy,
 		    xwm->width, xwm->height);
-
-    qname = tcvp_event_get_qname(cs);
-    qn = alloca(strlen(qname)+8);
-    sprintf(qn, "%s/control", qname);
-    xwm->qs = eventq_new(NULL);
-    eventq_attach(xwm->qs, qn, EVENTQ_SEND);
-    free(qname);
 
     wm = malloc(sizeof(*wm));
     wm->close = x11_close;
@@ -610,14 +621,17 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     if(fs)
 	x11_fullscreen(xwm, WM_STATE_ADD);
 
-    xwm->run_event = 1;
-    xwm->run_mouse = 1;
+    if(!xwm->run_event){
+	xwm->run_event = 1;
+	pthread_create(&xwm->eth, NULL, x11_event, xwm);
+    }
 
-    pthread_mutex_init(&xwm->mouse_lock, NULL);
-    pthread_cond_init(&xwm->mouse_cond, NULL);
-
-    pthread_create(&xwm->eth, NULL, x11_event, xwm);
-    pthread_create(&xwm->cth, NULL, x11_hidecursor, xwm);
+    if(!xwm->run_mouse){
+	xwm->run_mouse = 1;
+	pthread_mutex_init(&xwm->mouse_lock, NULL);
+	pthread_cond_init(&xwm->mouse_cond, NULL);
+	pthread_create(&xwm->cth, NULL, x11_hidecursor, xwm);
+    }
 
 out:
     if(display)
@@ -648,8 +662,6 @@ extern int
 x11_free(void)
 {
     pthread_mutex_destroy(&x11_lock);
-    free(x11_dpyname);
-    if(x11_dpy)
-	XCloseDisplay(x11_dpy);
+    tcfree(x11_xwm);
     return 0;
 }
