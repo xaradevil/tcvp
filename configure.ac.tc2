@@ -39,3 +39,17 @@ AC_CONFIG_FILES([Makefile
 		 src/wm/wm/Makefile
 		 src/wm/x11/Makefile])
 AC_OUTPUT
+
+echo
+echo $PACKAGE $VERSION
+echo
+echo The following TCVP modules will be built:
+echo Codec modules..........: $CODEC_MODULES
+echo Demuxer modules........: $DEMUXER_MODULES
+echo Output modules.........: $OUTPUT_MODULES
+echo Driver modules.........: $DRIVERS_MODULES
+echo Userinterface modules..: $UI_MODULES
+echo Other modules..........: $SRC_MODULES
+echo
+echo TCVP will be installed in $prefix
+echo
