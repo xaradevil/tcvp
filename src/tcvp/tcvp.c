@@ -15,6 +15,7 @@
 
 typedef struct tcvp_player {
     tcvp_pipe_t *demux, **pipes, **ends;
+    int npipes;
     muxed_stream_t *stream;
     tcvp_timer_t *timer;
     pthread_t th_ticker, th_event;
@@ -58,7 +59,7 @@ t_start(player_t *pl)
 	tp->demux->start(tp->demux);
 
     if(tp->ends)
-	for(i = 0; i < tp->stream->n_streams; i++)
+	for(i = 0; i < tp->npipes; i++)
 	    if(tp->ends[i] && tp->ends[i]->start)
 		tp->ends[i]->start(tp->ends[i]);
 
@@ -81,7 +82,7 @@ t_stop(player_t *pl)
 	tp->demux->stop(tp->demux);
 
     if(tp->ends)
-	for(i = 0; i < tp->stream->n_streams; i++)
+	for(i = 0; i < tp->npipes; i++)
 	    if(tp->ends[i] && tp->ends[i]->stop)
 		tp->ends[i]->stop(tp->ends[i]);
 
@@ -118,7 +119,7 @@ t_close(player_t *pl)
     }
 
     if(tp->pipes){
-	for(i = 0; i < tp->stream->n_streams; i++)
+	for(i = 0; i < tp->npipes; i++)
 	    close_pipe(tp->pipes[i]);
 	free(tp->pipes);
 	tp->pipes = NULL;
@@ -431,7 +432,8 @@ t_open(player_t *pl, char *name)
 	free(outfile);
     }
 
-    us = alloca(ns * sizeof(*us));
+    tp->npipes = stream->n_streams;
+    us = alloca(tp->npipes * sizeof(*us));
     memset(us, 0, ns * sizeof(*us));
 
     if(tp->conf){
@@ -439,7 +441,7 @@ t_open(player_t *pl, char *name)
 	int s;
 	i = 0;
 	while(tcconf_nextvalue(tp->conf, "video/stream", &cs, "%i", &s) > 0){
-	    if(s >= 0 && s < stream->n_streams &&
+	    if(s >= 0 && s < tp->npipes &&
 	       stream->streams[s].stream_type == STREAM_TYPE_VIDEO){
 		us[s] = 1;
 		vs = s;
@@ -448,7 +450,7 @@ t_open(player_t *pl, char *name)
 	    }
 	}
 	while(tcconf_nextvalue(tp->conf, "audio/stream", &cs, "%i", &s) > 0){
-	    if(s >= 0 && s < stream->n_streams &&
+	    if(s >= 0 && s < tp->npipes &&
 	       stream->streams[s].stream_type == STREAM_TYPE_AUDIO){
 		us[s] = 1;
 		as = s;
@@ -458,7 +460,7 @@ t_open(player_t *pl, char *name)
 	}
     }
 
-    tp->pipes = calloc(stream->n_streams, sizeof(*tp->pipes));
+    tp->pipes = calloc(tp->npipes, sizeof(*tp->pipes));
 
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
@@ -546,8 +548,8 @@ t_open(player_t *pl, char *name)
     print_info(stream, tp->pipes);
 
     tp->state = TCVP_STATE_STOPPED;
-    tp->ends = calloc(stream->n_streams, sizeof(*tp->ends));
-    for(i = 0; i < stream->n_streams; i++){
+    tp->ends = calloc(tp->npipes, sizeof(*tp->ends));
+    for(i = 0; i < tp->npipes; i++){
 	if(tp->pipes[i]){
 	    if(stream->used_streams[i]){
 		tp->ends[i] = pipe_end(tp->pipes[i]);
@@ -574,7 +576,7 @@ t_open(player_t *pl, char *name)
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
     demux->start(demux);
-    for(i = 0; i < stream->n_streams; i++)
+    for(i = 0; i < tp->npipes; i++)
 	if(tp->ends[i] && tp->ends[i]->buffer)
 	    tp->ends[i]->buffer(tp->ends[i], 0.9);
 
