@@ -109,6 +109,89 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 		    bits, extra, extrasize);
 }
 
+#define WAV_HEADER_SIZE 44
+
+#define store(v,d,s) do {			\
+    *(uint##s##_t *)d = v;			\
+    d += s / 8;					\
+} while(0)
+
+extern u_char *
+wav_header(stream_t *s, int *size)
+{
+    u_char *head, *p;
+    int bits;
+
+    if(s->stream_type != STREAM_TYPE_AUDIO)
+	return NULL;
+
+    if(!strcmp(s->audio.codec, "audio/pcm-u8")){
+	bits = 8;
+    } else if(!strcmp(s->audio.codec, "audio/pcm-s16le")){
+	bits = 16;
+    } else {
+	return NULL;
+    }
+
+    p = head = malloc(WAV_HEADER_SIZE);
+
+    store(TAG('R','I','F','F'), p, 32);
+    store(0, p, 32);
+    store(TAG('W','A','V','E'), p, 32);
+
+    store(TAG('f','m','t',' '), p, 32);
+    store(16, p, 32);		/* size */
+    store(1, p, 16);		/* format */
+    store(s->audio.channels, p, 16);
+    store(s->audio.sample_rate, p, 32);
+    store(s->audio.bit_rate / 8, p, 32);
+    store(bits * s->audio.channels / 8, p, 16);	/* block align */
+    store(bits, p, 16);
+
+    store(TAG('d','a','t','a'), p, 32);
+    store(0, p, 32);
+
+    *size = p - head;
+    return head;
+}
+
+static int
+wav_close(pcm_write_t *pcm)
+{
+    uint64_t size = pcm->u->tell(pcm->u);
+    uint32_t v = size - 8;
+
+    pcm->u->seek(pcm->u, 4, SEEK_SET);
+    url_putu32l(pcm->u, v);
+
+    v = size - WAV_HEADER_SIZE;
+    pcm->u->seek(pcm->u, WAV_HEADER_SIZE - 4, SEEK_SET);
+    url_putu32l(pcm->u, v);
+
+    return 0;
+}
+
+extern int
+wav_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+{
+    pcm_write_t *pcm = p->private;
+    u_char *head;
+    int hsize;
+
+    if(pcm->probed)
+	return PROBE_FAIL;
+
+    if(!(head = wav_header(s, &hsize)))
+	return PROBE_FAIL;
+
+    pcm->u->write(head, 1, hsize, pcm->u);
+
+    pcm->probed = 1;
+    pcm->close = wav_close;
+
+    return PROBE_OK;
+}
+
 static struct {
     int id;
     char *codec;

@@ -22,20 +22,51 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#ifndef _PCM_MOD_H
-#define _PCM_MOD_H
+#include <stdlib.h>
+#include <string.h>
+#include <tcalloc.h>
+#include <pcmfmt_tc2.h>
+#include <pcmmod.h>
 
-#include <tcvp_types.h>
+static void
+pcmw_free(void *p)
+{
+    pcm_write_t *pcm = p;
+    if(pcm->close)
+	pcm->close(pcm);
+    tcfree(pcm->u);
+}
 
-extern muxed_stream_t *pcm_open(url_t *u, char *codec, int channels,
-				int srate, int samples, int brate,
-				int align, char *cd, int cds);
-
-typedef struct pcm_write pcm_write_t;
-struct pcm_write {
+extern int
+pcmw_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+	 muxed_stream_t *ms)
+{
+    pcm_write_t *pcm;
+    char *file;
     url_t *u;
-    int probed;
-    int (*close)(pcm_write_t *);
-};
 
-#endif
+    if(tcconf_getvalue(cs, "mux/url", "%s", &file) <= 0)
+	return -1;
+
+    if(!(u = url_open(file, "w")))
+	return -1;
+
+    pcm = tcallocdz(sizeof(*pcm), NULL, pcmw_free);
+    pcm->u = u;
+    p->private = pcm;
+
+    return 0;
+}
+
+extern int
+pcmw_packet(tcvp_pipe_t *p, packet_t *pk)
+{
+    pcm_write_t *pcm = p->private;
+
+    if(!pk->data)
+	return 0;
+
+    pcm->u->write(pk->data[0], 1, pk->sizes[0], pcm->u);
+
+    return 0;
+}
