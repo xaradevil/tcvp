@@ -102,7 +102,7 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 	return -1;
 
     while(bytes){
-	int32_t event, len;
+	int32_t event = DVDNAV_BLOCK_OK, len;
 	int bb;
 
 	if(d->bpos == d->bbytes){
