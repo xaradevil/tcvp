@@ -82,11 +82,15 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     ctx->width = s->video.width;
     ctx->height = s->video.height;
     if(s->video.aspect.num){
+#if LIBAVCODEC_BUILD >= 4687
 	tcfraction_t asp = { s->video.height * s->video.aspect.num,
 			     s->video.width * s->video.aspect.den };
 	tcreduce(&asp);
 	ctx->sample_aspect_ratio.num = asp.num;
 	ctx->sample_aspect_ratio.den = asp.den;
+#else
+	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
+#endif
     }
     if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED)
 	ctx->flags |= CODEC_FLAG_INTERLACED_DCT;
