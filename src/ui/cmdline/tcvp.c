@@ -42,6 +42,9 @@ static tcvp_addon_t **addons;
 static char **commands;
 static int ncmds;
 static int isdaemon;
+static int clr_pl;
+
+#define have_cmds (ncmds || clr_pl)
 
 static int TCVP_STATE;
 static int TCVP_PL_START;
@@ -86,6 +89,7 @@ show_help(void)
 	   "           --stop\n"
 	   "           --next\n"
 	   "           --prev\n"
+	   "           --clear\n"
 	);
 }
 
@@ -250,7 +254,7 @@ tcl_init(char *p)
     if(sel_ui && !strcmp(sel_ui, "none"))
 	sel_ui = NULL;
 
-    if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon && !shuffle){
+    if(!have_cmds && !nfiles && !npl && !sel_ui && !isdaemon && !shuffle){
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
 	return 0;
@@ -331,6 +335,9 @@ tcl_init(char *p)
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
 
+    if(clr_pl)
+	tcvp_event_send(qs, tcvp_event_get("TCVP_PL_REMOVE"), 0, -1);
+
     if(!prl){
 	if(nfiles)
 	    tcvp_event_send(qs, TCVP_PL_ADD, files, nfiles, -1);
@@ -345,7 +352,7 @@ tcl_init(char *p)
     else if(shuffle < 0)
 	tcvp_event_send(qs, TCVP_PL_SHUFFLE, 0);
 
-    if(!ncmds && tcvp_ui_cmdline_conf_autoplay){
+    if(!have_cmds && tcvp_ui_cmdline_conf_autoplay){
 	if(prl){
 	    tcvp_event_send(qs, TCVP_START);
 	} else {
@@ -353,7 +360,7 @@ tcl_init(char *p)
 	}
     }
 
-    if(!ncmds && sel_ui){
+    if(!have_cmds && sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
 	char *op = alloca(strlen(qname) + 10 + (skin? (strlen(skin) + 10): 0));
 	char *p = op;
@@ -369,7 +376,7 @@ tcl_init(char *p)
     for(i = 0; i < ncmds; i++)
 	tcvp_event_send(qs, tcvp_event_get(commands[i]));
 
-    if(pl || sel_ui){
+    if((pl || sel_ui) && !have_cmds){
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
@@ -453,6 +460,7 @@ tcl_stop(void)
 #define OPT_PLAY 135
 #define OPT_PAUSE 136
 #define OPT_STOP 137
+#define OPT_CLEAR 138
 
 static int
 parse_options(int argc, char **argv)
@@ -485,6 +493,7 @@ parse_options(int argc, char **argv)
 	{"play", no_argument, 0, OPT_PLAY},
 	{"pause", no_argument, 0, OPT_PAUSE},
 	{"stop", no_argument, 0, OPT_STOP},
+	{"clear", no_argument, 0, OPT_CLEAR},
 	{"daemon", no_argument, 0, 'D'},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
@@ -615,6 +624,10 @@ parse_options(int argc, char **argv)
 	case OPT_STOP:
 	    add_cmd("TCVP_PL_STOP");
 	    add_cmd("TCVP_CLOSE");
+	    break;
+
+	case OPT_CLEAR:
+	    clr_pl = 1;
 	    break;
 
 	case 'D':
