@@ -315,6 +315,14 @@ tcvp_open_ui(tcwidget_t *w, void *p)
     XMapWindow (xd, ui->xw);
     XMapSubwindows(xd, ui->xw);
 
+    if(tcvp_ui_tcvpx_conf_sticky != 0) {
+	wm_set_sticky(ui, 1);
+    }
+
+    if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
+	wm_set_always_on_top(ui, 1);
+    }
+
     ui_count++;
 
     return 0;

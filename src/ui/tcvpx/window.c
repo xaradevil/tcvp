@@ -67,16 +67,16 @@ x11_event(void *p)
 	case ConfigureNotify:
 	{
 	    list_item *current=NULL;
-	    tcwidget_t *w;
+	    skin_t *s;
 
-	    while((w = list_next(click_list, &current))!=NULL) {
-		if(xe.xbutton.window == w->common.win){
-		    if(w->common.skin->background->transparent) {
+	    while((s = list_next(skin_list, &current))!=NULL) {
+		if(xe.xbutton.window == s->xw){
+		    if(s->background->transparent) {
 			repaint_widgets();
 			draw_widgets();
 		    }
-		    w->common.skin->x = xe.xconfigure.x;
-		    w->common.skin->y = xe.xconfigure.y;
+		    s->x = xe.xconfigure.x;
+		    s->y = xe.xconfigure.y;
 		    break;
 		}
 	    }
@@ -227,45 +227,35 @@ x11_event(void *p)
 	}
 
 	case ClientMessage:
-	{
-	    list_item *current=NULL;
-	    tcwidget_t *w;
+	    if(xe.xclient.message_type == XdndEnter) {
+		/* Nothing yet */
+	    } else if(xe.xclient.message_type == XdndPosition) {
+		XEvent xevent;
 
-	    while((w = list_next(click_list, &current))!=NULL) {
-		if(xe.xclient.window == w->common.win){
-		    if(xe.xclient.message_type == XdndEnter) {
-			/* Nothing yet */
-		    } else if(xe.xclient.message_type == XdndPosition) {
-			XEvent xevent;
+		memset (&xevent, 0, sizeof(xevent));
+		xevent.xany.type = ClientMessage;
+		xevent.xany.display = xd;
+		xevent.xclient.window = xe.xclient.data.l[0];
+		xevent.xclient.message_type = XdndStatus;
+		xevent.xclient.format = 32;
 
-			memset (&xevent, 0, sizeof(xevent));
-			xevent.xany.type = ClientMessage;
-			xevent.xany.display = xd;
-			xevent.xclient.window = xe.xclient.data.l[0];
-			xevent.xclient.message_type = XdndStatus;
-			xevent.xclient.format = 32;
-			xevent.xclient.data.l[0] = w->common.skin->xw;
-			xevent.xclient.data.l[1] = 3;
-			xevent.xclient.data.l[2] =
-			    (w->common.skin->x << 16) |
-			    w->common.skin->y;
-			xevent.xclient.data.l[3] =
-			    (w->common.skin->width << 16) |
-			    w->common.skin->height;
-			xevent.xclient.data.l[4] = XdndActionPrivate;
-			XSendEvent(xd, xe.xclient.data.l[0], 0, 0, &xevent);
+		xevent.xclient.data.l[0] = xe.xclient.window;
+		xevent.xclient.data.l[1] = 3;
+		xevent.xclient.data.l[2] = 0;
+		xevent.xclient.data.l[3] = 0;
+		xevent.xclient.data.l[4] = XdndActionPrivate;
 
-		    } else if(xe.xclient.message_type == XdndDrop) {
-			XConvertSelection(xd, XdndSelection, XdndType, tcvpxa,
-					  xe.xclient.window, CurrentTime);
+		XSendEvent(xd, xe.xclient.data.l[0], 0, 0, &xevent);
 
-		    } else if(xe.xclient.message_type == XdndLeave) {
-			/* Nothing yet */
-		    }
-		}
+	    } else if(xe.xclient.message_type == XdndDrop) {
+		XConvertSelection(xd, XdndSelection, XdndType, tcvpxa,
+				  xe.xclient.window, CurrentTime);
+
+	    } else if(xe.xclient.message_type == XdndLeave) {
+		/* Nothing yet */
 	    }
 	    break;
-	}
+
 	default:
 	    break;
 	}

@@ -71,6 +71,8 @@ tcvp_event(void *p)
 	    st = te->load.stream;
 	    tcref(st);
 
+	    s_length = 0;
+
 	    if(st->title){
 		change_text("title", st->title);
 	    } else {
@@ -104,13 +106,20 @@ tcvp_event(void *p)
 /* 	    printf("%ld (%d/%d)\n", frames, frame_rate_num, frame_rate_den); */
 /* 	    printf("%d\n", s_length); */
 
-/* 	    if(skin->seek_bar) { */
-/* 		if(s_length > 0){ */
-/* 		    enable_seek_bar(skin->seek_bar); */
-/* 		} else { */
-/* 		    disable_seek_bar(skin->seek_bar); */
-/* 		} */
-/* 	    } */
+	    list_item *current = NULL;
+	    skin_t *skin;
+
+	    while((skin = list_next(skin_list, &current))!=NULL) {
+		if(skin->seek_bar) {
+		    if(skin->seek_bar) {
+			if(s_length > 0){
+			    enable_seek_bar(skin->seek_bar);
+			} else {
+			    disable_seek_bar(skin->seek_bar);
+			}
+		    }
+		}
+	    }
 	    break;
 	}
 	tcfree(te);
