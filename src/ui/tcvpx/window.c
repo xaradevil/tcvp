@@ -256,11 +256,11 @@ create_window(skin_t *skin)
 
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
 	Atom xa_wm_desktop, xa_win_state;
+	Atom xa_wm_state, xa_sticky;
 	int desktop = -1;
 	int i=1;
 
 	xa_wm_desktop = XInternAtom(xd, "_NET_WM_DESKTOP", False);
-
 	XChangeProperty(xd, skin->xw, xa_wm_desktop, xa_cardinal, 32,
 			PropModeReplace, (unsigned char *) &desktop, 1);
 
@@ -268,14 +268,23 @@ create_window(skin_t *skin)
 	XChangeProperty(xd, skin->xw, xa_win_state, xa_cardinal, 32,
 			PropModeReplace, (unsigned char *) &i, 1);
 
-    } else if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
+
+	xa_wm_state = XInternAtom(xd, "_NET_WM_STATE", False);
+	xa_sticky = XInternAtom(xd, "_NET_WM_STATE_STICKY", False);
+
+	XChangeProperty(xd, skin->xw, xa_wm_state, xa_atom, 32,
+			PropModeAppend, (unsigned char *) &xa_sticky, 1);
+
+    }
+
+    if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
 	Atom xa_wm_state, xa_on_top;
 
 	xa_wm_state = XInternAtom(xd, "_NET_WM_STATE", False);
 	xa_on_top = XInternAtom(xd, "_NET_WM_STATE_STAYS_ON_TOP", False);
 
 	XChangeProperty(xd, skin->xw, xa_wm_state, xa_atom, 32,
-			PropModeReplace, (unsigned char *) &xa_on_top, 1);
+			PropModeAppend, (unsigned char *) &xa_on_top, 1);
     }
 
 
