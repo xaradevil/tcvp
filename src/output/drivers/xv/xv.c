@@ -83,8 +83,12 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     XvImage *xi = xvw->images[frame];
     int i;
 
-    if(frame == xvw->last_frame)
-	xvw->last_frame = -1;
+    if(frame == xvw->last_frame){
+	if(xvw->last_frame == vd->frames - 1)
+	    xvw->last_frame = 0;
+	else
+	    xvw->last_frame++;
+    }
 
     for(i = 0; i < xi->num_planes; i++){
 	data[i] = xi->data + xi->offsets[i];
@@ -98,6 +102,9 @@ static int
 xv_reconf(void *p, int event, int x, int y, int w, int h)
 {
     xv_window_t *xvw = p;
+
+    tc2_print("XV", TC2_PRINT_DEBUG, "xv_reconf(%i, %i, %i, %i, %i)\n",
+	      event, x, y, w, h);
 
     if(event == WM_MOVE){
 	xvw->dx = x;
