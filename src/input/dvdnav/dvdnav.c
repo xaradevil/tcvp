@@ -595,13 +595,15 @@ dvd_open(char *url, char *mode)
 	    df->n_streams++;
 	}
 
-	tmap = tmapt->tmap;
-	df->index_unit = tmap->tmu * 27000000ULL;
-	df->index_size = tmap->nr_of_entries;
-	df->index = calloc(df->index_size, sizeof(*df->index));
-	for(i = 0; i < tmap->nr_of_entries; i++){
-	    df->index[i] =
-		(uint64_t) (tmap->map_ent[i] & 0x7fffffff) * DVD_SECTOR_SIZE;
+	if(tmapt){
+	    tmap = tmapt->tmap;
+	    df->index_unit = tmap->tmu * 27000000ULL;
+	    df->index_size = tmap->nr_of_entries;
+	    df->index = calloc(df->index_size, sizeof(*df->index));
+	    for(i = 0; i < tmap->nr_of_entries; i++){
+		df->index[i] =
+		    (uint64_t) (tmap->map_ent[i]&0x7fffffff) * DVD_SECTOR_SIZE;
+	    }
 	}
     }
 
