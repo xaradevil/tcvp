@@ -116,7 +116,8 @@ init_skins(void)
 extern void
 cleanup_skins(void)
 {
-    tchash_destroy(action_hash, NULL);
+    if(action_hash)
+	tchash_destroy(action_hash, NULL);
 }
 
 extern int

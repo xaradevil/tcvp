@@ -31,142 +31,108 @@ static int tcvpstate=-1;
 int s_time;
 int s_length;
 static int show_time = TCTIME_ELAPSED;
-static int TCVP_STATE, TCVP_TIMER, TCVP_LOAD, TCVP_STREAM_INFO,
-    TCVP_PAUSE, TCVP_SEEK, TCVP_CLOSE, TCVP_PL_STOP, TCVP_PL_START,
-    TCVP_PL_NEXT, TCVP_PL_PREV, TCVP_PL_ADD, TCVP_PL_ADDLIST, TCVP_QUERY;
 
 extern int
-init_events(void)
-{
-    TCVP_STATE = tcvp_event_get("TCVP_STATE");
-    TCVP_TIMER = tcvp_event_get("TCVP_TIMER");
-    TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
-    TCVP_STREAM_INFO = tcvp_event_get("TCVP_STREAM_INFO");
-    TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");
-    TCVP_SEEK = tcvp_event_get("TCVP_SEEK"); 
-    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
-    TCVP_PL_STOP = tcvp_event_get("TCVP_PL_STOP");
-    TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
-    TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
-    TCVP_PL_PREV = tcvp_event_get("TCVP_PL_PREV");
-    TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
-    TCVP_PL_ADDLIST = tcvp_event_get("TCVP_PL_ADDLIST");
-    TCVP_QUERY = tcvp_event_get("TCVP_QUERY"); 
-
-    return 0;
-}
-
-extern void *
-tcvp_event(void *p)
+tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 {
     muxed_stream_t *st = NULL;
-    int quit = 0;
 
-    tcvp_event_send(qs, TCVP_QUERY);
+    if(te->type == TCVP_STATE) {
+	tcvpstate = ((tcvp_state_event_t *)te)->state;
 
-    while(!quit){
-	tcvp_event_t *te = eventq_recv(qr);
+	switch(((tcvp_state_event_t *)te)->state) {
+	case TCVP_STATE_PL_END:
+	    tcvp_stop(NULL, NULL);
+	    break;
 
-	if(te->type == TCVP_STATE) {
-	    tcvpstate = ((tcvp_state_event_t *)te)->state;
+	case TCVP_STATE_PLAYING:
+	    change_text("state", "play");
+	    break;
 
-	    switch(((tcvp_state_event_t *)te)->state) {
-	    case TCVP_STATE_PL_END:
-		tcvp_stop(NULL, NULL);
-		break;
+	case TCVP_STATE_STOPPED:
+	    change_text("state", "pause");
+	    break;
 
-	    case TCVP_STATE_PLAYING:
-		change_text("state", "play");
-		break;
-
-	    case TCVP_STATE_STOPPED:
-		change_text("state", "pause");
-		break;
-
-	    case TCVP_STATE_END:
-		change_text("state", "stop");
-		if(st)
-		    tcfree(st);
-		st = NULL;
-		break;
-	    }
-
-	} else if(te->type == TCVP_TIMER) {
-	    s_time = ((tcvp_timer_event_t *)te)->time / 27000000;
-	    if(s_time > s_length)
-		s_length = s_time;
-	    update_time();
-
-	} else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
-	    if(te->type == TCVP_LOAD) {
-		char *title;
-		if(st)
-		    tcfree(st);
-		st = ((tcvp_load_event_t *)te)->stream;
-		tcref(st);
-
-		s_length = 0;
-
-		if((title = tcattr_get(st, "title"))){
-		    change_text("title", title);
-		} else {
-		    char *ext;
-		    char *file = tcattr_get(st, "file");
-
-		    if(file){
-			title = strrchr(file, '/');
-			title = strdup(title? title + 1: file);
-			ext = strrchr(title, '.');
-			if(ext)
-			    *ext = 0;
-
-			change_text("title", title);
-			free(title);
-		    } else {
-			change_text("title", NULL);
-		    }
-		}
-
-		change_text("performer", tcattr_get(st, "performer"));
-	    }
-
-	    if(st) {
-		int i;
-		for(i = 0; i < st->n_streams; i++) {
-		    if(st->used_streams[i]) {
-			stream_t *s = &st->streams[i];
-			if(s->stream_type == STREAM_TYPE_VIDEO) {
-			    char buf[10];
-			    sprintf(buf, "%.3f",
-				    (double)s->video.frame_rate.num /
-				    s->video.frame_rate.den);
-			    change_text("video_framerate", buf);
-			} else if(s->stream_type == STREAM_TYPE_AUDIO) {
-			    char buf[10];
-			    sprintf(buf, "%d", s->audio.bit_rate/1000);
-			    change_text("audio_bitrate", buf);
-			    
-			    sprintf(buf, "%.1f",
-				    (double)s->audio.sample_rate/1000);
-			    change_text("audio_samplerate", buf);
-
-			    sprintf(buf, "%d", s->audio.channels);
-			    change_text("audio_channels", buf);
-			}
-		    }
-		}
-		if(st->time)
-		    s_length = st->time / 27000000;
-
-		update_time();
-	    }
-	} else if(te->type == -1) {
-	    quit = 1;
+	case TCVP_STATE_END:
+	    change_text("state", "stop");
+	    if(st)
+		tcfree(st);
+	    st = NULL;
+	    break;
 	}
 
-	tcfree(te);
+    } else if(te->type == TCVP_TIMER) {
+	s_time = ((tcvp_timer_event_t *)te)->time / 27000000;
+	if(s_time > s_length)
+	    s_length = s_time;
+	update_time();
+
+    } else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
+	if(te->type == TCVP_LOAD) {
+	    char *title;
+	    if(st)
+		tcfree(st);
+	    st = ((tcvp_load_event_t *)te)->stream;
+	    tcref(st);
+
+	    s_length = 0;
+
+	    if((title = tcattr_get(st, "title"))){
+		change_text("title", title);
+	    } else {
+		char *ext;
+		char *file = tcattr_get(st, "file");
+
+		if(file){
+		    title = strrchr(file, '/');
+		    title = strdup(title? title + 1: file);
+		    ext = strrchr(title, '.');
+		    if(ext)
+			*ext = 0;
+
+		    change_text("title", title);
+		    free(title);
+		} else {
+		    change_text("title", NULL);
+		}
+	    }
+
+	    change_text("performer", tcattr_get(st, "performer"));
+	}
+
+	if(st) {
+	    int i;
+	    for(i = 0; i < st->n_streams; i++) {
+		if(st->used_streams[i]) {
+		    stream_t *s = &st->streams[i];
+		    if(s->stream_type == STREAM_TYPE_VIDEO) {
+			char buf[10];
+			sprintf(buf, "%.3f",
+				(double)s->video.frame_rate.num /
+				s->video.frame_rate.den);
+			change_text("video_framerate", buf);
+		    } else if(s->stream_type == STREAM_TYPE_AUDIO) {
+			char buf[10];
+			sprintf(buf, "%d", s->audio.bit_rate/1000);
+			change_text("audio_bitrate", buf);
+			    
+			sprintf(buf, "%.1f",
+				(double)s->audio.sample_rate/1000);
+			change_text("audio_samplerate", buf);
+
+			sprintf(buf, "%d", s->audio.channels);
+			change_text("audio_channels", buf);
+		    }
+		}
+	    }
+	    if(st->time)
+		s_length = st->time / 27000000;
+
+	    update_time();
+	}
     }
-    return NULL;
+
+    return 0;
 }
 
 
@@ -249,7 +215,7 @@ tcvp_seek_rel(xtk_widget_t *w, void *p)
 
 
 extern int
-tcvp_quit()
+tcvp_quit(void)
 {
     tc2_request(TC2_UNLOAD_MODULE, 0, "TCVP/ui/cmdline");
 
@@ -284,7 +250,7 @@ toggle_time(xtk_widget_t *w, void *p)
 }
 
 extern int
-update_time()
+update_time(void)
 {
     char text[8];
     int t = 0;

@@ -41,44 +41,34 @@
 #define rheight (*xtk_display_height)
 
 eventq_t qs;
-eventq_t qr;
-
-static pthread_t eth;
 
 extern int
-tcvpx_init(char *p)
+tcvpx_init(tcvp_module_t *tm)
 {
+    tcvpx_t *tx = tm->private;
     char *qname = NULL, *qn, *skinfile = tcvp_ui_tcvpx_conf_skin;
     skin_t *skin;
-    tcconf_section_t *cs = tc2_get_conf(MODULE_INFO.name);
 
-    if(!cs)
-	cs = tcconf_new(NULL);
-    else
-	tcconf_getvalue(cs, "qname", "%s", &qname);
+    if(!tcconf_getvalue(tx->conf, "features/ui", "") &&
+       tcconf_getvalue(tx->conf, "force_ui", ""))
+	return -1;
 
-    tcconf_getvalue(cs, "skin", "%s", &skinfile);
-
-    tcfree(cs);
+    tcconf_getvalue(tx->conf, "qname", "%s", &qname);
+    tcconf_getvalue(tx->conf, "skin", "%s", &skinfile);
 
     qs = eventq_new(NULL);
     qn = alloca(strlen(qname) + 10);
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
 
-    qr = eventq_new(tcref);
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(qr, qn, EVENTQ_RECV);
-    sprintf(qn, "%s/timer", qname);
-    eventq_attach(qr, qn, EVENTQ_RECV);
     free(qname);
 
     init_dynamic();
     init_skins();
-    init_events();
 
     if((skin = load_skin(skinfile)) == NULL){
-	tc2_print("TCVPX", TC2_PRINT_ERROR, "Unable to load skin: \"%s\"\n", skinfile);
+	tc2_print("TCVPX", TC2_PRINT_ERROR,
+		  "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 
@@ -87,7 +77,8 @@ tcvpx_init(char *p)
     xtk_window_set_title(skin->window, "TCVP");
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
-	tc2_print("TCVPX", TC2_PRINT_ERROR, "Unable to load skin: \"%s\"\n", skinfile);
+	tc2_print("TCVPX", TC2_PRINT_ERROR,
+		  "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 
@@ -120,31 +111,36 @@ tcvpx_init(char *p)
 
     update_time();
 
-    pthread_create(&eth, NULL, tcvp_event, NULL);
     xtk_run();
+
+    tcconf_setvalue(tx->conf, "features/ui", "");
+    tcconf_setvalue(tx->conf, "features/local/ui", "");
 
 /*     tc2_request(TC2_LOAD_MODULE, 1, "Shell", NULL); */
 
     return 0;
 }
 
-
-extern int
-tcvpx_shdn(void)
+extern void
+tcvpx_free(void *p)
 {
-    tcvp_stop(NULL, NULL);
-
-    tcvp_event_send(qr, -1);
+    tcvpx_t *tx = p;
 
     xtk_shutdown();
     
-    pthread_join(eth, NULL);
-
     cleanup_skins();
     free_dynamic();
 
-    eventq_delete(qs);
-    eventq_delete(qr);
+    if(qs)
+	eventq_delete(qs);
+    tcfree(tx->conf);
+}
 
+extern int
+tcvpx_new(tcvp_module_t *m, tcconf_section_t *c)
+{
+    tcvpx_t *tx = tcallocd(sizeof(*tx), NULL, tcvpx_free);
+    tx->conf = tcref(c);
+    m->private = tx;
     return 0;
 }

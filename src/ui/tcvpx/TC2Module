@@ -3,21 +3,8 @@ name		"TCVP/ui/tcvpx"
 version		0.2.0
 tc2version	0.4.0
 sources		dynamic.c skin.c tcvpctl.c tcvpx.c tcvpx.h tcvpctl.h
-postinit	tcvpx_init
-shutdown	tcvpx_shdn
-
-import		"Eventq"	"attach"
-import		"Eventq"	"delete"
-import		"Eventq"	"detach"
-import		"Eventq"	"new"
-import		"Eventq"	"recv"
-import		"Eventq"	"send"
 
 import		"image"		"read"
-
-import		"tcvp/event"	"alloc"
-import		"tcvp/event"	"get"
-import		"tcvp/event"	"send"
 
 import		"xtk"			"run"
 import		"xtk"			"shutdown"
@@ -93,3 +80,23 @@ option		skin%s
 option		sticky%d=0
 option		xposition%d=-2
 option		yposition%d=-2
+
+TCVP {
+	module "tcvp/ui/tcvpx" {
+		new tcvpx_new
+		init tcvpx_init
+		event status TCVP_STATE		tcvpx_event
+		event status TCVP_LOAD		tcvpx_event
+		event status TCVP_STREAM_INFO	tcvpx_event
+		event timer  TCVP_TIMER		tcvpx_event
+	}
+	event TCVP_PAUSE
+	event TCVP_SEEK
+	event TCVP_CLOSE
+	event TCVP_PL_STOP
+	event TCVP_PL_START
+	event TCVP_PL_NEXT
+	event TCVP_PL_PREV
+	event TCVP_PL_ADD
+	event TCVP_PL_ADDLIST
+}

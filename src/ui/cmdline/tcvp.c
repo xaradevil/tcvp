@@ -35,6 +35,7 @@
 #include <mcheck.h>
 #include <sys/time.h>
 #include <limits.h>
+#include <fnmatch.h>
 #include <tcvp_types.h>
 #include <tcvp_tc2.h>
 
@@ -48,9 +49,8 @@ static int intr;
 static tcconf_section_t *cf;
 static int validate;
 static eventq_t qr, qs;
-static char *sel_ui;
+static int have_ui;
 static int shuffle;
-static char *skin;
 static int prl;
 static char **modnames, **nmodnames;
 static int nadd, nnadd;
@@ -110,14 +110,29 @@ show_help(void)
 }
 
 static void
-add_module(char *ao)
+add_module(char *pfx, char *ao)
 {
+    char *mod = malloc(strlen(pfx) + strlen(ao) + 2);
     int i;
-    for(i = 0; i < nadd; i++)
-	if(!strcmp(modnames[i], ao))
+
+    sprintf(mod, "%s%s", pfx, ao);
+
+    for(i = 0; i < nadd; i++){
+	if(!strcmp(modnames[i], mod)){
+	    free(mod);
 	    return;
+	}
+    }
+
     modnames = realloc(modnames, (nadd + 1) * sizeof(*modnames));
-    modnames[nadd++] = strdup(ao);
+    modnames[nadd++] = mod;
+}
+
+static void
+add_nomodule(char *nm)
+{
+    nmodnames = realloc(nmodnames, (nnadd + 1) * sizeof(*nmodnames));
+    nmodnames[nnadd++] = nm;
 }
 
 static int
@@ -125,7 +140,7 @@ nomodule(char *ao)
 {
     int i;
     for(i = 0; i < nnadd; i++)
-	if(!strcmp(nmodnames[i], ao))
+	if(!fnmatch(nmodnames[i], ao, 0))
 	    return 1;
     return 0;
 }
@@ -168,7 +183,7 @@ tcl_event(void *p)
 		if(!prl)
 		    break;
 	    case TCVP_STATE_PL_END:
-		if(!isdaemon && !sel_ui)
+		if(!isdaemon && !have_ui)
 		    tc2_request(TC2_UNLOAD_ALL, 0);
 		break;
 	    }
@@ -215,7 +230,7 @@ tcl_intr(void *p)
 
 	switch(ic){
 	case 0:
-	    if(sig == SIGINT && !prl && !sel_ui){
+	    if(sig == SIGINT && !prl && !have_ui){
 		tcvp_event_send(qs, TCVP_PL_NEXT);
 		break;
 	    }
@@ -261,17 +276,6 @@ tcl_init(char *p)
 	return 0;
     }
 
-    if(!sel_ui)
-	sel_ui = tcvp_ui_cmdline_conf_ui;
-    if(sel_ui && !strcmp(sel_ui, "none"))
-	sel_ui = NULL;
-
-    if(!have_cmds && !nfiles && !npl && !sel_ui && !isdaemon && !shuffle){
-	show_help();
-	tc2_request(TC2_UNLOAD_ALL, 0);
-	return 0;
-    }
-
     tcvp_conf = tc2_get_conf("TCVP");
     if(tcconf_getvalue(cf, "profile", "%s", &profile) <= 0)
 	tcconf_getvalue(tcvp_conf, "default_profile", "%s", &profile);
@@ -282,7 +286,7 @@ tcl_init(char *p)
 	    void *nv = NULL;
 	    char *aon;
 	    while(tcconf_nextvalue(prconf, "module", &nv, "%s", &aon) > 0){
-		add_module(aon);
+		add_module("", aon);
 		free(aon);
 	    }
 	    tcfree(prconf);
@@ -292,7 +296,7 @@ tcl_init(char *p)
     tcfree(tcvp_conf);
 
     for(i = 0; i < tcvp_ui_cmdline_conf_module_count; i++)
-	add_module(tcvp_ui_cmdline_conf_module[i]);
+	add_module("", tcvp_ui_cmdline_conf_module[i]);
 
     modules = calloc(nadd, sizeof(*modules));
     for(i = 0; i < nadd; i++){
@@ -314,6 +318,14 @@ tcl_init(char *p)
 		modules[i] = NULL;
 	    }
 	}
+    }
+
+    have_ui = !tcconf_getvalue(cf, "features/local/ui", "");
+
+    if(!have_cmds && !nfiles && !npl && !have_ui && !isdaemon && !shuffle){
+	show_help();
+	tc2_request(TC2_UNLOAD_ALL, 0);
+	return 0;
     }
 
     if(tcconf_getvalue(cf, "qname", "%s", &qname) < 1){
@@ -363,27 +375,16 @@ tcl_init(char *p)
 	}
     }
 
-    if(!have_cmds && sel_ui){
-	char *ui = alloca(strlen(sel_ui)+9);
-	char *op = alloca(strlen(qname) + 10 + (skin? (strlen(skin) + 10): 0));
-	char *p = op;
-	sprintf(ui, "TCVP/ui/%s", sel_ui);
-	p += sprintf(p, "qname '%s';", qname);
-	if(skin)
-	    sprintf(p, "skin '%s';", skin);
-	tc2_request(TC2_LOAD_MODULE, 1, ui, op);
-	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
-	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
-    }
-
     for(i = 0; i < ncmds; i++)
 	tcvp_event_send(qs, tcvp_event_get(commands[i]));
 
-    if(!have_cmds && (sel_ui || !strstr(qname, "remote"))){
+    if(!have_cmds && (have_ui || !strstr(qname, "remote"))){
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
+
+	tcvp_event_send(qs, tcvp_event_get("TCVP_QUERY"));
 
 	sem_init(&psm, 0, 0);
 	sa.sa_handler = sigint;
@@ -445,9 +446,6 @@ tcl_stop(void)
 	free(files[i]);
     for(i = 0; i < npl; i++)
 	free(playlist[i]);
-
-    if(skin)
-	free(skin);
 
     return 0;
 }
@@ -557,7 +555,12 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'u':
-	    sel_ui = optarg;
+	    if(strcmp(optarg, "none")){
+		add_module("tcvp/ui/", optarg);
+		tcconf_setvalue(cf, "force_ui", "%i", 1);
+	    } else {
+		add_nomodule("tcvp/ui/*");
+	    }
 	    break;
 
 	case 'z':
@@ -598,7 +601,9 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case OPT_SKIN:
-	    skin = fullpath(optarg);
+	    ot = fullpath(optarg);
+	    tcconf_setvalue(cf, "skin", "%s", ot);
+	    free(ot);
 	    break;
 
 	case 'p':
@@ -606,12 +611,11 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'x':
-	    add_module(optarg);
+	    add_module("tcvp/", optarg);
 	    break;
 
 	case 'X':
-	    nmodnames = realloc(nmodnames, (nnadd + 1) * sizeof(*nmodnames));
-	    nmodnames[nnadd++] = optarg;
+	    add_nomodule(optarg);
 	    break;
 
 	case OPT_NEXT:

@@ -372,6 +372,8 @@ wh_free(void *p)
 extern void
 free_dynamic(void)
 {
-    tchash_destroy(variable_hash, free);
-    tchash_destroy(widget_hash, wh_free);
+    if(variable_hash)
+	tchash_destroy(variable_hash, free);
+    if(widget_hash)
+	tchash_destroy(widget_hash, wh_free);
 }
