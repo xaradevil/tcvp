@@ -92,8 +92,10 @@ faad_flush(tcvp_pipe_t *p, int drop)
 { 
     faad_dec_t *ad = p->private;
 
-    if(drop)
+    if(drop){
+	ad->bpos = 0;
 	faacDecPostSeekReset(ad->fd, 0);
+    }
 
     return p->next->flush(p->next, drop);
 }
