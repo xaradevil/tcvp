@@ -45,10 +45,10 @@ t_start(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
 
-    if(tp->vend)
+    if(tp->vend && tp->vend->start)
 	tp->vend->start(tp->vend);
 
-    if(tp->aend)
+    if(tp->aend && tp->aend->start)
 	tp->aend->start(tp->aend);
 
     if(tp->timer)
@@ -70,10 +70,10 @@ t_stop(player_t *pl)
     if(tp->timer)
 	tp->timer->stop(tp->timer);
 
-    if(tp->aend)
+    if(tp->aend && tp->aend->stop)
 	tp->aend->stop(tp->aend);
 
-    if(tp->vend)
+    if(tp->vend && tp->vend->stop)
 	tp->vend->stop(tp->vend);
 
     tp->state = TCVP_STATE_STOPPED;
@@ -128,7 +128,10 @@ t_close(player_t *pl)
 	tp->timer->interrupt(tp->timer);
     pthread_mutex_unlock(&tp->tmx);
 
-    pthread_join(tp->th_ticker, NULL);
+    if(tp->th_ticker){
+	pthread_join(tp->th_ticker, NULL);
+	tp->th_ticker = 0;
+    }
 
     pthread_mutex_lock(&tp->tmx);
     if(tp->timer){
@@ -168,24 +171,30 @@ t_free(player_t *pl)
 static void
 print_stream(stream_t *s)
 {
+    printf("%s", s->common.codec);
+
     switch(s->stream_type){
     case STREAM_TYPE_AUDIO:
-	printf("%s, %i Hz, %i channels, %i kb/s\n",
-	       s->audio.codec,
-	       s->audio.sample_rate,
-	       s->audio.channels,
-	       s->audio.bit_rate / 1000);
+	if(s->audio.sample_rate)
+	    printf(", %i Hz", s->audio.sample_rate);
+	if(s->audio.channels)
+	    printf(", %i channels", s->audio.channels);
+	if(s->audio.bit_rate)
+	    printf(", %i kb/s", s->audio.bit_rate / 1000);
 	break;
 
     case STREAM_TYPE_VIDEO:
-	printf("%s, %ix%i, %lf fps, aspect %lf\n",
-	       s->video.codec,
-	       s->video.width,
-	       s->video.height,
-	       (double) s->video.frame_rate.num / s->video.frame_rate.den,
-	       (double) s->video.aspect.num / s->video.aspect.den);
+	if(s->video.width)
+	    printf(", %ix%i", s->video.width, s->video.height);
+	if(s->video.frame_rate.den)
+	    printf(", %lf fps",
+		   (double) s->video.frame_rate.num / s->video.frame_rate.den);
+	if(s->video.aspect.den)
+	    printf(", aspect %lf",
+		   (double) s->video.aspect.num / s->video.aspect.den);
 	break;
     }
+    printf("\n");
 }
 
 static void
@@ -273,7 +282,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
     void *cs = NULL;
 
     while((f = conf_nextsection(p, "filter", &cs))){
-	char *type, *id;
+	char *type, *id = NULL;
 	filter_new_t fn;
 
 	pn = NULL;
@@ -361,7 +370,7 @@ t_open(player_t *pl, char *name)
 		ac = -2;
 	    }
 	}
-	conf_getvalue(tp->conf, "profile", "%i", &profile);
+	conf_getvalue(tp->conf, "profile", "%s", &profile);
     }
 
     snprintf(prname, 256, "TCVP/profiles/%s", profile);
@@ -452,14 +461,14 @@ t_open(player_t *pl, char *name)
     }
 
     tp->state = TCVP_STATE_STOPPED;
-    if(stream->used_streams[vc]){
+    if(vc >= 0 && stream->used_streams[vc]){
 	tp->video = video;
 	tp->vend = pipe_end(video);
     } else {
 	close_pipe(video);
 	video = NULL;
     }
-    if(stream->used_streams[ac]){
+    if(ac >= 0 && stream->used_streams[ac]){
 	tp->audio = audio;
 	tp->aend = pipe_end(audio);
     } else {

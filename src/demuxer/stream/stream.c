@@ -185,9 +185,15 @@ read_stream(void *p)
     int i;
 
     void qnull(void){
-	for(i = 0; i < ms->n_streams; i++)
-	    if(ms->used_streams[i])
-		qpk(vp, NULL, i);
+	for(i = 0; i < ms->n_streams; i++){
+	    if(ms->used_streams[i]){
+		packet_t *pk = malloc(sizeof(*pk));
+		pk->stream = i;
+		pk->data = NULL;
+		pk->free = (typeof(pk->free)) free;
+		qpk(vp, pk, i);
+	    }
+	}
     }
 
     while(vp->state != STOP){
@@ -224,12 +230,14 @@ play_stream(void *p)
     s_play_t *vp = vt->vp;
     int str = vt->stream;
     packet_t *pk;
+    int c;
 
     do {
 	wait_pause(vp, 1, 0);
 	pk = dqp(vp, str);
+	c = !!pk->data;
 	vp->pipes[str]->input(vp->pipes[str], pk);
-    } while(pk);
+    } while(c);
 
     if(vp->state != STOP)
 	vp->pipes[str]->flush(vp->pipes[str], 0);
@@ -353,8 +361,10 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 	    int p = PROBE_FAIL;
 	    do {
 		packet_t *pk = dqp(vp, i);
-		if(!pk)
+		if(!pk->data){
+		    pk->free(pk);
 		    break;
+		}
 		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
 	    } while(p == PROBE_AGAIN);
 	    if(p != PROBE_OK){

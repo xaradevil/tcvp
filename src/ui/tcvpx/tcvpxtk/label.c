@@ -346,7 +346,9 @@ destroy_label(xtk_widget_t *xw)
 
     if(w->label.xftdraw) XftDrawDestroy(w->label.xftdraw);
     if(w->label.s_text) XFreePixmap(xd, w->label.s_text);
-
+    XftFontClose(xd, w->label.xftfont);
+    free(w->label.text);
+    free(w->label.font);
     return 0;
 }
 

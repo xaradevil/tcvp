@@ -474,6 +474,12 @@ shdn_graphics()
 
     XCloseDisplay(xd);
 
+    list_destroy(click_list, NULL);
+    list_destroy(drag_list, NULL);
+    list_destroy(widget_list, NULL);
+    list_destroy(sl_list, NULL);
+    list_destroy(window_list, NULL);
+
     return 0;
 }
 
@@ -613,6 +619,8 @@ destroy_window(window_t *window)
     }
 
     list_destroy(window->widgets, NULL);
+    XFreeGC(xd, window->bgc);
+    XFreeGC(xd, window->wgc);
     free(window);
 
     return 0;

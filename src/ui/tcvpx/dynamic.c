@@ -339,10 +339,23 @@ parse_text(char *text, char *result)
 }
 
 extern int
-init_dynamic()
+init_dynamic(void)
 {
     variable_hash = hash_new(10, 0);
     widget_hash = hash_new(10, 0);
 
     return 0;
+}
+
+static void
+wh_free(void *p)
+{
+    list_destroy(p, NULL);
+}
+
+extern void
+free_dynamic(void)
+{
+    hash_destroy(variable_hash, free);
+    hash_destroy(widget_hash, wh_free);
 }

@@ -115,6 +115,9 @@ pl_addlist(playlist_t *pl, char *file, int pos)
 	}
     }
 
+    free(l);
+    fclose(plf);
+
     return n;
 }
 

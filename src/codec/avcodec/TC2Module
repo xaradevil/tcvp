@@ -2,7 +2,7 @@ module		avcodec
 name		"TCVP/codec/avcodec"
 version		0.1.0
 tc2version	0.4.0
-sources		avcodec.c
+sources		avcodec.c encode.c avc.h
 postinit	avc_init
 
 implement	"decoder/audio/mpeg"	"new"	avc_new
@@ -30,3 +30,6 @@ implement	"decoder/video/vp3"	"new"	avc_new
 implement	"decoder/video/svq1"	"new"	avc_new
 implement	"decoder/video/svq3"	"new"	avc_new
 implement	"decoder/video/indeo3"	"new"	avc_new
+
+implement	"encoder/video/mpeg"	"new"	avc_mpeg_enc_new
+implement	"encoder/video/mpeg4"	"new"	avc_mpeg4_enc_new

@@ -263,6 +263,8 @@ parse_options(int argc, char **argv)
 	{"playlist", required_argument, 0, '@'},
 	{"fullscreen", required_argument, 0, 'f'},
 	{"aspect", required_argument, 0, OPT_ASPECT},
+	{"output", required_argument, 0, 'o'},
+	{"profile", required_argument, 0, 'P'},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
@@ -271,7 +273,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:f",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -338,6 +340,14 @@ parse_options(int argc, char **argv)
 	    conf_setvalue(cf, "video/aspect", "%f", a);
 	    break;
 	}
+
+	case 'o':
+	    conf_setvalue(cf, "mux/url", "%s", optarg);
+	    break;
+
+	case 'P':
+	    conf_setvalue(cf, "profile", "%s", optarg);
+	    break;
 
 	case OPT_TC2_DEBUG:
 	    tc2_debug(strtol(optarg, NULL, 0));

@@ -40,9 +40,11 @@ typedef struct {
 skin_t* load_skin(char *skinfile);
 int create_ui(skin_t *skin);
 
-int register_actions();
+int register_actions(void);
+extern void cleanup_actions(void);
 
-int init_dynamic();
+int init_dynamic(void);
+extern void free_dynamic(void);
 
 int parse_text(char *text, char *result);
 int parse_variable(char *text, void **result);
@@ -56,7 +58,7 @@ int register_textwidget(xtk_widget_t *w, char *text);
 int unregister_varwidget(xtk_widget_t *w, char *text);
 int register_varwidget(xtk_widget_t *w, char *text);
 
-int update_time();
+int update_time(void);
 int update_state(char *state);
 
 void *tcvp_event(void *p);

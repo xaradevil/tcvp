@@ -39,14 +39,22 @@ repaint_button(xtk_widget_t *xw)
     return 0;
 }
 
+static void
+free_btimg(image_info_t *im)
+{
+    image_free(im);
+    free(im);
+}
 
 static int
 destroy_button(xtk_widget_t *xw)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
-    free(*w->button.img->data);
-    free(w->button.img->data);
-    free(w->button.img);
+    free_btimg(w->button.bgimg);
+    if(w->button.over_img)
+	free_btimg(w->button.over_img);
+    if(w->button.down_img)
+	free_btimg(w->button.down_img);
     return 0;
 }
 

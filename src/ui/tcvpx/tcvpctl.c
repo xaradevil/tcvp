@@ -53,6 +53,9 @@ tcvp_event(void *p)
 
 	    case TCVP_STATE_END:
 		change_text("state", "stop");
+		if(st)
+		    tcfree(st);
+		st = NULL;
 		break;
 	    }
 	    break;

@@ -1,0 +1,2 @@
+inherit "mux"
+option	outbuf%i=7

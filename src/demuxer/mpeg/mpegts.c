@@ -28,8 +28,30 @@
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
+#define MAX_PACKET_SIZE 0x8000
+
+typedef struct mpegts_stream {
+    url_t *stream;
+    int bs, br;
+    uint32_t bits;
+    int *imap;
+    struct tsbuf {
+	int flags;
+	uint64_t pts;
+	u_char *buf;
+	int bpos;
+	int hlen;
+    } *streams;
+} mpegts_stream_t;
+
+typedef struct mpegts_pk {
+    packet_t pk;
+    u_char *buf, *data;
+    int size;
+} mpegts_pk_t;
+
 static uint64_t
-getbits(mpeg_stream_t *s, int bits, char *name)
+getbits(mpegts_stream_t *s, int bits, char *name)
 {
     uint64_t v = 0;
 #ifdef DEBUG
@@ -69,13 +91,10 @@ getbits(mpeg_stream_t *s, int bits, char *name)
     return v;
 }
 
-static mpegts_packet_t *
-mpegts_read_packet(mpeg_stream_t *s)
+static int
+mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 {
-    mpegts_packet_t *mp;
     int error;
-
-    mp = malloc(sizeof(*mp));
 
     do {
 	int i = 1024;
@@ -88,17 +107,16 @@ mpegts_read_packet(mpeg_stream_t *s)
 		break;
 	}
 	if(sync != MPEGTS_SYNC){
-	    free(mp);
 	    fprintf(stderr, "MPEGTS: can't find sync byte, @ %lx\n",
 		    s->stream->tell(s->stream));
-	    return NULL;
+	    return -1;
 	}
 
 	s->br = 8;
 
 	mp->transport_error = getbits(s, 1, "transport_error");
 	if(mp->transport_error){
-	    fprintf(stderr, "MPEGTS: transport error\n");
+	    fprintf(stderr, "MPEGTS: transport error %p\n", s);
 	    s->stream->read(mp->data, 1, 188 - (s->br + s->bs) / 8, s->stream);
 	    s->bs = 0;
 	    error = 1;
@@ -173,9 +191,18 @@ mpegts_read_packet(mpeg_stream_t *s)
 	if(!error){
 	    if(mp->adaptation & 1){
 		mp->data_length = 188 - s->br / 8;
-		for(i = 0; s->bs; i++)
+		if(mp->data_length > 184){
+		    error = 1;
+		    continue;
+		}
+		for(i = 0; s->bs && i < 184; i++)
 		    mp->data[i] = getbits(s, 8, NULL);
-		s->stream->read(mp->data+i, 1, mp->data_length-i, s->stream);
+		if(i <= mp->data_length){
+		    s->stream->read(mp->data+i, 1, mp->data_length-i,
+				    s->stream);
+		} else {
+		    error = 1;
+		}
 	    } else {
 		mp->data_length = 0;
 	    }
@@ -183,80 +210,104 @@ mpegts_read_packet(mpeg_stream_t *s)
 	}
     } while(error);
 
-    return mp;
+    return 0;
 }
 
 static void
 mpegts_free_pk(packet_t *p)
 {
-    mpegts_packet_t *mp = p->private;
+    mpegts_pk_t *mp = (mpegts_pk_t *) p;
+    free(mp->buf);
     free(mp);
-    free(p);
 }
 
 extern packet_t *
 mpegts_packet(muxed_stream_t *ms, int str)
 {
-    mpeg_stream_t *s = ms->private;
-    packet_t *pk = NULL;
-    mpegts_packet_t *mp;
-
+    mpegts_stream_t *s = ms->private;
+    mpegts_pk_t *pk = NULL;
+    mpegts_packet_t mp;
     int sx = -1;
+    struct tsbuf *tb;
 
     do {
-	mp = mpegts_read_packet(s);
+	do {
+	    if(mpegts_read_packet(s, &mp) < 0)
+		return NULL;
+	    sx = s->imap[mp.pid];
+	} while(sx < 0 || !ms->used_streams[sx]);
 
-	if(!mp)
-	    return NULL;
+	tb = &s->streams[sx];
 
-	sx = s->imap[mp->pid];
-
-	if(sx < 0 || !ms->used_streams[sx])
-	    free(mp);
-    } while(sx < 0 || !ms->used_streams[sx]);
-
-    pk = malloc(sizeof(*pk));
-    pk->stream = sx;
-    pk->data = &mp->datap;
-    pk->sizes = &mp->data_length;
-    pk->planes = 1;
-    pk->flags = 0;
-    pk->free = mpegts_free_pk;
-    pk->private = mp;
-
-    if(mp->unit_start){
-	mpegpes_packet_t pes;
-	int hlen;
-
-	mpegpes_header(&pes, mp->datap, 0);
-	hlen = pes.data - mp->datap;
-	if(pes.pts_flag){
-	    if(pes.pts < s->pts[sx] &&
-	       s->pts[sx] - pes.pts > 24000){
-		fprintf(stderr, "MPEGTS: PTS discontinuous\n");
+	if((mp.unit_start && tb->bpos) || tb->bpos > MAX_PACKET_SIZE){
+	    pk = malloc(sizeof(*pk));
+	    pk->pk.stream = sx;
+	    pk->pk.data = &pk->data;
+	    pk->data = tb->buf + tb->hlen;
+	    pk->buf = tb->buf;
+	    pk->pk.sizes = &pk->size;
+	    pk->size = tb->bpos - tb->hlen;
+	    pk->pk.planes = 1;
+	    if((pk->pk.flags = tb->flags) & TCVP_PKT_FLAG_PTS){
+		pk->pk.pts = tb->pts * 300;
 	    }
-	    s->pts[sx] = pes.pts;
-	    pk->pts = pes.pts * 300;
-	    pk->flags |= TCVP_PKT_FLAG_PTS;
+	    pk->pk.free = mpegts_free_pk;
+
+	    tb->bpos = 0;
+	    tb->flags = 0;
+	    tb->buf = malloc(0x10000);
+	    tb->hlen = 0;
 	}
 
-	mp->datap += hlen;
-	mp->data_length -= hlen;
-    }
+	memcpy(tb->buf + tb->bpos, mp.data, mp.data_length);
+	tb->bpos += mp.data_length;
 
-    return pk;
+	if(mp.unit_start){
+	    mpegpes_packet_t pes;
+	    if(mpegpes_header(&pes, tb->buf, 0) < 0)
+		return NULL;
+	    tb->hlen = pes.data - tb->buf;
+	    if(pes.pts_flag){
+		tb->flags |= TCVP_PKT_FLAG_PTS;
+		tb->pts = pes.pts;
+	    }
+	}
+    } while(!pk);
+
+    return &pk->pk;
 }
 
-extern int
-mpegts_getinfo(muxed_stream_t *ms)
+static void
+mpegts_free(void *p)
 {
-    mpeg_stream_t *s = ms->private;
-    mpegts_packet_t *mp = NULL;
+    muxed_stream_t *ms = p;
+    mpegts_stream_t *s = ms->private;
+    int i;
+
+    s->stream->close(s->stream);
+    if(s->imap)
+	free(s->imap);
+    if(s->streams){
+	for(i = 0; i < ms->n_streams; i++)
+	    free(s->streams[i].buf);
+	free(s->streams);
+    }
+    free(s);
+    mpeg_free(ms);
+}
+
+extern muxed_stream_t *
+mpegts_open(char *name)
+{
+    muxed_stream_t *ms;
+    mpegts_stream_t *s;
+    mpegts_packet_t mp;
     int seclen, ptr;
     u_char *dp;
     int *pat;
     int i, n, ns, np;
     stream_t *sp;
+    url_t *u;
 
     int ispmt(int pid){
 	int i;
@@ -270,24 +321,34 @@ mpegts_getinfo(muxed_stream_t *ms)
 	return 0;
     }
 
-    do {
-	if(mp)
-	    free(mp);
-	if(!(mp = mpegts_read_packet(s)))
-	    return -1;
-    } while(mp->pid != 0);
+    if(!(u = url_open(name, "r")))
+	return NULL;
 
-    if(!mp->unit_start){
+    ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
+    ms->next_packet = mpegts_packet;
+    s = calloc(1, sizeof(*s));
+    s->stream = u;
+    ms->private = s;
+
+    do {
+	if(mpegts_read_packet(s, &mp) < 0)
+	    goto err;
+    } while(mp.pid != 0);
+
+    if(!mp.unit_start){
 	fprintf(stderr, "MPEGTS: BUG: Large PAT not supported.\n");
-	return -1;
+	goto err;
     }
 
-    ptr = mp->data[0];
-    dp = mp->data + ptr + 1;
+    ptr = mp.data[0];
+    dp = mp.data + ptr + 1;
     seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
+    if(mpeg_crc32(dp, seclen + 3)){
+	fprintf(stderr, "MPEGTS: Bad CRC in PAT.\n");
+    }
     if(dp[6] || dp[7]){
 	fprintf(stderr, "MPEGTS: BUG: Multi-section PAT not supported.\n");
-	return -1;
+	goto err;
     }
 
     n = (seclen - 9) / 4;
@@ -311,23 +372,25 @@ mpegts_getinfo(muxed_stream_t *ms)
 	int pi_len, prg, ip;
 
 	do {
-	    if(mp)
-		free(mp);
-	    if(!(mp = mpegts_read_packet(s)))
-		return -1;
-	} while(!(ip = ispmt(mp->pid)));
+	    if(mpegts_read_packet(s, &mp) < 0)
+		goto err;
+	} while(!(ip = ispmt(mp.pid)));
 
 	if(ip < 0)
 	    break;
 
-	dp = mp->data + mp->data[0] + 1;
+	dp = mp.data + mp.data[0] + 1;
 	seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
+	if(mpeg_crc32(dp, seclen + 3)){
+	    fprintf(stderr, "MPEGTS: Bad CRC in PMT.\n");
+	    continue;
+	}
 	prg = htob_16(unaligned16(dp + 3));
 	pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
 	dp += 12 + pi_len;
 	seclen -= 16 + pi_len;
 	for(i = 0; i < seclen;){
-	    int stype, epid, esil;
+	    int stype, epid, esil, sti;
 
 	    if(ms->n_streams == ns){
 		ns *= 2;
@@ -346,9 +409,10 @@ mpegts_getinfo(muxed_stream_t *ms)
 	    fprintf(stderr, "MPEGTS: program %i => PID %x, type %x\n",
 		    prg, epid, stype);
 
-	    if(mpeg_stream_types[stype].stream_type){
-		sp->stream_type = mpeg_stream_types[stype].stream_type;
-		sp->common.codec = mpeg_stream_types[stype].codec;
+	    if((sti =stream_type2codec(stype)) >= 0){
+		memset(sp, 0, sizeof(*sp));
+		sp->stream_type = mpeg_stream_types[sti].stream_type;
+		sp->common.codec = mpeg_stream_types[sti].codec;
 		sp->common.index = ms->n_streams++;
 		sp++;
 	    }
@@ -357,8 +421,14 @@ mpegts_getinfo(muxed_stream_t *ms)
 	n--;
     }
 
-    free(pat);
-    free(mp);
+    s->streams = calloc(ms->n_streams, sizeof(*s->streams));
+    for(i = 0; i < ms->n_streams; i++)
+	s->streams[i].buf = malloc(0x10000);
 
-    return 0;
+    free(pat);
+    return ms;
+
+err:
+    tcfree(ms);
+    return NULL;
 }

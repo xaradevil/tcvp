@@ -51,7 +51,7 @@ typedef struct mpegts_packet {
 	int splice_countdown;
     } adaptation_field;
     int data_length;
-    u_char *datap, data[184];
+    u_char *datap, data[188];
 } mpegts_packet_t;
 
 typedef struct mpegpes_packet {
@@ -63,20 +63,34 @@ typedef struct mpegpes_packet {
     u_char *hdr;
 } mpegpes_packet_t;
 
-typedef struct mpeg_stream {
-    url_t *stream;
-    int bs, br;
-    uint32_t bits;
-    int *imap;
-    uint64_t *pts;
-} mpeg_stream_t;
-
 extern struct mpeg_stream_type {
+    int mpeg_stream_type;
     int stream_type;
     char *codec;
 } mpeg_stream_types[256];
 
 #define MPEGTS_SYNC 0x47
+
+#define PACK_HEADER              0xba
+#define SYSTEM_HEADER            0xbb
+
+#define PROGRAM_STREAM_MAP       0xbc
+#define PRIVATE_STREAM_1         0xbd
+#define PADDING_STREAM           0xbe
+#define PRIVATE_STREAM_2         0xbf
+#define ECM_STREAM               0xf0
+#define EMM_STREAM               0xf1
+#define DSMCC_STREAM             0xf2
+#define ISO_13522_STREAM         0xf3
+#define H222_A_STREAM            0xf4
+#define H222_B_STREAM            0xf5
+#define H222_C_STREAM            0xf6
+#define H222_D_STREAM            0xf7
+#define H222_E_STREAM            0xf8
+#define ANCILLARY_STREAM         0xf9
+#define ISO_14496_SL_STREAM      0xfa
+#define ISO_14496_FLEXMUX_STREAM 0xfb
+#define PROGRAM_STREAM_DIRECTORY 0xff
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
@@ -94,12 +108,20 @@ getuint(16)
 getuint(32)
 getuint(64)
 
+#define PES_FLAG_PTS 0x1
+
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
+extern int codec2stream_type(char *codec);
+extern int stream_type2codec(int st);
+extern int write_pes_header(u_char *p, int stream_id, int size,
+			    int flags, ...);
+extern uint32_t mpeg_crc32(const u_char *data, int len);
+extern void mpeg_free(muxed_stream_t *);
 
 extern packet_t *mpegts_packet(muxed_stream_t *ms, int str);
-extern int mpegts_getinfo(muxed_stream_t *ms);
+extern muxed_stream_t *mpegts_open(char *);
 
 extern packet_t *mpegps_packet(muxed_stream_t *ms, int str);
-extern int mpegps_getinfo(muxed_stream_t *ms);
+extern muxed_stream_t *mpegps_open(char *);
 
 #endif

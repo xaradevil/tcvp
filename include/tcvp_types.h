@@ -37,10 +37,10 @@ struct packet {
 
 #define TCVP_PKT_FLAG_PTS        0x1
 #define TCVP_PKT_FLAG_KEY        0x2
-#define TCVP_PKT_FLAG_INTERLACED 0x4
 
-#define STREAM_TYPE_VIDEO 1
-#define STREAM_TYPE_AUDIO 2
+#define STREAM_TYPE_VIDEO     1
+#define STREAM_TYPE_AUDIO     2
+#define STREAM_TYPE_MULTIPLEX 3
 
 #define PIXEL_FORMATS 3
 
@@ -48,13 +48,16 @@ struct packet {
 #define PIXEL_FORMAT_I420 2
 #define PIXEL_FORMAT_YUY2 3
 
+#define TCVP_STREAM_FLAG_INTERLACED 0x1
+
 #define STREAM_COMMON				\
     int stream_type;				\
     char *codec;				\
     void *codec_data;				\
     int codec_data_size;			\
     uint64_t start_time;			\
-    int index
+    int index;					\
+    int flags
 
 typedef struct video_stream {
     STREAM_COMMON;

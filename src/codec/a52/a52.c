@@ -243,8 +243,8 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     packet_t *dp;
 
-    if(!pk){
-	p->next->input(p->next, NULL);
+    if(!pk->data){
+	p->next->input(p->next, pk);
 	return 0;
     }
 

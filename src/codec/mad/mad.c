@@ -258,7 +258,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 
     pthread_mutex_lock(&md->lock);
 
-    if(!pk){
+    if(!pk->data){
 	if(md->bs)
 	    do_decode(p);
 
@@ -267,7 +267,8 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 	    p->next->input(p->next, &md->out->pk);
 	    md->out = NULL;
 	}
-	p->next->input(p->next, NULL);
+	p->next->input(p->next, pk);
+	pk = NULL;
 	goto out;
     }
 
@@ -376,6 +377,7 @@ mad_free(void *p)
     mad_synth_finish(&md->synth);
     mad_frame_finish(&md->frame);
     mad_stream_finish(&md->stream);
+    free(md->buf);
     free(md);
 }
 

@@ -24,8 +24,7 @@
 #include <tcvp_types.h>
 #include <ffmpeg/avcodec.h>
 #include <avcodec_tc2.h>
-
-static enum CodecID avc_codec_id(stream_t *);
+#include "avc.h"
 
 extern int
 avc_init(char *arg)
@@ -156,11 +155,11 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	inbuf = vc->inbuf;
 	insize = vc->insize;
 	vc->inbuf = NULL;
-    } else if(pk){
+    } else if(pk->data){
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
     } else {
-	p->next->input(p->next, NULL);
+	p->next->input(p->next, pk);
 	return 0;
     }
 
@@ -184,6 +183,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    int i;
 
 	    out = malloc(sizeof(*out));
+	    out->stream = pk->stream;
 	    out->data = vc->frame->data;
 	    out->sizes = malloc(4 * sizeof(*out->sizes));
 	    for(i = 0; i < 4; i++){
@@ -361,7 +361,7 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
     AVCodecContext *avctx;
     enum CodecID id;
 
-    id = avc_codec_id(s);
+    id = avc_codec_id(s->common.codec);
     avc = avcodec_find_decoder(id);
 
     if(avc == NULL){
@@ -372,7 +372,7 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 
     avctx = avcodec_alloc_context();
     avcodec_get_context_defaults(avctx);
-    if(id == CODEC_ID_MPEG1VIDEO)
+    if(avc->capabilities & CODEC_CAP_TRUNCATED)
 	avctx->flags |= CODEC_FLAG_TRUNCATED;
 
     switch(s->stream_type){
@@ -478,14 +478,13 @@ static const char *codec_names[][2] = {
     { NULL, NULL }
 };
 
-static enum CodecID
-avc_codec_id(stream_t *s)
+extern enum CodecID
+avc_codec_id(char *codec)
 {
     int i;
-    char *n = s->common.codec;
 
     for(i = 0; codec_names[i][1]; i++){
-	if(!strcmp(n, codec_names[i][1])){
+	if(!strcmp(codec, codec_names[i][1])){
 	    return (enum CodecID) codec_names[i][0];
 	}
     }

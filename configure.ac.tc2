@@ -27,6 +27,8 @@ AC_CONFIG_FILES([Makefile
 		 src/codec/mpeg2/Makefile
 		 src/codec/vorbis/Makefile
 		 src/codec/pcm/Makefile
+		 src/filters/Makefile
+		 src/filters/deinterlace/Makefile
 		 src/output/Makefile
 		 src/output/drivers/Makefile
 		 src/output/drivers/vidix/Makefile
@@ -54,6 +56,7 @@ echo
 echo The following TCVP modules will be built:
 echo Codec modules..........: $CODEC_MODULES
 echo Demuxer modules........: $DEMUXER_MODULES
+echo Filter Modules.........: $FILTERS_MODULES
 echo Output modules.........: $OUTPUT_MODULES
 echo Driver modules.........: $DRIVERS_MODULES
 echo User interface modules.: $UI_MODULES

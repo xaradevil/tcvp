@@ -88,8 +88,10 @@ oss_play(tcvp_pipe_t *p, packet_t *pk)
     size_t count;
     u_char *data;
 
-    if(!pk)
+    if(!pk->data){
+	pk->free(pk);
 	return 0;
+    }
 
     count = pk->sizes[0];
     data = pk->data[0];

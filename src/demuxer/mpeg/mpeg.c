@@ -24,6 +24,7 @@
 #include <tclist.h>
 #include <tcalloc.h>
 #include <tcbyteswap.h>
+#include <stdarg.h>
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
 #include "mpeg.h"
@@ -82,66 +83,129 @@ mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
     }
     pes->data = data + hl;
     if(pkl)
-	pes->size = pkl - hl;
+	pes->size = pkl + 6;
 
     return 0;
 }
 
-static void
-mpeg_free(void *p)
+extern void
+mpeg_free(muxed_stream_t *ms)
 {
-    muxed_stream_t *ms = p;
-    mpeg_stream_t *s = ms->private;
-
     if(ms->file)
 	free(ms->file);
     if(ms->title)
 	free(ms->title);
     if(ms->performer)
 	free(ms->performer);
-
-    s->stream->close(s->stream);
-    free(s->imap);
-    free(s->pts);
-    free(s);
+    if(ms->streams)
+	free(ms->streams);
+    if(ms->used_streams)
+	free(ms->used_streams);
 }
 
 extern muxed_stream_t *
 mpeg_open(char *name, conf_section *cs)
 {
     muxed_stream_t *ms;
-    mpeg_stream_t *mf;
-    url_t *f;
 
-    if(!(f = url_open(name, "r")))
+    ms = mpegps_open(name);
+    if(!ms)
+	ms = mpegts_open(name);
+    if(!ms)
 	return NULL;
 
-    ms = tcallocdz(sizeof(*ms), NULL, mpeg_free);
     ms->file = strdup(name);
-
-    mf = calloc(1, sizeof(*mf));
-    mf->stream = f;
-
-    ms->private = mf;
-
-    if(!mpegps_getinfo(ms)){
-	ms->next_packet = mpegps_packet;
-    } else if(!mpegts_getinfo(ms)){
-	ms->next_packet = mpegts_packet;
-    } else {
-	tcfree(ms);
-	return NULL;
-    }
-
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
-    mf->pts = calloc(ms->n_streams, sizeof(*mf->pts));
 
     return ms;
 }
 
-struct mpeg_stream_type mpeg_stream_types[256] = {
-    [0x1 ... 0x2] = { STREAM_TYPE_VIDEO, "video/mpeg" },
-    [0x3 ... 0x4] = { STREAM_TYPE_AUDIO, "audio/mpeg" },
-    [0x10] = { STREAM_TYPE_VIDEO, "video/mpeg4" },
-    [0x1a] = { STREAM_TYPE_VIDEO, "video/h264" }
+struct mpeg_stream_type mpeg_stream_types[] = {
+    { 0x01, STREAM_TYPE_VIDEO, "video/mpeg"  },
+    { 0x02, STREAM_TYPE_VIDEO, "video/mpeg"  },
+    { 0x03, STREAM_TYPE_AUDIO, "audio/mpeg"  },
+    { 0x03, STREAM_TYPE_AUDIO, "audio/mp2"   },
+    { 0x03, STREAM_TYPE_AUDIO, "audio/mp3"   },
+    { 0x04, STREAM_TYPE_AUDIO, "audio/mpeg"  },
+    { 0x10, STREAM_TYPE_VIDEO, "video/mpeg4" },
+    { 0x1a, STREAM_TYPE_VIDEO, "video/h264"  }
 };
+
+static int nstream_types =
+    sizeof(mpeg_stream_types) / sizeof(mpeg_stream_types[0]);
+
+extern int
+codec2stream_type(char *codec)
+{
+    int i;
+
+    for(i = 0; i < nstream_types; i++)
+	if(!strcmp(codec, mpeg_stream_types[i].codec))
+	    return mpeg_stream_types[i].mpeg_stream_type;
+
+    return -1;
+}
+
+extern int
+stream_type2codec(int st)
+{
+    int i;
+
+    for(i = 0; i < nstream_types; i++)
+	if(mpeg_stream_types[i].mpeg_stream_type == st)
+	    return i;
+
+    return -1;
+}
+
+extern int
+write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
+{
+    va_list args;
+    u_char *plen;
+    int hdrl = 0, pklen = size;
+
+    va_start(args, flags);
+
+    st_unaligned32(htob_32(stream_id | 0x100), p);
+    p += 4;
+    plen = p;
+    p += 2;
+
+    if(stream_id != PADDING_STREAM &&
+       stream_id != PRIVATE_STREAM_2 &&
+       stream_id != ECM_STREAM &&
+       stream_id != EMM_STREAM &&
+       stream_id != PROGRAM_STREAM_DIRECTORY &&
+       stream_id != DSMCC_STREAM &&
+       stream_id != H222_E_STREAM &&
+       stream_id != SYSTEM_HEADER){
+	int pflags = 0;
+	uint64_t pts;
+
+	pklen += 3;
+	*p++ = 0x80;
+
+	if(flags & PES_FLAG_PTS){
+	    pts = va_arg(args, uint64_t);
+	    pflags |= 0x80;
+	    hdrl += 5;
+	}
+
+	*p++ = pflags;
+	*p++ = hdrl;
+
+	if(flags & PES_FLAG_PTS){
+	    *p++ = ((pts >> 29) & 0xe) | 0x21;
+	    st_unaligned16(htob_16(((pts >> 14) & 0xfffe) | 1), p);
+	    p += 2;
+	    st_unaligned16(htob_16(((pts << 1) & 0xfffe) | 1), p);
+	    p += 2;
+	}
+	pklen += hdrl;
+    }
+
+    st_unaligned16(htob_16(pklen), plen);
+
+    return hdrl + 9;
+}

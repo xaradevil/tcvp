@@ -51,8 +51,8 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
     mpeg_dec_t *mpd = p->private;
     int state;
 
-    if(!pk){
-	p->next->input(p->next, NULL);
+    if(!pk->data){
+	p->next->input(p->next, pk);
 	return 0;
     }
 
@@ -71,6 +71,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	if(state == STATE_SLICE || state == STATE_END){
 	    if(mpd->info->display_fbuf){
 		mpeg_packet_t *pic = malloc(sizeof(*pic));
+		pic->pk.stream = pk->stream;
 		pic->pk.data = mpd->info->display_fbuf->buf;
 		pic->pk.planes = 3;
 		pic->pk.sizes = pic->sizes;
@@ -128,6 +129,8 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    p->format.video.frame_rate.num = 27000000;
 	    p->format.video.frame_rate.den = seq->frame_period;
 	    p->format.video.pixel_format = PIXEL_FORMAT_I420;
+	    if(!(seq->flags & SEQ_FLAG_PROGRESSIVE_SEQUENCE))
+		p->format.video.flags |= TCVP_STREAM_FLAG_INTERLACED;
 	    ret = p->next->probe(p->next, NULL, &p->format);
 	    break;
 	case -1:
@@ -165,6 +168,7 @@ mpeg_new(stream_t *s, conf_section *cs, timer__t **t)
 
     mpd = calloc(1, sizeof(*mpd));
     mpd->mpeg2 = mpeg2_init();
+    mpd->pts_delay = 1;
 
     p = tcallocdz(sizeof(*p), NULL, mpeg_free);
     p->input = mpeg_decode;
@@ -173,4 +177,11 @@ mpeg_new(stream_t *s, conf_section *cs, timer__t **t)
     p->private = mpd;
 
     return p;
+}
+
+extern int
+mpeg_init(char *p)
+{
+    mpeg2_accel(tcvp_codec_mpeg2_conf_accel);
+    return 0;
 }

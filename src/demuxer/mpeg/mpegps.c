@@ -28,29 +28,13 @@
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
-#define PACK_HEADER              0xba
-#define SYSTEM_HEADER            0xbb
-
-#define PROGRAM_STREAM_MAP       0xbc
-#define PRIVATE_STREAM_1         0xbd
-#define PADDING_STREAM           0xbe
-#define PRIVATE_STREAM_2         0xbf
-#define ECM_STREAM               0xf0
-#define EMM_STREAM               0xf1
-#define DSMCC_STREAM             0xf2
-#define ISO_13522_STREAM         0xf3
-#define H222_A_STREAM            0xf4
-#define H222_B_STREAM            0xf5
-#define H222_C_STREAM            0xf6
-#define H222_D_STREAM            0xf7
-#define H222_E_STREAM            0xf8
-#define ANCILLARY_STREAM         0xf9
-#define ISO_14496_SL_STREAM      0xfa
-#define ISO_14496_FLEXMUX_STREAM 0xfb
-#define PROGRAM_STREAM_DIRECTORY 0xff
+typedef struct mpegps_stream {
+    url_t *stream;
+    int *imap;
+} mpegps_stream_t;
 
 static mpegpes_packet_t *
-mpegpes_packet(mpeg_stream_t *s, int pedantic)
+mpegpes_packet(mpegps_stream_t *s, int pedantic)
 {
     mpegpes_packet_t *pes = NULL;
 
@@ -149,7 +133,7 @@ mpegps_free_pk(packet_t *p)
 extern packet_t *
 mpegps_packet(muxed_stream_t *ms, int str)
 {
-    mpeg_stream_t *s = ms->private;
+    mpegps_stream_t *s = ms->private;
     mpegpes_packet_t *mp = NULL;
     packet_t *pk;
     int sx = -1;
@@ -179,15 +163,38 @@ mpegps_packet(muxed_stream_t *ms, int str)
     return pk;
 }
 
-extern int
-mpegps_getinfo(muxed_stream_t *ms)
+static void
+mpegps_free(void *p)
 {
-    mpeg_stream_t *s = ms->private;
+    muxed_stream_t *ms = p;
+    mpegps_stream_t *s = ms->private;
+
+    s->stream->close(s->stream);
+    free(s->imap);
+    free(s);
+
+    mpeg_free(ms);
+}
+
+extern muxed_stream_t *
+mpegps_open(char *name)
+{
+    muxed_stream_t *ms;
+    mpegps_stream_t *s;
     mpegpes_packet_t *pk = NULL;
     u_char *pm;
     int l, ns, pc = 0;
     stream_t *sp;
-    int err = 0;
+    url_t *u;
+
+    if(!(u = url_open(name, "r")))
+	return NULL;
+
+    ms = tcallocdz(sizeof(*ms), NULL, mpegps_free);
+    ms->next_packet = mpegps_packet;
+    s = calloc(1, sizeof(*s));
+    s->stream = u;
+    ms->private = s;
 
     ns = 2;
     ms->streams = calloc(ns, sizeof(*ms->streams));
@@ -196,6 +203,8 @@ mpegps_getinfo(muxed_stream_t *ms)
     sp = ms->streams;
 
     do {
+	if(pk)
+	    mpegpes_free(pk);
 	if(!(pk = mpegpes_packet(s, 1))){
 	    break;
 	}
@@ -211,6 +220,8 @@ mpegps_getinfo(muxed_stream_t *ms)
 	    u_int stype = *pm++;
 	    u_int sid = *pm++;
 	    u_int il = htob_16(unaligned16(pm));
+	    int sti;
+
 	    pm += 2;
 
 	    if(ms->n_streams == ns){
@@ -221,24 +232,29 @@ mpegps_getinfo(muxed_stream_t *ms)
 
 	    s->imap[sid] = ms->n_streams;
 
-	    if(mpeg_stream_types[stype].stream_type){
-		sp->stream_type = mpeg_stream_types[stype].stream_type;
-		sp->common.codec = mpeg_stream_types[stype].codec;
+	    if((sti = stream_type2codec(stype)) >= 0){
+		memset(sp, 0, sizeof(*sp));
+		sp->stream_type = mpeg_stream_types[sti].stream_type;
+		sp->common.codec = mpeg_stream_types[sti].codec;
 		sp->common.index = ms->n_streams++;
 		sp++;
 	    }
 
 	    pm += il;
 	    l -= il + 4;
-	}	
+	}
+	mpegpes_free(pk);
     } else {
+	if(pk)
+	    mpegpes_free(pk);
 	s->stream->seek(s->stream, 0, SEEK_SET);
 	pc = 0;
 	while(pc++ < 128){
 	    if(!(pk = mpegpes_packet(s, 1))){
-		if(!ms->n_streams)
-		    err = -1;
-		goto out;
+		if(!ms->n_streams){
+		    tcfree(ms);
+		    return NULL;
+		}
 	    }
 	    if((pk->stream_id & 0xe0) == 0xc0 ||
 	       (pk->stream_id & 0xf0) == 0xe0){
@@ -270,7 +286,6 @@ mpegps_getinfo(muxed_stream_t *ms)
 	}
     }
 
-out:
     s->stream->seek(s->stream, 0, SEEK_SET);
-    return err;
+    return ms;
 }

@@ -121,6 +121,7 @@ alsa_free(void *p)
 	tm_stop(ao->timer);
     if(ao->buf)
 	free(ao->buf);
+    free(ao->ptsq);
     free(ao);
 }
 
@@ -157,8 +158,9 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
     u_char *data;
     int pts;
 
-    if(!pk){
+    if(!pk->data){
 	ao->data_end = 1;
+	pk->free(pk);
 	return 0;
     }
 
@@ -298,7 +300,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     snd_pcm_hw_params_t *hwp;
     snd_pcm_t *pcm = ao->pcm;
     u_int rate = as->sample_rate, channels = as->channels, ptime;
-    int tmp;
+    int tmp = 0;
 
     if(s->stream_type != STREAM_TYPE_AUDIO)
 	return PROBE_FAIL;

@@ -75,8 +75,8 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     float **pcm ;
     ogg_packet *op;
 
-    if(!pk){
-	p->next->input(p->next, NULL);
+    if(!pk->data){
+	p->next->input(p->next, pk);
 	return 0;
     }
 
@@ -116,11 +116,12 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     ogg_packet *op=(ogg_packet*)pk->data[0];
     VorbisContext_t *vc = p->private;
+    int ret = PROBE_FAIL;
 
     if(op->packetno < 3) {
 	vorbis_synthesis_headerin(&vc->vi, &vc->vc, op);
 	if(op->packetno < 2) {	
-	    return PROBE_AGAIN;
+	    ret = PROBE_AGAIN;
 	} else {
 	    p->format = *s;
 	    p->format.audio.codec = "audio/pcm-s16le";
@@ -129,10 +130,11 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    p->format.audio.bit_rate = vc->vi.bitrate_nominal;
 	    vorbis_synthesis_init(&vc->vd, &vc->vi);
 	    vorbis_block_init(&vc->vd, &vc->vb); 
-	    return p->next->probe(p->next, NULL, &p->format);
+	    ret = p->next->probe(p->next, NULL, &p->format);
 	}
     }
-    return PROBE_FAIL;
+    pk->free(pk);
+    return ret;
 }
 
 static void

@@ -76,6 +76,7 @@ free_timer(timer__t *t)
     pthread_mutex_destroy(&at->mx);
     pthread_cond_destroy(&at->cd);
     free(at);
+    free(t);
 }
 
 static void *

@@ -3,7 +3,7 @@ name		"TCVP/ui/tcvpxtk"
 version		0.1.0
 tc2version	0.4.0
 sources		background.c button.c label.c seek_bar.c state.c widget.c window.c
-require		"image"
+import		"image" "free"
 
 implement	"xtk"	"update_root"		update_root
 implement	"xtk"	"create_background"	create_background

@@ -118,6 +118,9 @@ tcvpx_shdn(void)
 
     pthread_join(eth, NULL);
 
+    cleanup_actions();
+    free_dynamic();
+
     eventq_delete(qs);
     eventq_delete(qr);
 

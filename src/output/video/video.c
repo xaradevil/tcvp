@@ -152,8 +152,9 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
     int strides[4];
     int planes;
 
-    if(!pk){
+    if(!pk->data){
 	v_qpts(vo, -1LL);
+	pk->free(pk);
 	return 0;
     }
 
