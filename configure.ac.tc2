@@ -19,6 +19,8 @@ AC_CONFIG_FILES([Makefile
 		 src/codec/vorbis/Makefile
 		 src/codec/pcm/Makefile
 		 src/output/Makefile
+		 src/output/drivers/Makefile
+		 src/output/drivers/vidix/Makefile
 		 src/output/alsa/Makefile
 		 src/output/oss/Makefile
 		 src/output/video/Makefile

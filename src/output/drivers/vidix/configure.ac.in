@@ -1,0 +1,1 @@
+AC_CHECK_LIB(vidix, vdlOpen, [DRIVERS_MODULES="$DRIVERS_MODULES vidix"])
