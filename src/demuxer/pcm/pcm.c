@@ -53,10 +53,10 @@ pcm_packet(muxed_stream_t *ms, int str)
 {
     pcm_t *pcm = ms->private;
     pcm_packet_t *ep;
-    int size = 1024;
-    u_char *buf = malloc(1024);
+    int size = tcvp_demux_pcm_conf_packet_size;
+    u_char *buf = malloc(size);
 
-    size = pcm->u->read(buf, 1, 1024, pcm->u);
+    size = pcm->u->read(buf, 1, size, pcm->u);
     if(size <= 0){
 	free(buf);
 	return NULL;
