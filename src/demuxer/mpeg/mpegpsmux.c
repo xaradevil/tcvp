@@ -54,22 +54,6 @@ typedef struct mpegps_mux {
 } mpegps_mux_t;
 
 static int
-next_stream(mpegps_mux_t *psm)
-{
-    uint64_t pts = -1;
-    int s = 0, i;
-
-    for(i = 0; i < psm->astreams; i++){
-	if(psm->streams[i].stream_type && psm->streams[i].dts < pts){
-	    pts = psm->streams[i].dts;
-	    s = i;
-	}
-    }
-
-    return s;
-}
-
-static int
 write_pack_header(u_char *d, uint64_t scr, int rate)
 {
     uint64_t scr_base;
@@ -246,8 +230,6 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 	u_char hdr[1024];
 
 	pthread_mutex_lock(&psm->lock);
-	while(next_stream(psm) != pk->stream)
-	    pthread_cond_wait(&psm->cnd, &psm->lock);
 
 	if(pk->flags & TCVP_PKT_FLAG_PTS){
 	    pesflags |= PES_FLAG_PTS;

@@ -47,22 +47,6 @@ typedef struct avf_write {
 } avf_write_t;
 
 static int
-next_stream(avf_write_t *avf)
-{
-    uint64_t dts = -1;
-    int s = 0, i;
-
-    for(i = 0; i < avf->astreams; i++){
-	if(avf->streams[i].used && avf->streams[i].dts < dts){
-	    dts = avf->streams[i].dts;
-	    s = i;
-	}
-    }
-
-    return s;
-}
-
-static int
 avfw_input(tcvp_pipe_t *p, packet_t *pk)
 {
     avf_write_t *avf = p->private;
@@ -86,9 +70,6 @@ avfw_input(tcvp_pipe_t *p, packet_t *pk)
 	pthread_mutex_unlock(&avf->lock);
 	goto out;
     }
-
-    while(next_stream(avf) != pk->stream)
-	pthread_cond_wait(&avf->cnd, &avf->lock);
 
     if(!avf->header){
 	av_write_header(&avf->fc);

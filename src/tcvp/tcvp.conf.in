@@ -12,18 +12,20 @@ profiles {
 		module 'tcvp/remote'
 	}
 	encode {
-		outname '${title:-${file:0:-4r,^.*/,}}.ogg'
+		outname '${title:-${file:0:-4r,^.*[:/],}}.ogg'
 		encode {
 			filter [ type 'decoder'			]
 			filter [ type 'encoder'			]
-			filter [ type 'mux'; id 'mux'		]
+			filter [ type 'mux/sync'; id 'mux'	]
+			filter [ type 'mux'			]
 		}
 		audio : encode [ ]
 		video : encode [ ]
 	}
 	copy {
 		mux {
-			filter [ type 'mux'; id 'mux'		]
+			filter [ type 'mux/sync'; id 'mux'	]
+			filter [ type 'mux'			]
 		}
 		audio : mux [ ]
 		video : mux [ ]
