@@ -21,6 +21,7 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
+#include <tcalloc.h>
 #include <pthread.h>
 #include <ogg/ogg.h>
 #include <ogg_tc2.h>
@@ -35,7 +36,8 @@ typedef struct {
 
 
 /* Get the length of this stream, must be seekable */
-int64_t ogg_get_length(muxed_stream_t *ms)
+static int64_t
+ogg_get_length(muxed_stream_t *ms)
 {
     ogg_stream_t *ost = ms->private;
     ogg_page og;
@@ -139,6 +141,14 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 extern int
 ogg_close(muxed_stream_t *ms)
 {
+    tcfree(ms);
+    return 0;
+}
+
+static void
+ogg_free(void *p)
+{
+    muxed_stream_t *ms = p;
     ogg_stream_t *os = ms->private;
 
     ogg_sync_clear(&os->oy);
@@ -147,10 +157,9 @@ ogg_close(muxed_stream_t *ms)
 
     free(ms->streams);
     free(ms->used_streams);
+    free(ms->file);
 
     free(os);
-
-    return 0;
 }
 
 
@@ -173,7 +182,8 @@ ogg_open(char *name, conf_section *cs)
 
     ost->f=f;
 
-    ms = malloc(sizeof(*ms));
+    ms = tcallocd(sizeof(*ms), NULL, ogg_free);
+    memset(ms, 0, sizeof(*ms));
     ms->n_streams = 1;
     ms->streams = malloc(sizeof(stream_t));
 
@@ -186,6 +196,8 @@ ogg_open(char *name, conf_section *cs)
     ms->private = ost;
 
     ms->streams[0].audio.samples = ogg_get_length(ms);
+
+    ms->file = strdup(name);
 
     fseek(ost->f, 0, SEEK_SET);
     ogg_sync_reset(&ost->oy);

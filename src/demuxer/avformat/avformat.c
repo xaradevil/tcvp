@@ -22,6 +22,7 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <pthread.h>
+#include <tcalloc.h>
 #include <avformat.h>
 #include <avformat_tc2.h>
 
@@ -160,6 +161,14 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 extern int
 avf_close(muxed_stream_t *ms)
 {
+    tcfree(ms);
+    return 0;
+}
+
+extern void
+avf_free(void *p)
+{
+    muxed_stream_t *ms = p;
     avf_stream_t *as = ms->private;
     int i;
 
@@ -167,13 +176,13 @@ avf_close(muxed_stream_t *ms)
 
     free(ms->streams);
     free(ms->used_streams);
+    free(ms->file);
 
     for(i = 0; i < ms->n_streams; i++){
 	list_destroy(as->packets[i], (tc_free_fn) avf_free_packet);
     }
     free(as->packets);
     free(as);
-    return 0;
 }
 
 
@@ -195,7 +204,7 @@ avf_open(char *name, conf_section *cs)
 	return NULL;
     }
 
-    ms = calloc(1, sizeof(*ms));
+    ms = tcallocd(sizeof(*ms), NULL, avf_free);
     ms->n_streams = afc->nb_streams;
     ms->streams = malloc(ms->n_streams * sizeof(stream_t));
     for(i = 0; i < ms->n_streams; i++){
@@ -243,6 +252,7 @@ avf_open(char *name, conf_section *cs)
     }
     pthread_mutex_init(&as->mtx, NULL);
 
+    ms->file = strdup(name);
     ms->private = as;
 
     return ms;

@@ -1,1 +1,1 @@
-SUBDIRS = interfaces src
+SUBDIRS = interfaces lib src

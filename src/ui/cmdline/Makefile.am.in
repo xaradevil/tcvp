@@ -1,2 +1,2 @@
 AM_CPPFLAGS = -DTCVP_CONF=\"${sysconfdir}/tcvp.conf\"
-MODLIBS = -ltc2
+MODLIBS = -ltc2 -ltcvp

@@ -25,7 +25,9 @@
 #include <X11/keysym.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
+#include <tcvp_event.h>
 #include <wm_x11_tc2.h>
 
 typedef struct x11_wm {
@@ -101,33 +103,31 @@ x11_event(void *p)
 	}
 	case KeyPress: {
 	    int key = XLookupKeysym(&xe.xkey, 0);
-	    tcvp_event_t *te = tcvp_alloc_event();
-	    int e = 1;
+	    tcvp_event_t *te = NULL;
 
 	    switch(key){
 	    case XK_space:
-		te->type = TCVP_PAUSE;
+		te = tcvp_alloc_event(TCVP_PAUSE);
 		break;
 	    case XK_Up:
-		te->type = TCVP_SEEK;
+		te = tcvp_alloc_event(TCVP_SEEK);
 		te->seek.time = 60000000;
 		te->seek.how = TCVP_SEEK_REL;
 		break;
 	    case XK_Down:
-		te->type = TCVP_SEEK;
+		te = tcvp_alloc_event(TCVP_SEEK);
 		te->seek.time = -60000000;
 		te->seek.how = TCVP_SEEK_REL;
 		break;
 	    case XK_q:
+		te = tcvp_alloc_event(TCVP_CLOSE);
 		te->type = TCVP_CLOSE;
 		break;
-	    default:
-		e = 0;
-		break;
 	    }
-	    if(e)
+	    if(te){
 		eventq_send(xwm->qs, te);
-	    tcfree(te);
+		tcfree(te);
+	    }
 	    break;
 	}
 	case DestroyNotify:

@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
+#include <tcalloc.h>
 #include <ctype.h>
 #include <tclist.h>
 #include <pthread.h>
@@ -36,6 +37,7 @@
 static char *vtag2codec(char *tag);
 static char *aid2codec(int id);
 static int avi_read_indx(muxed_stream_t *ms);
+static void avi_free(void *p);
 
 #define TAG(a,b,c,d) (a + (b << 8) + (c << 16) + (d << 24))
 
@@ -348,7 +350,8 @@ avi_header(FILE *f)
     if(tag != TAG('A','V','I',' '))
 	return NULL;
 
-    ms = calloc(1, sizeof(*ms));
+    ms = tcallocd(sizeof(*ms), NULL, avi_free);
+    memset(ms, 0, sizeof(*ms));
     af = calloc(1, sizeof(*af));
     af->file = f;
     pthread_mutex_init(&af->mx, NULL);
@@ -854,14 +857,16 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     return time;
 }
 
-static int
-avi_close(muxed_stream_t *ms)
+static void
+avi_free(void *p)
 {
+    muxed_stream_t *ms = p;
     avi_file_t *af = ms->private;
     int i;
 
     free(ms->streams);
     free(ms->used_streams);
+    free(ms->file);
 
     for(i = 0; i < ms->n_streams; i++){
 	list_destroy(af->packets[i], (tc_free_fn) avi_free_packet);
@@ -874,7 +879,12 @@ avi_close(muxed_stream_t *ms)
 
     fclose(af->file);
     free(af);
+}
 
+static int
+avi_close(muxed_stream_t *ms)
+{
+    tcfree(ms);
     return 0;
 }
 
@@ -894,6 +904,7 @@ avi_open(char *file, conf_section *cs)
     ms->next_packet = avi_packet;
     ms->close = avi_close;
     ms->seek = avi_seek;
+    ms->file = strdup(file);
 
     return ms;
 }

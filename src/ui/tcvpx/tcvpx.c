@@ -24,7 +24,9 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
+#include <tcvp_event.h>
 #include <tcvpx_tc2.h>
 
 #define STOPPED 0
@@ -107,8 +109,7 @@ static int update_time(skin_t *skin);
 static int
 tcvp_pause(void *p, XEvent *e)
 {
-    tcvp_event_t *te = tcvp_alloc_event();
-    te->type = TCVP_PAUSE;
+    tcvp_event_t *te = tcvp_alloc_event(TCVP_PAUSE);
     eventq_send(qs, te);
     tcfree(te);
     return 0;
@@ -118,9 +119,8 @@ tcvp_pause(void *p, XEvent *e)
 static int
 tcvp_stop(void *p, XEvent *e)
 {
-    tcvp_event_t *te = tcvp_alloc_event();
+    tcvp_event_t *te = tcvp_alloc_event(TCVP_CLOSE);
     p_state = STOPPED;
-    te->type = TCVP_CLOSE;
     eventq_send(qs, te);
     tcfree(te);
 
@@ -132,8 +132,7 @@ static int
 tcvp_play(void *p, XEvent *e)
 {
     if(current_file != NULL) {
-	tcvp_open_event_t *te = tcvp_alloc_event();
-	te->type = TCVP_OPEN;
+	tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
 	te->file = current_file;
 	eventq_send(qs, te);
 	tcfree(te);

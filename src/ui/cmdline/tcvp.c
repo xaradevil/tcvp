@@ -24,7 +24,9 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
+#include <tcvp_event.h>
 #include <tcvp_tc2.h>
 
 static pthread_t play_thr, evt_thr;
@@ -107,13 +109,11 @@ tcl_play(void *p)
 	if(validate){
 	    stream_validate(files[i], cf);
 	} else {
-	    tcvp_open_event_t *te = tcvp_alloc_event();
-	    te->type = TCVP_OPEN;
+	    tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
 	    te->file = files[i];
 	    eventq_send(qs, te);
 	    tcfree(te);
 
-	    printf("Playing \"%s\"...\n", files[i]);
 	    pl->start(pl);
 	    sem_wait(&psm);
 	    pl->close(pl);
@@ -139,27 +139,24 @@ tcl_init(char *p)
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
-    if(sel_ui) {
+    if(sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
 	int len = 0;
 	char *tmp;
 	char *opt;
 
-	if(!sel_ui)
-	    sel_ui = tcvp_ui_cmdline_conf_ui;
-
-	for(i=0; i<nfiles; i++) {
+	for(i = 0; i < nfiles; i++){
 	    len += strlen(files[i])+1;
 	}
 	opt = calloc(len + strlen(qname) + 2, 1);
 	tmp = opt;
 
 	strcpy(tmp, qname);
-	tmp += strlen(qname)+1;
+	tmp += strlen(qname) + 1;
 
-	for(i=0; i<nfiles; i++) {
+	for(i = 0; i < nfiles; i++){
 	    strcpy(tmp, files[i]);
-	    tmp += strlen(files[i])+1;
+	    tmp += strlen(files[i]) + 1;
 	}
 
 	sprintf(ui, "TCVP/ui/%s", sel_ui);
@@ -187,8 +184,7 @@ tcl_stop(void)
     pthread_join(play_thr, NULL);
 
     if(qr){
-	tcvp_event_t *te = tcvp_alloc_event();
-	te->type = -1;
+	tcvp_event_t *te = tcvp_alloc_event(-1);
 	eventq_send(qr, te);
 	tcfree(te);
 	pthread_join(evt_thr, NULL);
