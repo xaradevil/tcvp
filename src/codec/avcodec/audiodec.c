@@ -66,15 +66,18 @@ do_decaudio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 		break;
 	    }
 
-	    out = tcallocd(sizeof(*out), NULL, avc_free_packet);
+	    out = tcallocdz(sizeof(*out), NULL, avc_free_packet);
 	    out->type = TCVP_PKT_TYPE_DATA;
 	    out->stream = pk->stream;
 	    out->data = (u_char **) &out->private;
 	    out->sizes = malloc(sizeof(*out->sizes));
 	    out->sizes[0] = outsize;
 	    out->planes = 1;
-	    out->pts = pk->pts;
-	    pk->pts = 0;
+	    if(pk->flags & TCVP_PKT_FLAG_PTS){
+		out->flags |= TCVP_PKT_FLAG_PTS;
+		out->pts = pk->pts;
+		pk->flags = 0;
+	    }
 	    out->private = ac->buf;
 	    p->next->input(p->next, (tcvp_packet_t *) out);
 	}
