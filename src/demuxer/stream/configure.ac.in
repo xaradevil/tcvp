@@ -1,1 +1,2 @@
 TC2_CHECK_LIB(file, magic, magic_open)
+TC2_ENABLE_MODULE
