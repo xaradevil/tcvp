@@ -133,7 +133,8 @@ print_info(muxed_stream_t *stream)
 		   stream->streams[i].video.codec,
 		   stream->streams[i].video.width,
 		   stream->streams[i].video.height,
-		   stream->streams[i].video.frame_rate);
+		   (double) stream->streams[i].video.frame_rate.num / 
+		   stream->streams[i].video.frame_rate.den);
 	    break;
 	}
     }

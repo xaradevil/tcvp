@@ -205,8 +205,9 @@ avf_open(char *name)
 	switch(afc->streams[i]->codec.codec_type){
 	case CODEC_TYPE_VIDEO:
 	    ms->streams[i].stream_type = STREAM_TYPE_VIDEO;
-	    ms->streams[i].video.frame_rate =
-		(float) afc->streams[i]->codec.frame_rate /
+	    ms->streams[i].video.frame_rate.num =
+		afc->streams[i]->codec.frame_rate;
+	    ms->streams[i].video.frame_rate.den =
 		afc->streams[i]->codec.frame_rate_base;
 	    ms->streams[i].video.width = afc->streams[i]->codec.width;
 	    ms->streams[i].video.height = afc->streams[i]->codec.height;

@@ -47,7 +47,8 @@ typedef struct avc_audio_codec {
 
 typedef struct avc_video_codec {
     AVCodecContext *ctx;
-    uint64_t dpts, last_pts;
+    uint64_t pts;
+    uint64_t ptsn, ptsd;
     AVFrame *frame;
     int have_params;
     packet_t *in;		/* remaining data from probe */
@@ -185,13 +186,15 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 		    break;
 	    }
 	    out->planes = i;
-	    if(vc->frame->pts)
+
+	    if(vc->frame->pts){
 		out->pts = vc->frame->pts;
-	    else if(pk->pts)
-		out->pts = pk->pts;
-	    else
-		out->pts = vc->last_pts + vc->dpts;
-	    vc->last_pts = out->pts;
+		vc->pts = 1000000 * vc->frame->pts;
+	    } else {
+		out->pts = vc->pts / vc->ptsd;
+	    }
+	    vc->pts += vc->ptsn;
+
 	    out->free = avc_free_packet;
 	    out->private = NULL;
 	    if(p->next){
@@ -293,9 +296,10 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     if(vc->have_params){
-	if(!s->video.frame_rate)
-	    s->video.frame_rate =
-		(double) vc->ctx->frame_rate / vc->ctx->frame_rate_base;
+	if(!s->video.frame_rate.num){
+	    s->video.frame_rate.num = vc->ctx->frame_rate;
+	    s->video.frame_rate.den = vc->ctx->frame_rate_base;
+	}
 	s->video.width = vc->ctx->width;
 	s->video.height = vc->ctx->height;
 	s->video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
@@ -352,15 +356,17 @@ avc_new(stream_t *s, int mode)
     case STREAM_TYPE_VIDEO:
 	avctx->width = s->video.width;
 	avctx->height = s->video.height;
-	avctx->frame_rate = s->video.frame_rate * DEFAULT_FRAME_RATE_BASE;
+	avctx->frame_rate = s->video.frame_rate.num;
+	avctx->frame_rate_base = s->video.frame_rate.den;
 	avctx->workaround_bugs = 0x3ff;
 	avctx->error_resilience = FF_ER_AGGRESSIVE;
 	avctx->error_concealment = 3;
 
 	vc = calloc(1, sizeof(*vc));
 	vc->ctx = avctx;
-	vc->dpts = 1000000 / s->video.frame_rate;
-	vc->last_pts = 0;
+	vc->ptsn = 1000000 * s->video.frame_rate.den;
+	vc->ptsd = s->video.frame_rate.num;
+	vc->pts = 0;
 	vc->frame = avcodec_alloc_frame();
 
 	p = calloc(1, sizeof(*p));

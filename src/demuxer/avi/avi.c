@@ -72,8 +72,6 @@ typedef struct avi_index {
 
 typedef struct avi_file {
     FILE *file;
-    uint64_t pts;
-    uint64_t ptsn, ptsd;
     list **packets;
     pthread_mutex_t mx;
     int eof;
@@ -110,9 +108,6 @@ avi_header(FILE *f)
     ms = malloc(sizeof(*ms));
     af = calloc(1, sizeof(*af));
     af->file = f;
-    af->pts = 0;
-    af->ptsn = 0;
-    af->ptsd = 0;
     pthread_mutex_init(&af->mx, NULL);
     ms->private = af;
 
@@ -184,13 +179,11 @@ avi_header(FILE *f)
 		frd = getu32(f);
 		frn = getu32(f);
 		if(frn && frd){
-		    ms->streams[sidx].video.frame_rate = (double) frn / frd;
-		    af->ptsn = (uint64_t) frd * 1000000;
-		    af->ptsd = frn;
+		    ms->streams[sidx].video.frame_rate.num = frn;
+		    ms->streams[sidx].video.frame_rate.den = frd;
 		} else {
-		    ms->streams[sidx].video.frame_rate = 1000000.0L / ftime;
-		    af->ptsn = ftime;
-		    af->ptsd = 1;
+		    ms->streams[sidx].video.frame_rate.num = 1000000;
+		    ms->streams[sidx].video.frame_rate.den = ftime;
 		}
 
 		getval(f, "start", 32);
@@ -387,9 +380,6 @@ avi_packet(muxed_stream_t *ms, int stream)
 		    goto again;
 		} else if(skipped < 8 && af->idxok > 256){
 		    fprintf(stderr, "AVI: Skipping frame.\n");
-		    if(ms->streams[tag2str(af->index[af->pkt].tag)].
-		       stream_type == STREAM_TYPE_VIDEO)
-			af->pts += af->ptsn;
 		    af->pkt++;
 		    fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
 		    skipped++;
@@ -432,9 +422,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    pk->sizes = malloc(sizeof(*pk->sizes));
 	    pk->sizes[0] = size;
 	    pk->planes = 1;
-	    pk->pts = af->pts / af->ptsd;
-	    if(ms->streams[str].stream_type == STREAM_TYPE_VIDEO)
-		af->pts += af->ptsn;
+	    pk->pts = 0;
 	    pk->free = avi_free_packet;
 
 	    if(str != stream){
