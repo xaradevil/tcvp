@@ -101,7 +101,8 @@ tcvp_event(void *p)
 			frame_rate_den = st->streams[i].video.frame_rate.den;
 
 			if(frame_rate_num>0 && frame_rate_den>0 && frames>0){
-			    s_length = (frames * frame_rate_den) / frame_rate_num;
+			    s_length = ((uint64_t)frames * frame_rate_den) /
+				frame_rate_num;
 			}
 		    }
 		}
