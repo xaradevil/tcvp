@@ -36,7 +36,7 @@
 typedef struct video_out {
     video_driver_t *driver;
     video_stream_t *vstream;
-    tcvp_timer_t *timer, **tmp;
+    tcvp_timer_t *timer;
     color_conv_t cconv;
     uint64_t *pts;
     int state;
@@ -285,6 +285,7 @@ v_free(void *p)
     if(vo->pts)
 	free(vo->pts);
     tcfree(vo->conf);
+    tcfree(vo->timer);
     free(vo);
 }
 
@@ -328,13 +329,12 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     vo->vstream = &p->format.video;
     vo->cconv = cconv;
     vo->pts = malloc(vd->frames * sizeof(*vo->pts));
-    vo->timer = *vo->tmp;
 
     return PROBE_OK;
 }
 
 extern tcvp_pipe_t *
-v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
+v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
 {
     tcvp_pipe_t *pipe;
     video_out_t *vo;
@@ -346,8 +346,8 @@ v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
     pthread_cond_init(&vo->scd, NULL);
     vo->state = PAUSE;
     vo->drop = drops[0];
-    vo->tmp = timer;
     vo->conf = tcref(cs);
+    vo->timer = tcref(timer);
     pthread_create(&vo->thr, NULL, v_play, vo);
 
     pipe = tcallocdz(sizeof(*pipe), NULL, v_free);

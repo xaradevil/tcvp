@@ -329,7 +329,7 @@ avc_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern tcvp_pipe_t *
-avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
+avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     tcvp_pipe_t *p = NULL;
     avc_codec_t *ac, *vc;

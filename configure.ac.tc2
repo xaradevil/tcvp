@@ -44,6 +44,9 @@ AC_CONFIG_FILES([Makefile
 		 src/playlist/Makefile
 		 src/tcvp/Makefile
 		 src/timer/Makefile
+		 src/timer/frontend/Makefile
+		 src/timer/backends/Makefile
+		 src/timer/backends/soft/Makefile
 		 src/ui/Makefile
 		 src/ui/cmdline/Makefile
 		 src/ui/tcvpshell/Makefile
@@ -57,7 +60,7 @@ AC_CONFIG_FILES([Makefile
 AC_OUTPUT
 
 echo
-echo $PACKAGE $VERSION
+echo $PACKAGE_NAME $VERSION
 echo
 echo The following TCVP modules will be built:
 echo Codec modules..........: $CODEC_MODULES

@@ -45,6 +45,7 @@ typedef struct alsa_out {
     int bpf;
     int rate;
     tcvp_timer_t *timer;
+    timer_driver_t *tmdrivers[2];
     int state;
     u_char *buf, *head, *tail;
     int bufsize;
@@ -118,8 +119,10 @@ alsa_free(void *p)
     if(ao->pcm){
 	snd_pcm_close(ao->pcm);
     }
-    if(ao->timer)
-	tm_stop(ao->timer);
+    if(ao->tmdrivers[PCM])
+	tcfree(ao->tmdrivers[PCM]);
+    if(ao->tmdrivers[SYSTEM])
+	tcfree(ao->tmdrivers[SYSTEM]);
     if(ao->buf)
 	free(ao->buf);
     free(ao->ptsq);
@@ -163,7 +166,7 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
 	ao->data_end = 1;
 	tcfree(pk);
 	if(!ao->bbytes)
-	    tm_settimer(ao->timer, SYSTEM);
+	    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
 	return 0;
     }
 
@@ -275,7 +278,7 @@ alsa_play(void *p)
 	    pthread_mutex_unlock(&ao->mx);
 	}
 	if(!ao->bbytes && ao->data_end){
-	    tm_settimer(ao->timer, SYSTEM);
+	    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
 	}
     }
 
@@ -339,7 +342,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
+alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
 {
     tcvp_pipe_t *tp;
     alsa_out_t *ao;
@@ -347,23 +350,22 @@ alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
     char *device = strdup(tcvp_output_alsa_conf_device);
 
     if(cs)
-	tcconf_getvalue(cs, "audio/device", "%s", &device);
+	tcconf_getvalue(cs, "audio/device", "%zs", &device);
 
     if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)){
 	fprintf(stderr, "ALSA: Can't open device '%s'\n", device);
 	return NULL;
     }
 
-    if(timer)
-	*timer = open_timer(pcm);
-
     ao = calloc(1, sizeof(*ao));
     ao->pcm = pcm;
     pthread_mutex_init(&ao->mx, NULL);
     pthread_cond_init(&ao->cd, NULL);
     ao->state = PAUSE;
-    if(timer)
-	ao->timer = *timer;
+    ao->timer = timer;
+    ao->tmdrivers[PCM] = open_timer(pcm);
+    ao->tmdrivers[SYSTEM] = open_timer(NULL);
+    timer->set_driver(timer, tcref(ao->tmdrivers[PCM]));
     ao->ptsq = calloc(ptsqsize, sizeof(*ao->ptsq));
 
     tp = tcallocdz(sizeof(*tp), NULL, alsa_free);

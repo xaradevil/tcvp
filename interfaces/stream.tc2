@@ -1,4 +1,4 @@
-symbol	"open"		muxed_stream_t *(*%s)(char *name, tcconf_section_t *, tcvp_timer_t **)
+symbol	"open"		muxed_stream_t *(*%s)(char *name, tcconf_section_t *, tcvp_timer_t *)
 symbol	"validate"	int (*%s)(char *name, tcconf_section_t *)
 symbol	"next_packet"	packet_t *(*%s)(muxed_stream_t *, int stream)
 symbol	"play"		tcvp_pipe_t *(*%s)(muxed_stream_t *, tcvp_pipe_t **, tcconf_section_t *)

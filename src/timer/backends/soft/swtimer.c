@@ -22,15 +22,15 @@
 #include <sys/time.h>
 #include <tctypes.h>
 #include <pthread.h>
-#include <timer_tc2.h>
+#include <tcalloc.h>
+#include <swtimer_tc2.h>
 
 typedef struct sw_timer {
-    uint64_t time;
     int res;
-    pthread_mutex_t mx;
-    pthread_cond_t cd;
     int state;
+    tcvp_timer_t *timer;
     pthread_t th;
+    pthread_mutex_t mx;
 } sw_timer_t;
 
 #define RUN   1
@@ -38,38 +38,7 @@ typedef struct sw_timer {
 #define STOP  3
 
 static int
-tm_wait(tcvp_timer_t *t, uint64_t time, pthread_mutex_t *lock)
-{
-    sw_timer_t *st = t->private;
-    pthread_mutex_lock(&st->mx);
-    while(st->time < time)
-	pthread_cond_wait(&st->cd, &st->mx);
-    pthread_mutex_unlock(&st->mx);
-
-    return st->time == -1? -1: 0;
-}
-
-static uint64_t
-tm_read(tcvp_timer_t *t)
-{
-    sw_timer_t *st = t->private;
-    return st->time;
-}
-
-static int
-tm_reset(tcvp_timer_t *t, uint64_t time)
-{
-    sw_timer_t *st = t->private;
-    pthread_mutex_lock(&st->mx);
-    st->time = time;
-    pthread_cond_broadcast(&st->cd);
-    pthread_mutex_unlock(&st->mx);
-
-    return 0;
-}
-
-static int
-tm_start(tcvp_timer_t *t)
+st_start(timer_driver_t *t)
 {
     sw_timer_t *st = t->private;
     st->state = RUN;
@@ -77,30 +46,32 @@ tm_start(tcvp_timer_t *t)
 }
 
 static int
-tm_stop(tcvp_timer_t *t)
+st_stop(timer_driver_t *t)
 {
     sw_timer_t *st = t->private;
     st->state = PAUSE;
     return 0;
 }
 
-static int
-tm_intr(tcvp_timer_t *t)
-{
-    tm_reset(t, -1);
-    return 0;
-}
-
 static void
-tm_free(tcvp_timer_t *t)
+st_free(void *p)
 {
+    timer_driver_t *t = p;
     sw_timer_t *st = t->private;
     st->state = STOP;
     pthread_join(st->th, NULL);
     pthread_mutex_destroy(&st->mx);
-    pthread_cond_destroy(&st->cd);
     free(st);
-    free(t);
+}
+
+static int
+st_settimer(timer_driver_t *t, tcvp_timer_t *tt)
+{
+    sw_timer_t *st = t->private;
+    pthread_mutex_lock(&st->mx);
+    st->timer = tt;
+    pthread_mutex_unlock(&st->mx);
+    return 0;
 }
 
 static void *
@@ -129,12 +100,11 @@ timer_run(void *p)
 
 	pthread_cond_timedwait(&cd, &mx, &time);
 
-	if(st->state == RUN){
-	    pthread_mutex_lock(&st->mx);
-	    st->time += st->res;
-	    pthread_cond_broadcast(&st->cd);
-	    pthread_mutex_unlock(&st->mx);
+	pthread_mutex_lock(&st->mx);
+	if(st->state == RUN && st->timer){
+	    st->timer->tick(st->timer, st->res);
 	}
+	pthread_mutex_unlock(&st->mx);
     }
 
     pthread_mutex_unlock(&mx);
@@ -144,29 +114,23 @@ timer_run(void *p)
     return NULL;
 }
 
-extern tcvp_timer_t *
-timer_new(int res)
+extern timer_driver_t *
+st_new(int res)
 {
-    tcvp_timer_t *tm;
+    timer_driver_t *tm;
     sw_timer_t *st;
 
     st = calloc(1, sizeof(*st));
-    st->time = 0;
     st->res = res;
     pthread_mutex_init(&st->mx, NULL);
-    pthread_cond_init(&st->cd, NULL);
     st->state = PAUSE;
 
     pthread_create(&st->th, NULL, timer_run, st);
 
-    tm = calloc(1, sizeof(*tm));
-    tm->start = tm_start;
-    tm->stop = tm_stop;
-    tm->wait = tm_wait;
-    tm->read = tm_read;
-    tm->reset = tm_reset;
-    tm->free = tm_free;
-    tm->interrupt = tm_intr;
+    tm = tcallocdz(sizeof(*tm), NULL, st_free);
+    tm->start = st_start;
+    tm->stop = st_stop;
+    tm->set_timer = st_settimer;
     tm->private = st;
 
     return tm;

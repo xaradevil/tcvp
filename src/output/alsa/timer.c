@@ -19,12 +19,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sched.h>
+#include <tcalloc.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API 1
 #include <alsa/asoundlib.h>
@@ -34,187 +33,91 @@
 #include <alsa_tc2.h>
 #include <alsamod.h>
 
-typedef struct alsa_hw_timer {
-    snd_timer_t *timer;
+typedef struct alsa_timer {
+    tcvp_timer_t *timer;
+    snd_timer_t *hwtimer;
     struct pollfd *pfd;
     int npfd;
     int class;
-} alsa_hw_timer_t;
-
-typedef struct alsa_timer {
-    alsa_hw_timer_t *timers[2], *timer;
-    uint64_t time;
-    int intr;
-    int wait;
-    pthread_mutex_t mx;
-    pthread_cond_t cd;
     int state;
     pthread_t th;
 } alsa_timer_t;
 
 static void
-free_hwtimer(alsa_hw_timer_t *atm)
+atm_free(void *p)
 {
-    snd_timer_close(atm->timer);
-    free(atm->pfd);
-    free(atm);
-}
-
-static void
-free_timer(tcvp_timer_t *t)
-{
+    timer_driver_t *t = p;
     alsa_timer_t *at = t->private;
+
     at->state = STOP;
     pthread_join(at->th, NULL);
-    if(at->timers[0])
-	free_hwtimer(at->timers[0]);
-    if(at->timers[1])
-	free_hwtimer(at->timers[1]);
-    at->time = -1;
-    pthread_cond_broadcast(&at->cd);
-    sched_yield();
-    pthread_mutex_destroy(&at->mx);
-    pthread_cond_destroy(&at->cd);
+    snd_timer_close(at->hwtimer);
+    free(at->pfd);
     free(at);
-    free(t);
 }
 
 static void *
 run_timer(void *p)
 {
-    tcvp_timer_t *tmr = p;
+    timer_driver_t *tmr = p;
     alsa_timer_t *at = tmr->private;
     snd_timer_read_t tr;
-    alsa_hw_timer_t *timer;
+    uint64_t rt = 0;
 
     while(at->state == RUN){
-	int s;
 	uint64_t t = 0;
+	int s;
 
-	timer = at->timer;
-	s = poll(timer->pfd, timer->npfd, 100);
+	s = poll(at->pfd, at->npfd, 100);
 	if(s == 0){
 	    continue;
 	} else if(s < 0){
 	    break;
 	}
 
-	while(snd_timer_read(timer->timer, &tr, sizeof(tr)) == sizeof(tr)){
+	while(snd_timer_read(at->hwtimer, &tr, sizeof(tr)) == sizeof(tr)){
 	    t += tr.resolution * tr.ticks;
 	}
 
-	pthread_mutex_lock(&at->mx);
-	at->time += t;
-	pthread_cond_broadcast(&at->cd);
-	pthread_mutex_unlock(&at->mx);
+	if(at->timer){
+	    t *= 27;
+	    at->timer->tick(at->timer, t / 1000 + rt);
+	    rt = t % 1000;
+	}
     }
 
     return NULL;
 }
 
 static int
-tm_wait(tcvp_timer_t *t, uint64_t time, pthread_mutex_t *lock)
+atm_start(timer_driver_t *t)
 {
     alsa_timer_t *at = t->private;
-    int intr = 1, wait, l = 1;
-
-    time = (time * 1000) / 27;
-
-    pthread_mutex_lock(&at->mx);
-    wait = ++at->wait;
-    while(at->time < time && at->state == RUN && (intr = (wait > at->intr))){
-	if(l && lock){
-	    pthread_mutex_unlock(lock);
-	    l = 0;
-	}
-	pthread_cond_wait(&at->cd, &at->mx);
-    }
-    pthread_mutex_unlock(&at->mx);
-    if(!l && lock)
-	pthread_mutex_lock(lock);
-
-    return !intr? -1: at->state == RUN? 0: -1;
-}
-
-static uint64_t
-tm_read(tcvp_timer_t *t)
-{
-    alsa_timer_t *at = t->private;
-    return (at->time * 27) / 1000;
-}
-
-static int
-tm_reset(tcvp_timer_t *t, uint64_t time)
-{
-    alsa_timer_t *at = t->private;
-
-    pthread_mutex_lock(&at->mx);
-    at->time = (time * 1000) / 27;
-    pthread_cond_broadcast(&at->cd);
-    pthread_mutex_unlock(&at->mx);
-
+    snd_timer_start(at->hwtimer);
     return 0;
 }
 
 static int
-tm_intr(tcvp_timer_t *t)
+atm_stop(timer_driver_t *t)
 {
     alsa_timer_t *at = t->private;
-
-    pthread_mutex_lock(&at->mx);
-    at->intr = at->wait;
-    pthread_cond_broadcast(&at->cd);
-    pthread_mutex_unlock(&at->mx);
-
-    return 0;
-}
-
-extern int
-tm_stop(tcvp_timer_t *t)
-{
-    alsa_timer_t *at = t->private;
-    pthread_mutex_lock(&at->mx);
-    at->state = STOP;
-    pthread_cond_broadcast(&at->cd);
-    pthread_mutex_unlock(&at->mx);
+    if(at->class != SND_TIMER_CLASS_PCM)
+	snd_timer_stop(at->hwtimer);
     return 0;
 }
 
 static int
-atm_start(tcvp_timer_t *t)
+atm_settimer(timer_driver_t *t, tcvp_timer_t *tt)
 {
     alsa_timer_t *at = t->private;
-    snd_timer_start(at->timer->timer);
+    at->timer = tt;
     return 0;
 }
 
-static int
-atm_stop(tcvp_timer_t *t)
-{
-    alsa_timer_t *at = t->private;
-    if(at->timer->class != SND_TIMER_CLASS_PCM)
-	snd_timer_stop(at->timer->timer);
-    return 0;
-}
-
-extern int
-tm_settimer(tcvp_timer_t *t, int type)
-{
-    alsa_timer_t *at = t->private;
-
-    if(at->timers[type]){
-	snd_timer_stop(at->timer->timer);
-	at->timer = at->timers[type];
-	snd_timer_start(at->timer->timer);
-    }
-
-    return 0;
-}
-
-static alsa_hw_timer_t *
+static alsa_timer_t *
 new_timer(int class, int sclass, int card, int dev, int subdev)
 {
-    alsa_hw_timer_t *atm;
+    alsa_timer_t *atm;
     snd_timer_params_t *pm;
     snd_timer_info_t *inf;
     snd_timer_t *timer;
@@ -240,7 +143,7 @@ new_timer(int class, int sclass, int card, int dev, int subdev)
     snd_timer_params(timer, pm);
 
     atm = calloc(1, sizeof(*atm));
-    atm->timer = timer;
+    atm->hwtimer = timer;
     atm->npfd = snd_timer_poll_descriptors_count(timer);
     atm->pfd = calloc(atm->npfd, sizeof(*atm->pfd));
     snd_timer_poll_descriptors(timer, atm->pfd, atm->npfd);
@@ -249,19 +152,14 @@ new_timer(int class, int sclass, int card, int dev, int subdev)
     return atm;
 }
 
-extern tcvp_timer_t *
+extern timer_driver_t *
 open_timer(snd_pcm_t *pcm)
 {
     snd_pcm_info_t *ifo;
     alsa_timer_t *at;
-    tcvp_timer_t *tm;
+    timer_driver_t *tm;
     u_int card, dev, sdev;
 
-    at = calloc(1, sizeof(*at));
-
-    at->timers[SYSTEM] = new_timer(SND_TIMER_CLASS_GLOBAL,
-				   SND_TIMER_SCLASS_NONE,
-				   0, SND_TIMER_GLOBAL_SYSTEM, 0);
     if(pcm){
 	snd_pcm_info_alloca(&ifo);
 	snd_pcm_info(pcm, ifo);
@@ -270,30 +168,23 @@ open_timer(snd_pcm_t *pcm)
 	dev = snd_pcm_info_get_device(ifo);
 	sdev = snd_pcm_info_get_subdevice(ifo);
 
-	at->timers[PCM] = new_timer(SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
-				    card, dev, sdev);
-	at->timer = at->timers[PCM];
+	at = new_timer(SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
+		       card, dev, sdev);
+    } else {
+	at = new_timer(SND_TIMER_CLASS_GLOBAL,
+		       SND_TIMER_SCLASS_NONE,
+		       0, SND_TIMER_GLOBAL_SYSTEM, 0);
     }
 
-    if(!pcm || !at->timers[PCM]){
-	at->timer = at->timers[SYSTEM];
-    }
+    if(!at)
+	return NULL;
 
-    at->time = 0;
-    at->intr = 0;
-    at->wait = 0;
-    pthread_mutex_init(&at->mx, NULL);
-    pthread_cond_init(&at->cd, NULL);
     at->state = RUN;
 
-    tm = calloc(1, sizeof(*tm));
+    tm = tcallocdz(sizeof(*tm), NULL, atm_free);
     tm->start = atm_start;
     tm->stop = atm_stop;
-    tm->wait = tm_wait;
-    tm->read = tm_read;
-    tm->reset = tm_reset;
-    tm->interrupt = tm_intr;
-    tm->free = free_timer;
+    tm->set_timer = atm_settimer;
     tm->private = at;
 
     pthread_create(&at->th, NULL, run_timer, tm);
@@ -301,7 +192,7 @@ open_timer(snd_pcm_t *pcm)
     return tm;
 }
 
-extern tcvp_timer_t *
+extern timer_driver_t *
 alsa_timer_new(int res)
 {
     return open_timer(NULL);

@@ -5,10 +5,11 @@ tc2version	0.4.0
 sources		tcvp.c event.c module.c tcvp_mod.h
 postinit	tcvp_init
 
-implement	"tcvp"		"new"			t_new
+implement	"tcvp"		"new"	t_new
 import		"stream"	"open"
 import		"stream"	"play"
 import		"timer"		"new"
+import		"driver/timer"	"new"
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"

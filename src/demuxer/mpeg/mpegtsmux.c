@@ -39,7 +39,7 @@
 typedef struct mpegts_mux {
     int running;
     url_t *out;
-    tcvp_timer_t **timer;
+    tcvp_timer_t *timer;
     int bitrate, pad, fill;
     u_char *outbuf;
     int bpos, bsize;
@@ -171,7 +171,7 @@ tmx_output(void *p)
 
     if(tsm->start_time > 27000000)
 	tsm->start_time -= 27000000;
-    (*tsm->timer)->reset(*tsm->timer, tsm->start_time);
+    tsm->timer->reset(tsm->timer, tsm->start_time);
 
     gettimeofday(&tv, NULL);
     t1 = ts = tv.tv_sec * 1000000 + tv.tv_usec;
@@ -179,7 +179,7 @@ tmx_output(void *p)
     pthread_mutex_lock(&tsm->lock);
     while(tsm->running){
 	if(tsm->out->flags & URL_FLAG_STREAMED){
-	    (*tsm->timer)->wait(*tsm->timer, tsm->pcr, &tsm->lock);
+	    tsm->timer->wait(tsm->timer, tsm->pcr, &tsm->lock);
 	}
 
 	if((tsm->out->flags & URL_FLAG_STREAMED) && tsm->pad && !tsm->fill){
@@ -329,7 +329,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
     os->bytes += size;
 
-    time = (*tsm->timer)->read(*tsm->timer);
+    time = tsm->timer->read(tsm->timer);
 
     if(pk->flags & TCVP_PKT_FLAG_PTS){
 	uint64_t bdts = os->bdts?: tsm->start_time;
@@ -385,7 +385,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 	pthread_mutex_lock(&tsm->lock);
 	if(delay > 0 && (tsm->out->flags & URL_FLAG_STREAMED))
-	    (*tsm->timer)->wait(*tsm->timer, dts, &tsm->lock);
+	    tsm->timer->wait(tsm->timer, dts, &tsm->lock);
 	while(tsm->bpos == tsm->bsize || next_stream(tsm) != pk->stream)
 	    pthread_cond_wait(&tsm->cnd, &tsm->lock);
 
@@ -607,7 +607,7 @@ tmx_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
+mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     mpegts_mux_t *tsm;
     tcvp_pipe_t *p;

@@ -133,7 +133,7 @@ crop_free(void *p)
 }
 
 extern tcvp_pipe_t *
-crop_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
+crop_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     tcvp_pipe_t *p;
     crop_t *c;

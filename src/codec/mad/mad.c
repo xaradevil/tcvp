@@ -371,7 +371,7 @@ mad_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
+mad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     mad_dec_t *md;
     tcvp_pipe_t *p;

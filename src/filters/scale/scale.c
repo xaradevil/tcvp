@@ -121,7 +121,7 @@ scale_free(void *p)
 }
 
 extern tcvp_pipe_t *
-scale_new(stream_t *st, tcconf_section_t *cs, tcvp_timer_t **t)
+scale_new(stream_t *st, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     tcvp_pipe_t *p;
     scale_t *s;

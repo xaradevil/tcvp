@@ -254,7 +254,7 @@ mpegps_free(void *p)
 }
 
 extern muxed_stream_t *
-mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
+mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegps_stream_t *s;

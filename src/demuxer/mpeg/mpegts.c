@@ -74,7 +74,7 @@ typedef struct mpegts_stream {
     } *streams;
     int rate;
     uint64_t start_time;
-    tcvp_timer_t **timer;
+    tcvp_timer_t *timer;
     int synctime;
 } mpegts_stream_t;
 
@@ -341,9 +341,9 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    }
 
 	    if(s->synctime && (s->stream->flags & URL_FLAG_STREAMED) &&
-	       s->timer && *s->timer){
+	       s->timer){
 		int64_t pcr = mp.adaptation_field.pcr - 27000000 * 1;
-		int64_t time = (*s->timer)->read(*s->timer);
+		int64_t time = s->timer->read(s->timer);
 		int64_t dt;
 
 		if(pcr < 0)
@@ -351,7 +351,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		dt = pcr - time;
 		if(llabs(dt) > 270000){
 		    time += dt / 2;
-		    (*s->timer)->reset(*s->timer, time);
+		    s->timer->reset(s->timer, time);
 		}
 	    }
 	}
@@ -424,7 +424,7 @@ mpegts_free(void *p)
 }
 
 extern muxed_stream_t *
-mpegts_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
+mpegts_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegts_stream_t *s;

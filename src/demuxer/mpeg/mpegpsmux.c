@@ -352,7 +352,7 @@ pmx_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
+mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     mpegps_mux_t *psm;
     tcvp_pipe_t *p;

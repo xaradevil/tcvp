@@ -1,0 +1,6 @@
+module		swtimer
+name		"TCVP/timer/soft"
+version		0.1.0
+tc2version	0.4.0
+sources		swtimer.c
+implement	"driver/timer" "new" st_new

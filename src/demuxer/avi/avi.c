@@ -660,7 +660,7 @@ static packet_t *
 avi_packet(muxed_stream_t *ms, int stream)
 {
     u_char tag[5] = {[4] = 0}, stag[5];
-    int32_t size;
+    uint32_t size;
     avi_file_t *af = ms->private;
     int str;
     avi_packet_t *pk;
@@ -735,9 +735,15 @@ avi_packet(muxed_stream_t *ms, int stream)
 	fprintf(stderr, "AVI: Resuming @%08llx\n", pos);
 
     size = getu32(af->file);
-    if(size < 0){
-	fprintf(stderr, "AVI: Negative size @%08llx\n", pos);
-	scan++;
+
+    if(!(size & ~0x10)){
+	fprintf(stderr, "AVI: chunk size %i @%08llx\n", size, pos);
+	af->file->seek(af->file, 8, SEEK_CUR);
+	if(!get4c(tag, af->file))
+	    return NULL;
+	if(valid_tag(tag, 0))
+	    tried_bkup++;
+	af->file->seek(af->file, -12, SEEK_CUR);
 	goto again;
     }
 
@@ -957,7 +963,7 @@ avi_free(void *p)
 }
 
 extern muxed_stream_t *
-avi_open(char *file, tcconf_section_t *cs, tcvp_timer_t **tm)
+avi_open(char *file, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     url_t *f;
     muxed_stream_t *ms;

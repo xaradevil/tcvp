@@ -1,16 +1,22 @@
-symbol	"new"	tcvp_timer_t *(*%s)(int resolution)
-include
+symbol	"new"	tcvp_timer_t *(*%s)(tcconf_section_t *)
+require "driver/timer"
+preinclude<<END
 #include <stdint.h>
 #include <pthread.h>
+#include <tcconf.h>
 
-typedef struct timer tcvp_timer_t;
-struct timer {
+typedef struct tcvp_timer tcvp_timer_t;
+END
+postinclude
+struct tcvp_timer {
     int (*start)(tcvp_timer_t *);
     int (*stop)(tcvp_timer_t *);
     int (*wait)(tcvp_timer_t *, uint64_t, pthread_mutex_t *);
     uint64_t (*read)(tcvp_timer_t *);
     int (*reset)(tcvp_timer_t *, uint64_t);
     int (*interrupt)(tcvp_timer_t *);
-    void (*free)(tcvp_timer_t *);
+    int (*set_driver)(tcvp_timer_t *, timer_driver_t *);
+    void (*tick)(tcvp_timer_t *, uint64_t ticks); /* called from driver only */
+    int have_driver;
     void *private;
 };

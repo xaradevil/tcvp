@@ -2,9 +2,9 @@ module		alsa
 name		"TCVP/output/alsa"
 version		0.1.0
 tc2version	0.4.0
-sources		alsa.c timer.c
+sources		alsa.c timer.c alsamod.h
 implement	"output/audio"	"new"	alsa_open
-implement	"timer"		"new"	alsa_timer_new
+implement	"driver/timer"	"new"	alsa_timer_new
 option		device%s="default"
 option		pts_threshold%i=10000
 option		pts_qsize%i=16

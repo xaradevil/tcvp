@@ -31,9 +31,7 @@
 #define STOP  2
 #define PAUSE 3
 
-extern tcvp_timer_t *open_timer(snd_pcm_t *pcm);
-extern int tm_stop(tcvp_timer_t *t);
-extern int tm_settimer(tcvp_timer_t *t, int type);
+extern timer_driver_t *open_timer(snd_pcm_t *pcm);
 
 #define PCM    0
 #define SYSTEM 1

@@ -156,7 +156,7 @@ t_close(player_t *pl)
 
     pthread_mutex_lock(&tp->tmx);
     if(tp->timer){
-	tp->timer->free(tp->timer);
+	tcfree(tp->timer);
 	tp->timer = NULL;
     }
 
@@ -325,7 +325,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p)
 	    mcf = tcconf_merge(NULL, f);
 	    tcconf_merge(mcf, tp->conf);
 
-	    if(!(pn = fn(pp? &pp->format: s, mcf, &tp->timer)))
+	    if(!(pn = fn(pp? &pp->format: s, mcf, tp->timer)))
 		break;
 
 	    if(id)
@@ -398,10 +398,15 @@ t_open(player_t *pl, char *name)
 	dc = nc;
     }
     dc = tcconf_merge(dc, tp->conf);
-    if(!(stream = stream_open(name, dc?: tp->conf, &tp->timer))){
+
+    tp->timer = timer_new(tp->conf);
+    stream = stream_open(name, dc, tp->timer);
+
+    tcfree(dc);
+
+    if(!stream){
 	return -1;
     }
-    tcfree(dc);
 
     if(tp->conf){
 	if(tcconf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
@@ -465,8 +470,8 @@ t_open(player_t *pl, char *name)
 
     tp->open = 1;
 
-    if(!tp->timer){
-	tp->timer = timer_new(270000);
+    if(!tp->timer->have_driver){
+	tp->timer->set_driver(tp->timer, driver_timer_new(270000));
     }
 
     demux = stream_play(stream, codecs, tp->conf);

@@ -30,7 +30,7 @@
 static int TCVP_STATE;
 
 extern muxed_stream_t *
-s_open(char *name, tcconf_section_t *cs, tcvp_timer_t **t)
+s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     char *m = NULL;
     char *ext;

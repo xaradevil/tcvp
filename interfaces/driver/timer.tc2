@@ -1,0 +1,12 @@
+symbol	"new"	timer_driver_t *(*%s)(int resolution)
+require "timer"
+preinclude<<END
+typedef struct timer_driver timer_driver_t;
+END
+postinclude
+struct timer_driver {
+    int (*start)(timer_driver_t *);
+    int (*stop)(timer_driver_t *);
+    int (*set_timer)(timer_driver_t *, tcvp_timer_t *);
+    void *private;
+};
