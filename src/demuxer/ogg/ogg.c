@@ -22,8 +22,6 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <tcstring.h>
 #include <tctypes.h>
@@ -232,30 +230,57 @@ ogg_free(void *p)
     free(os);
 }
 
-/* Hack to fetch the title information without libvorbis. */
 static int
 ogg_title(muxed_stream_t *ms, char *buf, int size)
 {
-    char *p;
-    int s, n, i, j;
+    char *p = buf;
+    int s, n, j;
 
-    if(!(p = memmem(buf + 0x3b, size - 0x3b, "vorbis", 6)))
+    size--;			/* we don't want the framing bit */
+
+    if(size < 15)
+	return -1;
+
+    if(*p++ != 3)
+	return -1;
+
+    size--;
+
+    if(strncmp(p, "vorbis", 6))
 	return -1;
 
     p += 6;
-    s = htol_32(unaligned32(p));
+    size -= 6;
 
-    p += s + 4;
+    s = htol_32(unaligned32(p));
+    p += 4;
+    size -= 4;
+
+    if(size < s + 4)
+	return -1;
+
+    p += s;
+    size -= s;
+
     n = htol_32(unaligned32(p));
     p += 4;
+    size -= 4;
 
-    for(i = 0; i < n; i++){
+    while(size >= 4){
 	char *t, *v;
 	int tl, vl;
 
 	s = htol_32(unaligned32(p));
-	t = p + 4;
-	p += s + 4;
+	p += 4;
+	size -= 4;
+
+	if(size < s)
+	    break;
+
+	t = p;
+	p += s;
+	size -= s;
+	n--;
 
 	v = memchr(t, '=', s);
 	if(!v)
@@ -266,18 +291,26 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
 	v++;
 
 	if(tl && vl){
-	    char tt[tl];
+	    char tt[tl + 1];
 	    char *ct;
 
 	    for(j = 0; j < tl; j++)
 		tt[j] = tolower(t[j]);
+	    tt[tl] = 0;
 
 	    ct = malloc(vl + 1);
-	    strncpy(ct, v, vl);
+	    memcpy(ct, v, vl);
 	    ct[vl] = 0;
 	    tcattr_set(ms, tt, ct, NULL, free);
 	}
     }
+
+    if(size > 0)
+	tc2_print("OGG", TC2_PRINT_WARNING,
+		  "%i bytes of comment header remain\n", size);
+    if(n > 0)
+	tc2_print("OGG", TC2_PRINT_WARNING,
+		  "truncated comment header, %i comments not found\n", n);
 
     return 0;
 }
@@ -301,6 +334,9 @@ ogg_get_headers(muxed_stream_t *ms)
 
 	memcpy(p, op.packet, op.bytes);
 	size += op.bytes + 2;
+
+	if(i == 1)
+	    ogg_title(ms, op.packet, op.bytes);
     }
 
     st->common.codec_data = buf;
@@ -321,9 +357,6 @@ extern muxed_stream_t *
 ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     ogg_stream_t *ost;
-    ogg_page og;
-    char *buf;
-    int l;
     muxed_stream_t *ms;
 
     ost = calloc(1, sizeof(*ost));
@@ -350,17 +383,6 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     f->seek(ost->f, 0, SEEK_SET);
     ogg_sync_reset(&ost->oy);
-
-    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
-    
-    l = f->read(buf, 1, BUFFER_SIZE, ost->f);
-    ogg_title(ms, buf, BUFFER_SIZE);
-
-    ogg_sync_wrote(&ost->oy, l);
-    ogg_sync_pageout(&ost->oy, &og);
-    ogg_stream_init(&ost->os, ogg_page_serialno(&og));
-    ogg_stream_pagein(&ost->os, &og);
-
     ogg_get_headers(ms);
 
     return ms;
