@@ -20,6 +20,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#define min(a, b) ((a)<(b)?(a):(b))
+#define max(a, b) ((a)>(b)?(a):(b))
+
 extern void *
 scroll_labels(void *p)
 {
@@ -34,18 +37,19 @@ scroll_labels(void *p)
 	    if(w->label.window->mapped == 1 && w->label.window->enabled == 1) {
 		if((w->label.scrolling & TCLABELMANUAL) == 0) {
 		    if(w->label.scrolling & TCLABELSCROLLING) {
-			w->label.s_pos++;
-			w->label.s_pos %= w->label.s_max;
+			w->label.s_pos--;
+			if(w->label.s_pos < -w->label.s_max)
+			    w->label.s_pos = 0;
 			if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
 			draw_widget(w);
 			c = 1;
 		    } else if(w->label.scrolling & TCLABELPINGPONG) {
 			w->label.s_pos += w->label.s_dir;
-			if(w->label.s_pos > w->label.s_max-1){
-			    w->label.s_dir = -1;
-			    w->label.s_pos = w->label.s_max-1;
-			} else if(w->label.s_pos <= 0){
+			if(w->label.s_pos < -w->label.s_max + 1){
 			    w->label.s_dir = 1;
+			    w->label.s_pos = -w->label.s_max + 1;
+			} else if(w->label.s_pos > 0){
+			    w->label.s_dir = -1;
 			    w->label.s_pos = 0;
 			}
 			if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
@@ -70,15 +74,17 @@ alpha_render_text(unsigned char *src, unsigned char *dest, int width,
 		  int height, int s_width, int s_height, int xoff,
 		  int yoff, int depth, uint32_t color)
 {
-    int x,y;
+    int x, y, w;
     unsigned char red, green, blue;
 
     blue =   (color & 0xff);
     green = (color & 0xff00)>>8;
     red =  (color & 0xff0000)>>16;
 
+    w = min(s_width, width - xoff);
+
     for(y=0;y<s_height;y++){
-	for(x=0;x<s_width;x++){
+	for(x=0;x<w;x++){
 	    int spos = (x+y*s_width)*4;
 	    int dpos = (x+xoff+(y+yoff)*width)*4;
 	    int b = src[spos];
@@ -99,6 +105,8 @@ change_label(xtk_widget_t *xtxt, char *text)
     tclabel_t *txt = (tclabel_t *) xtxt;
     if(txt->window->enabled == 1) {
 	GC bgc = txt->window->bgc;
+	int xoff = 0;
+
 	free(txt->text);
 	txt->text = strdup((text)?text:"");
 	XGlyphInfo xgi;
@@ -117,10 +125,12 @@ change_label(xtk_widget_t *xtxt, char *text)
 
 	if(txt->scrolling & TCLABELPINGPONG){
 	    txt->s_width = xgi.width + txt->s_space + 2;
-	} else if(txt->scrolling & TCLABELSCROLLING){
-	    txt->s_width = xgi.width + 2;
+	    xoff = txt->s_space / 2;
 	} else {
-	    txt->s_width = (xgi.width+2 > txt->width)?txt->width:xgi.width + 2;
+	    txt->s_width = xgi.width + 2;
+	    if(txt->scrolling & TCLABELSCROLLING){
+		txt->s_width += txt->width + txt->s_space;
+	    }
 	}
 
 	if(txt->s_text) XFreePixmap(xd, txt->s_text);
@@ -134,32 +144,33 @@ change_label(xtk_widget_t *xtxt, char *text)
 	XFillRectangle(xd, txt->s_text, bgc, 0, 0,
 		       txt->s_width, txt->height);
 
+	XftDrawString8(txt->xftdraw, &txt->xftcolor,
+		       txt->xftfont, txt->xoff + xoff,
+		       txt->yoff, txt->text,
+		       strlen(txt->text));
+
+	XSync(xd, False);
+
 	if(txt->scrolling & TCLABELSCROLLING) {
-	    txt->s_max = txt->s_width + txt->s_space;
+	    txt->s_max = xgi.width + 2 + txt->s_space;
 	    txt->s_pos = 0;
-	    XftDrawString8(txt->xftdraw, &txt->xftcolor,
-			   txt->xftfont, txt->xoff,
-			   txt->yoff, txt->text,
-			   strlen(txt->text));
+	    if(txt->s_width > txt->width){
+		XCopyArea(xd, txt->s_text, txt->s_text, bgc,
+			  0, 0, txt->width, txt->height,
+			  xgi.width + 2 + txt->s_space, 0);
+	    }
 	} else if(txt->scrolling & TCLABELPINGPONG){
 	    txt->s_max = txt->s_width - txt->width;
-	    txt->s_pos = txt->s_space/2;
-	    txt->s_dir = 1;
-	    XftDrawString8(txt->xftdraw, &txt->xftcolor,
-			   txt->xftfont, txt->xoff + txt->s_space/2,
-			   txt->yoff, txt->text,
-			   strlen(txt->text));
+	    txt->s_pos = - txt->s_space / 2;
+	    txt->s_dir = -1;
 	} else {
 	    if(txt->align == TCLABELLEFT) {
 		txt->s_pos = 0;
 	    } else if(txt->align == TCLABELRIGHT) {
-		txt->s_pos = txt->width - xgi.width;
+		txt->s_pos = txt->width - txt->s_width;
 	    } else {
-		txt->s_pos = (txt->width - txt->s_width)/2;
+		txt->s_pos = (txt->width - txt->s_width) / 2;
 	    }
-	    XftDrawString8(txt->xftdraw, &txt->xftcolor,
-			   txt->xftfont, txt->xoff, txt->yoff,
-			   txt->text, strlen(txt->text));
 	}
 
 	if(txt->window->mapped==1){
@@ -187,112 +198,41 @@ repaint_label(xtk_widget_t *xw)
 		      txt->label.s_width, txt->label.height, 0, 0);
 	    XSync(xd, False);
 #else
-	    if(txt->label.scrolling & TCLABELSTANDARD){	    
-		XImage *img, *text;
+	    XImage *img, *text;
+	    int rsx, rdx;
 
-		img = XGetImage(xd, txt->label.window->background->pixmap,
-				txt->label.x, txt->label.y,
-				txt->label.width, txt->label.height,
-				AllPlanes, ZPixmap);
-		text = XGetImage(xd, txt->label.s_text, 0, 0,
-				 txt->label.s_width, txt->label.height,
-				 AllPlanes, ZPixmap);
-		XSync(xd, False);
+	    img = XGetImage(xd, txt->label.window->background->pixmap,
+			    txt->label.x, txt->label.y,
+			    txt->label.width, txt->label.height,
+			    AllPlanes, ZPixmap);
+	    text = XGetImage(xd, txt->label.s_text, 0, 0,
+			     txt->label.s_width, txt->label.height,
+			     AllPlanes, ZPixmap);
+	    XSync(xd, False);
 
-		if(txt->label.background) {
-		    alpha_render(*txt->label.background->data, img->data,
-				 img->width, img->height, depth);
-		}
-		alpha_render_text(text->data, img->data, txt->label.width,
-				  txt->label.height, txt->label.s_width,
-				  txt->label.height, txt->label.s_pos, 0,
-				  depth, txt->label.color);
-
-		XPutImage(xd, txt->label.pixmap, bgc, img, 0, 0, 0, 0,
-			  txt->label.width, txt->label.height);
-		XSync(xd, False);
-		XDestroyImage(img);
-		XDestroyImage(text);
-	    } else if(txt->label.scrolling & TCLABELSCROLLING) {
-		XImage *img, *text;
-		Pixmap pmap;
-
-		img = XGetImage(xd, txt->label.window->background->pixmap,
-				txt->label.x, txt->label.y,
-				txt->label.width, txt->label.height,
-				AllPlanes, ZPixmap);
-
-		pmap = XCreatePixmap(xd, txt->label.window->xw, txt->label.width,
-				     txt->label.height, depth);
-		XFillRectangle(xd, pmap, bgc, 0, 0,
-			       txt->label.width, txt->label.height);
-		
-		if(txt->label.s_pos < txt->label.s_width - txt->label.width) {
-		    XCopyArea(xd, txt->label.s_text, pmap, bgc,
-			      txt->label.s_pos, 0, txt->label.width,
-			      txt->label.height, 0, 0);
-		} else {
-		    if(txt->label.s_pos < txt->label.s_width) {
-			XCopyArea(xd, txt->label.s_text, pmap, bgc,
-				  txt->label.s_pos, 0,
-				  txt->label.s_width - txt->label.s_pos,
-				  txt->label.height, 0, 0);
-		    }
-		    if(txt->label.s_pos >= txt->label.s_width + txt->label.s_space - txt->label.width) {
-			XCopyArea(xd, txt->label.s_text, pmap, bgc, 0, 0,
-				  txt->label.width - (txt->label.s_width - txt->label.s_pos),
-				  txt->label.height,
-				  (txt->label.s_width - txt->label.s_pos + txt->label.s_space), 0);
-		    }
-		}
-
-		text = XGetImage(xd, pmap, 0, 0,
-				 txt->label.width, txt->label.height,
-				 AllPlanes, ZPixmap);
-		XSync(xd, False);
-
-		if(txt->label.background) {
-		    alpha_render(*txt->label.background->data, img->data,
-				 img->width, img->height, depth);
-		}
-		alpha_render_text(text->data, img->data, txt->label.width,
-				  txt->label.height, txt->label.width,
-				  txt->label.height, 0, 0, depth,
-				  txt->label.color);
-
-		XPutImage(xd, txt->label.pixmap, bgc, img, 0, 0, 0, 0,
-			  txt->label.width, txt->label.height);
-		XSync(xd, False);
-		XDestroyImage(img);
-		XDestroyImage(text);
-		XFreePixmap(xd, pmap);
-	    } else if(txt->label.scrolling & TCLABELPINGPONG) {
-		XImage *img, *text;
-
-		img = XGetImage(xd, txt->label.window->background->pixmap,
-				txt->label.x, txt->label.y,
-				txt->label.width, txt->label.height,
-				AllPlanes, ZPixmap);
-		text = XGetImage(xd, txt->label.s_text, txt->label.s_pos, 0,
-				 txt->label.width, txt->label.height,
-				 AllPlanes, ZPixmap);
-		XSync(xd, False);
-
-		if(txt->label.background) {
-		    alpha_render(*txt->label.background->data, img->data,
-				 img->width, img->height, depth);
-		}
-		alpha_render_text(text->data, img->data, txt->label.width,
-				  txt->label.height, txt->label.width,
-				  txt->label.height, 0, 0, depth,
-				  txt->label.color);
-
-		XPutImage(xd, txt->label.pixmap, bgc, img, 0, 0, 0, 0,
-			  txt->label.width, txt->label.height);
-		XSync(xd, False);
-		XDestroyImage(img);
-		XDestroyImage(text);
+	    if(txt->label.background) {
+		alpha_render(*txt->label.background->data, img->data,
+			     img->width, img->height, depth);
 	    }
+
+	    if(txt->label.s_pos < 0){
+		rsx = -txt->label.s_pos;
+		rdx = 0;
+	    } else {
+		rsx = 0;
+		rdx = txt->label.s_pos;
+	    }
+
+	    alpha_render_text(text->data + rsx * 4, img->data,
+			      txt->label.width, txt->label.height,
+			      txt->label.s_width, txt->label.height,
+			      rdx, 0, depth, txt->label.color);
+
+	    XPutImage(xd, txt->label.pixmap, bgc, img, 0, 0, 0, 0,
+		      txt->label.width, txt->label.height);
+	    XSync(xd, False);
+	    XDestroyImage(img);
+	    XDestroyImage(text);
 #endif
 	}
     }
@@ -305,13 +245,13 @@ label_ondrag(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
     if(w->label.scrolling & TCLABELMANUAL) {
-	w->label.s_pos =  w->label.sdrag - (((XEvent *)xe)->xmotion.x -
-					    w->label.xdrag);
+	w->label.s_pos = w->label.sdrag + (((XEvent *)xe)->xmotion.x -
+					   w->label.xdrag);
 
-	if(w->label.s_pos>=w->label.s_max) {
-	    w->label.s_pos = w->label.s_max-1;
+	if(w->label.s_pos < -w->label.s_max) {
+	    w->label.s_pos = -w->label.s_max;
 	}
-	if(w->label.s_pos<0) {
+	if(w->label.s_pos > 0) {
 	    w->label.s_pos = 0;
 	}
 
