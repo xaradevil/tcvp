@@ -289,15 +289,6 @@ tcl_stop(void)
     if(validate)
 	pthread_join(check_thr, NULL);
 
-    if(addons){
-	int i;
-	for(i = 0; i < nadd; i++)
-	    if(addons[i])
-		tcfree(addons[i]);
-	free(addons);
-	free(aonames);
-    }
-
     if(pl)
 	pl->free(pl);
 
@@ -318,6 +309,15 @@ tcl_stop(void)
 
     if(qs)
 	eventq_delete(qs);
+
+    if(addons){
+	int i;
+	for(i = 0; i < nadd; i++)
+	    if(addons[i])
+		tcfree(addons[i]);
+	free(addons);
+	free(aonames);
+    }
 
     return 0;
 }
