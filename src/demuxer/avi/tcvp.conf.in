@@ -38,6 +38,8 @@ vtag "IV32" "video/indeo3"
 vtag "VP31" "video/vp3"
 vtag "cvid" "video/cinepak"
 vtag "SVQ3" "video/svq3"
+vtag "jpeg" "video/mjpeg"
+vtag 'VSSH' 'video/h264'
 
 atag 0x50 "audio/mp2"
 atag 0x55 "audio/mp3"
