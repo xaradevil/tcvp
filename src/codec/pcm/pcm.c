@@ -31,6 +31,8 @@ extern tcvp_pipe_t *
 pcm_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 {
     tcvp_pipe_t *np = tcallocz(sizeof(*np));
+
+    np->format = *s;
     np->input = pcm_input;
     np->flush = pcm_flush;
     np->probe = pcm_probe;
