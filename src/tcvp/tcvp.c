@@ -14,7 +14,7 @@
 #include <tcvp_core_tc2.h>
 
 typedef struct tcvp_player {
-    tcvp_pipe_t *demux, *audio, *video, *aend, *vend;
+    tcvp_pipe_t *demux, **pipes, **ends;
     muxed_stream_t *stream;
     tcvp_timer_t *timer;
     pthread_t th_ticker, th_event;
@@ -52,15 +52,15 @@ static int
 t_start(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
+    int i;
 
     if(tp->demux)
 	tp->demux->start(tp->demux);
 
-    if(tp->vend && tp->vend->start)
-	tp->vend->start(tp->vend);
-
-    if(tp->aend && tp->aend->start)
-	tp->aend->start(tp->aend);
+    if(tp->ends)
+	for(i = 0; i < tp->stream->n_streams; i++)
+	    if(tp->ends[i] && tp->ends[i]->start)
+		tp->ends[i]->start(tp->ends[i]);
 
     if(tp->timer)
 	tp->timer->start(tp->timer);
@@ -75,15 +75,15 @@ static int
 t_stop(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
+    int i;
 
     if(tp->demux)
 	tp->demux->stop(tp->demux);
 
-    if(tp->aend && tp->aend->stop)
-	tp->aend->stop(tp->aend);
-
-    if(tp->vend && tp->vend->stop)
-	tp->vend->stop(tp->vend);
+    if(tp->ends)
+	for(i = 0; i < tp->stream->n_streams; i++)
+	    if(tp->ends[i] && tp->ends[i]->stop)
+		tp->ends[i]->stop(tp->ends[i]);
 
     if(tp->timer)
 	tp->timer->stop(tp->timer);
@@ -108,6 +108,7 @@ static int
 t_close(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
+    int i;
 
     pthread_mutex_lock(&tp->tmx);
 
@@ -116,16 +117,16 @@ t_close(player_t *pl)
 	tp->demux = NULL;
     }
 
-    if(tp->audio){
-	close_pipe(tp->audio);
-	tp->audio = NULL;
-	tp->aend = NULL;
+    if(tp->pipes){
+	for(i = 0; i < tp->stream->n_streams; i++)
+	    close_pipe(tp->pipes[i]);
+	free(tp->pipes);
+	tp->pipes = NULL;
     }
 
-    if(tp->video){
-	close_pipe(tp->video);
-	tp->video = NULL;
-	tp->vend = NULL;
+    if(tp->ends){
+	free(tp->ends);
+	tp->ends = NULL;
     }
 
     if(tp->stream){
@@ -384,13 +385,10 @@ static int
 t_open(player_t *pl, char *name)
 {
     int i;
-    stream_t *as = NULL, *vs = NULL;
-    tcvp_pipe_t **codecs;
     tcvp_pipe_t *demux = NULL;
-    tcvp_pipe_t *video = NULL, *audio = NULL;
     muxed_stream_t *stream = NULL;
     tcvp_player_t *tp = pl->private;
-    int ac = -1, vc = -1;
+    int ns = 0, *us, vs = -1, as = -1;
     int start;
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
     tcconf_section_t *prsec, *dc;
@@ -433,65 +431,65 @@ t_open(player_t *pl, char *name)
 	free(outfile);
     }
 
+    us = alloca(ns * sizeof(*us));
+    memset(us, 0, ns * sizeof(*us));
+
     if(tp->conf){
-	if(tcconf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
-	    if(vc >= 0 && vc < stream->n_streams &&
-	       stream->streams[vc].stream_type == STREAM_TYPE_VIDEO){
-		vs = &stream->streams[vc];
+	void *cs = NULL;
+	int s;
+	i = 0;
+	while(tcconf_nextvalue(tp->conf, "video/stream", &cs, "%i", &s) > 0){
+	    if(s >= 0 && s < stream->n_streams &&
+	       stream->streams[s].stream_type == STREAM_TYPE_VIDEO){
+		us[s] = 1;
+		vs = s;
 	    } else {
-		vc = -2;
+		vs = -2;
 	    }
 	}
-	if(tcconf_getvalue(tp->conf, "audio/stream", "%i", &ac) > 0){
-	    if(ac >= 0 && ac < stream->n_streams &&
-	       stream->streams[ac].stream_type == STREAM_TYPE_AUDIO){
-		as = &stream->streams[ac];
+	while(tcconf_nextvalue(tp->conf, "audio/stream", &cs, "%i", &s) > 0){
+	    if(s >= 0 && s < stream->n_streams &&
+	       stream->streams[s].stream_type == STREAM_TYPE_AUDIO){
+		us[s] = 1;
+		as = s;
 	    } else {
-		ac = -2;
+		as = -2;
 	    }
 	}
     }
 
-    codecs = calloc(stream->n_streams, sizeof(*codecs));
+    tp->pipes = calloc(stream->n_streams, sizeof(*tp->pipes));
 
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
 	tcconf_section_t *pc;
 
-	if(stream->streams[i].stream_type == STREAM_TYPE_VIDEO &&
-	   (!vs || i == vc) && vc > -2){
+	if(st->stream_type == STREAM_TYPE_VIDEO &&
+	   (us[i] || (vs > -2 && vs < 0))){
 	    if((pc = tcconf_getsection(prsec, "video"))){
-		if((video = new_pipe(tp, st, pc, stream))){
-		    vs = st;
-		    codecs[i] = video;
+		if((tp->pipes[i] = new_pipe(tp, st, pc, stream))){
 		    stream->used_streams[i] = 1;
-		    vc = i;
+		    ns++;
+		    vs = i;
 		}
 		tcfree(pc);
-	    } else if(vs){
-		printf("Warning: Stream %i not supported => no video\n", i);
-		vs = NULL;
 	    }
-	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO &&
-		  (!as || i == ac) && ac > -2){
+	} else if(st->stream_type == STREAM_TYPE_AUDIO &&
+		  (us[i] || (as > -2 && as < 0))){
 	    if((pc = tcconf_getsection(prsec, "audio"))){
-		if((audio = new_pipe(tp, st, pc, stream))){
-		    as = &stream->streams[i];
-		    codecs[i] = audio;
+		if((tp->pipes[i] = new_pipe(tp, st, pc, stream))){
 		    stream->used_streams[i] = 1;
-		    ac = i;
+		    ns++;
+		    as = i;
 		}
 		tcfree(pc);
-	    } else if(as){
-		printf("Warning: Stream %i not supported => no audio\n", i);
-		as = NULL;
 	    }
 	}
     }
 
     hash_destroy(tp->filters, tcfree);
 
-    if(!as && !vs)
+    if(!ns)
 	goto err;
 
     tp->open = 1;
@@ -506,7 +504,7 @@ t_open(player_t *pl, char *name)
     tcfree(prsec);
     prsec = NULL;
 
-    demux = stream_play(stream, codecs, tp->conf);
+    demux = stream_play(stream, tp->pipes, tp->conf);
 
     for(i = 0; i < stream->n_streams; i++){
 	if(stream->streams[i].common.start_time < start_time)
@@ -516,7 +514,7 @@ t_open(player_t *pl, char *name)
     if(!stream->time){
 	for(i = 0; i < stream->n_streams; i++){
 	    if(stream->used_streams[i]){
-		tcvp_pipe_t *p = codecs[i];
+		tcvp_pipe_t *p = tp->pipes[i];
 		uint64_t len = 0;
 		while(p){
 		    stream_t *st = &p->format;
@@ -545,25 +543,24 @@ t_open(player_t *pl, char *name)
 	}
     }
 
-    print_info(stream, codecs);
+    print_info(stream, tp->pipes);
 
     tp->state = TCVP_STATE_STOPPED;
-    if(vc >= 0 && stream->used_streams[vc]){
-	tp->video = video;
-	tp->vend = pipe_end(video);
-    } else {
-	close_pipe(video);
-	video = NULL;
+    tp->ends = calloc(stream->n_streams, sizeof(*tp->ends));
+    for(i = 0; i < stream->n_streams; i++){
+	if(tp->pipes[i]){
+	    if(stream->used_streams[i]){
+		tp->ends[i] = pipe_end(tp->pipes[i]);
+	    } else {
+		close_pipe(tp->pipes[i]);
+		ns--;
+	    }
+	}
     }
-    if(ac >= 0 && stream->used_streams[ac]){
-	tp->audio = audio;
-	tp->aend = pipe_end(audio);
-    } else {
-	close_pipe(audio);
-	audio = NULL;
-    }
-    if(!audio && !video)
+
+    if(ns <= 0)
 	goto err;
+
     tp->demux = demux;
     tp->stream = stream;
 
@@ -577,12 +574,9 @@ t_open(player_t *pl, char *name)
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
     demux->start(demux);
-    if(tp->vend && tp->vend->buffer)
-	tp->vend->buffer(tp->vend, 0.9);
-    if(tp->aend && tp->aend->buffer)
-	tp->aend->buffer(tp->aend, 0.9);
-
-    free(codecs);
+    for(i = 0; i < stream->n_streams; i++)
+	if(tp->ends[i] && tp->ends[i]->buffer)
+	    tp->ends[i]->buffer(tp->ends[i], 0.9);
 
     tcvp_event_send(tp->qs, TCVP_LOAD, stream);
 
@@ -595,7 +589,12 @@ err:
     tcfree(stream);
     if(prsec)
 	tcfree(prsec);
-    free(codecs);
+    free(tp->pipes);
+    tp->pipes = NULL;
+    if(tp->ends){
+	free(tp->ends);
+	tp->ends = NULL;
+    }
     return -1;
 }
 
