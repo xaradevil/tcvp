@@ -23,7 +23,7 @@
 #include <tcalloc.h>
 #include <tcvp_types.h>
 #include <tcvp_event.h>
-#include <tcvp_tc2.h>
+#include <tcvp_core_tc2.h>
 
 typedef struct tcvp_player {
     tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;

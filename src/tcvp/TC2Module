@@ -1,4 +1,4 @@
-module		tcvp
+module		tcvp_core
 name		"TCVP"
 version		0.1.0
 tc2version	0.4.0
