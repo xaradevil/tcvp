@@ -1,0 +1,8 @@
+program		tcvp
+name		"TCVP/cmdline"
+version		0.1.0
+tc2version	0.4.0
+sources		tcvp.c
+postinit	tcvp_init
+shutdown	tcvp_stop
+import		"tcvp"	"open"

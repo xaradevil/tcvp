@@ -29,6 +29,7 @@ AC_CONFIG_FILES([Makefile
 		 src/tcvp/Makefile
 		 src/timer/Makefile
 		 src/ui/Makefile
+		 src/ui/cmdline/Makefile
 		 src/ui/tcvpgtk/Makefile
 		 src/ui/tcvpshell/Makefile
 		 src/wm/Makefile

@@ -88,7 +88,7 @@ avi_header(FILE *f)
     avi_file_t *af;
     uint32_t tag, size, next = 0, stype = 0, sidx = -1;
     uint32_t width = 0, height = 0;
-    uint32_t ftime;
+    uint32_t ftime, start = 0;
     char st[5] = {[4] = 0};
     int i;
     long movi_start;
@@ -186,7 +186,7 @@ avi_header(FILE *f)
 		    ms->streams[sidx].video.frame_rate.den = ftime;
 		}
 
-		getval(f, "start", 32);
+		start = getu32(f);
 
 		ms->streams[sidx].video.frames = getu32(f);
 
@@ -206,8 +206,12 @@ avi_header(FILE *f)
 		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
 		getval(f, "scale", 32);
 		getval(f, "rate", 32);
-		getval(f, "start", 32);
+		start = getu32(f);
 		getval(f, "length", 32);
+	    }
+
+	    if(start){
+		fprintf(stderr, "AVI: start = %i\n", start);
 	    }
 
 	    fseek(f, fp + size, SEEK_SET);
