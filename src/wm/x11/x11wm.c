@@ -50,12 +50,6 @@ typedef struct x11_wm {
     eventq_t qs;
 } x11_wm_t;
 
-static int TCVP_PAUSE;
-static int TCVP_SEEK;
-static int TCVP_CLOSE;
-static int TCVP_BUTTON;
-static int TCVP_KEY;
-
 static void *
 x11_event(void *p)
 {
@@ -291,7 +285,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 			      InputOutput, CopyFromParent, 0, NULL);
     XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
 
-    tcconf_getvalue(cs, "qname", "%s", &qname);
+    qname = tcvp_event_get_qname(cs);
     qn = alloca(strlen(qname)+8);
     sprintf(qn, "%s/control", qname);
     xwm->qs = eventq_new(NULL);
@@ -326,17 +320,5 @@ x11_getwindow(window_manager_t *wm, Display **dpy, Window *win)
     x11_wm_t *xwm = wm->private;
     *dpy = xwm->dpy;
     *win = xwm->swin;
-    return 0;
-}
-
-extern int
-x11_init(char *p)
-{
-    TCVP_SEEK = tcvp_event_get("TCVP_SEEK");
-    TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");
-    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
-    TCVP_BUTTON = tcvp_event_get("TCVP_BUTTON");
-    TCVP_KEY = tcvp_event_get("TCVP_KEY");
-
     return 0;
 }

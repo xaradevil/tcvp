@@ -1,9 +1,8 @@
 module		wm_x11
 name		"TCVP/wm/x11"
 version		0.1.0
-tc2version	0.4.0
+tc2version	0.6.0
 sources		x11wm.c
-postinit	x11_init
 implement	"wm/x11" "open" x11_open
 implement	"wm/x11" "getwindow" x11_getwindow
 import		"Eventq"	"new"
@@ -13,6 +12,15 @@ import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 import		"tcvp/event"	"send"
-import		"tcvp/event"	"get"
+import		"tcvp/event"	"get_qname"
+
+TCVP {
+	event TCVP_SEEK
+	event TCVP_PAUSE
+	event TCVP_CLOSE
+	event TCVP_BUTTON
+	event TCVP_KEY
+}
+
 option		mouse_delay%i=2
 Delay in seconds before hiding mouse pointer
