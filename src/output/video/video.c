@@ -287,12 +287,6 @@ v_free(void *p)
     free(vo);
 }
 
-static color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
-    [PIXEL_FORMAT_I420][PIXEL_FORMAT_YV12] = i420_yv12,
-    [PIXEL_FORMAT_YV12][PIXEL_FORMAT_I420] = yv12_i420,
-    [PIXEL_FORMAT_I420][PIXEL_FORMAT_YUY2] = i420_yuy2,
-};
-
 static int
 v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {

@@ -23,12 +23,13 @@
 #include <stdint.h>
 #include <tcvp_types.h>
 #include <video_tc2.h>
+#include "vid_priv.h"
 
 #ifndef min
 #define min(a,b) ((a)<(b)? (a): (b))
 #endif
 
-extern void
+static void
 i420_yuy2(int height, const u_char **in, int *istride,
 	  u_char **out, int *ostride)
 {
@@ -81,7 +82,7 @@ i420_yuy2(int height, const u_char **in, int *istride,
 } while(0)
 
 #define copy_planar(fin, fout, p0, p1, p2, d0, d1, d2)		\
-extern void							\
+static void							\
 fin##_##fout(int height, const u_char **in, int *istride,	\
 	     u_char **out, int *ostride)			\
 {								\
@@ -96,3 +97,11 @@ fin##_##fout(int height, const u_char **in, int *istride,	\
 copy_planar(yv12, yv12, 0, 1, 2, 1, 2, 2)
 copy_planar(i420, yv12, 0, 2, 1, 1, 2, 2)
 alias(void yv12_i420, i420_yv12);
+alias(void i420_i420, yv12_yv12);
+
+color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
+    [PIXEL_FORMAT_I420][PIXEL_FORMAT_I420] = i420_i420,
+    [PIXEL_FORMAT_YV12][PIXEL_FORMAT_YV12] = yv12_yv12,
+    [PIXEL_FORMAT_YV12][PIXEL_FORMAT_I420] = yv12_i420,
+    [PIXEL_FORMAT_I420][PIXEL_FORMAT_YUY2] = i420_yuy2,
+};

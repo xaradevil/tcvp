@@ -22,12 +22,6 @@
 #include <stdint.h>
 
 typedef void (*color_conv_t)(int, const u_char **, int *, u_char **, int *);
-
-extern void i420_yuy2(int height, const u_char **in, int *istride,
-		      u_char **out, int *ostride);
-extern void i420_yv12(int height, const u_char **in, int *istride,
-		      u_char **out, int *ostride);
-extern void yv12_i420(int height, const u_char **in, int *istride,
-		      u_char **out, int *ostride);
+extern color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1];
 
 #endif
