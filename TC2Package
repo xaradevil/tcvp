@@ -8,6 +8,7 @@ module src/demuxer/avimage
 module src/demuxer/mp3
 module src/demuxer/mpeg
 module src/demuxer/ogg
+module src/demuxer/pcm
 module src/demuxer/stream
 module src/codec/codec
 module src/codec/a52

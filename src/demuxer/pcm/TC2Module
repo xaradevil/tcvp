@@ -1,0 +1,10 @@
+module		pcmfmt
+name		"TCVP/demux/pcm"
+version		0.1.0
+tc2version	0.4.0
+sources		pcm.c wav.c sun.c
+implement	"audio/basic"	"open"		au_open
+#implement	"audio/x-aiff"	"open"		aiff_open
+implement	"audio/x-wav"	"open"		wav_open
+import		"audio/mpeg"	"open"
+option		packet_size%i=4096
