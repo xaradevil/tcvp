@@ -202,21 +202,19 @@ alsa_play(void *p)
 	    if(ao->tail - ao->buf == ao->bufsize)
 		ao->tail = ao->buf;
 	    pthread_cond_broadcast(&ao->cd);
+	    pthread_mutex_unlock(&ao->mx);
 	} else if(r == -EAGAIN){
 	    pthread_mutex_unlock(&ao->mx);
 	    snd_pcm_wait(ao->pcm, 1000);
 	} else if(r < 0){
-	    int e;
-	    if((e = snd_pcm_prepare(ao->pcm)) < 0){
-		fprintf(stderr, "ALSA: %s\n", snd_strerror(e));
+	    pthread_mutex_unlock(&ao->mx);
+	    if((r = snd_pcm_prepare(ao->pcm)) < 0){
+		fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
 		break;
 	    }
 	}
-	if(r != -EAGAIN){
-	    pthread_mutex_unlock(&ao->mx);
-	}
 	if(!ao->bbytes && ao->data_end){
-	    tm_system(ao->timer);
+	    tm_settimer(ao->timer, SYSTEM);
 	}
     }
 
@@ -247,13 +245,10 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     snd_pcm_hw_params_t *hwp;
     u_int rate = as->sample_rate, channels = as->channels, ptime;
     int tmp;
-    char *device = NULL;
+    char *device = tcvp_output_alsa_conf_device;
 
     if(cs)
 	conf_getvalue(cs, "audio/device", "%s", &device);
-
-    if(!device)
-	device = "hw:0,0";
 
     if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK))
 	return NULL;

@@ -27,12 +27,15 @@
 #include <alsa_tc2.h>
 
 
-#define RUN  1
-#define STOP 2
+#define RUN   1
+#define STOP  2
 #define PAUSE 3
 
 extern timer__t *open_timer(snd_pcm_t *pcm);
 extern int tm_stop(timer__t *t);
-extern int tm_system(timer__t *t);
+extern int tm_settimer(timer__t *t, int type);
+
+#define PCM    0
+#define SYSTEM 1
 
 #endif
