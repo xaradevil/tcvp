@@ -10,10 +10,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <math.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tclist.h>
 #include <tcalloc.h>
 #include <tcbyteswap.h>
 #include <tcvp_types.h>
