@@ -351,6 +351,7 @@ static struct {
     { "TCVP_STATE",       state_alloc,      state_ser, state_deser },
     { "TCVP_LOAD",        load_alloc,       load_ser,  load_deser  },
     { "TCVP_STREAM_INFO", NULL,             NULL,      NULL        },
+    { "TCVP_QUERY",       NULL,             NULL,      NULL        },
 };
 
 extern int

@@ -15,7 +15,7 @@ int s_length;
 static int show_time = TCTIME_ELAPSED;
 static int TCVP_STATE, TCVP_TIMER, TCVP_LOAD, TCVP_STREAM_INFO,
     TCVP_PAUSE, TCVP_SEEK, TCVP_CLOSE, TCVP_PL_STOP, TCVP_PL_START,
-    TCVP_PL_NEXT, TCVP_PL_PREV, TCVP_PL_ADD, TCVP_PL_ADDLIST;
+    TCVP_PL_NEXT, TCVP_PL_PREV, TCVP_PL_ADD, TCVP_PL_ADDLIST, TCVP_QUERY;
 
 extern int
 init_events(void)
@@ -33,6 +33,7 @@ init_events(void)
     TCVP_PL_PREV = tcvp_event_get("TCVP_PL_PREV");
     TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
     TCVP_PL_ADDLIST = tcvp_event_get("TCVP_PL_ADDLIST");
+    TCVP_QUERY = tcvp_event_get("TCVP_QUERY"); 
 
     return 0;
 }
@@ -42,6 +43,8 @@ tcvp_event(void *p)
 {
     muxed_stream_t *st = NULL;
     int quit = 0;
+
+    tcvp_event_send(qs, TCVP_QUERY);
 
     while(!quit){
 	tcvp_event_t *te = eventq_recv(qr);

@@ -51,6 +51,7 @@ static int TCVP_CLOSE;
 static int TCVP_STATE;
 static int TCVP_TIMER;
 static int TCVP_LOAD;
+static int TCVP_QUERY;
 
 static int
 t_start(player_t *pl)
@@ -691,6 +692,10 @@ t_event(void *p)
 	    t_seek(pl, te->seek.time, te->seek.how);
 	} else if(te->type == TCVP_CLOSE){
 	    t_close(pl);
+	} else if(te->type == TCVP_QUERY){
+	    tcvp_event_send(tp->qs, TCVP_STATE, tp->state);
+	    if(tp->streams && tp->streams[0])
+		tcvp_event_send(tp->qs, TCVP_LOAD, tp->streams[0]); /* FIXME */
 	} else if(te->type == -1){
 	    r = 0;
 	}
@@ -789,6 +794,7 @@ init_core(void)
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
     TCVP_TIMER = tcvp_event_get("TCVP_TIMER");
     TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
+    TCVP_QUERY = tcvp_event_get("TCVP_QUERY");
 
     return 0;
 }
