@@ -123,6 +123,7 @@ pcm_open(url_t *u, char *codec, int channels, int srate, int samples,
     ms->used_streams = &pcm->used;
     ms->next_packet = pcm_packet;
     ms->seek = pcm_seek;
+    ms->time = samples * 27000000LL / srate;
     ms->private = pcm;
 
     return ms;
