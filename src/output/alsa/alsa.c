@@ -38,6 +38,7 @@ typedef struct alsa_out {
     snd_pcm_t *pcm;
     snd_pcm_hw_params_t *hwp;
     int bpf;
+    timer__t *timer;
 } alsa_out_t;
 
 static int
@@ -70,6 +71,7 @@ alsa_free(tcvp_pipe_t *p)
     snd_pcm_drop(ao->pcm);
     snd_pcm_close(ao->pcm);
     snd_pcm_hw_params_free(ao->hwp);
+    tm_stop(ao->timer);
     free(ao);
     free(p);
 
@@ -85,6 +87,8 @@ alsa_flush(tcvp_pipe_t *p, int drop)
 	snd_pcm_drop(ao->pcm);
     else
 	snd_pcm_drain(ao->pcm);
+
+    ao->timer->interrupt(ao->timer);
 
     return 0;
 }
@@ -196,12 +200,14 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
 
     snd_pcm_prepare(pcm);
 
-    ao = malloc(sizeof(*ao));
+    ao = calloc(1, sizeof(*ao));
     ao->pcm = pcm;
     ao->hwp = hwp;
     ao->bpf = as->channels * 2;
+    if(timer)
+	ao->timer = *timer;
 
-    tp = malloc(sizeof(*tp));
+    tp = calloc(1, sizeof(*tp));
     tp->input = alsa_play;
     tp->start = alsa_start;
     tp->stop = alsa_stop;

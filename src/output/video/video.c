@@ -125,6 +125,9 @@ v_play(void *p)
 	sem_post(&vo->hsem);
     }
 
+    vo->state = STOP;
+    sem_post(&vo->hsem);
+
     return NULL;
 }
 
@@ -138,6 +141,10 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 
     if(!vo->drop[vo->dropcnt]){
 	sem_wait(&vo->hsem);
+	if(vo->state == STOP){
+	    pk->free(pk);
+	    return 0;
+	}
 
 	planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
 	vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);

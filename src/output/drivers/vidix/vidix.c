@@ -48,6 +48,7 @@ typedef struct vidix_window {
     int head, fqh, fqt;
     sem_t hsm, tsm, dsm;
     vidix_dma_t *dma;
+    int run;
     pthread_t dmath;
     window_manager_t *wm;
 } vx_window_t;
@@ -74,9 +75,11 @@ vx_dmacpy(void *p)
     vx_window_t *vxw = p;
     int frame;
 
-    for(;;){
+    while(vxw->run){
 	sem_wait(&vxw->hsm);
 	sem_wait(&vxw->dsm);
+	if(!vxw->run)
+	    break;
 
 	frame = vxw->vfq[vxw->fqt];
 
@@ -151,7 +154,9 @@ vx_close(video_driver_t *vd)
     int i;
 
     if(vxw->use_dma){
-	pthread_cancel(vxw->dmath);
+	vxw->run = 0;
+	sem_post(&vxw->hsm);
+	sem_post(&vxw->dsm);
 	pthread_join(vxw->dmath, NULL);
     }
 
@@ -318,6 +323,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	vxw->dma->size = vxw->pbc->frame_size;
 	vxw->dma->flags = BM_DMA_BLOCK;
 	vxw->use_dma = 1;
+	vxw->run = 1;
 	pthread_create(&vxw->dmath, NULL, vx_dmacpy, vxw);
 	fprintf(stderr, "VIDIX: Using DMA.\n");
     } else {

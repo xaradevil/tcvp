@@ -101,6 +101,8 @@ play_stream(void *p)
 	vp->pipes[stream]->input(vp->pipes[stream], pk);
     }
 
+    vp->pipes[stream]->flush(vp->pipes[stream], vp->state == STOP);
+
     pthread_mutex_lock(&vp->mtx);
     vp->streams--;
     pthread_cond_broadcast(&vp->cnd);
@@ -133,6 +135,18 @@ stop(tcvp_pipe_t *p)
     return 0;
 }
 
+static void
+flush_all(s_play_t *vp, int drop)
+{
+    int i;
+
+    for(i = 0; i < vp->stream->n_streams; i++){
+	if(vp->stream->used_streams[i]){
+	    vp->pipes[i]->flush(vp->pipes[i], drop);
+	}
+    }
+}
+
 static int
 s_flush(tcvp_pipe_t *p, int drop)
 {
@@ -143,19 +157,16 @@ s_flush(tcvp_pipe_t *p, int drop)
     vp->flushing++;
     pthread_mutex_unlock(&vp->mtx);
 
-    if(drop)
+    if(drop){
 	vp->state = STOP;
+    }
 
     pthread_mutex_lock(&vp->mtx);
     while(vp->streams > 0)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
 
-    for(i = 0; i < vp->stream->n_streams; i++){
-	if(vp->stream->used_streams[i]){
-	    vp->pipes[i]->flush(vp->pipes[i], drop);
-	}
-    }
+    flush_all(vp, drop);
 
     pthread_mutex_lock(&vp->mtx);
     if(--vp->flushing == 0)

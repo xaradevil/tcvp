@@ -155,6 +155,17 @@ tm_intr(timer__t *t)
     return 0;
 }
 
+extern int
+tm_stop(timer__t *t)
+{
+    alsa_timer_t *at = t->private;
+    pthread_mutex_lock(&at->mx);
+    at->state = STOP;
+    pthread_cond_broadcast(&at->cd);
+    pthread_mutex_unlock(&at->mx);
+    return 0;
+}
+
 extern timer__t *
 open_timer(snd_pcm_t *pcm)
 {
