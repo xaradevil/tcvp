@@ -92,24 +92,16 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     p->format = *s;
     p->format.common.codec = enc->codec;
-    p->format.common.bit_rate = 1500000;
+    p->format.common.bit_rate = ctx->bit_rate;
 
-    ctx->bit_rate = 1500000;
-    ctx->bit_rate_tolerance = 20000;
-    ctx->rc_max_rate = 1500000;
     ctx->frame_rate = s->video.frame_rate.num;
     ctx->frame_rate_base = s->video.frame_rate.den;
     ctx->width = s->video.width;
     ctx->height = s->video.height;
-    ctx->qmin = 2;
-    ctx->qmax = 31;
-    ctx->mb_qmin = 2;
-    ctx->mb_qmax = 31;
-    ctx->max_qdiff = 4;
-    ctx->max_b_frames = 0;
     if(s->video.aspect.num)
 	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
-
+    if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED)
+	ctx->flags |= CODEC_FLAG_INTERLACED_DCT;
     avcodec_open(ctx, enc->avc);
 
     return p->next->probe(p->next, NULL, &p->format);
@@ -140,7 +132,7 @@ avc_free_encvid(void *p)
 }
 
 static tcvp_pipe_t *
-avc_encvideo_new(stream_t *s, char *codec)
+avc_encvideo_new(stream_t *s, char *codec, conf_section *cf)
 {
     enum CodecID cid;
     AVCodec *avc;
@@ -157,6 +149,71 @@ avc_encvideo_new(stream_t *s, char *codec)
 
     ctx = avcodec_alloc_context();
     avcodec_get_context_defaults(ctx);
+
+#define ctx_conf(n, f) conf_getvalue(cf, #n, "%"#f, &ctx->n)
+    ctx_conf(bit_rate, i);
+    ctx_conf(bit_rate_tolerance, i);
+    ctx_conf(flags, i);
+    ctx_conf(me_method, i);
+    ctx_conf(gop_size, i);
+    ctx_conf(qcompress, f);
+    ctx_conf(qblur, f);
+    ctx_conf(qmin, i);
+    ctx_conf(qmax, i);
+    ctx_conf(max_qdiff, i);
+    ctx_conf(max_b_frames, i);
+    ctx_conf(b_quant_factor, f);
+    ctx_conf(luma_elim_threshold, i);
+    ctx_conf(chroma_elim_threshold, i);
+    ctx_conf(b_quant_offset, f);
+    ctx_conf(rc_qsquish, f);
+    ctx_conf(rc_qmod_amp, f);
+    ctx_conf(rc_qmod_freq, i);
+    ctx_conf(rc_eq, s);
+    ctx_conf(rc_max_rate, i);
+    ctx_conf(rc_min_rate, i);
+    ctx_conf(rc_buffer_size, i);
+    ctx_conf(rc_buffer_aggressivity, f);
+    ctx_conf(i_quant_factor, f);
+    ctx_conf(i_quant_offset, f);
+    ctx_conf(rc_initial_cplx, f);
+    ctx_conf(dct_algo, i);
+    ctx_conf(lumi_masking, f);
+    ctx_conf(temporal_cplx_masking, f);
+    ctx_conf(spatial_cplx_masking, f);
+    ctx_conf(p_masking, f);
+    ctx_conf(dark_masking, f);
+    ctx_conf(slice_count, i);
+    ctx_conf(aspect_ratio, f);
+    ctx_conf(debug, i);
+    ctx_conf(mb_qmin, i);
+    ctx_conf(mb_qmax, i);
+    ctx_conf(me_cmp, i);
+    ctx_conf(me_sub_cmp, i);
+    ctx_conf(mb_cmp, i);
+    ctx_conf(dia_size, i);
+    ctx_conf(last_predictor_count, i);
+    ctx_conf(pre_me, i);
+    ctx_conf(me_pre_cmp, i);
+    ctx_conf(pre_dia_size, i);
+    ctx_conf(me_subpel_quality, i);
+    ctx_conf(me_range, i);
+    ctx_conf(intra_quant_bias, i);
+    ctx_conf(inter_quant_bias, i);
+    ctx_conf(global_quality, i);
+    ctx_conf(coder_type, i);
+    ctx_conf(mb_decision, i);
+
+#define ctx_flag(c, f) if(!conf_getvalue(cf, #c, ""))	\
+    ctx->flags |= CODEC_FLAG_##f
+
+    ctx_flag(qscale, QSCALE);
+    ctx_flag(4mv, 4MV);
+    ctx_flag(qpel, QPEL);
+    ctx_flag(gmc, GMC);
+    ctx_flag(interlaced_dct, INTERLACED_DCT);
+    ctx_flag(alt_scan, ALT_SCAN);
+    ctx_flag(trellis_quant, TRELLIS_QUANT);
 
     enc = malloc(sizeof(*enc));
     enc->codec = codec;
@@ -177,13 +234,13 @@ avc_encvideo_new(stream_t *s, char *codec)
 }
 
 extern tcvp_pipe_t *
-avc_mpeg4_enc_new(stream_t *s, conf_section *cs, timer__t *t)
+avc_mpeg4_enc_new(stream_t *s, conf_section *cs, timer__t **t)
 {
-    return avc_encvideo_new(s, "video/mpeg4");
+    return avc_encvideo_new(s, "video/mpeg4", cs);
 }
 
 extern tcvp_pipe_t *
-avc_mpeg_enc_new(stream_t *s, conf_section *cs, timer__t *t)
+avc_mpeg_enc_new(stream_t *s, conf_section *cs, timer__t **t)
 {
-    return avc_encvideo_new(s, "video/mpeg");
+    return avc_encvideo_new(s, "video/mpeg", cs);
 }
