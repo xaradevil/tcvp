@@ -48,6 +48,17 @@ static char *suffix_map[][2] = {
     { NULL, NULL }
 };
 
+static void
+cpattr(void *d, void *s, char *a)
+{
+    if(!tcattr_get(d, a)){
+	void *v = tcattr_get(s, a);
+	if(v){
+	    tcattr_set(d, a, strdup(v), NULL, free);
+	}
+    }
+}
+
 extern muxed_stream_t *
 s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 {
@@ -103,10 +114,13 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
     free(m);
 
     ms = sopen(name, u, cs, t);
-    if(ms)
+    if(ms){
 	tcattr_set(ms, "file", strdup(name), NULL, free);
-    else
+	cpattr(ms, u, "title");
+	cpattr(ms, u, "performer");
+    } else {
 	u->close(u);
+    }
     return ms;
 }
 
