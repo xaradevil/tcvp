@@ -31,7 +31,6 @@ module src/input/dvdnav
 module src/input/vheader
 module src/input/video
 module src/output/audio
-module src/output/drivers
 module src/output/drivers/alsa
 module src/output/drivers/oss
 module src/output/drivers/vidix
@@ -41,7 +40,6 @@ module src/playlist
 module src/remote
 module src/tcvp
 module src/timer/frontend
-module src/timer/backends
 module src/timer/backends/soft
 module src/ui/cmdline
 module src/ui/tcvpx
