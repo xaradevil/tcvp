@@ -56,6 +56,8 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 	ep->pk.sizes = &ep->size;
 	ep->pk.planes = 1;
 	ep->pk.flags = TCVP_PKT_FLAG_PTS;
+	if(f->key_frame)
+	    ep->pk.flags |= TCVP_PKT_FLAG_KEY;
 	ep->pk.pts = pk->pts;
 	ep->data = enc->buf;
 	ep->size = size;
