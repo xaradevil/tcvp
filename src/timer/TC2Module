@@ -1,0 +1,6 @@
+module		timer
+name		"TCVP/timer"
+version		0.1.0
+tc2version	0.4.0
+sources		timer.c
+implement	"timer" "new" timer_new
