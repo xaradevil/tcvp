@@ -1,0 +1,12 @@
+module		tcvpsh
+name		"TCVP/shell"
+version		0.1.0
+tc2version	0.4.0
+sources		tcvpsh.c
+postinit	tcvpsh_init
+shutdown	tcvpsh_shdn
+import		"tcvp"	"open"
+import		"Shell" "register_command"
+import		"Shell" "unregister_command"
+import		"Shell" "register_prompt"
+import		"Shell" "unregister_prompt"

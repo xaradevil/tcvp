@@ -21,5 +21,6 @@ AC_CONFIG_FILES([Makefile
 		 src/output/oss/Makefile
 		 src/output/xv/Makefile
 		 src/tcvp/Makefile
+		 src/tcvpshell/Makefile
 		 src/timer/Makefile])
 AC_OUTPUT
