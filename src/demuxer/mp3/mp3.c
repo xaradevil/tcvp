@@ -189,33 +189,48 @@ mp3_free_pk(void *p)
     free(mp->data);
 }
 
+static mp3_packet_t *
+read_packet(mp3_file_t *mf)
+{
+    int size = 1024;
+    u_char *data = malloc(size);
+    mp3_packet_t *mp;
+    uint64_t pos;
+
+    pos = mf->file->tell(mf->file);
+    size = min(size, mf->size - pos + mf->start);
+    size = mf->file->read(data, 1, size, mf->file);
+
+    if(size <= 0)
+	return NULL;
+
+    mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
+    mp->data = data;
+    mp->size = size;
+    mp->pk.stream = 0;
+    mp->pk.data = &mp->data;
+    mp->pk.sizes = &mp->size;
+    mp->pk.planes = 1;
+
+    return mp;
+}
+
 static packet_t *
 mp3_packet(muxed_stream_t *ms, int str)
 {
     mp3_file_t *mf = ms->private;
     mp3_packet_t *mp;
     mp3_frame_t fr;
-    int size = 1024;
-    uint64_t pos;
+    int size;
     int bh = 0;
     u_char *f;
 
-    mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
-    mp->data = malloc(size);
-    mp->pk.stream = 0;
-    mp->pk.data = &mp->data;
-    mp->pk.sizes = &mp->size;
-    mp->pk.planes = 1;
+    if(!(mp = read_packet(mf)))
+	return NULL;
+
+    size = mp->size;
     mp->pk.flags = TCVP_PKT_FLAG_PTS;
     mp->pk.pts = mf->samples * 27000000 / mf->stream.audio.sample_rate;
-
-    pos = mf->file->tell(mf->file);
-    size = min(size, mf->size - pos + mf->start);
-    size = mf->file->read(mp->data, 1, size, mf->file);
-    if(size <= 0){
-	tcfree(mp);
-	return NULL;
-    }
 
     f = mp->data + mf->fsize;
     while(f - mp->data < size - 2){
@@ -246,8 +261,9 @@ mp3_packet(muxed_stream_t *ms, int str)
 	    bh = 0;
 	} else {
 	    if(!bh++)
-		fprintf(stderr, "MP3: bad header %02x%02x @ %llx %llx\n",
-			fh1, f[2], pos + (uint64_t) (f - mp->data), pos);
+		fprintf(stderr, "MP3: bad header %02x%02x @ %llx\n",
+			fh1, f[2],
+			mf->file->tell(mf->file) + (uint64_t) (f - mp->data));
 	    f++;
 	}
     }
@@ -255,7 +271,6 @@ mp3_packet(muxed_stream_t *ms, int str)
     mf->fsize = f - mp->data - size;
     if(mf->fsize < 0)
 	mf->fh = mp->data[size - 1];
-    mp->size = size;
 
     return &mp->pk;
 }
@@ -265,26 +280,10 @@ aac_packet(muxed_stream_t *ms, int str)
 {
     mp3_file_t *mf = ms->private;
     mp3_packet_t *mp;
-    int size = 1024;
-    uint64_t pos;
 
-    mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
-    mp->data = malloc(size);
-    mp->pk.stream = 0;
-    mp->pk.data = &mp->data;
-    mp->pk.sizes = &mp->size;
-    mp->pk.planes = 1;
-
-    pos = mf->file->tell(mf->file);
-    size = min(size, mf->size - pos + mf->start);
-    size = mf->file->read(mp->data, 1, size, mf->file);
-
-    if(size <= 0){
-	tcfree(mp);
+    if(!(mp = read_packet(mf)))
 	return NULL;
-    }
 
-    mp->size = size;
     return &mp->pk;
 }
 
