@@ -48,8 +48,9 @@ typedef struct dvd {
     dvd_file_t *file;
     pgc_t *pgc;
     int start_cell;
+    int start_sector;
     int cell, next_cell, pack, npack;
-    int blocks, cblocks;
+    int blocks;
     int angle;
     int state;
     int64_t pos;
@@ -57,9 +58,7 @@ typedef struct dvd {
     int bufsize;
     int bbytes;
     int bpos;
-    int bcount;
-    int npc_size, npc_used;
-    dvd_nav_point_t *np_cache;
+    vobu_admap_t *vobu_map;
 } dvd_t;
 
 #define min(a, b) ((a)<(b)?(a):(b))
@@ -115,7 +114,7 @@ read_nav(dvd_file_t *df, int sector, int *next)
 }
 
 static int
-dvd_doread(dvd_t *d, int read)
+dvd_doread(dvd_t *d)
 {
     int l = 0, r;
 
@@ -136,43 +135,22 @@ dvd_doread(dvd_t *d, int read)
 	    return -1;
 /* 	fprintf(stderr, "DVD: cell %i, %i blocks @%i\n", d->cell, l, d->pack); */
 	d->blocks = l;
-	d->cblocks = l;
 	d->pack++;
 	d->state = BLOCK_LOOP;
 
-	if(d->npc_used == d->npc_size){
-	    d->npc_size *= 2;
-	    d->np_cache =
-		realloc(d->np_cache, d->npc_size * sizeof(*d->np_cache));
-	}
-
-	if(!d->npc_used || d->pack > d->np_cache[d->npc_used - 1].start){
-	    d->np_cache[d->npc_used].start = d->pack;
-	    d->np_cache[d->npc_used].blocks = d->blocks;
-	    d->np_cache[d->npc_used].next = d->npack;
-	    d->np_cache[d->npc_used].tblocks = d->bcount;
-	    d->npc_used++;
-	}
-
     case BLOCK_LOOP:
-	if(read){
-	    r = min(d->blocks, buf_blocks);
+	r = min(d->blocks, buf_blocks);
 /* 	    fprintf(stderr, "DVD: reading %i blocks @%i -> %p\n", */
 /* 		    r, d->pack, d->buf); */
-	    l = DVDReadBlocks(d->file, d->pack, r, d->buf);
-	    if(l != r){
-		fprintf(stderr, "DVD: error reading %i blocks @%i\n",
-			r, d->pack);
-		return -1;
-	    }
-	    d->bbytes = l * DVD_VIDEO_LB_LEN;
-	    d->bpos = d->pos - d->bcount * DVD_VIDEO_LB_LEN;
-	    d->blocks -= l;
-	    d->bcount += l;
-	} else {
-	    d->bcount += d->blocks;
-	    d->blocks = 0;
+	l = DVDReadBlocks(d->file, d->pack, r, d->buf);
+	if(l != r){
+	    fprintf(stderr, "DVD: error reading %i blocks @%i\n",
+		    r, d->pack);
+	    return -1;
 	}
+	d->bbytes = l * DVD_VIDEO_LB_LEN;
+	d->bpos = 0;
+	d->blocks -= l;
 
 	if(!d->blocks){
 	    if(d->pack < d->pgc->cell_playback[d->cell].last_sector){
@@ -205,7 +183,7 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 	bytes -= bb;
 
 	if(d->bpos == d->bbytes){
-	    if(dvd_doread(d, 1)){
+	    if(dvd_doread(d)){
 		d->bbytes = 0;
 		d->bpos = 0;
 		break;
@@ -244,51 +222,20 @@ dvd_seek(url_t *u, int64_t offset, int how)
        (diff < 0 && -diff < d->bpos)){
 	d->bpos += diff;
     } else {
-	uint64_t block = np / DVD_VIDEO_LB_LEN;
-	int bd, i, cb = 0;
-	int npi = -1;
+	uint64_t block = np / DVD_VIDEO_LB_LEN + d->start_sector;
+	int i;
 
-/* 	fprintf(stderr, "DVD: seeking %lli -> %lli in block %lli\n", */
-/* 		d->pos, np, block); */
-
-	for(i = 0; i < d->npc_used; i++){
-	    if(block <= cb + d->np_cache[i].blocks){
-		npi = i;
+	for(i = 0; i < d->vobu_map->last_byte / 4; i++){
+	    if(d->vobu_map->vobu_start_sectors[i] - i > block)
 		break;
-	    }
-	    cb += d->np_cache[i].blocks;
 	}
 
-	if(npi >= 0){
-	    d->pack = d->np_cache[i].start;
-	    d->cblocks = d->np_cache[i].blocks;
-	    d->npack = d->np_cache[i].next;
-	    d->bcount = cb;
-	} else {
-	    if(block < d->bcount){
-		d->next_cell = d->start_cell;
-		d->state = CELL_START;
-		d->bcount = 0;
-	    }
+	if(!i)
+	    return -1;
 
-	    do {
-		if(dvd_doread(d, 0) < 0)
-		    return -1;
-	    } while(d->bcount < block);
-
-	    d->bcount -= d->cblocks;
-	}
-
-	bd = block - d->bcount;
-	d->pack += bd;
-	d->bcount += bd;
-	d->blocks = d->cblocks - bd;
-	d->state = BLOCK_LOOP;
-
-	d->bbytes = 0;
-	d->bpos = 0;
-
-/* 	fprintf(stderr, "DVD: cell=%i, ncell=%i, pack=%i, npack=%i, state=%i, pos=%lli, blocks=%i, cblocks=%i bpos=%i\n", d->cell, d->next_cell, d->pack, d->npack, d->state, d->pos, d->blocks, d->cblocks, d->bpos); */
+	d->npack = d->vobu_map->vobu_start_sectors[i-1];
+	d->state = CELL_LOOP;
+	np = (d->npack - d->start_sector) * DVD_VIDEO_LB_LEN;
     }
 
     d->pos = np;
@@ -313,7 +260,6 @@ dvd_close(url_t *u)
     ifoClose(d->ifo);
     DVDClose(d->dvd);
     free(d->buf);
-    free(d->np_cache);
     free(d);
     free(u);
 
@@ -434,14 +380,15 @@ dvd_open(char *url, char *mode)
     d->file = file;
     d->ifo = ifo;
     d->vts = vts;
-    d->bufsize = url_dvd_conf_buffer * DVD_VIDEO_LB_LEN;
-    d->buf = malloc(d->bufsize);
-    d->npc_size = 1024;
-    d->np_cache = malloc(d->npc_size * sizeof(*d->np_cache));
+    d->vobu_map = vts->vts_vobu_admap;
 
     d->start_cell = d->next_cell = start_cell;
     d->pgc = pgc;
+    d->start_sector = pgc->cell_playback[start_cell].first_sector;
     d->state = CELL_START;
+
+    d->bufsize = url_dvd_conf_buffer * DVD_VIDEO_LB_LEN;
+    d->buf = malloc(d->bufsize);
 
     u = calloc(1, sizeof(*u));
     u->read = dvd_read;
