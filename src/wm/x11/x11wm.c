@@ -546,8 +546,10 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 	x11_update_win(xwm);
     } else {
 	if(win != None){
-	    if(!fs)
+	    if(!fs){
 		XResizeWindow(dpy, win, width, height);
+		XSync(dpy, False);
+	    }
 	    xwm->win = win;
 	} else {
 	    xwm->win = XCreateWindow(dpy, RootWindow(dpy, DefaultScreen(dpy)),
