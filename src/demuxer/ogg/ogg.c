@@ -24,6 +24,7 @@ typedef struct {
     ogg_stream_state os;    
     url_t *f;
     uint64_t end;
+    uint64_t grp;
 } ogg_stream_t;
 
 
@@ -94,6 +95,7 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     ogg_page og;
     ogg_packet op;
     char *buf;
+    uint64_t gp = -1;
 
     while(ogg_stream_packetout(&ost->os, &op) != 1) {
 	while(ogg_sync_pageout(&ost->oy, &og) != 1) {
@@ -106,20 +108,23 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 	    }
 	}
 	ogg_stream_pagein(&ost->os, &og);
-
-/* 	position in samples of the current page */
-/*  	printf("%d\n",ogg_page_granulepos(&og)); */
+	gp = ost->grp;
+	ost->grp = ogg_page_granulepos(&og);
     }
 
     pk = tcallocd(sizeof(*pk), NULL, ogg_free_packet);
     pk->stream = 0;
     pk->flags = 0;
+    if(gp != -1 && ms->streams[0].audio.sample_rate){
+	pk->flags |= TCVP_PKT_FLAG_PTS;
+	pk->pts = gp * 27000000 / ms->streams[0].audio.sample_rate;
+    }
     pk->data = malloc(sizeof(*pk->data));
     pk->data[0] = malloc(sizeof(ogg_packet)+op.bytes);
 
     memcpy(pk->data[0], &op, sizeof(ogg_packet));
-    memcpy(pk->data[0]+sizeof(ogg_packet), op.packet, op.bytes);
-    ((ogg_packet *)pk->data[0])->packet=pk->data[0]+sizeof(ogg_packet);
+    memcpy(pk->data[0] + sizeof(ogg_packet), op.packet, op.bytes);
+    ((ogg_packet *)pk->data[0])->packet = pk->data[0] + sizeof(ogg_packet);
 
     pk->sizes = malloc(sizeof(*pk->sizes));
     pk->sizes[0] = op.bytes+sizeof(ogg_packet);
@@ -169,7 +174,6 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
 	} else {
 	    end = mid-1;
 	}
-/* 	fprintf(stderr, "filepos:%Ld streampos:%Ld %Ld\n", mid, ppos, pos); */
     }
 
     f->seek(f, mid, SEEK_SET);
@@ -258,7 +262,7 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     int l;
     muxed_stream_t *ms;
 
-    ost=malloc(sizeof(ogg_stream_t));
+    ost = calloc(1, sizeof(*ost));
 
     ogg_sync_init(&ost->oy);
 
@@ -283,9 +287,9 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     f->seek(ost->f, 0, SEEK_SET);
     ogg_sync_reset(&ost->oy);
 
-    buf=ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
     
-    l=f->read(buf, 1, BUFFER_SIZE, ost->f);
+    l = f->read(buf, 1, BUFFER_SIZE, ost->f);
     ogg_title(ms, buf, BUFFER_SIZE);
 
     ogg_sync_wrote(&ost->oy, l);
