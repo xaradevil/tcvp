@@ -115,8 +115,8 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	} else {
 /* 	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels, */
 /* 		    vc->vi.rate); */
-	    s->audio.sample_rate = 44100;
-	    s->audio.channels = 2;
+	    s->audio.sample_rate = vc->vi.rate;
+	    s->audio.channels = vc->vi.channels;
 	    vorbis_synthesis_init(&vc->vd, &vc->vi);
 	    vorbis_block_init(&vc->vd, &vc->vb); 
 	}
