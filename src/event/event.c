@@ -186,13 +186,10 @@ new_event(int type, ...)
 }
 
 extern int
-send_event(eventq_t q, int type, ...)
+send_eventv(eventq_t q, int type, va_list args)
 {
     tcvp_event_t *te = NULL;
-    va_list args;
     int ret = -1;
-
-    va_start(args, type);
 
     if(type == -1){
 	te = tcalloc(sizeof(*te));
@@ -203,8 +200,6 @@ send_event(eventq_t q, int type, ...)
 	tc2_print("EVENT", TC2_PRINT_WARNING, "unknown event #%i\n", type);
     }
 
-    va_end(args);
-
     if(te){
 	if(type >= 0)
 	    tc2_print("EVENT", TC2_PRINT_DEBUG,
@@ -212,6 +207,19 @@ send_event(eventq_t q, int type, ...)
 	ret = eventq_send(q, te);
 	tcfree(te);
     }
+
+    return ret;
+}
+
+extern int
+send_event(eventq_t q, int type, ...)
+{
+    va_list args;
+    int ret;
+
+    va_start(args, type);
+    ret = send_eventv(q, type, args);
+    va_end(args);
 
     return ret;
 }

@@ -1,5 +1,6 @@
 symbol "register"	int (*%s)(char *name, tcvp_alloc_event_t *, tcvp_serialize_event_t *, tcvp_deserialize_event_t *)
 symbol "send"		int (*%s)(eventq_t q, int type, ...)
+symbol "sendv"		int (*%s)(eventq_t q, int type, va_list)
 symbol "new"		void *(*%s)(int type, ...)
 symbol "get"		int (*%s)(char *name)
 symbol "delete"		int (*%s)(char *name)
