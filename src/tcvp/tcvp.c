@@ -378,6 +378,7 @@ t_open(player_t *pl, char *name)
     int start;
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
     tcconf_section_t *prsec, *dc;
+    uint64_t start_time = -1;
 
     if(tp->conf)
 	tcconf_getvalue(tp->conf, "profile", "%s", &profile);
@@ -483,6 +484,11 @@ t_open(player_t *pl, char *name)
 
     demux = stream_play(stream, codecs, tp->conf);
 
+    for(i = 0; i < stream->n_streams; i++){
+	if(stream->streams[i].common.start_time < start_time)
+	    start_time = stream->streams[i].common.start_time;
+    }
+
     if(!stream->time){
 	for(i = 0; i < stream->n_streams; i++){
 	    if(stream->used_streams[i]){
@@ -538,9 +544,11 @@ t_open(player_t *pl, char *name)
     tp->stream = stream;
 
     if(tcconf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
-	uint64_t spts = (uint64_t) start * 27000000LL;
-	t_seek(pl, spts, TCVP_SEEK_ABS);
+	start_time = (uint64_t) start * 27000000LL;
+	t_seek(pl, start_time, TCVP_SEEK_ABS);
     }
+
+    tp->timer->reset(tp->timer, start_time);
 
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
