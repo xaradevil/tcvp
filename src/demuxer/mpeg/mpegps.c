@@ -171,13 +171,18 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	    mpegpes_free(mp);
 	if(!(mp = mpegpes_packet(s->stream, 0)))
 	    return NULL;
+
+	sx = s->imap[mp->stream_id];
+
 	if((mp->stream_id & 0xf8) == 0x80){
 	    mp->data += 4;
 	    mp->size -= 4;
 	} else if((mp->stream_id & 0xf8) == 0xa0){
-	    int aup = htob_16(unaligned16(mp->data + 2)) + 4;
-	    mp->data += aup;
-	    mp->size -= aup;
+	    int aup = htob_16(unaligned16(mp->data + 2));
+	    mp->data += 7;
+	    mp->size -= 7;
+	    if(mp->flags & PES_FLAG_PTS)
+		mp->pts -= 27000000LL * aup / ms->streams[sx].common.bit_rate;
 	} else if(mp->stream_id == DVD_PESID){
 	    dvd_event_t *de = (dvd_event_t *) mp->data;
 	    switch(de->type){
@@ -205,8 +210,6 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	    }
 	    continue;
 	}
-
-	sx = s->imap[mp->stream_id];
     } while(sx < 0 || !ms->used_streams[sx]);	
 
     pk = tcallocdz(sizeof(*pk), NULL, mpegps_free_pk);
@@ -464,7 +467,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 			sp->common.codec = "audio/ac3";
 		    } else if((pk->stream_id & 0xf8) == 0xa0){
 			sp->stream_type = STREAM_TYPE_AUDIO;
-			sp->common.codec = "audio/pcm-s16le";
+			sp->common.codec = "audio/pcm-s16be";
 			if((pk->data[5] & 0x30) == 0){
 			    sp->audio.sample_rate = 48000;
 			} else if((pk->data[5] & 0x30) == 1){
@@ -476,6 +479,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 			    sp->audio.sample_rate = 48000;
 			}
 			sp->audio.channels = (pk->data[5] & 0x7) + 1;
+			sp->audio.bit_rate =
+			    sp->audio.channels * sp->audio.sample_rate * 16;
 		    }
 		    sp->common.index = ms->n_streams++;
 		    sp++;
