@@ -601,7 +601,8 @@ t_open(player_t *pl, int nn, char **names)
 
     for(i = 0, j = 0; i < tp->nstreams; i++){
 	stream_time(tp->streams[i], tp->pipes + j);
-	print_info(tp->streams[i], tp->pipes, j);
+	if(tcvp_conf_verbose)
+	    print_info(tp->streams[i], tp->pipes, j);
 	j += tp->streams[i]->n_streams;
     }
 

@@ -25,3 +25,4 @@ import		"tcvp/event"	"new"
 require		"filter"
 
 option		default_profile%s="play"
+option		verbose%i
