@@ -98,6 +98,7 @@ x4_encode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int nnal, i;
     u_char *buf;
     int bufsize = X4_BUFSIZE;
+    x264_picture_t pic_out;
 
     if(!pk->data)
 	return p->next->input(p->next, (tcvp_packet_t *) pk);
@@ -121,7 +122,7 @@ x4_encode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 	x4->pic.i_type = X264_TYPE_AUTO;
     }
 
-    if(x264_encoder_encode(x4->enc, &nal, &nnal, &x4->pic))
+    if(x264_encoder_encode(x4->enc, &nal, &nnal, &x4->pic, &pic_out))
 	return -1;
 
     buf = malloc(bufsize);
@@ -137,9 +138,9 @@ x4_encode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     ep->pk.flags = 0;
     if(x4->pts_valid){
 	ep->pk.flags |= TCVP_PKT_FLAG_PTS;
-	ep->pk.pts = x4->pic.i_pts;
+	ep->pk.pts = pic_out.i_pts;
     }
-    if(x4->pic.i_type == X264_TYPE_I || x4->pic.i_type == X264_TYPE_IDR)
+    if(pic_out.i_type == X264_TYPE_I || pic_out.i_type == X264_TYPE_IDR)
 	ep->pk.flags |= TCVP_PKT_FLAG_KEY;
     ep->data = buf;
     ep->buf = buf;
@@ -201,8 +202,7 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     tcconf_getvalue(cs, "cabac", "%i", &x4->params.b_cabac);
     tcconf_getvalue(cs, "qp", "%i", &x4->params.rc.i_qp_constant);
-    tcconf_getvalue(cs, "gop_size", "%i", &x4->params.i_iframe);
-    tcconf_getvalue(cs, "idr_interval", "%i", &x4->params.i_idrframe);
+    tcconf_getvalue(cs, "gop_size", "%i", &x4->params.i_keyint_max);
     tcconf_getvalue(cs, "rc_buffer_size", "%i",
 		    &x4->params.rc.i_rc_buffer_size);
     tcconf_getvalue(cs, "bitrate", "%i", &x4->params.rc.i_bitrate);
