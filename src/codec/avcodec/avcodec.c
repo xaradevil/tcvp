@@ -147,7 +147,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	l = avcodec_decode_video(vc->ctx, vc->frame, &gp, inbuf, insize);
 
 	if(l < 0)
-	    return 0;
+	    return probe? l: 0;
 
 	inbuf += l;
 	insize -= l;
@@ -259,7 +259,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     if(do_decvideo(p, pk, 1) < 0){
-	ret = PROBE_AGAIN;
+	ret = PROBE_DISCARD;
 	goto out;
     }
 
@@ -270,8 +270,8 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	}
 
 	if(!pixel_fmts[vc->ctx->pix_fmt]){
-	    tc2_print("AVCODEC", TC2_PRINT_ERROR, "avcodec: unknown pixel format %i\n",
-		    vc->ctx->pix_fmt);
+	    tc2_print("AVCODEC", TC2_PRINT_ERROR, "unknown pixel format %i\n",
+		      vc->ctx->pix_fmt);
 	    ret = PROBE_FAIL;
 	    goto out;
 	}
