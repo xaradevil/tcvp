@@ -361,7 +361,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int x, y;
     int width, height;
     int xoff = 0, yoff = 0;
-    char *font;
+    char *font, *bitmap, pfont[1024];
     char *color, *align_s, *stype_s;
     int alpha;
     int stype, align;
@@ -374,7 +374,17 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
 
     i += tcconf_getvalue(sec, "text", "%s", &text);
-    i += tcconf_getvalue(sec, "font", "%s", &font);
+
+    if(tcconf_getvalue(sec, "bitmap", "%s", &bitmap) == 1) {
+	sprintf(pfont, "bitmap:%s/%s", skin->path, bitmap);
+	free(bitmap);
+	i++;
+    } else if(tcconf_getvalue(sec, "font", "%s", &font) == 1) {
+	sprintf(pfont, "xft:%s", font);
+	free(font);
+	i++;
+    }
+
     if((j = tcconf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
 	alpha = 0xff;
 	j++;
@@ -423,7 +433,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     wd->value = text;
     wd->skin = skin;
     l = xtk_widget_label_create(win, x, y, width, height);
-    xtk_widget_label_set_font(l, font);
+    xtk_widget_label_set_font(l, pfont);
     xtk_widget_label_set_offset(l, xoff, yoff);
     xtk_widget_label_set_color(l, color, alpha);
     xtk_widget_label_set_text(l, default_text);
@@ -440,7 +450,6 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     l->on_destroy = destroy_skinned_label;
     free(default_text);
     free(color);
-    free(font);
     free(bg);
 
     return l;
