@@ -3,6 +3,7 @@
 0	beshort&0xfffe		0xfffa		audio/mpeg
 0	beshort&0xfffe		0xfffc		audio/mpeg
 0	beshort&0xfff8		0xfff0		audio/mpeg
+0	string			ID3		audio/mpeg
 16	string			M4A		audio/mp4
 0	belong&0xFF5FFF1F	0x47400010	video/mpeg
 0	belong			0x3026b275	video/x-asf
