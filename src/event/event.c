@@ -64,6 +64,10 @@ new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
     event_tab[e->num] = e;
     hash_replace(event_types, name, e);
 
+#ifdef DEBUG
+    fprintf(stderr, "EVENT: registered %s as %i\n", name, e->num);
+#endif
+
     return e;
 }
 
