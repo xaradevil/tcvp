@@ -45,7 +45,7 @@ typedef struct vidix_window {
     int use_dma;
     char *dmabufs[VID_PLAY_MAXFRAMES];
     int vfmap[VID_PLAY_MAXFRAMES];
-    int vframe;
+    int head, tail;
     sem_t hsm, tsm;
     vidix_dma_t *dma;
     window_manager_t *wm;
@@ -58,7 +58,11 @@ vx_show(video_driver_t *vd, int frame)
 
     if(vxw->use_dma){
 	sem_wait(&vxw->tsm);
+	if(vxw->vfmap[frame] != vxw->tail)
+	    fprintf(stderr, "VIDIX: %i != %i\n", vxw->vfmap[frame], vxw->tail);
 	vdlPlaybackFrameSelect(vxw->driver, vxw->vfmap[frame]);
+	if(++vxw->tail == vxw->vframes)
+	    vxw->tail = 0;
 	sem_post(&vxw->hsm);
     } else {
 	vdlPlaybackFrameSelect(vxw->driver, frame);
@@ -74,13 +78,13 @@ vx_put(video_driver_t *vd, int frame)
 
     sem_wait(&vxw->hsm);
     vxw->dma->src = vxw->dmabufs[frame];
-    vxw->dma->dest_offset = vxw->pbc->offsets[vxw->vframe];
+    vxw->dma->dest_offset = vxw->pbc->offsets[vxw->head];
     vxw->dma->idx = frame;
+    vxw->vfmap[frame] = vxw->head;
     vdlPlaybackCopyFrame(vxw->driver, vxw->dma);
-    vxw->vfmap[frame] = vxw->vframe;
 
-    if(++vxw->vframe == vxw->vframes)
-	vxw->vframe = 0;
+    if(++vxw->head == vxw->vframes)
+	vxw->head = 0;
 
     sem_post(&vxw->tsm);
 
@@ -259,6 +263,10 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	conf_setvalue(cs, "video/color_key", "%i", ckey);
     }
 
+    ck.ckey.op = CKEY_TRUE;
+    ck.key_op = KEYS_PUT;
+    vdlSetGrKeys(vxdrv, &ck);
+
     vdlConfigPlayback(vxw->driver, vxw->pbc);
 
     if(!(vxw->wm = wm_open(vs->width, vs->height, vx_reconf, vxw,
@@ -272,8 +280,9 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	vxw->dma = vdlAllocDmaS();
 	vxw->frames = frames;
 	vxw->vframes = vxw->pbc->num_frames;
-	vxw->vframe = 0;
-	sem_init(&vxw->hsm, 0, vxw->vframes - 2);
+	vxw->head = 0;
+	vxw->tail = 0;
+	sem_init(&vxw->hsm, 0, vxw->vframes / 2);
 	sem_init(&vxw->tsm, 0, 0);
 	for(i = 0; i < frames; i++){
 	    vxw->dmabufs[i] = valloc(vxw->pbc->frame_size);
