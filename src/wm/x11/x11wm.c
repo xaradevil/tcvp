@@ -50,8 +50,10 @@ typedef struct x11_wm {
     int color_key;
     int flags;
     eventq_t qs;
+    int net_wm;
     Atom wm_state;
     Atom wm_fullscreen;
+    int fullscreen;
     int root;
     int depth;
     int ourwin;
@@ -68,19 +70,34 @@ typedef struct x11_wm {
 static void
 x11_fullscreen(x11_wm_t *xwm, int fs)
 {
-    XEvent xev;
+    if(xwm->net_wm){
+	XEvent xev;
 
-    memset(&xev, 0, sizeof(xev));
-    xev.type = ClientMessage;
-    xev.xclient.window = xwm->win;
-    xev.xclient.message_type = xwm->wm_state;
-    xev.xclient.format = 32;
-    xev.xclient.data.l[0] = fs;
-    xev.xclient.data.l[1] = xwm->wm_fullscreen;
-    xev.xclient.data.l[2] = 0;
+	memset(&xev, 0, sizeof(xev));
+	xev.type = ClientMessage;
+	xev.xclient.window = xwm->win;
+	xev.xclient.message_type = xwm->wm_state;
+	xev.xclient.format = 32;
+	xev.xclient.data.l[0] = fs;
+	xev.xclient.data.l[1] = xwm->wm_fullscreen;
+	xev.xclient.data.l[2] = 0;
 
-    XSendEvent(xwm->dpy, RootWindow(xwm->dpy, DefaultScreen(xwm->dpy)), False,
-	       SubstructureNotifyMask, &xev);
+	XSendEvent(xwm->dpy, RootWindow(xwm->dpy, DefaultScreen(xwm->dpy)),
+		   False, SubstructureNotifyMask, &xev);
+    } else {
+	if(fs == WM_STATE_TOGGLE)
+	    xwm->fullscreen ^= 1;
+	else
+	    xwm->fullscreen = fs;
+
+	if(xwm->fullscreen){
+	    XWindowAttributes xwa;
+	    XGetWindowAttributes(xwm->dpy, DefaultRootWindow(xwm->dpy), &xwa);
+	    XMoveResizeWindow(xwm->dpy, xwm->win, 0, 0, xwa.width, xwa.height);
+	} else {
+	    XResizeWindow(xwm->dpy, xwm->win, xwm->owidth, xwm->oheight);
+	}
+    }
 }
 
 static void
@@ -371,6 +388,49 @@ x11_hidecursor(void *p)
     return NULL;
 }
 
+static int
+check_wm(x11_wm_t *xwm)
+{
+    Atom supporting, xa_window;
+    Atom r_type;
+    int ret = 0;
+
+    xa_window = XInternAtom(xwm->dpy, "WINDOW", True);
+    supporting = XInternAtom(xwm->dpy, "_NET_SUPPORTING_WM_CHECK", True);
+
+    if(supporting != None){
+	unsigned long count, bytes_remain;
+	unsigned char *p = NULL, *p2 = NULL;
+	int r, r_format;
+
+	r = XGetWindowProperty(xwm->dpy, DefaultRootWindow(xwm->dpy),
+			       supporting, 0, 1, False, xa_window,
+			       &r_type, &r_format, &count, &bytes_remain, &p);
+
+	if(r == Success && p && r_type == xa_window && r_format == 32 &&
+	   count == 1){
+	    Window w = *(Window *)p;
+
+	    r = XGetWindowProperty(xwm->dpy, w, supporting, 0, 1,
+				   False, xa_window, &r_type, &r_format,
+				   &count, &bytes_remain, &p2);
+
+	    if(r == Success && p2 && *p2 == *p && r_type == xa_window &&
+	       r_format == 32 && count == 1){
+		ret = 1;
+	    }
+	}
+
+	if(p)
+	    XFree(p);
+	if(p2)
+	    XFree(p2);
+    }
+
+    xwm->net_wm = ret;
+    return ret;
+}
+
 extern window_manager_t *
 x11_open(int width, int height, wm_update_t upd, void *cbd,
 	 tcconf_section_t *cs, int flags)
@@ -412,6 +472,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     tcconf_getvalue(cs, "video/width", "%i", &xwm->vw);
     tcconf_getvalue(cs, "video/height", "%i", &xwm->vh);
 
+    check_wm(xwm);
     xwm->wm_state = XInternAtom(dpy, "_NET_WM_STATE", False);
     xwm->wm_fullscreen = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
 
