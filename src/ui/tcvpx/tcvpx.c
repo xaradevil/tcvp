@@ -65,12 +65,14 @@ toggle_time(tcwidget_t *w, void *p)
 extern int
 update_time(skin_t *skin)
 {
-    char text[7];
+    char text[8];
     int t = 0;
+    char sign = 1;
 
     if(show_time == TCTIME_ELAPSED) {
 	t = s_time;
     } else if(show_time == TCTIME_REMAINING) {
+	sign = -1;;
 	if(s_length > 0){
 	    t = s_length - s_time;
 	} else {
@@ -87,7 +89,7 @@ update_time(skin_t *skin)
     }
 
     if(skin->time){
-	snprintf(text, 7, "%3d:%02d", t/60, t%60);
+	snprintf(text, 8, "%4d:%02d", sign*t/60, t%60);
 	change_label(skin->time, text);
     }
     
