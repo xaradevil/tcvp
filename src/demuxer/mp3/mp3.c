@@ -115,11 +115,11 @@ id3v2_gettext(char *buf, int size)
     char *text;
 
     if(*buf){
-	fprintf(stderr, "MP3: Unknowd ID3v2 encoding %i\n", *buf);
+	fprintf(stderr, "MP3: Unknown ID3v2 encoding %i\n", *buf);
 	return NULL;
     }
 
-    text = malloc(--size);
+    text = malloc(size--);
     strncpy(text, buf+1, size);
     text[size] = 0;
 
@@ -173,11 +173,18 @@ id3v2_tag(muxed_stream_t *ms)
 	uint32_t fsize, dsize;
 	int fflags, dlen = 0;
 	char *data = NULL;
+	char stag[5];
 	off_t pos;
+
+	if(!tag)
+	    break;
 
 	dsize = fsize = getss32(mf->file);
 	fflags = getu16(mf->file);
 	pos = ftell(mf->file);
+
+	fprintf(stderr, "MP3: %s size=%i flags=%x\n",
+		tag2str(stag, tag), fsize, fflags);
 
 	if(fflags & ID3v2_FFLAG_GID)
 	    getc(mf->file);
