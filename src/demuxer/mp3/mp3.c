@@ -159,8 +159,12 @@ id3v2_tag(muxed_stream_t *ms)
     }
 
     size = getss32(mf->file);
-    tsize = size + (flags & ID3v2_FLAG_FOOT)? 20: 10;
+    tsize = size + ((flags & ID3v2_FLAG_FOOT)? 20: 10);
     mf->size -= tsize;
+
+#ifdef DEBUG
+    fprintf(stderr, "MP3: ID3v2 size=%x, flags=%x\n", size, flags);
+#endif
 
     if(flags & ID3v2_FLAG_EXTH){
 	uint32_t esize = getss32(mf->file);
@@ -173,7 +177,6 @@ id3v2_tag(muxed_stream_t *ms)
 	uint32_t fsize, dsize;
 	int fflags, dlen = 0;
 	char *data = NULL;
-	char stag[5];
 	off_t pos;
 
 	if(!tag)
@@ -183,8 +186,11 @@ id3v2_tag(muxed_stream_t *ms)
 	fflags = getu16(mf->file);
 	pos = ftell(mf->file);
 
+#ifdef DEBUG
+	char stag[5];
 	fprintf(stderr, "MP3: %s size=%i flags=%x\n",
 		tag2str(stag, tag), fsize, fflags);
+#endif
 
 	if(fflags & ID3v2_FFLAG_GID)
 	    getc(mf->file);
@@ -332,11 +338,15 @@ mp3_getparams(muxed_stream_t *ms)
     if(hdrok < 2)
 	return -1;
 
-
     mf->stream.audio.bit_rate = brate;
     mf->stream.audio.codec = codecs[layer];
     if(brate)
 	ms->time = 8000000LL * mf->size / brate;
+
+#ifdef DEBUG
+    fprintf(stderr, "MP3: layer %i, version %i, rate %i, time %li pos %lx\n",
+	    layer, version, brate, ms->time, pos);
+#endif
 
     return 0;
 }
