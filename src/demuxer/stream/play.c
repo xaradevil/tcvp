@@ -352,10 +352,11 @@ play_stream(void *p)
     struct sp_stream *str = p;
     stream_player_t *sp = str->sp;
     int six = str - sp->streams;
+    int shs = sp->smap[six];
     packet_t *pk;
 
     tc2_print("STREAM", TC2_PRINT_DEBUG,
-	      "starting player thread for stream %i\n", six);
+	      "starting player thread for stream %i\n", shs);
 
     while(waitplay(sp, six)){
 	pthread_mutex_lock(&sp->lock);
@@ -367,22 +368,22 @@ play_stream(void *p)
 	pthread_mutex_unlock(&sp->lock);
 	if(!pk){
 	    tc2_print("STREAM", TC2_PRINT_DEBUG,
-		      "null packet on stream %i\n", six);
+		      "null packet on stream %i\n", shs);
 	    break;
 	}
 
 	if(str->pipe->input(str->pipe, pk)){
 	    tc2_print("STREAM", TC2_PRINT_ERROR,
-		      "stream %i pipeline error\n", six);
+		      "stream %i pipeline error\n", shs);
 	    break;
 	}
     }
 
     tc2_print("STREAM", TC2_PRINT_DEBUG,
-	      "stream %i %s\n", six, sp->state == STOP? "stopped": "end");
+	      "stream %i %s\n", shs, sp->state == STOP? "stopped": "end");
 
     pk = tcallocz(sizeof(*pk));
-    pk->stream = sp->smap[six];
+    pk->stream = shs;
     pk->data = NULL;
     if(str->end->start)
 	str->end->start(str->end);
