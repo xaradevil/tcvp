@@ -309,7 +309,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     int ret;
 
     if(do_decvideo(p, pk, 1) < 0)
-	return PROBE_FAIL;
+	return PROBE_AGAIN;
 
     if(vc->have_params){
 	p->format = *s;
@@ -319,8 +319,13 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	p->format.video.width = vc->ctx->width;
 	p->format.video.height = vc->ctx->height;
 	p->format.video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
-	vc->ptsn = (uint64_t) 27000000 * vc->ctx->frame_rate_base;
-	vc->ptsd = vc->ctx->frame_rate;
+	if(vc->ctx->frame_rate){
+	    vc->ptsn = (uint64_t) 27000000 * vc->ctx->frame_rate_base;
+	    vc->ptsd = vc->ctx->frame_rate;
+	} else {
+	    vc->ptsn = 27000000;
+	    vc->ptsd = 25;
+	}
 	ret = p->next->probe(p->next, vc->out, &p->format);
 	vc->out = NULL;
     } else {
