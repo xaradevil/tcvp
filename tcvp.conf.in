@@ -3,6 +3,7 @@ TC2/interface {
 	# Give the better modules higher priority
 	priority "audio/mpeg"		"TCVP/demux/mp3"	5
 	priority "audio/mp3"		"TCVP/demux/mp3"	5
+	priority "audio/x-ogg"		"TCVP/format/ogg"	5
 	priority "video/mpeg"		"TCVP/demux/mpeg"	5
 	priority "decoder/audio/mp2"	"TCVP/codec/mad"	5
 	priority "decoder/audio/mp3"	"TCVP/codec/mad"	5
