@@ -38,12 +38,12 @@ typedef struct vidix_window {
     int width, height;
     void *driver;
     int pixel_format;
-    vidix_capability_t caps;
-    vidix_playback_t pbc;
+    vidix_capability_t *caps;
+    vidix_playback_t *pbc;
     int frames;
     int use_dma;
     char *dmabufs[VID_PLAY_MAXFRAMES];
-    vidix_dma_t dma;
+    vidix_dma_t *dma;
     window_manager_t *wm;
 } vx_window_t;
 
@@ -53,10 +53,10 @@ vx_show(video_driver_t *vd, int frame)
     vx_window_t *vxw = vd->private;
 
     if(vxw->use_dma){
-	vxw->dma.src = vxw->dmabufs[frame];
-	vxw->dma.dest_offset = vxw->pbc.offsets[frame];
-	vxw->dma.idx = frame;
-	vdlPlaybackCopyFrame(vxw->driver, &vxw->dma);
+	vxw->dma->src = vxw->dmabufs[frame];
+	vxw->dma->dest_offset = vxw->pbc->offsets[frame];
+	vxw->dma->idx = frame;
+	vdlPlaybackCopyFrame(vxw->driver, vxw->dma);
     } else {
 	vdlPlaybackFrameSelect(vxw->driver, frame);
     }
@@ -74,23 +74,23 @@ vx_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     if(vxw->use_dma){
 	fbase = vxw->dmabufs[frame];
     } else {
-	fbase = (char *)vxw->pbc.dga_addr + vxw->pbc.offsets[frame];
+	fbase = (char *)vxw->pbc->dga_addr + vxw->pbc->offsets[frame];
     }
 
-    data[0] = fbase + vxw->pbc.offset.y;
-    data[1] = fbase + vxw->pbc.offset.u;
-    data[2] = fbase + vxw->pbc.offset.v;
+    data[0] = fbase + vxw->pbc->offset.y;
+    data[1] = fbase + vxw->pbc->offset.u;
+    data[2] = fbase + vxw->pbc->offset.v;
 
     switch(vxw->pixel_format){
     case PIXEL_FORMAT_YV12:
     case PIXEL_FORMAT_I420:
-	strides[0] = align(vxw->width, vxw->pbc.dest.pitch.y);
-	strides[1] = align(vxw->width/2, vxw->pbc.dest.pitch.u);
-	strides[2] = align(vxw->width/2, vxw->pbc.dest.pitch.v);
+	strides[0] = align(vxw->width, vxw->pbc->dest.pitch.y);
+	strides[1] = align(vxw->width/2, vxw->pbc->dest.pitch.u);
+	strides[2] = align(vxw->width/2, vxw->pbc->dest.pitch.v);
 	planes = 3;
 	break;
     case PIXEL_FORMAT_YUY2:
-	strides[0] = align(vxw->width*2, vxw->pbc.dest.pitch.y);
+	strides[0] = align(vxw->width*2, vxw->pbc->dest.pitch.y);
 	planes = 1;
 	break;
     }
@@ -112,6 +112,12 @@ vx_close(video_driver_t *vd)
 	    free(vxw->dmabufs[i]);
 	}
     }
+
+    vdlFreeCapabilityS(vxw->caps);
+    vdlFreePlaybackS(vxw->pbc);
+    if(vxw->dma)
+	vdlFreeDmaS(vxw->dma);
+
     free(vxw);
     free(vd);
 
@@ -125,12 +131,12 @@ vx_reconf(void *p, int event, int x, int y, int w, int h)
 
     switch(event){
     case WM_MOVE:
-	vxw->pbc.dest.x = x;
-	vxw->pbc.dest.y = y;
-	vxw->pbc.dest.w = w;
-	vxw->pbc.dest.h = h;
+	vxw->pbc->dest.x = x;
+	vxw->pbc->dest.y = y;
+	vxw->pbc->dest.w = w;
+	vxw->pbc->dest.h = h;
 	vdlPlaybackOff(vxw->driver);
-	vdlConfigPlayback(vxw->driver, &vxw->pbc);
+	vdlConfigPlayback(vxw->driver, vxw->pbc);
     case WM_SHOW:
 	vdlPlaybackOn(vxw->driver);
 	break;
@@ -154,7 +160,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
     video_driver_t *vd;
     vx_window_t *vxw;
     int i, fmtok = 0, pxf = vs->pixel_format;
-    int frames = FRAMES;
+    int frames = driver_video_vidix_conf_frames?: FRAMES;
     void *vxdrv;
     char *drvdir;
     vidix_fourcc_t fcc;
@@ -203,17 +209,19 @@ vx_open(video_stream_t *vs, conf_section *cs)
     vxw->width = vs->width;
     vxw->height = vs->height;
     vxw->driver = vxdrv;
-    vdlGetCapability(vxdrv, &vxw->caps);
+    vxw->caps = vdlAllocCapabilityS();
+    vxw->pbc = vdlAllocPlaybackS();
+    vdlGetCapability(vxdrv, vxw->caps);
 
     vxw->pixel_format = pxf;
-    vxw->pbc.fourcc = fcc.fourcc;
-    vxw->pbc.src.w = vs->width;
-    vxw->pbc.src.h = vs->height;
-    vxw->pbc.dest.x = 0;
-    vxw->pbc.dest.y = 0;
-    vxw->pbc.dest.w = vs->width;
-    vxw->pbc.dest.h = vs->height;
-    vxw->pbc.num_frames = vxw->caps.flags & FLAG_DMA? 1: frames;
+    vxw->pbc->fourcc = fcc.fourcc;
+    vxw->pbc->src.w = vs->width;
+    vxw->pbc->src.h = vs->height;
+    vxw->pbc->dest.x = 0;
+    vxw->pbc->dest.y = 0;
+    vxw->pbc->dest.w = vs->width;
+    vxw->pbc->dest.h = vs->height;
+    vxw->pbc->num_frames = vxw->caps->flags & FLAG_DMA? 1: frames;
 
     if(conf_getvalue(cs, "video/color_key", "%i", &ckey) > 0){
 	ck.ckey.red = (ckey >> 16) & 0xff;
@@ -228,6 +236,8 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	conf_setvalue(cs, "video/color_key", "%i", ckey);
     }
 
+    vdlConfigPlayback(vxw->driver, vxw->pbc);
+
     if(!(vxw->wm = wm_open(vs->width, vs->height, vx_reconf, vxw,
 			   cs, WM_ABSCOORD))){
 	vdlClose(vxdrv);
@@ -235,20 +245,22 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	return NULL;
     }
 
-    if(vxw->caps.flags & FLAG_DMA){
+    if(vxw->caps->flags & FLAG_DMA){
+	vxw->dma = vdlAllocDmaS();
 	vxw->frames = frames;
 	for(i = 0; i < frames; i++){
-	    vxw->dmabufs[i] = valloc(vxw->pbc.frame_size);
+	    vxw->dmabufs[i] = valloc(vxw->pbc->frame_size);
 	}
-	vxw->dma.size = vxw->pbc.frame_size;
-	vxw->dma.flags = BM_DMA_SYNC;
+	vxw->dma->size = vxw->pbc->frame_size;
+	vxw->dma->flags = BM_DMA_SYNC;
 	vxw->use_dma = 1;
 	fprintf(stderr, "VIDIX: Using DMA.\n");
     } else {
-	vxw->frames = vxw->pbc.num_frames;
+	vxw->frames = vxw->pbc->num_frames;
     }
 
-    fprintf(stderr, "VIDIX: %i frames\n", vxw->pbc.num_frames);
+    fprintf(stderr, "VIDIX: %i frames, %i onboard\n",
+	    frames, vxw->pbc->num_frames);
 
     vd = malloc(sizeof(*vd));
     vd->frames = vxw->frames;
