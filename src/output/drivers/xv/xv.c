@@ -92,6 +92,9 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
 	strides[i] = xi->pitches[i];
     }
 
+    if(frame == xvw->last_frame)
+	xvw->last_frame = -1;
+
     return xi->num_planes;
 }
 
