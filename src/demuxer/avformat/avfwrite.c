@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -42,8 +42,6 @@ typedef struct avf_write {
 	uint64_t dts;
 	int used;
     } *streams;
-    pthread_mutex_t lock;
-    pthread_cond_t cnd;
 } avf_write_t;
 
 static int
@@ -52,22 +50,10 @@ avfw_input(tcvp_pipe_t *p, packet_t *pk)
     avf_write_t *avf = p->private;
     int ai;
 
-    pthread_mutex_lock(&avf->lock);
-
-    if(pk->flags & TCVP_PKT_FLAG_DTS){
-	avf->streams[pk->stream].dts = pk->dts;
-    } else if(pk->flags & TCVP_PKT_FLAG_PTS){
-	avf->streams[pk->stream].dts = pk->pts;
-    }
-
-    pthread_cond_broadcast(&avf->cnd);
-
     if(!pk->data){
 	if(!--avf->nstreams)
 	    av_write_trailer(&avf->fc);
 	avf->streams[pk->stream].used = 0;
-	pthread_cond_broadcast(&avf->cnd);
-	pthread_mutex_unlock(&avf->lock);
 	goto out;
     }
 
@@ -75,12 +61,36 @@ avfw_input(tcvp_pipe_t *p, packet_t *pk)
 	av_write_header(&avf->fc);
 	avf->header = 1;
     }
-    pthread_mutex_unlock(&avf->lock);
 
     ai = avf->streams[pk->stream].avidx;
+#if LIBAVFORMAT_BUILD < 4615
+    if(pk->flags & TCVP_PKT_FLAG_DTS){
+	avf->streams[pk->stream].dts = pk->dts;
+    } else if(pk->flags & TCVP_PKT_FLAG_PTS){
+	avf->streams[pk->stream].dts = pk->pts;
+    }
     avf->fc.streams[ai]->codec.coded_frame->key_frame =
 	pk->flags & TCVP_PKT_FLAG_KEY;
     av_write_frame(&avf->fc, ai, pk->data[0], pk->sizes[0]);
+#else
+    {
+	AVPacket ap;
+	av_init_packet(&ap);
+	if(pk->flags & TCVP_PKT_FLAG_PTS)
+	    ap.pts = pk->pts * avf->fc.streams[ai]->time_base.den /
+		(27000000 * avf->fc.streams[ai]->time_base.num);
+	if(pk->flags & TCVP_PKT_FLAG_DTS)
+	    ap.dts = pk->dts * avf->fc.streams[ai]->time_base.den /
+		(27000000 * avf->fc.streams[ai]->time_base.num);
+	ap.data = pk->data[0];
+	ap.size = pk->sizes[0];
+	ap.stream_index = ai;
+	if(pk->flags & TCVP_PKT_FLAG_KEY)
+	    ap.flags |= PKT_FLAG_KEY;
+	ap.destruct = NULL;
+	av_write_frame(&avf->fc, &ap);
+    }
+#endif
 
 out:
     tcfree(pk);
@@ -140,8 +150,6 @@ avfw_free(void *p)
     url_fclose(&avf->fc.pb);
     if(avf->streams)
 	free(avf->streams);
-    pthread_mutex_destroy(&avf->lock);
-    pthread_cond_destroy(&avf->cnd);
 }
 
 extern tcvp_pipe_t *
@@ -161,8 +169,6 @@ avfw_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     avf = calloc(1, sizeof(*avf));
     avf->fc.oformat = of;
-    pthread_mutex_init(&avf->lock, NULL);
-    pthread_cond_init(&avf->cnd, NULL);
 
     if(url_fopen(&avf->fc.pb, ofn, URL_WRONLY)){
 	free(avf);
