@@ -1,0 +1,4 @@
+AC_CHECK_HEADER([linux/videodev2.h], [TC2_ENABLE_MODULE], [],
+[#define _DEVICE_H_ 1
+#include <linux/videodev.h>
+])
