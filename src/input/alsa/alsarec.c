@@ -154,7 +154,7 @@ alsa_open(char *name, char *mode)
     s.audio.block_align = bpf;
     s.audio.sample_size = 16;
 
-    ai = calloc(1, sizeof(ai));
+    ai = calloc(1, sizeof(*ai));
     ai->pcm = pcm;
     ai->bpf = bpf;
     ai->header = mux_wav_header(&s, &hsize);
