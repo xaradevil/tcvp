@@ -416,7 +416,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    int64_t rate = tsm->bytes * 8 * 27000000LL / os->sts;
 	    if(rate > tsm->bitrate)
 		tsm->bitrate *= 1.000001;
-	    while(os->sts > tsm->pcr >
+	    while((int64_t) (os->sts - tsm->pcr) >
 		  TS_PACKET_SIZE * 8 * 27000000LL / tsm->bitrate){
 		memcpy(tsm->outbuf + tsm->bpos, tsm->null, TS_PACKET_SIZE);
 		post_packet(tsm);
