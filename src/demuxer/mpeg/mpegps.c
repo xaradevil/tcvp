@@ -278,8 +278,19 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
     mpegps_stream_t *s = ms->private;
     int64_t p, st, lp, lt, op;
     int64_t tt, d;
-
     url_t *u = s->stream;
+
+    if(s->dvd_info){
+	int idx = time / s->dvd_info->index_unit;
+	if(idx > s->dvd_info->index_size)
+	    return -1LL;
+	else if(idx <= 0)
+	    p = 0;
+	else
+	    p = s->dvd_info->index[idx];
+	st = time / 300;
+	goto out;
+    }
 
     time /= 300;
     tt = time - 90000;
@@ -335,13 +346,14 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
 	    goto err;
     }
 
+  out:
     u->seek(u, p, SEEK_SET);
     s->pts_offset = 0;
 
     tc2_print("MPEGPS", TC2_PRINT_DEBUG, "seek @ %llu (%llx)\n", p, p);
 
     return st * 300;
-err:
+  err:
     u->seek(u, op, SEEK_SET);
     return -1;
 }
@@ -621,7 +633,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	}
     }
 
-    s->stream->seek(s->stream, 0, SEEK_SET);
+    if(!s->dvd_info)
+	s->stream->seek(s->stream, 0, SEEK_SET);
 
     if(s->dvd_info){
 	char *qname, *qn;
