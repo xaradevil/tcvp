@@ -357,7 +357,7 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 		    break;
 		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
 	    } while(p == PROBE_AGAIN);
-	    if(p == PROBE_FAIL){
+	    if(p != PROBE_OK){
 		ms->used_streams[i] = 0;
 	    }
 	}
