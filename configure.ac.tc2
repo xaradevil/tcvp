@@ -1,0 +1,12 @@
+AC_INIT([TCVP], [0.1.0])
+AC_CONFIG_SRCDIR([interfaces/video.tc2])
+AM_INIT_AUTOMAKE
+
+TC2_INIT
+
+AC_CONFIG_FILES([Makefile
+		 interfaces/Makefile
+		 src/Makefile
+		 src/demuxer/Makefile
+		 src/demuxer/avformat/Makefile])
+AC_OUTPUT
