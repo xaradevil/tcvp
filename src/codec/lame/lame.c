@@ -112,7 +112,8 @@ l_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	tcfree(pk);
 
     if(!strstr(s->common.codec, "pcm-s16")){
-	tc2_print("LAME", TC2_PRINT_ERROR, "unsupported codec %s\n", s->common.codec);
+	tc2_print("LAME", TC2_PRINT_ERROR, "unsupported codec %s\n"
+		  s->common.codec);
 	return PROBE_FAIL;
     }
 

@@ -139,6 +139,9 @@ write_psm(u_char *d, mpegps_mux_t *psm, int size)
     el = d;
     d += 2;
 
+    tc2_print("MPEGPS-MUX", TC2_PRINT_DEBUG,
+	      "writing PSM for %i streams\n", psm->astreams);
+
     for(i = 0; i < psm->astreams; i++){
 	if(psm->streams[i].stream_id){
 	    *d++ = psm->streams[i].stream_type;
@@ -207,6 +210,9 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
     data = pk->data[0];
     size = pk->sizes[0];
     os = psm->streams + pk->stream;
+
+    tc2_print("MPEGPS-MUX", TC2_PRINT_DEBUG + 1,
+	      "stream %i, id %x\n", pk->stream, os->stream_id);
 
     if(pk->flags & TCVP_PKT_FLAG_PTS){
 	pthread_mutex_lock(&psm->lock);
