@@ -190,6 +190,12 @@ new_pipe(stream_player_t *sp, stream_t *s)
 	pp = pn;
 	free(type);
 	tcfree(f);
+
+	if(pp->next){
+	    while((pp = pp->next))
+		tcref(pp);
+	    break;
+	}
     }
 
     if(!pn){
@@ -345,7 +351,6 @@ play_stream(void *p)
 {
     struct sp_stream *str = p;
     stream_player_t *sp = str->sp;
-    stream_shared_t *sh = sp->shared;
     int six = str - sp->streams;
     packet_t *pk;
 
