@@ -868,6 +868,8 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 
 	    if(fi[s]){
 		list_unshift(af->packets, pk);
+	    } else {
+		avi_free_packet(&pk->pk);
 	    }
 	}
     }

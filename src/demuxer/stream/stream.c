@@ -275,17 +275,21 @@ s_flush(tcvp_pipe_t *p, int drop)
 
     pthread_mutex_lock(&vp->mtx);
     vp->flushing++;
+    pthread_mutex_unlock(&vp->mtx);
 
     for(i = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
 	    vp->pipes[i]->flush(vp->pipes[i], drop);
 	    if(drop){
-		vp->pq[i].tail = vp->pq[i].head;
-		vp->pq[i].count = 0;
+		while(vp->pq[i].count){
+		    packet_t *pk = dqp(vp, i);
+		    pk->free(pk);
+		}
 	    }
 	}
     }
 
+    pthread_mutex_lock(&vp->mtx);
     if(--vp->flushing == 0)
 	pthread_cond_broadcast(&vp->cnd);
     pthread_mutex_unlock(&vp->mtx);
