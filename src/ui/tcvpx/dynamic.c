@@ -327,7 +327,7 @@ parse_text(char *text, char *result, int len)
     char *exp;
     char *outptr = result, *inptr;
     iconv_t ic;
-    int avail = len, insize;
+    size_t avail = len, insize;
 
     if(!text) {
 	result[0]=0;
