@@ -210,6 +210,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 	    XvSetPortAttribute(dpy, xvw->port, atm, color_key);
 	} else {
 	    XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
+	    tcconf_clearvalue(cs, "video/color_key");
 	    tcconf_setvalue(cs, "video/color_key", "%i", color_key);
 	}
     }
