@@ -281,6 +281,8 @@ write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size)
     case TARGET_BACKGROUND_GRID_DESCRIPTOR:
 	if(size < 6)
 	    return 0;
+	if(!s->video.width || !s->video.height)
+	    return 0;
 	if(!s->video.aspect.num){
 	    i = 1;
 	} else {

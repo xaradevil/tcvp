@@ -190,6 +190,7 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
 
     p = time / 27000 * s->rate;
 
+
     do {
 	if(s->stream->seek(s->stream, p, sm))
 	    return -1;
@@ -290,14 +291,18 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 		sp->stream_type = mpeg_stream_types[sti].stream_type;
 		sp->common.codec = mpeg_stream_types[sti].codec;
 		sp->common.index = ms->n_streams++;
-		sp++;
-	    }
 
-	    while(il > 0){
-		int dl = mpeg_descriptor(sp, pm);
-		pm += dl;
-		il -= dl;
-		l -= dl;
+		while(il > 0){
+		    int dl = mpeg_descriptor(sp, pm);
+		    pm += dl;
+		    il -= dl;
+		    l -= dl;
+		}
+
+		sp++;
+	    } else {
+		pm += il;
+		l -= il;
 	    }
 	    l -= 4;
 	}
