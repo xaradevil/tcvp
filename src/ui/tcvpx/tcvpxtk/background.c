@@ -315,6 +315,7 @@ create_background(window_t *window, image_info_t *image)
     Pixmap maskp;
     int x, y;
     tcbackground_t *bg;
+    int w8;
 
     if(!image) return NULL;
 
@@ -336,6 +337,7 @@ create_background(window_t *window, image_info_t *image)
     bg->win = window->xw;
     bg->enabled = 1;
 
+    w8 = ((bg->width + 7) & ~7) / 8;
     data = calloc(bg->width * bg->height, 1);
     for(y=0; y<bg->height; y++){
 	for(x=0; x<bg->width; x+=8){
@@ -347,7 +349,7 @@ create_background(window_t *window, image_info_t *image)
 		    bg->transparent = 1;
 		}
 	    }
-	    data[x/8+y*bg->width/8] = d;
+	    data[x/8+y*w8] = d;
 	}
     }
 
