@@ -65,7 +65,7 @@ static void
 show_help(void)
 {
     /* FIXME: better helpscreen */
-    printf("TCVP help\n"
+    printf("TCVP %s help\n"
 	   "   -h      --help                This text\n"
 	   "   -A dev  --audio-device=dev    Select audio device\n"
 	   "   -V dev  --video-device=dev    Select video device\n"
@@ -89,8 +89,8 @@ show_help(void)
 	   "           --stop\n"
 	   "           --next\n"
 	   "           --prev\n"
-	   "           --clear               Clear playlist\n"
-	);
+	   "           --clear               Clear playlist\n", 
+	   VERSION);
 }
 
 static void
