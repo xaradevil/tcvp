@@ -193,8 +193,13 @@ avf_seek(muxed_stream_t *ms, uint64_t time)
     avf_stream_t *as = ms->private;
     int64_t avtime = AV_TIME_BASE * time / 27000000LL;
 
+#ifdef AVSEEK_FLAG_BACKWARD
     if(av_seek_frame(as->afc, -1, avtime, AVSEEK_FLAG_BACKWARD) < 0)
 	return -1;
+#else
+    if(av_seek_frame(as->afc, -1, avtime) < 0)
+	return -1;
+#endif
 
     return time;
 }
