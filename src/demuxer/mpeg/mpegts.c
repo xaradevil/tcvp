@@ -79,6 +79,7 @@ typedef struct mpegts_stream {
     } *streams;
     int rate;
     uint64_t start_time;
+    int end;
 } mpegts_stream_t;
 
 typedef struct mpegts_pk {
@@ -317,6 +318,46 @@ mpegts_free_pk(void *p)
     free(mp->buf);
 }
 
+static mpegts_pk_t *
+mpegts_mkpacket(mpegts_stream_t *s, int sx)
+{
+    struct tsbuf *tb = s->streams + sx;
+    mpegts_pk_t *pk;
+
+    pk = tcallocdz(sizeof(*pk), NULL, mpegts_free_pk);
+    pk->pk.stream = sx;
+    pk->pk.data = &pk->data;
+    pk->data = tb->buf + tb->hlen;
+    pk->buf = tb->buf;
+    pk->pk.sizes = &pk->size;
+    pk->size = tb->bpos - tb->hlen;
+    pk->pk.planes = 1;
+    pk->pk.flags = tb->flags;
+    if(tb->flags & TCVP_PKT_FLAG_PTS)
+	pk->pk.pts = tb->pts * 300;
+    if(tb->flags & TCVP_PKT_FLAG_DTS)
+	pk->pk.dts = tb->dts * 300;
+    tb->buf = malloc(0x10000);
+
+    return pk;
+}
+
+static packet_t *
+mpegts_endpacket(muxed_stream_t *ms)
+{
+    mpegts_stream_t *s = ms->private;
+    mpegts_pk_t *pk = NULL;
+
+    if(s->end >= ms->n_streams)
+	return NULL;
+
+    if(s->streams[s->end].bpos)
+	pk = mpegts_mkpacket(s, s->end);
+
+    s->end++;
+    return (packet_t *) pk;
+}
+
 extern packet_t *
 mpegts_packet(muxed_stream_t *ms, int str)
 {
@@ -326,12 +367,17 @@ mpegts_packet(muxed_stream_t *ms, int str)
     int sx = -1;
     struct tsbuf *tb;
 
+    if(s->end > -1)
+	return mpegts_endpacket(ms);
+
     do {
 	int ccd;
 
 	do {
-	    if(mpegts_read_packet(s, &mp) < 0)
-		return NULL;
+	    if(mpegts_read_packet(s, &mp) < 0){
+		s->end++;
+		return mpegts_endpacket(ms);
+	    }
 	    sx = s->imap[mp.pid];
 	} while(sx < 0 || !ms->used_streams[sx]);
 
@@ -354,22 +400,8 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	tb->cc = mp.cont_counter;
 
 	if((mp.unit_start && tb->bpos) || tb->bpos > MAX_PACKET_SIZE){
-	    if(tb->start){
-		pk = tcallocdz(sizeof(*pk), NULL, mpegts_free_pk);
-		pk->pk.stream = sx;
-		pk->pk.data = &pk->data;
-		pk->data = tb->buf + tb->hlen;
-		pk->buf = tb->buf;
-		pk->pk.sizes = &pk->size;
-		pk->size = tb->bpos - tb->hlen;
-		pk->pk.planes = 1;
-		pk->pk.flags = tb->flags;
-		if(tb->flags & TCVP_PKT_FLAG_PTS)
-		    pk->pk.pts = tb->pts * 300;
-		if(tb->flags & TCVP_PKT_FLAG_DTS)
-		    pk->pk.dts = tb->dts * 300;
-		tb->buf = malloc(0x10000);
-	    }
+	    if(tb->start)
+		pk = mpegts_mkpacket(s, sx);
 	    tb->bpos = 0;
 	    tb->flags = 0;
 	    tb->hlen = 0;
@@ -510,6 +542,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s = calloc(1, sizeof(*s));
     s->stream = tcref(u);
     s->tsbuf = malloc(2 * TS_PACKET_SIZE * TS_PACKET_BUF);
+    s->end = -1;
 
     ms->private = s;
 
