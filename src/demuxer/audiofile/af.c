@@ -27,10 +27,10 @@
 #define PK_SIZE tcvp_demux_audiofile_conf_packet_size
 
 char *formats[] = {
-    "audio/pcm-u8le",
-    "audio/pcm-u8be",
-    "audio/pcm-s8le",
-    "audio/pcm-s8be",
+    "audio/pcm-u8",
+    "audio/pcm-u8",
+    "audio/pcm-s8",
+    "audio/pcm-s8",
     "audio/pcm-u16le",
     "audio/pcm-u16be",
     "audio/pcm-s16le",
