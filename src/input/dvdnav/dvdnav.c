@@ -189,7 +189,8 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 	}
 
 	bb = min(bytes, d->bbytes - d->bpos);
-/* 	tc2_print("DVD", TC2_PRINT_DEBUG, "reading %i bytes @%lli\n", bb, d->pos); */
+	tc2_print("DVD", TC2_PRINT_DEBUG+2, "reading %i bytes @%lli\n",
+		  bb, d->pos);
 	memcpy(buf, d->buf + d->bpos, bb);
 	d->bpos += bb;
 	d->pos += bb;
@@ -320,6 +321,9 @@ dvd_open(char *url, char *mode)
     char *p, *tmp;
     dvd_t *d;
     url_t *u;
+    u_char *block = NULL;
+    int32_t event = 0;
+    int32_t clen = 0;
 
     if(strcmp(mode, "r"))
 	return NULL;
@@ -355,6 +359,13 @@ dvd_open(char *url, char *mode)
 	goto err;
     }
 
+    /* get the DVD VM started */
+    block = malloc(DVD_SECTOR_SIZE);
+    if(dvdnav_get_next_cache_block(dvd, &block, &event, &clen) ==
+       DVDNAV_STATUS_OK)
+	dvdnav_free_cache_block(dvd, block);
+    free(block);
+
     dvdnav_set_PGC_positioning_flag(dvd, 1);
 
     dvdnav_menu_language_select(dvd, url_dvd_conf_language);
@@ -362,7 +373,13 @@ dvd_open(char *url, char *mode)
     dvdnav_spu_language_select(dvd, url_dvd_conf_language);
 
     if(title > 0){
-	dvdnav_get_number_of_titles(dvd, &titles);
+	if(dvdnav_get_number_of_titles(dvd, &titles) != DVDNAV_STATUS_OK){
+	    tc2_print("DVD", TC2_PRINT_ERROR,
+		      "error reading number of titles: %s\n",
+		      dvdnav_err_to_string(dvd));
+	    goto err;
+	}
+
 	tc2_print("DVD", TC2_PRINT_VERBOSE, "%i titles.\n", titles);
 	if(title < 1 || title > titles){
 	    tc2_print("DVD", TC2_PRINT_ERROR, "invalid title %i.\n", title);
