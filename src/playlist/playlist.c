@@ -71,6 +71,38 @@ pl_add(playlist_t *pl, char **files, int n, int p)
 }
 
 static int
+pl_addlist(playlist_t *pl, char *file, int pos)
+{
+    FILE *plf = fopen(file, "r");
+    char buf[1024], *line = alloca(1024), **lp = &line;
+    char *d, *l;
+    int n = 0;
+
+    if(!plf)
+	return -1;
+
+    l = strdup(file);
+    d = strrchr(l, '/');
+
+    if(d){
+	*d = 0;
+	d = l;
+    } else {
+	d = "";
+    }
+
+    while(fgets(buf, 1024, plf)){
+	if(buf[0] != '#'){
+	    buf[strlen(buf)-1] = 0;
+	    snprintf(line, 1024, "%s/%s", d, buf);
+	    pl_add(pl, lp, 1, pos + n++);
+	}
+    }
+
+    return n;
+}
+
+static int
 pl_remove(playlist_t *pl, int s, int n)
 {
     tcvp_playlist_t *tpl = pl->private;
@@ -311,6 +343,7 @@ pl_new(conf_section *cs)
 
     pl = calloc(1, sizeof(*pl));
     pl->add = pl_add;
+    pl->addlist = pl_addlist;
     pl->remove = pl_remove;
     pl->get = pl_get;
     pl->count = pl_count;

@@ -3,6 +3,7 @@ include
 typedef struct playlist playlist_t;
 struct playlist {
     int (*add)(playlist_t *, char **, int n, int pos);
+    int (*addlist)(playlist_t *, char *file, int pos);
     int (*remove)(playlist_t *, int start, int n);
     int (*get)(playlist_t *, char **, int start, int n);
     int (*count)(playlist_t *);

@@ -163,17 +163,8 @@ tcl_init(char *p)
 
     pll = playlist_new(cf);
     pll->add(pll, files, nfiles, 0);
-    if(playlist){
-	FILE *pl = fopen(playlist, "r");
-	char *buf = alloca(1024), **bp = &buf;
-	while(fgets(buf, 1024, pl)){
-	    if(buf[0] != '#'){
-		buf[strlen(buf)-1] = 0;
-		pll->add(pll, bp, 1, nfiles++);
-	    }
-	}
-    }
-
+    if(playlist)
+	nfiles += pll->addlist(pll, playlist, nfiles);
     if(shuffle)
 	pll->shuffle(pll, 0, nfiles);
 
