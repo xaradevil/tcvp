@@ -44,7 +44,7 @@ tcvp_event(void *p)
 		s_length = 0;
 		update_time(skin);
 		if(p_state == PLAYING) {
-		    tcvp_next((tcwidget_t *)skin->playctl[4], NULL);
+		    tcvp_next((tcwidget_t *)skin->background, NULL);
 		}
 	    }
 	    break;
@@ -64,8 +64,15 @@ tcvp_event(void *p)
 	    muxed_stream_t *st = te->load.stream;
 	    char *title;
 
+/* 	    printf("%s %s %s\n", st->title, st->performer, st->file); */
 	    if(st->title){
-		title = strdup(st->title);
+		if(st->performer){
+		    title = alloca(strlen(st->title) + strlen(st->performer) + 4);
+		    sprintf(title, "%s - %s", st->performer, st->title);
+		} else {
+		    title = alloca(strlen(st->title)+1);
+		    strcpy(title, st->title);
+		}
 	    } else {
 		char *ext;
 		title = strrchr(st->file, '/');
@@ -101,7 +108,6 @@ tcvp_event(void *p)
 
 	    change_label(skin->title, title);
 
-	    free(title);
 	    break;
 	}
 	case -1:
@@ -131,8 +137,6 @@ tcvp_stop(tcwidget_t *p, XEvent *e)
     p_state = STOPPED;
     eventq_send(qs, te);
     tcfree(te);
-    if(p != NULL)
-	change_label(p->common.skin->title, "Stopped");
 
     return 0;
 }

@@ -94,9 +94,10 @@ typedef struct {
     skin_t *skin;
     int x,y;
 
+    char *colorname;
     uint32_t color;
+    short alpha;
     char *font;
-    double size;
     XftFont *xftfont;
     XftColor xftcolor;
     XftDraw *xftdraw;
@@ -110,7 +111,6 @@ typedef struct {
     int s_max;
     int s_space;
     int s_dir;
-    XftColor scroll_xftcolor;
     Pixmap s_text;
 } tclabel_t;
 
@@ -132,6 +132,7 @@ union _tcwidget_t {
     tcimage_button_t button;
     tclabel_t label;
     tcbackground_t background;
+    tcslider_t slider;
 };
 
 extern list *widget_list, *bt_list, *sl_list;
@@ -151,9 +152,9 @@ tcimage_button_t* create_button(skin_t *skin, int x, int y,
 
 int change_label(tclabel_t *txt, char *text);
 tclabel_t* create_label(skin_t *skin, int x, int y, int width, int height,
-			       int xoff, int yoff, char *text, char *font,
-			       double size, uint32_t color, int scroll,
-			       onclick_cb_t onclick);
+			int xoff, int yoff, char *text, char *font,
+			char *color, short alpha, int scroll,
+			onclick_cb_t onclick);
 
 
 #endif /* _TCWIDGETS_H */

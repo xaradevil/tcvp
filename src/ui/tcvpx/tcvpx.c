@@ -49,8 +49,7 @@ list_item *flist_curr;
 char *current_file;
 
 
-
-static int
+extern int
 toggle_time(tcwidget_t *p, XEvent *e)
 {
     if(show_time == TCTIME_ELAPSED) {
@@ -79,58 +78,11 @@ update_time(skin_t *skin)
 	}
     }
 
-    snprintf(text, 7, "% 3d:%02d", t/60, t%60);
+    snprintf(text, 7, "%3d:%02d", t/60, t%60);
     change_label(skin->time, text);
 
     XSync(xd, False);
     
-    return 0;
-}
-
-
-static skin_t*
-load_skin(char *skinpath)
-{
-    skin_t *skin=malloc(sizeof(skin_t));
-
-    skin->path = skinpath;
-
-    skin->width = 200;
-    skin->height = 20;
-
-    skin->pbg_pos.x = 103;
-    skin->pbg_pos.y = 0;
-    skin->pcpos.x = 50;
-    skin->pcpos.y = 1;
-    skin->closepos.x = 187;
-    skin->closepos.y = 0;
-
-    return skin;
-}
-
-
-static int
-create_ui(skin_t *skin)
-{
-    skin->background = create_background(skin, "background.png");
-    skin->playctl[0] = create_button(skin, skin->pcpos.x+0, skin->pcpos.y+0,
-				     "previous.png", tcvp_previous);
-    skin->playctl[1] = create_button(skin, skin->pcpos.x+10, skin->pcpos.y+0,
-				     "play.png", tcvp_play);
-    skin->playctl[2] = create_button(skin, skin->pcpos.x+20, skin->pcpos.y+0,
-				     "pause.png", tcvp_pause);
-    skin->playctl[3] = create_button(skin, skin->pcpos.x+30, skin->pcpos.y+0,
-				     "stop.png", tcvp_stop);
-    skin->playctl[4] = create_button(skin, skin->pcpos.x+40, skin->pcpos.y+0,
-				     "next.png", tcvp_next);
-    skin->playctl[4] = create_button(skin, skin->closepos.x, skin->closepos.y,
-				     "close.png", tcvp_close);
-    skin->time = create_label(skin, 12, 1, 37, 10, 0, 7, "  0:00", "courier",
-			      10.0, 0xFF006030, TCLABELSTANDARD, toggle_time);
-    skin->title = create_label(skin, 12, 10, 176, 10, 0, 7, "Stopped",
-			       "arial", 10.0, 0xFF006030,
-			       TCLABELPINGPONG, NULL);
-
     return 0;
 }
 

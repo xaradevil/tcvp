@@ -20,19 +20,19 @@
 #define _TCSKIN_H
 
 #include "widgets.h"
-
-typedef struct {
-    int x;
-    int y;
-} pos_t;
+#include <tcconf.h>
 
 struct _skin_t {
-    pos_t pbg_pos, pcpos, closepos;
-    tcimage_button_t *playctl[5], *close;
+/*     tcimage_button_t *playctl[5], *close; */
     tclabel_t *time, *title;
     tcbackground_t *background;
     int width, height;
+    char *file;
     char *path;
+    conf_section *config;
 };
+
+skin_t* load_skin(char *skinfile);
+int create_ui(skin_t *skin);
 
 #endif /* _TCSKIN_H */

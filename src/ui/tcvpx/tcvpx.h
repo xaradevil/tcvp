@@ -34,6 +34,7 @@ int update_time(skin_t *skin);
 void *x11_event(void *p);
 void *tcvp_event(void *p);
 void *scroll_labels(void *p);
+int toggle_time(tcwidget_t *p, XEvent *e);
 
 extern int mapped;
 extern int quit;
