@@ -153,6 +153,38 @@ timer_alloc(int type, va_list args)
     return te;
 }
 
+static u_char *
+timer_ser(char *name, void *event, int *size)
+{
+    tcvp_timer_event_t *te = event;
+    int s = strlen(name) + 1 + 8;
+    u_char *sb = malloc(s);
+    u_char *p = sb;
+
+    p += sprintf(sb, "%s", name);
+    p++;
+    st_unaligned64(htob_64(te->time), p);
+
+    *size = s;
+    return sb;
+}
+
+static void *
+timer_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    uint64_t time;
+
+    n++;
+    if(size - (n - event) < 8)
+	return NULL;
+
+    time = htob_64(unaligned64(n));
+    n += 8;
+
+    return tcvp_event_new(type, time);
+}
+
 static void *
 state_alloc(int type, va_list args)
 {
@@ -218,7 +250,7 @@ static struct {
     { "TCVP_PAUSE",       NULL,             NULL,      NULL        },
     { "TCVP_SEEK",        seek_alloc,       seek_ser,  seek_deser  },
     { "TCVP_CLOSE",       NULL,             NULL,      NULL        },
-    { "TCVP_TIMER",       timer_alloc,      NULL,      NULL,       },
+    { "TCVP_TIMER",       timer_alloc,      timer_ser, timer_deser },
     { "TCVP_STATE",       state_alloc,      state_ser, state_deser },
     { "TCVP_LOAD",        load_alloc,       NULL,      NULL        },
     { "TCVP_STREAM_INFO", NULL,             NULL,      NULL        },
