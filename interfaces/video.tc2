@@ -1,6 +1,8 @@
-symbol	"open"		muxed_stream_t *(*%s)(char *name);
+symbol	"open"		muxed_stream_t *(*%s)(char *name)
 symbol	"close"		int (*%s)(muxed_stream_t *)
-symbol	"next_packet"	packet_t *(*%s)(muxed_stream_t *, int stream);
+symbol	"next_packet"	packet_t *(*%s)(muxed_stream_t *, int stream)
+symbol	"play"		int (*%s)(muxed_stream_t *, eventq_t *)
+require "Eventq"
 include
 #include <stdint.h>
 #include <sys/types.h>
