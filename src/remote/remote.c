@@ -22,7 +22,7 @@
 typedef struct tcvp_remote {
     eventq_t qr, sc, ss, st;
     pthread_t eth, lth;
-    int ssock, rsock;
+    int ssock;
     tcconf_section_t *conf;
     list *clients;
     fd_set clf;
