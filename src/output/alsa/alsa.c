@@ -61,6 +61,8 @@ alsa_start(tcvp_pipe_t *p)
     pthread_mutex_unlock(&ao->mx);
     if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_PAUSED)
 	snd_pcm_pause(ao->pcm, 0);
+    else
+	snd_pcm_prepare(ao->pcm);
 
     return 0;
 }
@@ -92,6 +94,7 @@ alsa_free(tcvp_pipe_t *p)
     snd_pcm_close(ao->pcm);
     snd_pcm_hw_params_free(ao->hwp);
     tm_stop(ao->timer);
+    free(ao->buf);
     free(ao);
     free(p);
 
@@ -287,8 +290,6 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
 
 	pcm = rpcm;
     }
-
-    snd_pcm_prepare(pcm);
 
     ao = calloc(1, sizeof(*ao));
     ao->pcm = pcm;
