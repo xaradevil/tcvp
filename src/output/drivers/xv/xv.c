@@ -250,7 +250,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     xvw->last_frame = -1;
     pthread_mutex_init(&xvw->flock, NULL);
 
-    if(dasp > 0 || vs->aspect.num){
+    if(dasp > 0 || (vs->aspect.num && vs->aspect.den)){
 	float asp = (float) vs->width / vs->height;
 	if(dasp <= 0)
 	    dasp = (float) vs->aspect.num / vs->aspect.den;
