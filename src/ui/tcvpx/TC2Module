@@ -49,11 +49,13 @@ import		"xtk/widget/image"	"set_image"
 
 import		"xtk/widget/label"	"create"
 import		"xtk/widget/label"	"set_action"
+import		"xtk/widget/label"	"set_align"
 import		"xtk/widget/label"	"set_color"
 import		"xtk/widget/label"	"set_data"
 import		"xtk/widget/label"	"set_font"
 import		"xtk/widget/label"	"set_offset"
 import		"xtk/widget/label"	"set_text"
+import		"xtk/widget/label"	"set_scroll"
 
 import		"xtk/widget/slider"	"create"
 import		"xtk/widget/slider"	"set_action"

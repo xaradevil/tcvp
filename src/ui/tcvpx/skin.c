@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003, 2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -357,7 +357,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int width, height;
     int xoff = 0, yoff = 0;
     char *font;
-    char *color, *align_s;
+    char *color, *align_s, *stype_s;
     int alpha;
     int stype, align;
     int i=0, j;
@@ -375,8 +375,8 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	j++;
     }
     i += j;
-    if((j = tcconf_getvalue(sec, "scroll_style", "%d", &stype))<1){
-	stype = 1;
+    if((j = tcconf_getvalue(sec, "scroll_style", "%s", &stype_s))<1){
+	stype_s = strdup("none");
 	j = 1;
     }
     i += j;
@@ -386,13 +386,22 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     }
     i += j;
     if(strcasecmp(align_s, "left") == 0) {
-	align = TCLABELLEFT;
+	align = XTKLABELLEFT;
     } else if(strcasecmp(align_s, "right") == 0) {
-	align = TCLABELRIGHT;
+	align = XTKLABELRIGHT;
     } else {
-	align = TCLABELCENTER;
+	align = XTKLABELCENTER;
     }
     free(align_s);
+
+    if(strcasecmp(stype_s, "scroll") == 0) {
+	stype = XTKLABELSCROLL;
+    } else if(strcasecmp(stype_s, "pingpong") == 0) {
+	stype = XTKLABELPINGPONG;
+    } else {
+	stype = 0;
+    }
+    free(stype_s);
 
     if(i != 10){
 	return NULL;
@@ -415,11 +424,13 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     xtk_widget_label_set_text(l, default_text);
     xtk_widget_label_set_data(l, wd);
     xtk_widget_label_set_action(l, lookup_action);
+    xtk_widget_label_set_align(l, align);
+    xtk_widget_label_set_scroll(l, stype);
 
     w = xtk_widget_image_create(win, x, y, width, height);
     xtk_widget_image_set_image(w, load_image(skin->path, bg));
     xtk_widget_show(w);
-/* 	type, align */
+/* 	stype, align */
 
     register_textwidget(l, text);
     l->on_destroy = destroy_skinned_label;
