@@ -142,7 +142,7 @@ a52_free_pk(void *v)
     free(p->private);
 }
 
-static int
+extern int
 a52_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     a52_decode_t *ad = p->private;
@@ -233,7 +233,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
     return ret;
 }
 
-static int
+extern int
 a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     int flags, srate, bitrate, size = 0;
@@ -259,20 +259,18 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     tcfree(pk);
 
-    return p->next->probe(p->next, NULL, &p->format);
+    return PROBE_OK;
 }
 
 static void
 a52_free_codec(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    a52_decode_t *ad = tp->private;
+    a52_decode_t *ad = p;
 
     a52_free(ad->state);
-    free(ad);
 }
 
-static int
+extern int
 a52_flush(tcvp_pipe_t *p, int drop)
 {
     a52_decode_t *ad = p->private;
@@ -282,27 +280,23 @@ a52_flush(tcvp_pipe_t *p, int drop)
 	ad->fpos = 0;
     }
 
-    return p->next->flush(p->next, drop);
+    return 0;
 }
 
-extern tcvp_pipe_t *
-a52_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
+extern int
+a52_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
+	tcvp_timer_t *t, muxed_stream_t *ms)
 {
     a52_decode_t *ad;
-    tcvp_pipe_t *p;
 
-    ad = calloc(1, sizeof(*ad));
+    ad = tcallocdz(sizeof(*ad), NULL, a52_free_codec);
     ad->state = a52_init(0);
     ad->out = a52_samples(ad->state);
     ad->level = 1;
     ad->bias = 384;
     ad->flags = A52_STEREO | A52_ADJUST_LEVEL;
 
-    p = tcallocdz(sizeof(*p), NULL, a52_free_codec);
-    p->input = a52_decode;
-    p->probe = a52_probe;
-    p->flush = a52_flush;
     p->private = ad;
 
-    return p;
+    return 0;
 }

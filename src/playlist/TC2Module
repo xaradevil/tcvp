@@ -12,18 +12,25 @@ import		"stream"	"open"
 require		"tcvp/core"
 
 TCVP {
-	module "tcvp/playlist" pl_new pl_init
-	event control TCVP_PL_START epl_start NULL NULL NULL
-	event control TCVP_PL_STOP epl_stop NULL NULL NULL
-	event control TCVP_PL_NEXT epl_next NULL NULL NULL
-	event control TCVP_PL_PREV epl_prev NULL NULL NULL
-	event control TCVP_PL_ADD epl_add pl_alloc_add pl_add_ser pl_add_deser
-	event control TCVP_PL_ADDLIST epl_addlist pl_alloc_addlist pl_addlist_ser pl_addlist_deser
-	event control TCVP_PL_REMOVE epl_remove pl_alloc_remove remove_ser remove_deser
-	event control TCVP_PL_SHUFFLE epl_shuffle pl_alloc_shuffle shuffle_ser shuffle_deser
-	event status TCVP_STATE epl_state
-	event status TCVP_OPEN NULL
-	event status TCVP_START NULL
-	event status TCVP_CLOSE NULL
-	event status TCVP_LOAD NULL
+	module "tcvp/playlist" {
+		new pl_new
+		init pl_init
+		event status TCVP_OPEN
+		event status TCVP_START
+		event status TCVP_CLOSE
+		event status TCVP_LOAD
+		event status TCVP_STATE epl_state
+		event control TCVP_PL_START epl_start NULL NULL NULL
+		event control TCVP_PL_STOP epl_stop NULL NULL NULL
+		event control TCVP_PL_NEXT epl_next NULL NULL NULL
+		event control TCVP_PL_PREV epl_prev NULL NULL NULL
+		event control TCVP_PL_ADD epl_add pl_alloc_add pl_add_ser pl_add_deser
+		event control TCVP_PL_ADDLIST epl_addlist pl_alloc_addlist pl_addlist_ser pl_addlist_deser
+		event control TCVP_PL_REMOVE epl_remove pl_alloc_remove remove_ser remove_deser
+		event control TCVP_PL_SHUFFLE epl_shuffle pl_alloc_shuffle shuffle_ser shuffle_deser
+	}
+	event TCVP_PL_ADD	pl_alloc_add pl_add_ser pl_add_deser
+	event TCVP_PL_ADDLIST	pl_alloc_addlist pl_addlist_ser pl_addlist_deser
+	event TCVP_PL_REMOVE	pl_alloc_remove remove_ser remove_deser
+	event TCVP_PL_SHUFFLE	pl_alloc_shuffle shuffle_ser shuffle_deser
 }

@@ -5,37 +5,66 @@ tc2version	0.4.0
 sources		avcodec.c encode.c avc.h
 postinit	avc_init
 
-implement	"decoder/audio/mpeg"	"new"	avc_new
-implement	"decoder/audio/mp2"	"new"	avc_new
-implement	"decoder/audio/mp3"	"new"	avc_new
-implement	"decoder/audio/wmav2"	"new"	avc_new
-implement	"decoder/audio/wmav1"	"new"	avc_new
-implement	"decoder/audio/ac3"	"new"	avc_new
-implement	"decoder/audio/mace3"	"new"	avc_new
-implement	"decoder/audio/mace6"	"new"	avc_new
-implement	"decoder/audio/adpcm-ms"	"new"	avc_new
-implement	"decoder/audio/adpcm-ima-qt"	"new"	avc_new
+TCVP {
+	filter "decoder/audio/mpeg" {
+		alias "decoder/audio/mp2"
+		alias "decoder/audio/mp3"
+		alias "decoder/audio/wmav2"
+		alias "decoder/audio/wmav1"
+		alias "decoder/audio/ac3"
+		alias "decoder/audio/mace3"
+		alias "decoder/audio/mace6"
+		alias "decoder/audio/adpcm-ms"
+		alias "decoder/audio/adpcm-ima-qt"
+		new avc_new
+		probe avc_probe_audio
+		packet DATA avc_decaudio
+		flush avc_flush
+	}
 
-implement	"decoder/video/mpeg"	"new"	avc_new
-implement	"decoder/video/mpeg2"	"new"	avc_new
-implement	"decoder/video/h263"	"new"	avc_new
-implement	"decoder/video/h263p"	"new"	avc_new
-implement	"decoder/video/h263i"	"new"	avc_new
-implement	"decoder/video/h264"	"new"	avc_new
-implement	"decoder/video/rv10"	"new"	avc_new
-implement	"decoder/video/mjpeg"	"new"	avc_new
-implement	"decoder/video/mjpegb"	"new"	avc_new
-implement	"decoder/video/mpeg4"	"new"	avc_new
-implement	"decoder/video/msmpeg4v1"	"new"	avc_new
-implement	"decoder/video/msmpeg4v2"	"new"	avc_new
-implement	"decoder/video/msmpeg4v3"	"new"	avc_new
-implement	"decoder/video/wmv1"	"new"	avc_new
-implement	"decoder/video/wmv2"	"new"	avc_new
-implement	"decoder/video/vp3"	"new"	avc_new
-implement	"decoder/video/svq1"	"new"	avc_new
-implement	"decoder/video/svq3"	"new"	avc_new
-implement	"decoder/video/indeo3"	"new"	avc_new
+	filter "decoder/video/mpeg" {
+		alias "decoder/video/mpeg2"
+		alias "decoder/video/h263"
+		alias "decoder/video/h263p"
+		alias "decoder/video/h263i"
+		alias "decoder/video/h264"
+		alias "decoder/video/rv10"
+		alias "decoder/video/mjpeg"
+		alias "decoder/video/mjpegb"
+		alias "decoder/video/mpeg4"
+		alias "decoder/video/msmpeg4v1"
+		alias "decoder/video/msmpeg4v2"
+		alias "decoder/video/msmpeg4v3"
+		alias "decoder/video/wmv1"
+		alias "decoder/video/wmv2"
+		alias "decoder/video/vp3"
+		alias "decoder/video/svq1"
+		alias "decoder/video/svq3"
+		alias "decoder/video/indeo3"
+		new avc_new
+		probe avc_probe_video
+		packet DATA avc_decvideo
+		flush avc_flush
+	}
 
-implement	"encoder/video/mpeg"	"new"	avc_mpeg_enc_new
-implement	"encoder/video/mpeg2"	"new"	avc_mpeg2_enc_new
-implement	"encoder/video/mpeg4"	"new"	avc_mpeg4_enc_new
+	filter "encoder/video/mpeg" {
+		new avc_mpeg_enc_new
+		packet DATA avc_encvid
+		probe avc_encvideo_probe
+		flush avc_encvid_flush
+	}
+
+	filter "encoder/video/mpeg2" {
+		new avc_mpeg2_enc_new
+		packet DATA avc_encvid
+		probe avc_encvideo_probe
+		flush avc_encvid_flush
+	}
+
+	filter "encoder/video/mpeg4" {
+		new avc_mpeg4_enc_new
+		packet DATA avc_encvid
+		probe avc_encvideo_probe
+		flush avc_encvid_flush
+	}
+}

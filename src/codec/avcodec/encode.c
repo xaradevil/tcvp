@@ -30,7 +30,7 @@ typedef struct avc_encpacket {
     int size;
 } avc_encpacket_t;
 
-static int
+extern int
 avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 {
     avc_encvid_t *enc = p->private;
@@ -67,7 +67,7 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     avc_encvid_t *enc = p->private;
@@ -96,10 +96,10 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	ctx->flags |= CODEC_FLAG_INTERLACED_DCT;
     avcodec_open(ctx, enc->avc);
 
-    return p->next->probe(p->next, NULL, &p->format);
+    return PROBE_OK;
 }
 
-static int
+extern int
 avc_encvid_flush(tcvp_pipe_t *p, int drop)
 {
     avc_encvid_t *enc = p->private;
@@ -107,36 +107,34 @@ avc_encvid_flush(tcvp_pipe_t *p, int drop)
     if(drop)
 	avcodec_flush_buffers(enc->ctx);
 
-    return p->next->flush(p->next, drop);
+    return 0;
 }
 
 static void
 avc_free_encvid(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    avc_encvid_t *enc = tp->private;
+    avc_encvid_t *enc = p;
 
     free(enc->buf);
     free(enc->frame);
     if(enc->ctx->codec)
 	avcodec_close(enc->ctx);
-    free(enc);
 }
 
-static tcvp_pipe_t *
-avc_encvideo_new(stream_t *s, char *codec, tcconf_section_t *cf)
+extern int
+avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
+		 tcconf_section_t *cf)
 {
     enum CodecID cid;
     AVCodec *avc;
     AVCodecContext *ctx;
     avc_encvid_t *enc;
-    tcvp_pipe_t *p;
 
     cid = avc_codec_id(codec);
     avc = avcodec_find_encoder(cid);
     if(!avc){
 	fprintf(stderr, "Can't find encoder for '%s'.\n", codec);
-	return NULL;
+	return -1;
     }
 
     ctx = avcodec_alloc_context();
@@ -206,41 +204,37 @@ avc_encvideo_new(stream_t *s, char *codec, tcconf_section_t *cf)
     ctx_flag(alt_scan, ALT_SCAN);
     ctx_flag(trellis_quant, TRELLIS_QUANT);
 
-    enc = malloc(sizeof(*enc));
+    enc = tcallocdz(sizeof(*enc), NULL, avc_free_encvid);
     enc->codec = codec;
     enc->avc = avc;
     enc->ctx = ctx;
     enc->frame = avcodec_alloc_frame();
     enc->buf = malloc(ENCBUFSIZE);
 
-    p = tcallocdz(sizeof(*p), NULL, avc_free_encvid);
     p->format = *s;
     p->format.common.codec = codec;
-    p->input = avc_encvid;
-    p->probe = avc_encvideo_probe;
-    p->flush = avc_encvid_flush;
     p->private = enc;
 
-    return p;
+    return 0;
 }
 
-extern tcvp_pipe_t *
-avc_mpeg4_enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-		  muxed_stream_t *ms)
+extern int
+avc_mpeg4_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
+		  tcvp_timer_t *t, muxed_stream_t *ms)
 {
-    return avc_encvideo_new(s, "video/mpeg4", cs);
+    return avc_encvideo_new(p, s, "video/mpeg4", cs);
 }
 
-extern tcvp_pipe_t *
-avc_mpeg_enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-		 muxed_stream_t *ms)
+extern int
+avc_mpeg_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
+		 tcvp_timer_t *t, muxed_stream_t *ms)
 {
-    return avc_encvideo_new(s, "video/mpeg", cs);
+    return avc_encvideo_new(p, s, "video/mpeg", cs);
 }
 
-extern tcvp_pipe_t *
-avc_mpeg2_enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-		  muxed_stream_t *ms)
+extern int
+avc_mpeg2_enc_new(tcvp_pipe_t * p, stream_t *s, tcconf_section_t *cs,
+		  tcvp_timer_t *t, muxed_stream_t *ms)
 {
-    return avc_encvideo_new(s, "video/mpeg2", cs);
+    return avc_encvideo_new(p, s, "video/mpeg2", cs);
 }

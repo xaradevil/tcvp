@@ -3,10 +3,18 @@ name		"TCVP/codec/mad"
 version		0.1.2
 tc2version	0.4.0
 sources		mad.c
-implement	"decoder/audio/mpeg"	"new"	mad_new
-implement	"decoder/audio/mp1"	"new"	mad_new
-implement	"decoder/audio/mp2"	"new"	mad_new
-implement	"decoder/audio/mp3"	"new"	mad_new
 option		output_buffer%i=4800
 option		input_buffer%i=512
 option		probe_max%i=8192
+
+TCVP {
+	filter "decoder/audio/mpeg" {
+		alias "decoder/audio/mp1"	
+		alias "decoder/audio/mp2"
+		alias "decoder/audio/mp3"
+		new mad_new
+		probe mad_probe
+		packet DATA mad_decode
+		flush mad_flush
+	}
+}

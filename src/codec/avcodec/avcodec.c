@@ -96,7 +96,7 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
     return 0;
 }
 
-static int
+extern int
 avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
 {
     return do_decaudio(p, pk, 0);
@@ -166,31 +166,21 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
     return 0;
 }
 
-static int
+extern int
 avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 {
     return do_decvideo(p, pk, 0);
 }
 
-static void
-avc_free_apipe(void *p)
+extern void
+avc_free_pipe(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    avc_codec_t *ac = tp->private;
-    avcodec_close(ac->ctx);
-    if(ac->buf)
-	free(ac->buf);
-    free(ac);
-}
-
-static void
-avc_free_vpipe(void *p)
-{
-    tcvp_pipe_t *tp = p;
-    avc_codec_t *vc = tp->private;
+    avc_codec_t *vc = p;
     avcodec_close(vc->ctx);
-    free(vc->frame);
-    free(vc);
+    if(vc->buf)
+	free(vc->buf);
+    if(vc->frame)
+	free(vc->frame);
 }
 
 extern int
@@ -207,7 +197,7 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
 	p->format.audio.sample_rate = ac->ctx->sample_rate;
 	p->format.audio.channels = ac->ctx->channels;
-	ret = p->next->probe(p->next, NULL, &p->format);
+	ret = PROBE_OK;
     } else {
 	ret = PROBE_AGAIN;
     }
@@ -244,7 +234,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(!pk){
 	p->format = *s;
 	p->format.video.codec = "video/raw-i420";
-	ret = p->next->probe(p->next, NULL, &p->format);
+	ret = PROBE_OK;
 	goto out;
     }
 
@@ -298,7 +288,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    tcreduce(&p->format.video.aspect);
 	}
 #endif
-	ret = p->next->probe(p->next, NULL, &p->format);
+	ret = PROBE_OK;
     } else {
 	ret = PROBE_AGAIN;
     }
@@ -307,7 +297,7 @@ out:
     return ret;
 }
 
-static int
+extern int
 avc_flush(tcvp_pipe_t *p, int drop)
 {
     avc_codec_t *ac = p->private;
@@ -315,14 +305,14 @@ avc_flush(tcvp_pipe_t *p, int drop)
     if(drop)
 	avcodec_flush_buffers(ac->ctx);
 
-    return p->next->flush(p->next, drop);
+    return 0;
 }
 
-extern tcvp_pipe_t *
-avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
+extern int
+avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
+	tcvp_timer_t *t, muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p = NULL;
-    avc_codec_t *ac, *vc;
+    avc_codec_t *ac;
     AVCodec *avc = NULL;
     AVCodecContext *avctx;
     enum CodecID id;
@@ -333,7 +323,7 @@ avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     if(avc == NULL){
 	fprintf(stderr, "AVC: Can't find codec for '%s' => %i\n",
 		s->common.codec, id);
-	return NULL;
+	return -1;
     }
 
     avctx = avcodec_alloc_context();
@@ -347,23 +337,18 @@ avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     ctx_conf(idct_algo, i);
     ctx_conf(debug, i);
 
+    ac = tcallocdz(sizeof(*ac), NULL, avc_free_pipe);
+    ac->ctx = avctx;
+    p->private = ac;
+
     switch(s->stream_type){
     case STREAM_TYPE_AUDIO:
 	avctx->sample_rate = s->audio.sample_rate;
 	avctx->channels = s->audio.channels;
 	avctx->bit_rate = s->audio.bit_rate;
 	avctx->block_align = s->audio.block_align;
-
-	ac = calloc(1, sizeof(*ac));
-	ac->ctx = avctx;
 	ac->buf = malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE);
-
-	p = tcallocdz(sizeof(*p), NULL, avc_free_apipe);
-	p->format = *s;
-	p->format.video.codec = "audio/pcm-s16";
-	p->input = avc_decaudio;
-	p->probe = avc_probe_audio;
-	p->private = ac;
+	p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
 	break;
 
     case STREAM_TYPE_VIDEO:
@@ -372,34 +357,25 @@ avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 	avctx->frame_rate = s->video.frame_rate.num;
 	avctx->frame_rate_base = s->video.frame_rate.den;
 
-	vc = calloc(1, sizeof(*vc));
-	vc->ctx = avctx;
-	vc->ptsn = (uint64_t) 27000000 * s->video.frame_rate.den;
-	vc->ptsd = s->video.frame_rate.num?: 1;
-	vc->pts = 0;
-	vc->frame = avcodec_alloc_frame();
+	ac->ptsn = (uint64_t) 27000000 * s->video.frame_rate.den;
+	ac->ptsd = s->video.frame_rate.num?: 1;
+	ac->pts = 0;
+	ac->frame = avcodec_alloc_frame();
 
-	p = tcallocdz(sizeof(*p), NULL, avc_free_vpipe);
-	p->format = *s;
-	p->format.video.codec = "video/raw";
-	p->input = avc_decvideo;
-	p->probe = avc_probe_video;
-	p->private = vc;
+	p->format.common.codec = "video/raw-i420";
 	break;
 
     default:
 	fprintf(stderr, "AVCODEC: unknown stream type %i\n", s->stream_type);
-	return NULL;
+	return -1;
     }
 
     avctx->extradata = s->common.codec_data;
     avctx->extradata_size = s->common.codec_data_size;
 
-    p->flush = avc_flush;
-
     avcodec_open(avctx, avc);
 
-    return p;
+    return 0;
 }
 
 static char *codec_names[][2] = {

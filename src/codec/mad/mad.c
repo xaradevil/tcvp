@@ -231,8 +231,8 @@ do_decode(tcvp_pipe_t *p, packet_t *pk)
     return md->stream.error;
 }
 
-static int
-decode(tcvp_pipe_t *p, packet_t *pk)
+extern int
+mad_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     mad_dec_t *md = p->private;
     u_char *d;
@@ -300,8 +300,8 @@ out:
     return 0;
 }
 
-static int
-probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+mad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     mad_dec_t *md = p->private;
     mp3_frame_t mf;
@@ -332,10 +332,10 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     tcfree(pk);
 
-    return p->next->probe(p->next, NULL, &p->format);
+    return PROBE_OK;
 }
 
-static int
+extern int
 mad_flush(tcvp_pipe_t *p, int drop)
 {
     mad_dec_t *md = p->private;
@@ -356,36 +356,29 @@ mad_flush(tcvp_pipe_t *p, int drop)
 static void
 mad_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    mad_dec_t *md = tp->private;
+    mad_dec_t *md = p;
 
     mad_synth_finish(&md->synth);
     mad_frame_finish(&md->frame);
     mad_stream_finish(&md->stream);
     free(md->buf);
-    free(md);
 }
 
-extern tcvp_pipe_t *
-mad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
+extern int
+mad_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
+	tcvp_timer_t *t, muxed_stream_t *ms)
 {
     mad_dec_t *md;
-    tcvp_pipe_t *p;
 
-    md = calloc(1, sizeof(*md));
+    md = tcallocdz(sizeof(*md), NULL, mad_free);
     mad_stream_init(&md->stream);
     mad_frame_init(&md->frame);
     mad_synth_init(&md->synth);
     md->bufsize = BUFFER_SIZE;
     md->buf = malloc(BUFFER_SIZE);
 
-    p = tcallocdz(sizeof(*p), NULL, mad_free);
-    p->format = *s;
     p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
-    p->input = decode;
-    p->probe = probe;
-    p->flush = mad_flush;
     p->private = md;
 
-    return p;
+    return 0;
 }

@@ -1,112 +1,115 @@
 package TCVP;
 
-my @filters;
-my %filters;
-my %packet;
-my %event;
-my %etypes;
-my $probe;
-my $flush;
-my @module;
-my $dtype;
+my %modules;
+my $module;
+my %events;
 
 sub init {
-    undef @filters;
-    undef %filters;
-    undef %packet;
-    undef %event;
-    undef %etypes;
-    undef $probe;
-    undef $flush;
-    undef @module;
-    undef $dtype;
+    undef %modules;
+    undef $module;
+    undef %events;
 }
 
 sub tc2module {
     $_ = shift;
-    if (/filter\s+"([^\"]+)"\s+"([^\"]+)"\s+"([^\"]+)"\s+(\w+)/) {
-	push @filters, [$1, $2, $3, $4];
-	if (not exists $filters{$1}) {
-	    my $n = '_tcvp_' . TC2::symbol($1, 'new');
-	    $filters{$1} = [$4, $n];
-	    TC2::tc2_export($1, 'new', $n);
+    return 0 if /{$/ and $module;
+
+    if (/(filter|module)\s+"([^\"]+)"\s*{/) {
+	my $w = TC2::symbol("_tcvp_$2_");
+	my @tags;
+	if($1 eq 'filter'){
+	    @tags = (wpacket => $w . 'packet',
+		     wflush => $w . 'flush',
+		     type => 'filter',
+		     dtype => 'tcvp_pipe_t');
+	} else {
+	    @tags = (winit => $w . 'init',
+		     type => 'module',
+		     dtype => 'tcvp_module_t');
 	}
-	$dtype = 'tcvp_pipe_t';
-    } elsif (/module\s+"([^\"]+)"\s+(\w+)(?:\s+(\w+))?/) {
-	my $n = '_tcvp_' . TC2::symbol($1, 'new');
-	@module = ($1, $2, $3, $n);
-	$dtype = 'tcvp_module_t';
-	TC2::tc2_export($1, 'new', $n);
-    } elsif (/event\s+(status|control|timer)
-	      \s+(\w+) # name
-	      \s+(\w+) # handler
-	      (?:\s+(\w+)\s+(\w+)\s+(\w+))?/x) {
-	$event{$2} = [$1, $3, $4, $5, $6];
-	$etypes{$1} = 1 if $3 ne 'NULL';
+	$modules{$2} = { wnew => $w . 'new',
+			 wtype => $w . 'wrapper',
+			 w => $w,
+			 @tags };
+	$module = $modules{$2};
+	TC2::tc2_export($2, 'new', $$module{wnew});
+    } elsif ($module and /alias\s+"([^\"]+)"/) {
+	TC2::tc2_export($1, 'new', $$module{wnew});
+    } elsif ($module and $$module{type} eq 'filter' and
+	     /(new|probe|flush)\s+(\w+)/) {
+	$$module{$1} = $2;
+    } elsif ($module and $$module{type} eq 'filter' and
+	     /packet\s+(\w+)\s+(\w+)/) {
+	$$module{packet}{$1} = $2;
+    } elsif ($module and $$module{type} eq 'module' and
+	     /(new|init)\s+(\w+)/) {
+	$$module{$1} = $2;
+    } elsif ($module and $$module{type} eq 'module' and
+	     /event\s+(status|control|timer)\s+(\w+)(?:\s+(\w+))?/) {
+	$$module{events}{$2} = { handler => $3 };
+	$$module{etypes}{$1} = 1;
+	$events{$2}{use} = 1;
 	TC2::tc2_import('Eventq', 'new');
 	TC2::tc2_import('Eventq', 'send');
 	TC2::tc2_import('Eventq', 'recv');
 	TC2::tc2_import('Eventq', 'attach');
 	TC2::tc2_import('Eventq', 'delete');
-	if($4){
-	    TC2::tc2_import('tcvp/event', 'register');
-	} else {
-	    TC2::tc2_import('tcvp/event', 'get');
-	}
+	TC2::tc2_import('tcvp/event', 'get');
 	TC2::tc2_import('tcvp/event', 'send');
-    } elsif (/packet\s+(\w+)\s+(\w+)/) {
-	$packet{$1} = $2;
-    } elsif (/flush\s+(\w+)/) {
-	$flush = $1;
-    } elsif (/probe\s+(\w+)/) {
-	$probe = $1;
+    } elsif (not $module and /event\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)/) {
+	$events{$1} = { alloc => $2,
+			ser => $3,
+			deser => $4 };
+	TC2::tc2_import('tcvp/event', 'register');
+    } elsif (/^}/) {
+	undef $module;
     } else {
 	return 0;
     }
+
     return 1;
 }
 
 sub cmod {
     my($fh) = @_;
 
-    if ($dtype) {
-	print $fh "typedef struct tcvp_wrapper {\n";
-	print $fh "    $dtype p;\n";
+    print $fh "int $_;\n" for keys %events;
+
+    for (values %modules) {
+	print $fh "typedef struct $$_{wtype} {\n";
+	print $fh "    $$_{dtype} p;\n";
 	print $fh "    tcconf_section_t *conf;\n";
-	if (%event) {
+	if ($$_{events}) {
 	    print $fh <<END_C;
     eventq_t qr;
     pthread_t eth;
 END_C
 	}
-	print $fh "} tcvp_wrapper_t;\n\n";
-    }
+	print $fh "} $$_{wtype}_t;\n\n";
 
-    print $fh "int $_;\n" for keys %event;
-
-    if (%event) {
-	print $fh <<END_C;
+	if ($$_{events}) {
+	    print $fh <<END_C;
 static void *
-tcvp_event_loop(void *p)
+$$_{w}event_loop(void *p)
 {
-    tcvp_wrapper_t *tp = p;
+    $$_{wtype}_t *tp = p;
     int run = 1;
 
     while(run){
 	tcvp_event_t *te = eventq_recv(tp->qr);
 END_C
-	my $else;
-	while(my($name, $e) = each %event){
-	    if($$e[1] && $$e[1] ne 'NULL'){
-		print $fh <<END_C;
+	    my $else;
+	    while (my($name, $e) = each %{$$_{events}}) {
+		if ($$e{handler}) {
+		    print $fh <<END_C;
 	${else}if(te->type == $name){
-	    $$e[1](&tp->p, te);
+	    $$e{handler}(&tp->p, te);
 	}
 END_C
-		$else = 'else ';
+		    $else = 'else ';
+		}
 	    }
-	}
-	print $fh <<END_C;
+	    print $fh <<END_C;
 	${else}if(te->type == -1){
 	    run = 0;
 	}
@@ -116,12 +119,12 @@ END_C
     return NULL;
 }
 END_C
-    }
+	}
 
-    if (%filters) {
-	print $fh <<END_C;
+	if ($$_{type} eq 'filter') {
+	    print $fh <<END_C;
 static void
-tcvp_filter_free(void *p)
+$$_{w}free(void *p)
 {
     tcvp_pipe_t *tp = p;
     if(tp->private)
@@ -129,64 +132,64 @@ tcvp_filter_free(void *p)
 }
 
 static int
-tcvp_filter_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+$$_{w}probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    int ps;
+    int ps = PROBE_OK;
     p->format = *s;
 END_C
-	if($probe){
-	    print $fh <<END_C;
-    ps = $probe(p, pk, s);
+	    if ($$_{probe}) {
+		print $fh <<END_C;
+    ps = $$_{probe}(p, pk, s);
     if(ps == PROBE_OK)
 	ps = p->next->probe(p->next, pk, &p->format);
 END_C
-	}
-	print $fh <<END_C;
+	    }
+	    print $fh <<END_C;
     return ps;
 }
 
 static int
-tcvp_filter_packet(tcvp_pipe_t *p, packet_t *pk)
+$$_{w}packet(tcvp_pipe_t *p, packet_t *pk)
 {
 END_C
-	my $else;
-	while(my($type, $func) = each %packet){
-	    print $fh <<END_C;
+	    my $else;
+	    while (my($type, $func) = each %{$$_{packet}}) {
+		print $fh <<END_C;
     ${else}if(pk->type == TCVP_PKT_TYPE_$type){
 	return $func(p, pk);
     }
 END_C
-	    $else = 'else ';
-	}
-	print $fh <<END_C;
+		$else = 'else ';
+	    }
+	    print $fh <<END_C;
     ${else}\{
 	return p->next->input(p->next, pk);
     }
 }
 
 static int
-tcvp_filter_flush(tcvp_pipe_t *p, int drop)
+$$_{w}flush(tcvp_pipe_t *p, int drop)
 {
 END_C
-	if ($flush) {
-	    print $fh "    $flush(p, drop);\n";
-	}
-	print $fh <<END_C;
+	    if ($$_{flush}) {
+		print $fh "    $$_{flush}(p, drop);\n";
+	    }
+	    print $fh <<END_C;
     return p->next->flush(p->next, drop);
 }
 
 END_C
-	for (values %filters) {
 	    print $fh <<END_C;
 extern tcvp_pipe_t *
-$$_[1](stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
+$$_{w}new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+	  muxed_stream_t *ms)
 {
-    tcvp_wrapper_t *p = tcallocdz(sizeof(*p), NULL, tcvp_filter_free);
-    p->p.input = tcvp_filter_packet;
-    p->p.probe = tcvp_filter_probe;
-    p->p.flush = tcvp_filter_flush;
+    $$_{wtype}_t *p = tcallocdz(sizeof(*p), NULL, $$_{w}free);
+    p->p.input = $$_{w}packet;
+    p->p.probe = $$_{w}probe;
+    p->p.flush = $$_{w}flush;
 
-    if($$_[0](&p->p, s, cs, t, ms)){
+    if($$_{new}(&p->p, s, cs, t, ms)){
 	tcfree(p);
 	return NULL;
     }
@@ -194,68 +197,65 @@ $$_[1](stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 }
 
 END_C
-	}
-    }
-
-    if (@module) {
-	print $fh <<END_C;
-static void
-tcvp_module_free(void *p)
-{
-    tcvp_wrapper_t *tp = p;
-END_C
-	if (%event) {
+	} elsif ($$_{type} eq 'module') {
 	    print $fh <<END_C;
+static void
+$$_{w}free(void *p)
+{
+    $$_{wtype}_t *tp = p;
+END_C
+	    if ($$_{events}) {
+		print $fh <<END_C;
     tcvp_event_send(tp->qr, -1);
     pthread_join(tp->eth, NULL);
     eventq_delete(tp->qr);
 END_C
-	}
-	print $fh <<END_C;
+	    }
+	    print $fh <<END_C;
     if(tp->p.private)
 	tcfree(tp->p.private);
     tcfree(tp->conf);
 }
 
 static int
-_tcvp_module_init(tcvp_module_t *m)
+$$_{w}init(tcvp_module_t *m)
 {
-    tcvp_wrapper_t *p = (tcvp_wrapper_t *) m;
+    $$_{wtype}_t *p = ($$_{wtype}_t *) m;
     int r = 0;
 END_C
 
-	if (%event) {
-	    print $fh <<END_C;
+	    if ($$_{events}) {
+		print $fh <<END_C;
     char *qname, *qn;
     tcconf_getvalue(p->conf, "qname", "%s", &qname);
     qn = malloc(strlen(qname) + 10);
     p->qr = eventq_new(tcref);
 END_C
 
-	    for (keys %etypes) {
-		print $fh <<END_C;
+		for (keys %{$$_{etypes}}) {
+		    print $fh <<END_C;
     sprintf(qn, "%s/$_", qname);
     eventq_attach(p->qr, qn, EVENTQ_RECV);
 END_C
-	    }
-	    print $fh <<END_C;
-    pthread_create(&p->eth, NULL, tcvp_event_loop, p);
+		}
+		print $fh <<END_C;
+    pthread_create(&p->eth, NULL, $$_{w}event_loop, p);
     free(qn);
     free(qname);
 END_C
-	}
-	print $fh "    r = $module[2](m);\n" if $module[2];
-	print $fh <<END_C;
+	    }
+	    print $fh "    r = $$_{init}(m);\n" if $$_{init};
+	    print $fh <<END_C;
     return r;
 }
 
 extern tcvp_module_t *
-$module[3](tcconf_section_t *cs)
+$$_{w}new(tcconf_section_t *cs)
 {
-    tcvp_wrapper_t *p = tcallocdz(sizeof(*p), NULL, tcvp_module_free);
-    p->p.init = _tcvp_module_init;
+    $$_{wtype}_t *p = tcallocdz(sizeof(*p), NULL, $$_{w}free);
+    p->p.init = $$_{w}init;
 
-    if($module[1](&p->p, cs)){
+    if($$_{new}(&p->p, cs)){
 	tcfree(p);
 	return NULL;
     }
@@ -263,6 +263,7 @@ $module[3](tcconf_section_t *cs)
     return &p->p;
 }
 END_C
+	}
     }
 }
 
@@ -272,43 +273,45 @@ sub hmod {
     print $fh "#include <tcalloc.h>\n";
     print $fh "#include <tcconf.h>\n";
 
-    while (my($name, $e) = each %event) {
+    while (my($name, $e) = each %events) {
 	print $fh "extern int $name;\n";
-	print $fh "extern int $$e[1]($dtype *, tcvp_event_t *);\n"
-	  if $$e[1] ne 'NULL';
-	print $fh "extern tcvp_alloc_event_t $$e[2];\n"
-	  if $$e[2] && $$e[2] ne 'NULL';
-	if ($$e[3] && $$e[3] ne 'NULL') {
-	    print $fh "extern tcvp_serialize_event_t $$e[3];\n";
-	    print $fh "extern tcvp_deserialize_event_t $$e[4];\n";
+	print $fh "extern tcvp_alloc_event_t $$e{alloc};\n"
+	  if $$e{alloc} and $$e{alloc} ne 'NULL';
+	if ($$e{ser} and $$e{ser} ne 'NULL') {
+	    print $fh "extern tcvp_serialize_event_t $$e{ser};\n";
+	    print $fh "extern tcvp_deserialize_event_t $$e{deser};\n";
 	}
     }
 
-    if(@module){
-	print $fh
-	  "extern int $module[1](tcvp_module_t *, tcconf_section_t *);\n";
-    }
-
-    for(values %filters){
-	print $fh <<END_C;
-extern int $$_[0](tcvp_pipe_t *, stream_t *, tcconf_section_t *,
-		 tcvp_timer_t *, muxed_stream_t *);
+    for (values %modules) {
+	if ($$_{type} eq 'module') {
+	    print $fh
+	      "extern int $$_{new}(tcvp_module_t *, tcconf_section_t *);\n";
+	    for my $e (values %{$$_{events}}) {
+		print $fh "extern int $$e{handler}(tcvp_module_t *, tcvp_event_t *);\n" if $$e{handler};
+	    }
+	} elsif ($$_{type} eq 'filter') {
+	    print $fh <<END_C;
+extern int $$_{new}(tcvp_pipe_t *, stream_t *, tcconf_section_t *,
+		    tcvp_timer_t *, muxed_stream_t *);
 END_C
+	    print $fh "extern int $_(tcvp_pipe_t *, packet_t *);\n"
+	      for values %{$$_{packet}};
+	    print $fh "extern int $$_{probe}(tcvp_pipe_t *, packet_t *, stream_t *);\n" if $$_{probe};
+	    print $fh "extern int $$_{flush}(tcvp_pipe_t *, int);\n"
+	      if $$_{flush};
+	}
     }
-    print $fh "extern int $_(tcvp_pipe_t *, packet_t *);\n" for values %packet;
-    print $fh "extern int $probe(tcvp_pipe_t *, packet_t *, stream_t *);\n"
-      if $probe;
-    print $fh "extern int $flush(tcvp_pipe_t *, int);\n" if $flush;
 }
 
 sub postinit {
     my($fh) = @_;
 
-    while (my($name, $e) = each %event) {
-	if (not defined $$e[2]) {
+    while (my($name, $e) = each %events) {
+	if (not defined $$e{alloc}) {
 	    print $fh qq/    $name = tcvp_event_get("$name");\n/;
 	} else {
-	    print $fh qq/    $name = tcvp_event_register("$name", $$e[2], $$e[3], $$e[4]);\n/;
+	    print $fh qq/    $name = tcvp_event_register("$name", $$e{alloc}, $$e{ser}, $$e{deser});\n/;
 	}
     }
 }

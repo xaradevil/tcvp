@@ -13,21 +13,32 @@ import		"tcvp/event"	"new"
 require		"filter"
 
 TCVP {
-	module "tcvp/core" t_new t_init
-	event control	TCVP_KEY	NULL key_alloc NULL NULL
-	event control	TCVP_OPEN	te_open open_alloc open_ser open_deser
-	event control	TCVP_OPEN_MULTI	te_openm open_multi_alloc NULL NULL
-	event control	TCVP_START	t_start NULL NULL NULL
-	event control	TCVP_STOP	t_stop NULL NULL NULL
-	event control	TCVP_PAUSE	te_pause NULL NULL NULL
-	event control 	TCVP_SEEK	te_seek seek_alloc seek_ser seek_deser
-	event control	TCVP_CLOSE	te_close NULL NULL NULL
-	event timer	TCVP_TIMER	NULL timer_alloc timer_ser timer_deser
-	event status	TCVP_STATE	NULL state_alloc state_ser state_deser
-	event status	TCVP_LOAD	NULL load_alloc load_ser load_deser
-	event status	TCVP_STREAM_INFO NULL NULL NULL NULL
-	event control	TCVP_QUERY	te_query NULL NULL NULL
-	event control	TCVP_BUTTON	NULL button_alloc NULL NULL
+	module "tcvp/core" {
+		new t_new
+		init t_init
+		event control	TCVP_OPEN	te_open
+		event control	TCVP_OPEN_MULTI	te_openm
+		event control	TCVP_START	t_start
+		event control	TCVP_STOP	t_stop
+		event control	TCVP_PAUSE	te_pause
+		event control 	TCVP_SEEK	te_seek
+		event control	TCVP_CLOSE	te_close
+		event control	TCVP_QUERY	te_query
+	}
+	event TCVP_KEY		key_alloc NULL NULL
+	event TCVP_TIMER	timer_alloc timer_ser timer_deser
+	event TCVP_STATE	state_alloc state_ser state_deser
+	event TCVP_LOAD		load_alloc load_ser load_deser
+	event TCVP_STREAM_INFO	NULL NULL NULL
+	event TCVP_BUTTON	button_alloc NULL NULL
+	event TCVP_OPEN		open_alloc open_ser open_deser
+	event TCVP_OPEN_MULTI	open_multi_alloc NULL NULL
+	event TCVP_START	NULL NULL NULL
+	event TCVP_STOP		NULL NULL NULL
+	event TCVP_PAUSE	NULL NULL NULL
+	event TCVP_SEEK		seek_alloc seek_ser seek_deser
+	event TCVP_CLOSE	NULL NULL NULL
+	event TCVP_QUERY	NULL NULL NULL
 }
 
 option		default_profile%s="play"

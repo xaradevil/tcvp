@@ -3,4 +3,11 @@ name		"TCVP/codec/a52"
 version		0.1.2
 tc2version	0.4.0
 sources		a52.c
-implement	"decoder/audio/ac3"	"new"	a52_new
+TCVP {
+	filter "decoder/audio/ac3" {
+		new a52_new
+		probe a52_probe
+		flush a52_flush
+		packet DATA a52_decode
+	}
+}
