@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -23,7 +23,6 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
@@ -102,6 +101,7 @@ typedef struct avi_stream {
     int idxlen, idxsize;
     uint64_t ipts, ptsn, ptsd;
     int pkt;
+    int spts;
 } avi_stream_t;
 
 typedef struct avi_file {
@@ -832,8 +832,11 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    flags = af->index[af->pkt]->flags;
 	    if(flags & AVI_FLAG_KEYFRAME)
 		pflags |= TCVP_PKT_FLAG_KEY;
-	    pts = af->index[af->pkt]->pts + starttime;
-	    pflags |= TCVP_PKT_FLAG_PTS;
+	    if(!af->streams[str].spts || flags & AVI_FLAG_KEYFRAME){
+		pts = af->index[af->pkt]->pts + starttime;
+		pflags |= TCVP_PKT_FLAG_PTS;
+		af->streams[str].spts = 1;
+	    }
 	} else {
 	    af->idxok = 0;
 	}
@@ -895,6 +898,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	if(ms->used_streams[i])
 	    cfi++;
 	fi[i] = 0;
+	af->streams[i].spts = 0;
     }
 
     while(cfi){
@@ -911,6 +915,8 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 		fi[s] = 1;
 		cfi--;
 	    }
+	} else {
+	    af->streams[s].spts = 0;
 	}
 
 	if(fi[s]){
@@ -940,10 +946,14 @@ avi_packet_ni(muxed_stream_t *ms, int str)
 	af->file->seek(af->file, ai->offset + 8, SEEK_SET);
 	af->file->read(pk->data, 1, ai->size, af->file);
 	pk->pk.stream = str;
-	pk->pk.flags = TCVP_PKT_FLAG_PTS;
+	pk->pk.flags = 0;
 	if(ai->flags & AVI_FLAG_KEYFRAME)
 	    pk->pk.flags |= TCVP_PKT_FLAG_KEY;
-	pk->pk.pts = ai->pts;
+	if(!as->spts || ai->flags & AVI_FLAG_KEYFRAME){
+	    pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+	    pk->pk.pts = ai->pts;
+	    as->spts = 1;
+	}
 	pk->flags = ai->flags;
     }
 
@@ -968,6 +978,7 @@ avi_seek_ni(muxed_stream_t *ms, uint64_t time)
 	    if(ms->streams[j].stream_type == STREAM_TYPE_VIDEO)
 		time = af->streams[j].index[i].pts;
 	}
+	af->streams[j].spts = 0;
     }
 
     for(j = 0; j < ms->n_streams; j++){
