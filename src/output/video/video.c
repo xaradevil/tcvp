@@ -36,7 +36,7 @@
 typedef struct video_out {
     video_driver_t *driver;
     video_stream_t *vstream;
-    timer__t *timer, **tmp;
+    tcvp_timer_t *timer, **tmp;
     color_conv_t cconv;
     uint64_t *pts;
     int state;
@@ -331,7 +331,7 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-v_open(stream_t *s, conf_section *cs, timer__t **timer)
+v_open(stream_t *s, conf_section *cs, tcvp_timer_t **timer)
 {
     tcvp_pipe_t *pipe;
     video_out_t *vo;

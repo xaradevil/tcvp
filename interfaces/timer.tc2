@@ -1,16 +1,16 @@
-symbol	"new"	timer__t *(*%s)(int resolution)
+symbol	"new"	tcvp_timer_t *(*%s)(int resolution)
 include
 #include <stdint.h>
 #include <pthread.h>
 
-typedef struct timer timer__t;
+typedef struct timer tcvp_timer_t;
 struct timer {
-    int (*start)(timer__t *);
-    int (*stop)(timer__t *);
-    int (*wait)(timer__t *, uint64_t, pthread_mutex_t *);
-    uint64_t (*read)(timer__t *);
-    int (*reset)(timer__t *, uint64_t);
-    int (*interrupt)(timer__t *);
-    void (*free)(timer__t *);
+    int (*start)(tcvp_timer_t *);
+    int (*stop)(tcvp_timer_t *);
+    int (*wait)(tcvp_timer_t *, uint64_t, pthread_mutex_t *);
+    uint64_t (*read)(tcvp_timer_t *);
+    int (*reset)(tcvp_timer_t *, uint64_t);
+    int (*interrupt)(tcvp_timer_t *);
+    void (*free)(tcvp_timer_t *);
     void *private;
 };

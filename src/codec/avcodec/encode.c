@@ -234,13 +234,13 @@ avc_encvideo_new(stream_t *s, char *codec, conf_section *cf)
 }
 
 extern tcvp_pipe_t *
-avc_mpeg4_enc_new(stream_t *s, conf_section *cs, timer__t **t)
+avc_mpeg4_enc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 {
     return avc_encvideo_new(s, "video/mpeg4", cs);
 }
 
 extern tcvp_pipe_t *
-avc_mpeg_enc_new(stream_t *s, conf_section *cs, timer__t **t)
+avc_mpeg_enc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 {
     return avc_encvideo_new(s, "video/mpeg", cs);
 }

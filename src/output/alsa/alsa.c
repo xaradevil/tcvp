@@ -44,7 +44,7 @@ typedef struct alsa_out {
     snd_pcm_hw_params_t *hwp;
     int bpf;
     int rate;
-    timer__t *timer;
+    tcvp_timer_t *timer;
     int state;
     u_char *buf, *head, *tail;
     int bufsize;
@@ -339,7 +339,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
+alsa_open(audio_stream_t *as, conf_section *cs, tcvp_timer_t **timer)
 {
     tcvp_pipe_t *tp;
     alsa_out_t *ao;

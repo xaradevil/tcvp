@@ -161,7 +161,7 @@ vorbis_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern tcvp_pipe_t *
-vorbis_new(stream_t *s, conf_section *cs, timer__t **t)
+vorbis_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 {
     tcvp_pipe_t *p = NULL;
     VorbisContext_t *vc;

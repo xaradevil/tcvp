@@ -29,7 +29,7 @@
 typedef struct tcvp_player {
     tcvp_pipe_t *demux, *audio, *video, *aend, *vend;
     muxed_stream_t *stream;
-    timer__t *timer;
+    tcvp_timer_t *timer;
     pthread_t th_ticker, th_event;
     pthread_mutex_t tmx;
     pthread_cond_t tcd;

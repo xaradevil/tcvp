@@ -24,7 +24,7 @@
 #include <codec_tc2.h>
 
 extern tcvp_pipe_t *
-dec_new(stream_t *s, conf_section *cs, timer__t **t)
+dec_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 {
     char *codec = NULL;
     decoder_new_t cnew;

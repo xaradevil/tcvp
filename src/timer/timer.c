@@ -38,7 +38,7 @@ typedef struct sw_timer {
 #define STOP  3
 
 static int
-tm_wait(timer__t *t, uint64_t time)
+tm_wait(tcvp_timer_t *t, uint64_t time)
 {
     sw_timer_t *st = t->private;
     pthread_mutex_lock(&st->mx);
@@ -50,14 +50,14 @@ tm_wait(timer__t *t, uint64_t time)
 }
 
 static uint64_t
-tm_read(timer__t *t)
+tm_read(tcvp_timer_t *t)
 {
     sw_timer_t *st = t->private;
     return st->time;
 }
 
 static int
-tm_reset(timer__t *t, uint64_t time)
+tm_reset(tcvp_timer_t *t, uint64_t time)
 {
     sw_timer_t *st = t->private;
     pthread_mutex_lock(&st->mx);
@@ -69,7 +69,7 @@ tm_reset(timer__t *t, uint64_t time)
 }
 
 static int
-tm_start(timer__t *t)
+tm_start(tcvp_timer_t *t)
 {
     sw_timer_t *st = t->private;
     st->state = RUN;
@@ -77,7 +77,7 @@ tm_start(timer__t *t)
 }
 
 static int
-tm_stop(timer__t *t)
+tm_stop(tcvp_timer_t *t)
 {
     sw_timer_t *st = t->private;
     st->state = PAUSE;
@@ -85,13 +85,13 @@ tm_stop(timer__t *t)
 }
 
 static int
-tm_intr(timer__t *t)
+tm_intr(tcvp_timer_t *t)
 {
     tm_reset(t, -1);
 }
 
 static void
-tm_free(timer__t *t)
+tm_free(tcvp_timer_t *t)
 {
     sw_timer_t *st = t->private;
     st->state = STOP;
@@ -143,10 +143,10 @@ timer_run(void *p)
     return NULL;
 }
 
-extern timer__t *
+extern tcvp_timer_t *
 timer_new(int res)
 {
-    timer__t *tm;
+    tcvp_timer_t *tm;
     sw_timer_t *st;
 
     st = calloc(1, sizeof(*st));

@@ -117,7 +117,7 @@ oss_play(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern tcvp_pipe_t *
-oss_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
+oss_open(audio_stream_t *as, conf_section *cs, tcvp_timer_t **timer)
 {
     tcvp_pipe_t *tp;
     oss_out_t *ao;

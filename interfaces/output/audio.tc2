@@ -1,4 +1,4 @@
-symbol	"open"	tcvp_pipe_t *(*%s)(audio_stream_t *, conf_section *, timer__t **)
+symbol	"open"	tcvp_pipe_t *(*%s)(audio_stream_t *, conf_section *, tcvp_timer_t **)
 require "timer"
 option	buffer_size%i=96000
 include

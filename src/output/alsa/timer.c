@@ -61,7 +61,7 @@ free_hwtimer(alsa_hw_timer_t *atm)
 }
 
 static void
-free_timer(timer__t *t)
+free_timer(tcvp_timer_t *t)
 {
     alsa_timer_t *at = t->private;
     at->state = STOP;
@@ -82,7 +82,7 @@ free_timer(timer__t *t)
 static void *
 run_timer(void *p)
 {
-    timer__t *tmr = p;
+    tcvp_timer_t *tmr = p;
     alsa_timer_t *at = tmr->private;
     snd_timer_read_t tr;
     alsa_hw_timer_t *timer;
@@ -113,7 +113,7 @@ run_timer(void *p)
 }
 
 static int
-tm_wait(timer__t *t, uint64_t time, pthread_mutex_t *lock)
+tm_wait(tcvp_timer_t *t, uint64_t time, pthread_mutex_t *lock)
 {
     alsa_timer_t *at = t->private;
     int intr = 1, wait, l = 1;
@@ -137,14 +137,14 @@ tm_wait(timer__t *t, uint64_t time, pthread_mutex_t *lock)
 }
 
 static uint64_t
-tm_read(timer__t *t)
+tm_read(tcvp_timer_t *t)
 {
     alsa_timer_t *at = t->private;
     return (at->time * 27) / 1000;
 }
 
 static int
-tm_reset(timer__t *t, uint64_t time)
+tm_reset(tcvp_timer_t *t, uint64_t time)
 {
     alsa_timer_t *at = t->private;
 
@@ -157,7 +157,7 @@ tm_reset(timer__t *t, uint64_t time)
 }
 
 static int
-tm_intr(timer__t *t)
+tm_intr(tcvp_timer_t *t)
 {
     alsa_timer_t *at = t->private;
 
@@ -170,7 +170,7 @@ tm_intr(timer__t *t)
 }
 
 extern int
-tm_stop(timer__t *t)
+tm_stop(tcvp_timer_t *t)
 {
     alsa_timer_t *at = t->private;
     pthread_mutex_lock(&at->mx);
@@ -181,7 +181,7 @@ tm_stop(timer__t *t)
 }
 
 static int
-atm_start(timer__t *t)
+atm_start(tcvp_timer_t *t)
 {
     alsa_timer_t *at = t->private;
     snd_timer_start(at->timer->timer);
@@ -189,7 +189,7 @@ atm_start(timer__t *t)
 }
 
 static int
-atm_stop(timer__t *t)
+atm_stop(tcvp_timer_t *t)
 {
     alsa_timer_t *at = t->private;
     if(at->timer->class != SND_TIMER_CLASS_PCM)
@@ -198,7 +198,7 @@ atm_stop(timer__t *t)
 }
 
 extern int
-tm_settimer(timer__t *t, int type)
+tm_settimer(tcvp_timer_t *t, int type)
 {
     alsa_timer_t *at = t->private;
 
@@ -249,12 +249,12 @@ new_timer(int class, int sclass, int card, int dev, int subdev)
     return atm;
 }
 
-extern timer__t *
+extern tcvp_timer_t *
 open_timer(snd_pcm_t *pcm)
 {
     snd_pcm_info_t *ifo;
     alsa_timer_t *at;
-    timer__t *tm;
+    tcvp_timer_t *tm;
     u_int card, dev, sdev;
 
     at = calloc(1, sizeof(*at));
@@ -301,7 +301,7 @@ open_timer(snd_pcm_t *pcm)
     return tm;
 }
 
-extern timer__t *
+extern tcvp_timer_t *
 alsa_timer_new(int res)
 {
     return open_timer(NULL);

@@ -1,4 +1,4 @@
-symbol	"open"	tcvp_pipe_t *(*%s)(video_stream_t *, conf_section *, timer__t *)
+symbol	"open"	tcvp_pipe_t *(*%s)(video_stream_t *, conf_section *, tcvp_timer_t *)
 require "timer"
 option	*driver name%s priority%i
 option  framedrop%i=0

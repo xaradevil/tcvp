@@ -38,7 +38,7 @@
 typedef struct mpegts_mux {
     int running;
     url_t *out;
-    timer__t **timer;
+    tcvp_timer_t **timer;
     int bitrate, pad;
     u_char *outbuf;
     int bpos, bsize;
@@ -554,7 +554,7 @@ tmx_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
+mpegts_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 {
     mpegts_mux_t *tsm;
     tcvp_pipe_t *p;

@@ -39,7 +39,7 @@ pcm_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-pcm_new(stream_t *s, conf_section *cs, timer__t **t)
+pcm_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 {
     tcvp_pipe_t *np = tcallocz(sizeof(*np));
     np->input = pcm_input;
