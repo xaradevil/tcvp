@@ -551,7 +551,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegps_stream_t *s;
-    int ns;
+    int ns, i;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegps_free);
     ms->next_packet = mpegps_packet;
@@ -572,7 +572,6 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->dvd_info = tcattr_get(u, "dvd");
 
     if(s->dvd_info){
-	int i;
 	ms->n_streams = s->dvd_info->n_streams;
 	ms->streams =
 	    realloc(ms->streams, ms->n_streams * sizeof(*ms->streams));
@@ -591,6 +590,11 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	u->seek(u, 0, SEEK_SET);
 	tcfree(ms);
 	return NULL;
+    }
+
+    for(i = 0; i < ms->n_streams; i++){
+	if(ms->streams[i].stream_type == STREAM_TYPE_SUBTITLE)
+	    ms->streams[i].common.flags |= TCVP_STREAM_FLAG_NOBUFFER;
     }
 
     tc2_print("MPEGPS", TC2_PRINT_DEBUG, "at %x\n",
