@@ -94,6 +94,7 @@ struct tcvp_pipe {
     int (*free)(tcvp_pipe_t *);
     int (*probe)(tcvp_pipe_t *, packet_t *, stream_t *);
     int (*flush)(tcvp_pipe_t *, int drop);
+    int (*buffer)(tcvp_pipe_t *, float);
     tcvp_pipe_t *next;
     void *private;
 };

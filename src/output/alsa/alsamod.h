@@ -29,6 +29,7 @@
 
 #define RUN  1
 #define STOP 2
+#define PAUSE 3
 
 extern timer__t *open_timer(snd_pcm_t *pcm);
 extern int tm_stop(timer__t *t);

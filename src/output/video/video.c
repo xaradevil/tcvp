@@ -49,6 +49,8 @@ typedef struct video_out {
     int *drop;
     int dropcnt;
     int framecnt;
+    pthread_mutex_t hmx;
+    pthread_cond_t hcd;
 } video_out_t;
 
 #define DROPLEN 8
@@ -126,9 +128,24 @@ v_play(void *p)
     }
 
     vo->state = STOP;
+    vo->head = vo->tail = 0;
     sem_post(&vo->hsem);
 
     return NULL;
+}
+
+static float
+bufr(video_out_t *vo)
+{
+    int bf;
+    float bfr;
+
+    bf = vo->head - vo->tail;
+    if(bf <= 0)
+	bf += vo->driver->frames;
+    bfr = (float) bf / vo->driver->frames;
+
+    return bfr;
 }
 
 static int
@@ -152,25 +169,24 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	    vo->driver->put_frame(vo->driver, vo->head);
 	vo->pts[vo->head] = pk->pts;
 
-	if(++vo->head == vo->driver->frames){
+	pthread_mutex_lock(&vo->hmx);
+	if(++vo->head == vo->driver->frames)
 	    vo->head = 0;
-	}
+	pthread_cond_broadcast(&vo->hcd);
+	pthread_mutex_unlock(&vo->hmx);
 
 	sem_post(&vo->tsem);
     }
 
     if(output_video_conf_framedrop &&
        vo->framecnt > vo->driver->frames){
-	int i, bf;
+	int i;
 	float bfr;
 
 	if(++vo->dropcnt == DROPLEN)
 	    vo->dropcnt = 0;
 
-	bf = vo->head - vo->tail;
-	if(bf < 0)
-	    bf += vo->driver->frames;
-	bfr = (float) bf / vo->driver->frames;
+	bfr = bufr(vo);
 
 	for(i = 0; bfr < drop_thresholds[i]; i++);
 	vo->drop = drops[i];
@@ -212,9 +228,10 @@ v_flush(tcvp_pipe_t *p, int drop)
     video_out_t *vo = p->private;
 
     if(!drop){
-	while(vo->head != vo->tail){
-	    sem_wait(&vo->hsem);
-	}
+	pthread_mutex_lock(&vo->hmx);
+	while(vo->head != vo->tail)
+	    pthread_cond_wait(&vo->hcd, &vo->hmx);
+	pthread_mutex_unlock(&vo->hmx);
     } else {
 	while(sem_trywait(&vo->tsem) == 0){
 	    sem_post(&vo->hsem);
@@ -224,6 +241,19 @@ v_flush(tcvp_pipe_t *p, int drop)
     }
 
     vo->framecnt = 0;
+
+    return 0;
+}
+
+static int
+v_buffer(tcvp_pipe_t *p, float r)
+{
+    video_out_t *vo = p->private;
+
+    pthread_mutex_lock(&vo->hmx);
+    while(bufr(vo) < r)
+	pthread_cond_wait(&vo->hcd, &vo->hmx);
+    pthread_mutex_unlock(&vo->hmx);
 
     return 0;
 }
@@ -245,6 +275,8 @@ v_free(tcvp_pipe_t *p)
 
     pthread_mutex_destroy(&vo->smx);
     pthread_cond_destroy(&vo->scd);
+    pthread_mutex_destroy(&vo->hmx);
+    pthread_cond_destroy(&vo->hcd);
     sem_destroy(&vo->hsem);
     sem_destroy(&vo->tsem);
 
@@ -300,12 +332,14 @@ v_open(video_stream_t *vs, conf_section *cs, timer__t *timer)
     vo->pts = malloc(vd->frames * sizeof(*vo->pts));
     vo->head = 0;
     vo->tail = 0;
-    sem_init(&vo->hsem, 0, vd->frames-1);
+    sem_init(&vo->hsem, 0, vd->frames);
     sem_init(&vo->tsem, 0, 0);
     pthread_mutex_init(&vo->smx, NULL);
     pthread_cond_init(&vo->scd, NULL);
     vo->state = PAUSE;
     vo->drop = drops[0];
+    pthread_mutex_init(&vo->hmx, NULL);
+    pthread_cond_init(&vo->hcd, NULL);
     pthread_create(&vo->thr, NULL, v_play, vo);
 
     pipe = malloc(sizeof(*pipe));
@@ -314,6 +348,7 @@ v_open(video_stream_t *vs, conf_section *cs, timer__t *timer)
     pipe->stop = v_stop;
     pipe->free = v_free;
     pipe->flush = v_flush;
+    pipe->buffer = v_buffer;
     pipe->private = vo;
 
     return pipe;

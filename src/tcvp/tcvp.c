@@ -284,6 +284,10 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     pl->private = tp;
 
     demux->start(demux);
+    if(tp->video && tp->video->buffer)
+	tp->video->buffer(tp->video, 0.9);
+    if(tp->sound && tp->sound->buffer)
+	tp->sound->buffer(tp->sound, 0.9);
 
     return pl;
 }

@@ -39,6 +39,9 @@ typedef struct alsa_out {
     snd_pcm_hw_params_t *hwp;
     int bpf;
     timer__t *timer;
+    int state;
+    pthread_mutex_t mx;
+    pthread_cond_t cd;
 } alsa_out_t;
 
 static int
@@ -46,6 +49,10 @@ alsa_start(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
+    pthread_mutex_lock(&ao->mx);
+    ao->state = RUN;
+    pthread_cond_broadcast(&ao->cd);
+    pthread_mutex_unlock(&ao->mx);
     if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_PAUSED)
 	snd_pcm_pause(ao->pcm, 0);
 
@@ -57,6 +64,7 @@ alsa_stop(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
+    ao->state = PAUSE;
     if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING)
 	snd_pcm_pause(ao->pcm, 1);
 
@@ -99,6 +107,12 @@ alsa_play(tcvp_pipe_t *p, packet_t *pk)
     alsa_out_t *ao = p->private;
     size_t count = pk->sizes[0] / ao->bpf;
     u_char *data = pk->data[0];
+
+    pthread_mutex_lock(&ao->mx);
+    while(ao->state == PAUSE){
+	pthread_cond_wait(&ao->cd, &ao->mx);
+    }
+    pthread_mutex_unlock(&ao->mx);
 
     while(count > 0){
 	int r = snd_pcm_writei(ao->pcm, data, count);
@@ -204,6 +218,9 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ao->pcm = pcm;
     ao->hwp = hwp;
     ao->bpf = as->channels * 2;
+    pthread_mutex_init(&ao->mx, NULL);
+    pthread_cond_init(&ao->cd, NULL);
+    ao->state = PAUSE;
     if(timer)
 	ao->timer = *timer;
 
