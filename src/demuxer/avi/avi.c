@@ -63,6 +63,13 @@ getu16(FILE *f)
     return v;
 }
 
+typedef struct avi_index {
+    uint32_t tag;
+    uint32_t flags;
+    uint32_t offset;
+    uint32_t size;
+} avi_index_t;
+
 typedef struct avi_file {
     FILE *file;
     uint64_t pts;
@@ -70,6 +77,9 @@ typedef struct avi_file {
     list **packets;
     pthread_mutex_t mx;
     int eof;
+    int pkt;
+    avi_index_t *index;
+    int idxlen;
 } avi_file_t;
 
 static muxed_stream_t *
@@ -82,6 +92,7 @@ avi_header(FILE *f)
     uint32_t ftime;
     char st[5] = {[4] = 0};
     int i;
+    long movi_start;
 
     if(fread(&tag, 4, 1, f) != 1)
 	return NULL;
@@ -122,7 +133,8 @@ avi_header(FILE *f)
 	case TAG('L','I','S','T'): {
 	    uint32_t lt = getu32(f);
 	    if(lt == TAG('m','o','v','i')){
-		return ms;
+		movi_start = ftell(f);
+		fseek(f, size-4, SEEK_CUR);
 	    } else if(lt == TAG('s','t','r','l')){
 		next = TAG('s','t','r','h');
 	    }
@@ -255,10 +267,26 @@ avi_header(FILE *f)
 	    fseek(f, fp + size, SEEK_SET);
 	    break;
 	}
+	case TAG('i','d','x','1'):{
+	    int idxoff;
+	    int idxl = size / sizeof(avi_index_t);
+	    af->index = malloc(size);
+	    idxl = fread(af->index, sizeof(avi_index_t), idxl, f);
+	    af->idxlen = idxl;
+	    idxoff = movi_start - af->index[0].offset;
+	    fprintf(stderr, "AVI: idxoff = %x\n", idxoff);
+	    for(i = 0; i < idxl; i++){
+		af->index[i].offset += idxoff;
+	    }
+	    fprintf(stderr, "AVI: index[0] = %x\n", af->index[0].offset);
+	    break;
+	}
 	default:
 	    fseek(f, size, SEEK_CUR);
 	}
     }
+
+    fseek(f, movi_start, SEEK_SET);
 
     return ms;
 }
@@ -269,6 +297,39 @@ avi_free_packet(packet_t *p)
     free(p->sizes);
     free(p->private);
     free(p);
+}
+
+static char xval[] = {
+    [' '] = 0x0,
+    ['0'] = 0x0,
+    ['1'] = 0x1,
+    ['2'] = 0x2,
+    ['3'] = 0x3,
+    ['4'] = 0x4,
+    ['5'] = 0x5,
+    ['6'] = 0x6,
+    ['7'] = 0x7,
+    ['8'] = 0x8,
+    ['9'] = 0x9,
+    ['a'] = 0xa,
+    ['b'] = 0xb,
+    ['c'] = 0xc,
+    ['d'] = 0xd,
+    ['e'] = 0xe,
+    ['f'] = 0xf,
+    ['A'] = 0xa,
+    ['B'] = 0xb,
+    ['C'] = 0xc,
+    ['D'] = 0xd,
+    ['E'] = 0xe,
+    ['F'] = 0xf
+};
+
+static inline int
+valid_tag(char *t)
+{
+    return (isxdigit(t[0]) || t[0] == ' ') && isxdigit(t[1]) &&
+	isprint(t[2]) && isprint(t[3]);
 }
 
 static packet_t *
@@ -283,10 +344,13 @@ avi_packet(muxed_stream_t *ms, int stream)
     pthread_mutex_lock(&af->mx);
 
     if(!(pk = list_shift(af->packets[stream])) && !af->eof){
+	int tried_index = 0, tried_bkup = 0, skipped = 0;
 	do {
 	    char *buf;
 	    size_t pos = ftell(af->file);
 
+	    /* FIXME: get rid of gotos */
+	again:
 	    if(!get4c(tag, af->file))
 		break;
 
@@ -295,16 +359,43 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    if(!strcmp(tag, "LIST")){
 		getu32(af->file); /* size */
 		getu32(af->file); /* rec */
+	    } else if(!strcmp(tag, "idx1")){
+		af->eof = 1;
+		break;
 	    }
 
-	    if(!(isxdigit(tag[0]) && isxdigit(tag[1]))){
-		fprintf(stderr, "%02x%02x%02x%02x:%s %8x %16lx\n",
+	    if(!valid_tag(tag)){
+		fprintf(stderr, "AVI[%i]: Bad packet header @ %08x\n",
+			stream, pos);
+		if(!tried_index && af->index){
+		    fprintf(stderr, "AVI: Index => %08x\n",
+			    af->index[af->pkt].offset);
+		    fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
+		    tried_index++;
+		    goto again;
+		} else if(!tried_bkup){
+		    fprintf(stderr, "AVI: Backing up 4 bytes.\n");
+		    fseek(af->file, pos-4, SEEK_SET);
+		    tried_bkup++;
+		    goto again;
+		} else if(skipped < 8 && af->index){
+		    fprintf(stderr, "AVI: Skipping frame.\n");
+		    /* FIXME: PTS */
+		    af->pkt++;
+		    fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
+		    goto again;
+		}
+
+		fprintf(stderr, "AVI: Can't find valid packet.  Giving up.\n");
+		fprintf(stderr, "AVI: %02x%02x%02x%02x:%s %8x %16lx\n",
 			tag[0], tag[1], tag[2], tag[3], tag, size, pos);
 		af->eof = 1;
 		break;
 	    }
 
-	    str = ((tag[0] - '0') << 4) + (tag[1] - '0');
+	    af->pkt++;
+
+	    str = (xval[tag[0]] << 4) + xval[tag[1]];
 	    if(!ms->used_streams[str]){
 		fseek(af->file, size + (size&1), SEEK_CUR);
 		continue;
@@ -352,6 +443,8 @@ avi_close(muxed_stream_t *ms)
     free(af->packets);
 
     fclose(af->file);
+    if(af->index)
+	free(af->index);
     free(af);
 
     return 0;
