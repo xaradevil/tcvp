@@ -303,7 +303,9 @@ static int
 destroy_skinned_box(xtk_widget_t *w)
 {
     void *d = xtk_widget_get_data(w);
-    free(d);
+    if(d) {
+	free(d);
+    }
     return 0;
 }
 
@@ -325,7 +327,7 @@ create_skinned_box(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
     xtk_widget_t *w = xtk_widget_container_create(c, x, y, width, height);
     wd = calloc(sizeof(*wd), 1);
     wd->skin = skin;
-    xtk_widget_container_set_data(c, wd);
+    xtk_widget_container_set_data(w, wd);
     w->on_destroy = destroy_skinned_box;
 
     create_ui(w, skin, sec, parameters);
@@ -783,6 +785,8 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 		  "Unable to load skin: \"%s\"\n", buf);
 	return NULL;
     }
+
+    free(buf);
 
     wd = calloc(sizeof(*wd), 1);
     wd->action = skin->dblclick;
