@@ -75,6 +75,7 @@ typedef struct mpegts_stream {
     int rate;
     uint64_t start_time;
     tcvp_timer_t **timer;
+    int synctime;
 } mpegts_stream_t;
 
 typedef struct mpegts_pk {
@@ -341,8 +342,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		s->start_time = mp.adaptation_field.pcr;
 	    }
 
-#if 0
-	    if((s->stream->flags & URL_FLAG_STREAMED) &&
+	    if(s->synctime && (s->stream->flags & URL_FLAG_STREAMED) &&
 	       s->timer && *s->timer){
 		uint64_t pcr = mp.adaptation_field.pcr - 27000000 * 5;
 		uint64_t time = (*s->timer)->read(*s->timer);
@@ -352,7 +352,6 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		    (*s->timer)->reset(*s->timer, time);
 		}
 	    }
-#endif
 	}
     } while(!pk);
 
@@ -453,9 +452,12 @@ mpegts_open(char *name, conf_section *cs, tcvp_timer_t **tm)
     ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
     ms->next_packet = mpegts_packet;
     ms->seek = mpegts_seek;
+
     s = calloc(1, sizeof(*s));
     s->stream = u;
     s->timer = tm;
+    conf_getvalue(cs, "sync_timer", "%i", &s->synctime);
+
     ms->private = s;
 
     do {
