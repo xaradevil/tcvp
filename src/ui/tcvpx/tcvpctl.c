@@ -194,10 +194,9 @@ extern int
 tcvp_seek(tcwidget_t *w, void *p)
 {
     double pos = *((double*)p);
+    uint64_t time = s_length * pos * 1000000;
 
-    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK,
-					     s_length * pos * 1000000,
-					     TCVP_SEEK_ABS);
+    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, time, TCVP_SEEK_ABS);
     eventq_send(qs, se);
     tcfree(se);
     return 0;
