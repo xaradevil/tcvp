@@ -6,6 +6,7 @@ struct playlist {
     int (*remove)(playlist_t *, int start, int n);
     int (*get)(playlist_t *, char **, int start, int n);
     int (*count)(playlist_t *);
+    int (*shuffle)(playlist_t *, int s, int n);
     void (*free)(playlist_t *);
     void *private;
 };
