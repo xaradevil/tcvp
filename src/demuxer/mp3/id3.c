@@ -139,7 +139,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
     }
 
     version >>= 8;
-    size = getss32(f, version);
+    size = getss32(f, 4);
     tsize = size + ((flags & ID3v2_FLAG_FOOT)? 20: 10);
 
 #ifdef DEBUG
