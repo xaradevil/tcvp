@@ -69,7 +69,7 @@ vx_show(video_driver_t *vd, int frame)
 	vframe = vxw->vfmap[frame];
 	vdlPlaybackFrameSelect(vxw->driver, vframe);
 	if(vxw->lf > -1){
-	    vxw->ffq[vxw->ffh] = vframe;
+	    vxw->ffq[vxw->ffh] = vxw->vfmap[vxw->lf];
 	    vxw->vfmap[vxw->lf] = -1;
 	    vxw->ffc++;
 	    if(++vxw->ffh == vxw->vframes)
@@ -157,7 +157,7 @@ vx_flush(video_driver_t *vd)
 
 	vxw->ffh = 0;
 	vxw->fft = 0;
-	vxw->ffc = vxw->vframes - 2;
+	vxw->ffc = vxw->vframes - 1;
 	for(i = 0; i < vxw->vframes; i++)
 	    vxw->ffq[i] = i;
 	for(i = 0; i < vxw->frames; i++)
@@ -377,7 +377,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	    vxw->vfmap[i] = -1;
 	vxw->vfq = calloc(frames, sizeof(*vxw->vfq));
 	vxw->ffq = calloc(vxw->vframes, sizeof(*vxw->ffq));
-	vxw->ffc = vxw->vframes - 2;
+	vxw->ffc = vxw->vframes - 1;
 	for(i = 0; i < vxw->vframes; i++)
 	    vxw->ffq[i] = i;
 	vxw->lf = -1;
