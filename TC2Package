@@ -39,7 +39,6 @@ module src/timer/frontend
 module src/timer/backends
 module src/timer/backends/soft
 module src/ui/cmdline
-module src/ui/tcvpshell
 module src/ui/tcvpx
 module src/ui/tcvpx/tcvpxtk
 module src/watchdog
