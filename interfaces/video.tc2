@@ -34,6 +34,7 @@ struct packet {
     size_t size;
     uint64_t pts;
     void (*free)(packet_t *);
+    void *private;
 };
 
 typedef struct muxed_stream muxed_stream_t;
