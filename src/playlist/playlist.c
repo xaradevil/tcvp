@@ -192,6 +192,8 @@ pl_remove(tcvp_playlist_t *tpl, int s, int n)
 	    tpl->order[j++] = tpl->order[i] - nr;
     }
     tpl->nf -= nr;
+    if(tpl->cur > tpl->nf)
+	tpl->cur = tpl->nf;
 
     pthread_mutex_unlock(&tpl->lock);
     return 0;
