@@ -29,7 +29,7 @@
 #include <tcalloc.h>
 #include <pthread.h>
 #include <sys/time.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <tcvp_types.h>
 #include <playlist_tc2.h>
 

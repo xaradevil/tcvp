@@ -29,7 +29,7 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <ctype.h>
 #include <ogg/ogg.h>
 #include <ogg_tc2.h>

@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tctypes.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <pcmfmt_tc2.h>
 #include <pcmmod.h>
 

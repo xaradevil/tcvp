@@ -29,7 +29,7 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <tcalloc.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <pthread.h>
 #include <tcvp_types.h>
 #include <sys/time.h>

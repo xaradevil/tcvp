@@ -29,7 +29,7 @@
 #include <unistd.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <stdint.h>
 #include <tcalloc.h>
 #include <dvdnav/dvdnav.h>

@@ -32,7 +32,7 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <tcalloc.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
 #include "mpeg.h"

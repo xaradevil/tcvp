@@ -31,7 +31,7 @@
 #include <tclist.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <avi_tc2.h>
 
 #define max_skip tcvp_demux_avi_conf_max_skip

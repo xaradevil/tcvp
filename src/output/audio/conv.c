@@ -27,7 +27,7 @@
 #include <string.h>
 #include <tctypes.h>
 #include <unistd.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <audio_tc2.h>
 #include <audiomod.h>
 

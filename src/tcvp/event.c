@@ -28,7 +28,7 @@
 #include <stdarg.h>
 #include <tchash.h>
 #include <tctypes.h>
-#include <tcbyteswap.h>
+#include <tcendian.h>
 #include <tcvp_core_tc2.h>
 
 /* key */
