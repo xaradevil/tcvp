@@ -107,7 +107,8 @@ alsa_flush(audio_driver_t *p, int drop)
 	if(ao->hwp)
 	    snd_pcm_drop(ao->pcm);
     } else {
-	snd_pcm_drain(ao->pcm);
+	while(snd_pcm_drain(ao->pcm) == -EAGAIN)
+	    snd_pcm_wait(ao->pcm, 100);
 	if(ao->tmdrivers[SYSTEM]){
 	    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
 	    ao->restore_timer = 1;
@@ -211,12 +212,14 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 	afmt = SND_PCM_FORMAT_S8;
 	format = "s8";
     } else {
-	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n", as->codec);
+	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n",
+		  as->codec);
 	goto err;
     }
 
     if(snd_pcm_hw_params_test_format(pcm, hwp, afmt)){
-	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n", as->codec);
+	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n",
+		  as->codec);
 	goto err;
     }
     snd_pcm_hw_params_set_format(pcm, hwp, afmt);
