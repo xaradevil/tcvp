@@ -25,7 +25,7 @@ Number of packets to read ahead for each stream.
 option		max_probe%i=1024
 Maximum number of packets read when probing stream parameters.
 
-option		magic_size%i=16
+option		magic_size%i=24
 Number of bytes to check for magic signatures.
 
 option	*suffix suffix%s demuxer%s muxer%s
