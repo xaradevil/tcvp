@@ -325,9 +325,9 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 			ms->streams =
 			    realloc(ms->streams, ns * sizeof(*ms->streams));
 			sp = &ms->streams[ms->n_streams];
-			memset(sp, sizeof(&sp), 0);
 		    }
 
+		    memset(sp, sizeof(&sp), 0);
 		    s->imap[pk->stream_id] = ms->n_streams;
 
 		    if(pk->stream_id & 0x20){
@@ -343,9 +343,6 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 		    sp->common.index = ms->n_streams++;
 		    sp++;
 		}
-	    } else {
-		fprintf(stderr, "MPEGPS: Unknown stream type %x\n",
-			pk->stream_id);
 	    }
 	    mpegpes_free(pk);
 	}
