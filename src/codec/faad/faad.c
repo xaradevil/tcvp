@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -141,14 +141,22 @@ faad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     faacDecConfiguration *fdc;
     u_long srate;
     u_char channels;
+    int err;
 
     fdc = faacDecGetCurrentConfiguration(ad->fd);
     fdc->outputFormat = FAAD_FMT_16BIT;
     faacDecSetConfiguration(ad->fd, fdc);
 
-    if(faacDecInit(ad->fd, pk->data[0], pk->sizes[0], &srate, &channels) < 0){
-	return PROBE_FAIL;
+    if(s->common.codec_data){
+	err = faacDecInit2(ad->fd, s->common.codec_data,
+			   s->common.codec_data_size, &srate, &channels);
+    } else {
+	err = faacDecInit(ad->fd, pk->data[0], pk->sizes[0],
+			  &srate, &channels);
     }
+
+    if(err < 0)
+	return PROBE_FAIL;
 
     ad->bufsize = FAAD_MIN_STREAMSIZE * channels;
     ad->buf = malloc(ad->bufsize);
