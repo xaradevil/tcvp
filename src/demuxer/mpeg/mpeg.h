@@ -56,12 +56,15 @@ typedef struct mpegts_packet {
 
 typedef struct mpegpes_packet {
     int stream_id;
-    int pts_flag;
-    uint64_t pts;
+    int flags;
+    uint64_t pts, dts;
     int size;
     u_char *data;
     u_char *hdr;
 } mpegpes_packet_t;
+
+#define PES_FLAG_PTS 0x1
+#define PES_FLAG_DTS 0x2
 
 typedef struct mpeg_stream_type {
     int mpeg_stream_type;
@@ -109,8 +112,6 @@ getu##s(url_t *f)				\
 getuint(16)
 getuint(32)
 getuint(64)
-
-#define PES_FLAG_PTS 0x1
 
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
 extern int stream_type2codec(int st);

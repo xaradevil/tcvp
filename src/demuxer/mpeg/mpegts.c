@@ -37,10 +37,11 @@ typedef struct mpegts_stream {
     int *imap;
     struct tsbuf {
 	int flags;
-	uint64_t pts;
+	uint64_t pts, dts;
 	u_char *buf;
 	int bpos;
 	int hlen;
+	int cc;
     } *streams;
 } mpegts_stream_t;
 
@@ -239,6 +240,13 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	tb = &s->streams[sx];
 
+	if(((mp.cont_counter - tb->cc + 0x10) & 0xf) != 1){
+	    fprintf(stderr, "MPEGTS: lost/duplicate packet, PID %x: %i %i\n",
+		    mp.pid, tb->cc, mp.cont_counter);
+	}
+
+	tb->cc = mp.cont_counter;
+
 	if((mp.unit_start && tb->bpos) || tb->bpos > MAX_PACKET_SIZE){
 	    pk = malloc(sizeof(*pk));
 	    pk->pk.stream = sx;
@@ -248,9 +256,11 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    pk->pk.sizes = &pk->size;
 	    pk->size = tb->bpos - tb->hlen;
 	    pk->pk.planes = 1;
-	    if((pk->pk.flags = tb->flags) & TCVP_PKT_FLAG_PTS){
+	    pk->pk.flags = tb->flags;
+	    if(tb->flags & TCVP_PKT_FLAG_PTS)
 		pk->pk.pts = tb->pts * 300;
-	    }
+	    if(tb->flags & TCVP_PKT_FLAG_DTS)
+		pk->pk.dts = tb->dts * 300;
 	    pk->pk.free = mpegts_free_pk;
 
 	    tb->bpos = 0;
@@ -267,9 +277,13 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    if(mpegpes_header(&pes, tb->buf, 0) < 0)
 		return NULL;
 	    tb->hlen = pes.data - tb->buf;
-	    if(pes.pts_flag){
+	    if(pes.flags & PES_FLAG_PTS){
 		tb->flags |= TCVP_PKT_FLAG_PTS;
 		tb->pts = pes.pts;
+	    }
+	    if(pes.flags & PES_FLAG_DTS){
+		tb->flags |= TCVP_PKT_FLAG_DTS;
+		tb->dts = pes.dts;
 	    }
 	}
     } while(!pk);

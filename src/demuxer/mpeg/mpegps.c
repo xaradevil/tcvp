@@ -161,9 +161,14 @@ mpegps_packet(muxed_stream_t *ms, int str)
     pk->free = mpegps_free_pk;
     pk->private = mp;
 
-    if(mp->pts_flag){
+    if(mp->flags & PES_FLAG_PTS){
 	pk->pts = mp->pts * 300;
 	pk->flags |= TCVP_PKT_FLAG_PTS;
+    }
+
+    if(mp->flags & PES_FLAG_DTS){
+	pk->dts = mp->dts * 300;
+	pk->flags |= TCVP_PKT_FLAG_DTS;
     }
 
     return pk;

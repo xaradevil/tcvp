@@ -33,7 +33,7 @@ extern int
 mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 {
     int hl, pkl = 0;
-    u_char *pts = NULL;
+    u_char *pts = NULL, *dts = NULL;
     u_char c;
 
     data -= h;
@@ -53,6 +53,9 @@ mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 	if(data[7] & 0x80){
 	    pts = data + 9;
 	}
+	if(data[7] & 0x40){
+	    dts = data + 13;
+	}
     } else {
 	hl = 6;
 	while(c == 0xff)
@@ -71,16 +74,24 @@ mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 	hl++;
     }
 
+    pes->flags = 0;
+
     if(pts){
-	pes->pts_flag = 1;
+	pes->flags |= PES_FLAG_PTS;
 	pes->pts = (htob_16(unaligned16(pts+3)) & 0xfffe) >> 1;
 	pes->pts |= (htob_16(unaligned16(pts+1)) & 0xfffe) << 14;
 	pes->pts |= (uint64_t) (*pts & 0xe) << 29;
 /* 	fprintf(stderr, "MPEGPS: stream %x, pts %lli\n", */
 /* 		pes->stream_id, pes->pts); */
-    } else {
-	pes->pts_flag = 0;
     }
+
+    if(dts){
+	pes->flags |= PES_FLAG_DTS;
+	pes->dts = (htob_16(unaligned16(dts+3)) & 0xfffe) >> 1;
+	pes->dts |= (htob_16(unaligned16(dts+1)) & 0xfffe) << 14;
+	pes->dts |= (uint64_t) (*dts & 0xe) << 29;
+    }
+
     pes->data = data + hl;
     if(pkl)
 	pes->size = pkl + 6;
@@ -182,7 +193,7 @@ write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
        stream_id != H222_E_STREAM &&
        stream_id != SYSTEM_HEADER){
 	int pflags = 0;
-	uint64_t pts = 0;
+	uint64_t pts = 0, dts = 0;
 
 	pklen += 3;
 	*p++ = 0x80;
@@ -190,6 +201,12 @@ write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
 	if(flags & PES_FLAG_PTS){
 	    pts = va_arg(args, uint64_t);
 	    pflags |= 0x80;
+	    hdrl += 5;
+	}
+
+	if(flags & PES_FLAG_DTS){
+	    dts = va_arg(args, uint64_t);
+	    pflags |= 0x40;
 	    hdrl += 5;
 	}
 
@@ -203,6 +220,15 @@ write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
 	    st_unaligned16(htob_16(((pts << 1) & 0xfffe) | 1), p);
 	    p += 2;
 	}
+
+	if(flags & PES_FLAG_DTS){
+	    *p++ = ((dts >> 29) & 0xe) | 0x21;
+	    st_unaligned16(htob_16(((dts >> 14) & 0xfffe) | 1), p);
+	    p += 2;
+	    st_unaligned16(htob_16(((dts << 1) & 0xfffe) | 1), p);
+	    p += 2;
+	}
+
 	pklen += hdrl;
     }
 
