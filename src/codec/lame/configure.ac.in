@@ -1,0 +1,1 @@
+TC2_CHECK_LIBS(lame, mp3lame, lame_init, -lm)

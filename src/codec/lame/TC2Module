@@ -1,0 +1,7 @@
+module		lame
+name		"TCVP/codec/lame"
+version		0.1.0
+tc2version	0.4.0
+sources		lame.c
+implement	"encoder/audio/mpeg"	"new"	l_new
+implement	"encoder/audio/mp3"	"new"	l_new

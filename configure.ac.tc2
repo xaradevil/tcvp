@@ -23,6 +23,7 @@ AC_CONFIG_FILES([Makefile
 		 src/codec/codec/Makefile
 		 src/codec/a52/Makefile
 		 src/codec/avcodec/Makefile
+		 src/codec/lame/Makefile
 		 src/codec/mad/Makefile
 		 src/codec/mpeg2/Makefile
 		 src/codec/vorbis/Makefile
