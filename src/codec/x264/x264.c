@@ -37,7 +37,6 @@ typedef struct x4_enc {
     x264_param_t params;
     x264_t *enc;
     x264_picture_t pic;
-    u_char *buf;
     int pts_valid;
 } x4_enc_t;
 
@@ -47,6 +46,13 @@ typedef struct x4_packet {
     int size;
 } x4_packet_t;
 
+static void
+x4_free_pk(void *p)
+{
+    x4_packet_t *xp = p;
+    free(xp->data);
+}
+
 extern int
 x4_encode(tcvp_pipe_t *p, packet_t *pk)
 {
@@ -54,7 +60,7 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     x4_packet_t *ep;
     x264_nal_t *nal;
     int nnal, i;
-    u_char *buf;
+    u_char *buf, *bp;
     int bufsize = X4_BUFSIZE;
 
     if(!pk->data)
@@ -81,16 +87,16 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     if(x264_encoder_encode(x4->enc, &nal, &nnal, &x4->pic))
 	return -1;
 
-    buf = x4->buf;
+    bp = buf = malloc(bufsize);
 
     for(i = 0; i < nnal; i++){
-	int s = x264_nal_encode(buf, &bufsize, 1, nal + i);
+	int s = x264_nal_encode(bp, &bufsize, 1, nal + i);
 	if(s < 0)
 	    return -1;
-	buf += s;
+	bp += s;
     }
 
-    ep = tcallocz(sizeof(*ep));
+    ep = tcallocdz(sizeof(*ep), NULL, x4_free_pk);
     ep->pk.stream = pk->stream;
     ep->pk.data = &ep->data;
     ep->pk.sizes = &ep->size;
@@ -102,8 +108,8 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     }
     if(x4->pic.i_type == X264_TYPE_I)
 	ep->pk.flags |= TCVP_PKT_FLAG_KEY;
-    ep->data = x4->buf;
-    ep->size = buf - x4->buf;
+    ep->data = buf;
+    ep->size = bp - buf;
     p->next->input(p->next, &ep->pk);
 
     tcfree(pk);
@@ -143,7 +149,6 @@ x4_free(void *p)
 
     if(x4->enc)
 	x264_encoder_close(x4->enc);
-    free(x4->buf);
 }
 
 extern int
@@ -154,7 +159,6 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     x4 = tcallocdz(sizeof(*x4), NULL, x4_free);
     x264_param_default(&x4->params);
-    x4->buf = malloc(X4_BUFSIZE);
 
     tcconf_getvalue(cs, "cabac", "%i", &x4->params.b_cabac);
     tcconf_getvalue(cs, "qp", "%i", &x4->params.i_qp_constant);
