@@ -141,7 +141,7 @@ bufr(video_out_t *vo)
     float bfr;
 
     bf = vo->head - vo->tail;
-    if(bf <= 0)
+    if(bf <= 0 && vo->framecnt)
 	bf += vo->driver->frames;
     bfr = (float) bf / vo->driver->frames;
 
