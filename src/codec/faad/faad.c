@@ -39,7 +39,7 @@ typedef struct faad_dec {
 } faad_dec_t;
 
 typedef struct faad_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data;
     int size;
 } faad_packet_t;
@@ -47,7 +47,7 @@ typedef struct faad_packet {
 #define min(a, b) ((a)<(b)?(a):(b))
 
 static int
-decode(tcvp_pipe_t *p, packet_t *pk)
+decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     faad_dec_t *ad = p->private;
     faacDecFrameInfo aacframe;
@@ -77,14 +77,14 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 	opk->pk.pts = pts;
 	opk->data = samples;
 	opk->size = aacframe.samples * 2;
-	p->next->input(p->next, &opk->pk);
+	p->next->input(p->next, (tcvp_packet_t *) opk);
     }
 
     return aacframe.bytesconsumed? 0: -1;
 }
 
 extern int
-faad_input(tcvp_pipe_t *p, packet_t *pk)
+faad_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     faad_dec_t *ad = p->private;
     u_char *data;
@@ -93,7 +93,7 @@ faad_input(tcvp_pipe_t *p, packet_t *pk)
     if(!pk->data){
 	if(ad->bpos)
 	    decode(p, pk);
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -135,7 +135,7 @@ faad_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern int
-faad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+faad_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     faad_dec_t *ad = p->private;
     faacDecConfiguration *fdc;

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -42,7 +42,7 @@ typedef struct {
 static void
 vorbis_free_packet(void *v)
 {
-    packet_t *p = v;
+    tcvp_data_packet_t *p = v;
     free(p->sizes);
 }
 
@@ -74,16 +74,16 @@ conv(int samples, float **pcm, char *buf, int channels) {
 
 
 extern int
-vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
+vorbis_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
-    packet_t *out;
+    tcvp_data_packet_t *out;
     VorbisContext_t *vc = p->private;
     int samples, total_samples, total_bytes;
     float **pcm ;
     ogg_packet *op;
 
     if(!pk->data){
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -115,7 +115,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     }
     out->private = vc->buf;
 
-    p->next->input(p->next, out);
+    p->next->input(p->next, (tcvp_packet_t *) out);
 
     tcfree(pk);
 
@@ -123,7 +123,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+vorbis_read_header(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     ogg_packet *op=(ogg_packet*)pk->data[0];
     VorbisContext_t *vc = p->private;

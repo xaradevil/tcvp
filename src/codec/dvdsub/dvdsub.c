@@ -257,7 +257,7 @@ dvdsub_decode_packet(tcvp_pipe_t *p, int str)
 
     ds->bpos = 0;
 
-    p->next->input(p->next, &pk->pk);
+    p->next->input(p->next, (tcvp_packet_t *) pk);
 
     return 0;
 }
@@ -265,14 +265,14 @@ dvdsub_decode_packet(tcvp_pipe_t *p, int str)
 #define min(a,b) ((a)<(b)?(a):(b))
 
 extern int
-dvdsub_decode(tcvp_pipe_t *p, packet_t *pk)
+dvdsub_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     dvdsub_t *ds = p->private;
     u_char *data;
     int size;
 
     if(!pk->data){
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -353,7 +353,7 @@ static uint32_t dvdsub_palettes[][16] = {
 #define NPALETTES (sizeof(dvdsub_palettes)/sizeof(dvdsub_palettes[0]))
 
 extern int
-dvdsub_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+dvdsub_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     dvdsub_t *ds = p->private;
 

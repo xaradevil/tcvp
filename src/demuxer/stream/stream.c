@@ -132,7 +132,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
     return ms;
 }
 
-extern packet_t *
+extern tcvp_packet_t *
 s_next_packet(muxed_stream_t *ms, int stream)
 {
     return ms->next_packet(ms, stream);
@@ -142,7 +142,7 @@ extern int
 s_validate(char *name, tcconf_section_t *cs)
 {
     muxed_stream_t *ms = s_open(name, cs, NULL);
-    packet_t *pk;
+    tcvp_packet_t *pk;
     int i;
 
     if(!ms)

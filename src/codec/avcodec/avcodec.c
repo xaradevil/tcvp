@@ -43,7 +43,7 @@ avc_init(char *arg)
 extern void
 avc_free_packet(void *v)
 {
-    packet_t *p = v;
+    tcvp_data_packet_t *p = v;
     free(p->sizes);
 }
 

@@ -161,12 +161,12 @@ mpegpes_free(mpegpes_packet_t *p)
 static void
 mpegps_free_pk(void *v)
 {
-    packet_t *p = v;
+    tcvp_data_packet_t *p = v;
     mpegpes_packet_t *mp = p->private;
     mpegpes_free(mp);
 }
 
-extern packet_t *
+extern tcvp_packet_t *
 mpegps_packet(muxed_stream_t *ms, int str)
 {
     mpegps_stream_t *s = ms->private;
@@ -251,7 +251,7 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	pk->flags |= TCVP_PKT_FLAG_DTS;
     }
 
-    return pk;
+    return (tcvp_packet_t *) pk;
 }
 
 static uint64_t

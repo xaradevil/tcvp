@@ -41,7 +41,7 @@ typedef struct ovl {
 } ovl_t;
 
 extern int
-ovl_input(tcvp_pipe_t *p, packet_t *pk)
+ovl_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     ovl_t *ov = p->private;
 
@@ -114,7 +114,7 @@ ovl_input(tcvp_pipe_t *p, packet_t *pk)
 		    tcfree(opk);
 		}
 
-		p->next->input(p->next, vp);
+		p->next->input(p->next, (tcvp_packet_t *) vp);
 	    }
 
 	    if(lock)
@@ -127,7 +127,7 @@ ovl_input(tcvp_pipe_t *p, packet_t *pk)
 
 	if(!pk->data){
 	    tc2_print("OVERLAY", TC2_PRINT_DEBUG, "end of video stream\n");
-	    p->next->input(p->next, pk);
+	    p->next->input(p->next, (tcvp_packet_t *) pk);
 	}
     }
 
@@ -159,7 +159,7 @@ ovl_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern int
-ovl_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+ovl_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     ovl_t *ov = p->private;
     int ret;

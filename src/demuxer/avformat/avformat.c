@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -39,59 +39,54 @@ avf_init(char *p)
 }
 
 static char *codec_names[] = {
-    [CODEC_ID_NONE] = NULL, 
+    [CODEC_ID_AAC] = "audio/aac",
+    [CODEC_ID_AC3] = "audio/ac3",
+    [CODEC_ID_ADPCM_IMA_QT] = "audio/adpcm-ima-qt",
+    [CODEC_ID_ADPCM_IMA_WAV] = "audio/adpcm-ima-wav",
+    [CODEC_ID_ADPCM_MS] = "audio/adpcm-ms",
+    [CODEC_ID_CINEPAK] = "video/cinepak",
+    [CODEC_ID_CYUV] = "video/cyuv",
+    [CODEC_ID_DVAUDIO] = "audio/dv",
+    [CODEC_ID_DVVIDEO] = "video/dv",
+    [CODEC_ID_H263I] = "video/h263i",
+    [CODEC_ID_H263P] = "video/h263p",
+    [CODEC_ID_H263] = "video/h263",
+    [CODEC_ID_H264] = "video/h264",
+    [CODEC_ID_HUFFYUV] = "video/huffyuv",
+    [CODEC_ID_INDEO3] = "video/indeo3",
+    [CODEC_ID_MACE3] = "audio/mace3",
+    [CODEC_ID_MACE6] = "audio/mace6",
+    [CODEC_ID_MJPEGB] = "video/mjpegb",
+    [CODEC_ID_MJPEG] = "video/mjpeg",
+    [CODEC_ID_MP2] = "audio/mp2",
+    [CODEC_ID_MP3] = "audio/mp3",
     [CODEC_ID_MPEG1VIDEO] = "video/mpeg",
     [CODEC_ID_MPEG2VIDEO] = "video/mpeg2",
-    [CODEC_ID_H263] = "video/h263",
-    [CODEC_ID_RV10] = "video/rv10",
-    [CODEC_ID_MP2] = "audio/mp2",
-    [CODEC_ID_MP3LAME] = "audio/mp3",
-    [CODEC_ID_VORBIS] = "audio/vorbis",
-    [CODEC_ID_AC3] = "audio/ac3",
-    [CODEC_ID_MJPEG] = "video/mjpeg",
-    [CODEC_ID_MJPEGB] = "video/mjpegb",
+    [CODEC_ID_MPEG4AAC] = "audio/aac",
     [CODEC_ID_MPEG4] = "video/mpeg4",
-    [CODEC_ID_RAWVIDEO] = "video/rawvideo",
     [CODEC_ID_MSMPEG4V1] = "video/msmpeg4v1",
     [CODEC_ID_MSMPEG4V2] = "video/msmpeg4v2",
     [CODEC_ID_MSMPEG4V3] = "video/msmpeg4v3",
-    [CODEC_ID_WMV1] = "video/wmv1",
-    [CODEC_ID_WMV2] = "video/wmv2",
-    [CODEC_ID_H263P] = "video/h263p",
-    [CODEC_ID_H263I] = "video/h263i",
+    [CODEC_ID_PCM_ALAW] = "audio/pcm-alaw",
+    [CODEC_ID_PCM_MULAW] = "audio/pcm-ulaw",
+    [CODEC_ID_PCM_S16BE] = "audio/pcm-s16be",
+    [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
+    [CODEC_ID_PCM_S8] = "audio/pcm-s8",
+    [CODEC_ID_PCM_U16BE] = "audio/pcm-u16be",
+    [CODEC_ID_PCM_U16LE] = "audio/pcm-u16le",
+    [CODEC_ID_PCM_U8] = "audio/pcm-u8",
+    [CODEC_ID_RAWVIDEO] = "video/rawvideo",
+    [CODEC_ID_RV10] = "video/rv10",
     [CODEC_ID_SVQ1] = "video/svq1",
     [CODEC_ID_SVQ3] = "video/svq3",
-    [CODEC_ID_DVVIDEO] = "video/dv",
-    [CODEC_ID_DVAUDIO] = "audio/dv",
+    [CODEC_ID_THEORA] = "video/theora",
+    [CODEC_ID_TRUEMOTION1] = "video/truemotion1",
+    [CODEC_ID_VORBIS] = "audio/vorbis",
+    [CODEC_ID_VP3] = "video/vp3",
     [CODEC_ID_WMAV1] = "audio/wmav1",
     [CODEC_ID_WMAV2] = "audio/wmav2",
-    [CODEC_ID_MACE3] = "audio/mace3",
-    [CODEC_ID_MACE6] = "audio/mace6",
-    [CODEC_ID_HUFFYUV] = "video/huffyuv",
-    [CODEC_ID_CYUV] = "video/cyuv",
-    [CODEC_ID_H264] = "video/h264",
-    [CODEC_ID_INDEO3] = "video/indeo3",
-    [CODEC_ID_VP3] = "video/vp3",
-#if LIBAVCODEC_BUILD >= 4685
-    [CODEC_ID_THEORA] = "video/theora",
-#endif
-    [CODEC_ID_AAC] = "audio/aac",
-    [CODEC_ID_MPEG4AAC] = "audio/aac",
-    [CODEC_ID_TRUEMOTION1] = "video/truemotion1",
-
-    [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
-    [CODEC_ID_PCM_S16BE] = "audio/pcm-s16be",
-    [CODEC_ID_PCM_U16LE] = "audio/pcm-u16le",
-    [CODEC_ID_PCM_U16BE] = "audio/pcm-u16be",
-    [CODEC_ID_PCM_S8] = "audio/pcm-s8",
-    [CODEC_ID_PCM_U8] = "audio/pcm-u8",
-    [CODEC_ID_PCM_MULAW] = "audio/pcm-ulaw",
-    [CODEC_ID_PCM_ALAW] = "audio/pcm-alaw",
-
-    /* various adpcm codecs */
-    [CODEC_ID_ADPCM_IMA_QT] = "audio/adpcm-ima-qt",
-    [CODEC_ID_ADPCM_IMA_WAV] = "audio/adpcm-ima-wav",
-    [CODEC_ID_ADPCM_MS] = "audio/adpcm-ms"
+    [CODEC_ID_WMV1] = "video/wmv1",
+    [CODEC_ID_WMV2] = "video/wmv2",
 };
 
 extern enum CodecID
@@ -112,68 +107,71 @@ typedef struct {
     AVFormatContext *afc;
 } avf_stream_t;
 
+typedef struct avf_packet {
+    tcvp_data_packet_t pk;
+    AVPacket apk;
+    u_char *data;
+    int size;
+} avf_packet_t;
 
 static void
 avf_free_packet(void *v)
 {
-    packet_t *p = v;
-    AVPacket *ap = p->private;
-    av_free_packet(ap);
-    free(ap);
-    free(p->sizes);
+    avf_packet_t *ap = v;
+    av_free_packet(&ap->apk);
 }
 
-extern packet_t *
+extern tcvp_packet_t *
 avf_next_packet(muxed_stream_t *ms, int stream)
 {
     avf_stream_t *as = ms->private;
     AVFormatContext *afc = as->afc;
-    AVPacket *apk = NULL;
-    packet_t *pk;
+    avf_packet_t *pk;
     int sx;
 
-    apk = calloc(1, sizeof(*apk));
+    pk = tcallocdz(sizeof(*pk), NULL, avf_free_packet);
+    av_init_packet(&pk->apk);
 
     do {
 	int rp;
 #if LIBAVFORMAT_BUILD < 4610
-	rp = av_read_packet(afc, apk);
+	rp = av_read_packet(afc, &pk->apk);
 #else
-	rp = av_read_frame(afc, apk);
+	rp = av_read_frame(afc, &pk->apk);
 #endif
 	if(rp < 0){
-	    free(apk);
+	    tcfree(pk);
 	    return NULL;
 	}
 
-	sx = apk->stream_index;
+	sx = pk->apk.stream_index;
 
 	if(!ms->used_streams[sx])
-	    av_free_packet(apk);
+	    av_free_packet(&pk->apk);
     } while(!ms->used_streams[sx]);
 
-    pk = tcallocdz(sizeof(*pk), NULL, avf_free_packet);
-    pk->stream = sx;
-    pk->data = &apk->data;
-    pk->sizes = malloc(sizeof(*pk->sizes));
-    pk->sizes[0] = apk->size;
-    pk->planes = 1;
-    pk->flags = 0;
-    if(apk->pts != AV_NOPTS_VALUE){
-	pk->flags |= TCVP_PKT_FLAG_PTS;
-	pk->pts = apk->pts * 27000000 / AV_TIME_BASE;
-	tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] pts %lli\n",
-		  sx, apk->pts);
+    pk->pk.stream = sx;
+    pk->pk.sizes = &pk->size;
+    pk->pk.data = &pk->data;
+    pk->data = malloc(pk->apk.size);
+    pk->size = pk->apk.size;
+    memcpy(pk->data, pk->apk.data, pk->size);
+    pk->pk.planes = 1;
+    pk->pk.flags = 0;
+    if(pk->apk.pts != AV_NOPTS_VALUE){
+	pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+	pk->pk.pts = pk->apk.pts * 27000000 / AV_TIME_BASE;
+	tc2_print("AVFORMAT", TC2_PRINT_DEBUG+1, "[%i] pts %lli\n",
+		  sx, pk->pk.pts);
     }
 #if LIBAVFORMAT_BUILD >= 4610
-    if(apk->dts != AV_NOPTS_VALUE){
-	pk->flags |= TCVP_PKT_FLAG_DTS;
-	pk->dts = apk->dts * 27000000 / AV_TIME_BASE;
+    if(pk->apk.dts != AV_NOPTS_VALUE){
+	pk->pk.flags |= TCVP_PKT_FLAG_DTS;
+	pk->pk.dts = pk->apk.dts * 27000000 / AV_TIME_BASE;
     }
 #endif
-    pk->private = apk;
 
-    return pk;
+    return (tcvp_packet_t *) pk;
 }
 
 extern void
@@ -223,8 +221,12 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		afc->streams[i]->codec.frame_rate_base;
 	    ms->streams[i].video.width = afc->streams[i]->codec.width;
 	    ms->streams[i].video.height = afc->streams[i]->codec.height;
-	    ms->streams[i].video.codec =
-		codec_names[afc->streams[i]->codec.codec_id];
+
+	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_tag %x\n",
+		      i, afc->streams[i]->codec.codec_tag);
+	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG,
+		      "[%i] stream_codec_tag %x\n",
+		      i, afc->streams[i]->codec.stream_codec_tag);
 	    break;
 
 	case CODEC_TYPE_AUDIO:
@@ -232,8 +234,6 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    ms->streams[i].audio.sample_rate =
 		afc->streams[i]->codec.sample_rate;
 	    ms->streams[i].audio.channels = afc->streams[i]->codec.channels;
-	    ms->streams[i].audio.codec =
-		codec_names[afc->streams[i]->codec.codec_id];
 	    ms->streams[i].audio.bit_rate = afc->streams[i]->codec.bit_rate;
 	    break;
 
@@ -242,9 +242,23 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    break;
 	}
 
+	ms->streams[i].common.codec =
+	    codec_names[afc->streams[i]->codec.codec_id];
+	if(!ms->streams[i].common.codec)
+	    tc2_print("AVFORMAT", TC2_PRINT_WARNING,
+		      "[%i] unknown codec id %i\n", i,
+		      afc->streams[i]->codec.codec_id);
+	else
+	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_id %x -> %s\n",
+		      i, afc->streams[i]->codec.codec_id,
+		      ms->streams[i].common.codec);
+
 	ms->streams[i].common.codec_data = afc->streams[i]->codec.extradata;
 	ms->streams[i].common.codec_data_size =
 	    afc->streams[i]->codec.extradata_size;
+	tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_data_size %i\n",
+		  i, ms->streams[i].common.codec_data_size);
+
 	ms->streams[i].common.index = i;
     }
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));

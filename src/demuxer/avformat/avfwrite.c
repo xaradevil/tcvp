@@ -23,11 +23,9 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
-#include <pthread.h>
 #include <ffmpeg/avformat.h>
 #include <avf.h>
 #include <avformat_tc2.h>
@@ -44,8 +42,8 @@ typedef struct avf_write {
     } *streams;
 } avf_write_t;
 
-static int
-avfw_input(tcvp_pipe_t *p, packet_t *pk)
+extern int
+avfw_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     avf_write_t *avf = p->private;
     int ai;
@@ -97,8 +95,8 @@ out:
     return 0;
 }
 
-static int
-avfw_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     avf_write_t *avf = p->private;
     AVStream *as;
@@ -135,56 +133,44 @@ avfw_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return PROBE_OK;
 }
 
-static int
-avfw_flush(tcvp_pipe_t *p, int drop)
-{
-    return 0;
-}
-
 static void
 avfw_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    avf_write_t *avf = tp->private;
+    avf_write_t *avf = p;
 
     url_fclose(&avf->fc.pb);
     if(avf->streams)
 	free(avf->streams);
 }
 
-extern tcvp_pipe_t *
-avfw_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+avfw_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p;
     avf_write_t *avf;
     AVOutputFormat *of;
     char *ofn;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &ofn) <= 0)
-	return NULL;
+	return -1;
 
     if(!(of = guess_format(NULL, ofn, NULL)))
-	return NULL;
+	return -1;
 
-    avf = calloc(1, sizeof(*avf));
+    avf = tcallocdz(sizeof(*avf), NULL, avfw_free);
     avf->fc.oformat = of;
 
     if(url_fopen(&avf->fc.pb, ofn, URL_WRONLY)){
 	free(avf);
-	return NULL;
+	return -1;
     }
     av_set_parameters(&avf->fc, NULL);
 
-    p = tcallocdz(sizeof(*p), NULL, avfw_free);
-    p->input = avfw_input;
-    p->probe = avfw_probe;
-    p->flush = avfw_flush;
     p->private = avf;
 
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
     p->format.common.codec = of->name;
 
     free(ofn);
-    return p;
+    return 0;
 }

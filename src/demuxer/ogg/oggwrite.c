@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -23,7 +23,6 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <ogg/ogg.h>
@@ -42,8 +41,8 @@ ow_write_page(ogg_write_t *ow, ogg_page *op)
     return 0;
 }
 
-static int
-ow_input(tcvp_pipe_t *p, packet_t *pk)
+extern int
+ow_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     ogg_write_t *ow = p->private;
     ogg_page opg;
@@ -64,14 +63,8 @@ ow_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
-ow_flush(tcvp_pipe_t *p, int drop)
-{
-    return 0;
-}
-
-static int
-ow_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+ow_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     ogg_write_t *ow = p->private;
     ogg_packet *op = (ogg_packet *) pk->data[0];
@@ -99,37 +92,30 @@ ow_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 static void
 ow_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    ogg_write_t *ow = tp->private;
+    ogg_write_t *ow = p;
 
     ogg_stream_clear(&ow->os);
     ow->out->close(ow->out);
-    free(ow);
 }
 
-extern tcvp_pipe_t *
-ow_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
+extern int
+ow_new(tcvp_pipe_t *tp, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+       muxed_stream_t *ms)
 {
-    tcvp_pipe_t *tp;
     ogg_write_t *ow;
     char *url;
     url_t *out;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
-	return NULL;
+	return -1;
     if(!(out = url_open(url, "w")))
-	return NULL;
+	return -1;
 
-    ow = calloc(1, sizeof(*ow));
+    ow = tcallocdz(sizeof(*ow), NULL, ow_free);
     ow->out = out;
     ogg_stream_init(&ow->os, 0);
 
-
-    tp = tcallocdz(sizeof(*tp), NULL, ow_free);
-    tp->input = ow_input;
-    tp->flush = ow_flush;
-    tp->probe = ow_probe;
     tp->private = ow;
 
-    return tp;
+    return 0;
 }

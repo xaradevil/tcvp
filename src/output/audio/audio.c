@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -93,8 +93,7 @@ audio_stop(tcvp_pipe_t *p)
 static void
 audio_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    audio_out_t *ao = tp->private;
+    audio_out_t *ao = p;
 
     pthread_mutex_lock(&ao->mx);
     ao->state = STOP;
@@ -112,12 +111,10 @@ audio_free(void *p)
     if(ao->buf)
 	free(ao->buf);
     free(ao->ptsq);
-    free(tp->format.common.codec);
     tcfree(ao->conf);
-    free(ao);
 }
 
-static int
+extern int
 audio_flush(tcvp_pipe_t *p, int drop)
 {
     audio_out_t *ao = p->private;
@@ -144,8 +141,8 @@ audio_flush(tcvp_pipe_t *p, int drop)
     return 0;
 }
 
-static int
-audio_input(tcvp_pipe_t *p, packet_t *pk)
+extern int
+audio_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     audio_out_t *ao = p->private;
     size_t count;
@@ -264,6 +261,7 @@ audio_play(void *p)
     return NULL;
 }
 
+#if 0
 static int
 audio_buffer(tcvp_pipe_t *p, float r)
 {
@@ -276,6 +274,7 @@ audio_buffer(tcvp_pipe_t *p, float r)
 
     return 0;
 }
+#endif
 
 static int
 get_ssize(char *s)
@@ -293,8 +292,8 @@ get_ssize(char *s)
     }
 }
 
-static int
-audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+audio_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     audio_out_t *ao = p->private;
     audio_driver_t *ad = NULL;
@@ -370,14 +369,13 @@ err:
     return PROBE_FAIL;
 }
 
-extern tcvp_pipe_t *
-audio_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
-	   muxed_stream_t *ms)
+extern int
+audio_open(tcvp_pipe_t *tp, stream_t *s, tcconf_section_t *cs,
+	   tcvp_timer_t *timer, muxed_stream_t *ms)
 {
-    tcvp_pipe_t *tp;
     audio_out_t *ao;
 
-    ao = calloc(1, sizeof(*ao));
+    ao = tcallocdz(sizeof(*ao), NULL, audio_free);
     pthread_mutex_init(&ao->mx, NULL);
     pthread_cond_init(&ao->cd, NULL);
     ao->state = PAUSE;
@@ -385,16 +383,11 @@ audio_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
     ao->ptsq = calloc(ptsqsize, sizeof(*ao->ptsq));
     ao->conf = tcref(cs);
 
-    tp = tcallocdz(sizeof(*tp), NULL, audio_free);
-    tp->input = audio_input;
     tp->start = audio_start;
     tp->stop = audio_stop;
-    tp->flush = audio_flush;
-    tp->buffer = audio_buffer;
-    tp->probe = audio_probe;
     tp->private = ao;
 
-    return tp;
+    return 0;
 }
 
 static int

@@ -33,9 +33,9 @@
 #include "avc.h"
 
 static int
-do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
+do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 {
-    packet_t *out;
+    tcvp_data_packet_t *out;
     avc_codec_t *vc = p->private;
     char *inbuf;
     int insize;
@@ -44,7 +44,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
     } else {
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -88,7 +88,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    vc->pts += vc->ptsn;
 
 	    out->private = NULL;
-	    p->next->input(p->next, out);
+	    p->next->input(p->next, (tcvp_packet_t *) out);
 	}
     }
 
@@ -98,7 +98,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 }
 
 extern int
-avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
+avc_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     return do_decvideo(p, pk, 0);
 }
@@ -123,7 +123,7 @@ static char *pixel_fmts[] = {
 };
 
 extern int
-avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     avc_codec_t *vc = p->private;
     int ret;

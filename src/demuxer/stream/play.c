@@ -400,7 +400,7 @@ static int
 flush_stream(stream_player_t *sp, int sx, int drop)
 {
     struct sp_stream *str = sp->streams + sx;
-    packet_t *pk;
+    tcvp_packet_t *pk;
 
     if(!str->packets)
 	return 0;
@@ -452,7 +452,7 @@ play_stream(void *p)
     stream_player_t *sp = str->sp;
     int six = str - sp->streams;
     int shs = sp->smap[six];
-    packet_t *pk;
+    tcvp_packet_t *pk;
 
     tc2_print("STREAM", TC2_PRINT_DEBUG,
 	      "[%i] starting player thread\n", shs);
@@ -461,8 +461,9 @@ play_stream(void *p)
 	pthread_mutex_lock(&sp->lock);
 	pk = tclist_shift(str->packets);
 
-	if(pk && pk->flags & TCVP_PKT_FLAG_PTS)
-	    str->tailtime = pk->pts;
+	if(pk && pk->type == TCVP_PKT_TYPE_DATA &&
+	   pk->data.flags & TCVP_PKT_FLAG_PTS)
+	    str->tailtime = pk->data.pts;
 
 	if((tclist_items(str->packets) < min_packets ||
 	    str->headtime - str->tailtime < buffertime) &&
@@ -490,8 +491,8 @@ play_stream(void *p)
 	      "stream %i %s\n", shs, sp->state == STOP? "stopped": "end");
 
     pk = tcallocz(sizeof(*pk));
-    pk->stream = shs;
-    pk->data = NULL;
+    pk->data.stream = shs;
+    pk->data.data = NULL;
     if(str->end->start)
 	str->end->start(str->end);
     str->pipe->flush(str->pipe, sp->state == STOP);

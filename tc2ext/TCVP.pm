@@ -151,7 +151,7 @@ $$_{w}free(void *p)
 }
 
 static int
-$$_{w}probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+$$_{w}probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     int ps = PROBE_OK;
     p->format = *s;
@@ -168,14 +168,15 @@ END_C
 }
 
 static int
-$$_{w}packet(tcvp_pipe_t *p, packet_t *pk)
+$$_{w}packet(tcvp_pipe_t *p, tcvp_packet_t *pk)
 {
 END_C
 	    my $else;
 	    while (my($type, $func) = each %{$$_{packet}}) {
+		my $ltype = lc $type;
 		print $fh <<END_C;
     ${else}if(pk->type == TCVP_PKT_TYPE_$type){
-	return $func(p, pk);
+	return $func(p, &pk->$ltype);
     }
 END_C
 		$else = 'else ';
@@ -320,9 +321,9 @@ sub hmod {
 extern int $$_{new}(tcvp_pipe_t *, stream_t *, tcconf_section_t *,
 		    tcvp_timer_t *, muxed_stream_t *);
 END_C
-	    print $fh "extern int $_(tcvp_pipe_t *, packet_t *);\n"
-	      for values %{$$_{packet}};
-	    print $fh "extern int $$_{probe}(tcvp_pipe_t *, packet_t *, stream_t *);\n" if $$_{probe};
+	    print $fh "extern int $func(tcvp_pipe_t *, tcvp_@{[lc $type]}_packet_t *);\n"
+	      while ($type, $func) = each %{$$_{packet}};
+	    print $fh "extern int $$_{probe}(tcvp_pipe_t *, tcvp_data_packet_t *, stream_t *);\n" if $$_{probe};
 	    print $fh "extern int $$_{flush}(tcvp_pipe_t *, int);\n"
 	      if $$_{flush};
 	}

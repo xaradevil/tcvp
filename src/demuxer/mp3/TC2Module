@@ -3,13 +3,9 @@ name		"TCVP/demux/mp3"
 version		0.1.4
 tc2version	0.4.0
 sources		mp3.c mp3write.c id3.c id3.h
-postinit	mp3_init
 implement	"audio/mpeg"	"open"		mp3_open
 implement	"audio/x-aac"	"open"		mp3_open
 implement	"audio/ac3"	"open"		mp3_open
-implement	"mux/mp3"	"new"		mp3w_new
-implement	"mux/aac"	"new"		mp3w_new
-implement	"mux/ac3"	"new"		mp3w_new
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
@@ -17,7 +13,19 @@ import		"Eventq"	"attach"
 import		"URL"		"open"
 import		"URL"		"getc"
 import		"tcvp/event"	"send"
-import		"tcvp/event"	"get"
+
+TCVP {
+	filter "mux/mp3" {
+		alias "mux/aac"
+		alias "mux/ac3"
+		alias "mux/dts"
+		new mp3w_new
+		packet DATA mp3w_input
+		probe mp3w_probe
+	}
+	event TCVP_STREAM_INFO
+}
+
 option		id3v1_encoding%s="ISO-8859-1"
 option		override_encoding%s
 option		starttime%li=0

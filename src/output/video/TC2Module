@@ -4,8 +4,16 @@ version		0.1.0
 tc2version	0.4.0
 sources		video.c colors.c vid_priv.h
 postinit	v_init
-implement	"output/video"	"new"	v_open
 require		"driver/video"
+
+TCVP {
+	filter "output/video" {
+		new v_open
+		packet DATA v_put
+		probe v_probe
+		flush v_flush
+	}
+}
 
 option	discard%i=0
 Number of initial frames to discard.

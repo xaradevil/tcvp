@@ -38,7 +38,7 @@ typedef struct yuv4mpeg {
 } yuv4mpeg_t;
 
 typedef struct yuv4mpeg_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data[3];
     int size[3];
 } yuv4mpeg_packet_t;
@@ -80,7 +80,7 @@ y4m_free_pk(void *p)
     free(yp->data[0]);
 }
 
-extern packet_t *
+extern tcvp_packet_t *
 y4m_packet(muxed_stream_t *ms, int s)
 {
     yuv4mpeg_t *y4m = ms->private;
@@ -116,7 +116,7 @@ y4m_packet(muxed_stream_t *ms, int s)
 
     y4m->pts = pts + y4m->ptsd;
 
-    return &yp->pk;
+    return (tcvp_packet_t *) yp;
 }
 
 static void

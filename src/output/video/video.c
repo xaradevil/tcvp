@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -23,13 +23,10 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
 #include <video_tc2.h>
@@ -152,8 +149,8 @@ v_qpts(video_out_t *vo, uint64_t pts)
     pthread_mutex_unlock(&vo->smx);
 }
 
-static int
-v_put(tcvp_pipe_t *p, packet_t *pk)
+extern int
+v_put(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     video_out_t *vo = p->private;
     u_char *data[4];
@@ -243,10 +240,8 @@ v_stop(tcvp_pipe_t *p)
 }
 
 static int
-v_flush(tcvp_pipe_t *p, int drop)
+do_flush(video_out_t *vo, int drop)
 {
-    video_out_t *vo = p->private;
-
     pthread_mutex_lock(&vo->smx);
 
     if(!drop){
@@ -265,10 +260,17 @@ v_flush(tcvp_pipe_t *p, int drop)
     }
 
     pthread_mutex_unlock(&vo->smx);
-
     return 0;
 }
 
+extern int
+v_flush(tcvp_pipe_t *p, int drop)
+{
+    video_out_t *vo = p->private;
+    return do_flush(vo, drop);
+}
+
+#if 0
 static int
 v_buffer(tcvp_pipe_t *p, float r)
 {
@@ -281,12 +283,12 @@ v_buffer(tcvp_pipe_t *p, float r)
 
     return 0;
 }
+#endif
 
 static void
 v_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    video_out_t *vo = tp->private;
+    video_out_t *vo = p;
 
     pthread_mutex_lock(&vo->smx);
     vo->state = STOP;
@@ -298,7 +300,7 @@ v_free(void *p)
     pthread_join(vo->thr, NULL);
 
     if(vo->driver)
-	v_flush(p, 1);
+	do_flush(vo, 1);
 
     if(vo->driver)
 	vo->driver->close(vo->driver);
@@ -310,11 +312,10 @@ v_free(void *p)
 	free(vo->pts);
     tcfree(vo->conf);
     tcfree(vo->timer);
-    free(vo);
 }
 
-static int
-v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+v_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     video_out_t *vo = p->private;
     video_driver_t *vd = NULL;
@@ -370,14 +371,13 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return PROBE_OK;
 }
 
-extern tcvp_pipe_t *
-v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
+extern int
+v_open(tcvp_pipe_t *tp, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
        muxed_stream_t *ms)
 {
-    tcvp_pipe_t *pipe;
     video_out_t *vo;
 
-    vo = calloc(1, sizeof(*vo));
+    vo = tcallocdz(sizeof(*vo), NULL, v_free);
     vo->head = 0;
     vo->tail = 0;
     pthread_mutex_init(&vo->smx, NULL);
@@ -389,16 +389,11 @@ v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
     vo->discard = tcvp_output_video_conf_discard;
     pthread_create(&vo->thr, NULL, v_play, vo);
 
-    pipe = tcallocdz(sizeof(*pipe), NULL, v_free);
-    pipe->input = v_put;
-    pipe->start = v_start;
-    pipe->stop = v_stop;
-    pipe->flush = v_flush;
-    pipe->buffer = v_buffer;
-    pipe->probe = v_probe;
-    pipe->private = vo;
+    tp->start = v_start;
+    tp->stop = v_stop;
+    tp->private = vo;
 
-    return pipe;
+    return 0;
 }
 
 static int

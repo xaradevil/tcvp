@@ -4,6 +4,14 @@ version		0.1.2
 tc2version	0.4.0
 sources		ogg.c oggwrite.c
 implement	"audio/x-ogg"	"open"	ogg_open
-implement	"mux/ogg"	"new"	ow_new
 import		"URL"		"open"
+
+TCVP {
+	filter "mux/ogg" {
+		new ow_new
+		packet DATA ow_input
+		probe ow_probe
+	}
+}
+
 option		seek_fuzziness%i=1000

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -41,8 +41,8 @@ typedef struct image_write {
     int probed;
 } image_write_t;
 
-static int
-im_input(tcvp_pipe_t *p, packet_t *pk)
+extern int
+im_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     image_write_t *iw = p->private;
     AVImageInfo aii;
@@ -80,12 +80,6 @@ end:
     return 0;
 }
 
-static int
-im_flush(tcvp_pipe_t *p, int drop)
-{
-    return 0;
-}
-
 static struct {
     char *name;
     enum PixelFormat pxf;
@@ -94,8 +88,8 @@ static struct {
     { NULL, 0 }
 };
 
-static int
-im_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+im_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     image_write_t *iw = p->private;
     int i;
@@ -117,7 +111,6 @@ im_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     iw->pixfmt = codecs[i].pxf;
     iw->probed = 1;
 
-    p->format = *s;
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
     p->format.common.codec = iw->tag;
     p->format.common.bit_rate = 0;
@@ -127,43 +120,37 @@ im_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 static void
 im_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    image_write_t *iw = tp->private;
-    free(iw);
+    image_write_t *iw = p;
+    free(iw->file);
 }
 
-extern tcvp_pipe_t *
-im_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+im_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
        muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p;
     image_write_t *iw;
     char *url;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
 	tc2_print("AVIMAGE", TC2_PRINT_ERROR, "No output file\n");
-	return NULL;
+	return -1;
     }
 
     if(strncmp(s->common.codec, "video/raw", 9)){
 	tc2_print("AVIMAGE", TC2_PRINT_ERROR,
 		  "Unsupported format %s\n", s->common.codec);
-	return NULL;
+	return -1;
     }
 
-    iw = calloc(1, sizeof(*iw));
+    iw = tcallocdz(sizeof(*iw), NULL, im_free);
     iw->file = url;
     iw->tag = "jpeg";
     tcconf_getvalue(cs, "interval", "%i", &iw->interval);
     iw->interval *= 27000;
 
-    p = tcallocdz(sizeof(*p), NULL, im_free);
-    p->input = im_input;
-    p->flush = im_flush;
-    p->probe = im_probe;
     p->private = iw;
 
-    return p;
+    return 0;
 }
 
 extern int

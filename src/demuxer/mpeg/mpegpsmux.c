@@ -23,14 +23,11 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
 #include <tcalloc.h>
 #include <tcendian.h>
-#include <pthread.h>
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
 #include "mpeg.h"
@@ -185,8 +182,8 @@ write_psm(u_char *d, mpegps_mux_t *psm, int size)
     return d - p;
 }
 
-static int
-pmx_input(tcvp_pipe_t *p, packet_t *pk)
+extern int
+mpegps_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     mpegps_mux_t *psm = p->private;
     struct mpegps_output_stream *os;
@@ -277,8 +274,8 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
-pmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+mpegps_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     mpegps_mux_t *psm = p->private;
     mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
@@ -321,44 +318,35 @@ pmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return PROBE_OK;
 }
 
-static int
-pmx_flush(tcvp_pipe_t *p, int drop)
-{
-    return 0;
-}
-
 static void
 pmx_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    mpegps_mux_t *psm = tp->private;
+    mpegps_mux_t *psm = p;
 
     psm->out->close(psm->out);
     if(psm->streams)
 	free(psm->streams);
-    free(psm);
 }
 
-extern tcvp_pipe_t *
-mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+mpegps_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	   muxed_stream_t *ms)
 {
     mpegps_mux_t *psm;
-    tcvp_pipe_t *p;
     char *url;
     url_t *out;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
 	tc2_print("MPEGPS-MUX", TC2_PRINT_ERROR, "No output specified.\n");
-	return NULL;
+	return -1;
     }
 
     if(!(out = url_open(url, "w"))){
 	tc2_print("MPEGPS-MUX", TC2_PRINT_ERROR, "Error opening %s.\n", url);
-	return NULL;
+	return -1;
     }
 
-    psm = calloc(1, sizeof(*psm));
+    psm = tcallocdz(sizeof(*psm), NULL, pmx_free);
     psm->out = out;
     psm->vid = 0xe0;
     psm->aid = 0xc0;
@@ -377,15 +365,11 @@ mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	psm->pessize = 0xfff2;
     }
 
-    p = tcallocdz(sizeof(*p), NULL, pmx_free);
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
     p->format.common.codec = "mpeg-ps";
-    p->input = pmx_input;
-    p->probe = pmx_probe;
-    p->flush = pmx_flush;
     p->private = psm;
 
     free(url);
 
-    return p;
+    return 0;
 }

@@ -52,7 +52,7 @@ typedef struct avc_audioenc {
 } avc_audioenc_t;
 
 typedef struct avc_encpacket {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data, *buf;
     int size;
 } avc_encpacket_t;
@@ -98,21 +98,21 @@ encframe(tcvp_pipe_t *p, u_char *frame, int idx)
 	enc->bufpos = 0;
 	enc->bframes = 0;
 
-	p->next->input(p->next, &ep->pk);
+	p->next->input(p->next, (tcvp_packet_t *) ep);
     }
 
     return size;
 }
 
 extern int
-avc_audioenc(tcvp_pipe_t *p, packet_t *pk)
+avc_audioenc(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     avc_audioenc_t *enc = p->private;
     int size;
     u_char *data;
 
     if(!pk->data)
-	return p->next->input(p->next, pk);
+	return p->next->input(p->next, (tcvp_packet_t *) pk);
 
     data = pk->data[0];
     size = pk->sizes[0];
@@ -154,7 +154,7 @@ avc_audioenc(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-avc_audioenc_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+avc_audioenc_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     avc_audioenc_t *enc = p->private;
     AVCodecContext *ctx = enc->ctx;

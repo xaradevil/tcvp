@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -61,7 +61,7 @@ wd_watch(void *p)
 }
 
 static int
-wd_input(tcvp_pipe_t *p, packet_t *pk)
+wd_input(tcvp_pipe_t *p, tcvp_packet_t *pk)
 {
     watchdog_t *w = p->private;
 
@@ -72,7 +72,7 @@ wd_input(tcvp_pipe_t *p, packet_t *pk)
 }
 
 static int
-wd_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+wd_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     p->format = *s;
     return p->next->probe(p->next, pk, &p->format);

@@ -38,7 +38,7 @@
 #define max(a,b) ((a)>(b)?(a):(b))
 
 typedef struct mad_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     int16_t *data;
     int size;
 } mad_packet_t;
@@ -205,7 +205,7 @@ output(tcvp_pipe_t *tp, struct mad_pcm *pcm, int stream)
 	}
     }
 
-    tp->next->input(tp->next, &mp->pk);
+    tp->next->input(tp->next, (tcvp_packet_t *) mp);
 
     return 0;
 }
@@ -229,14 +229,14 @@ decode_frame(tcvp_pipe_t *p, u_char *data, int size)
 }
 
 extern int
-mad_decode(tcvp_pipe_t *p, packet_t *pk)
+mad_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     mad_dec_t *md = p->private;
     u_char *d;
     int size;
 
     if(!pk->data){
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -278,7 +278,7 @@ mad_decode(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-mad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+mad_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     mp3_frame_t mf;
     u_char *d = pk->data[0];

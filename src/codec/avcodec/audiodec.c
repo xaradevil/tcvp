@@ -33,9 +33,9 @@
 #include "avc.h"
 
 static int
-do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
+do_decaudio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 {
-    packet_t *out;
+    tcvp_data_packet_t *out;
     avc_codec_t *ac = p->private;
     char *inbuf;
     int insize;
@@ -44,7 +44,7 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
     } else {
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -76,7 +76,7 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    out->pts = pk->pts;
 	    pk->pts = 0;
 	    out->private = ac->buf;
-	    p->next->input(p->next, out);
+	    p->next->input(p->next, (tcvp_packet_t *) out);
 	}
     }
 
@@ -86,13 +86,13 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
 }
 
 extern int
-avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
+avc_decaudio(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     return do_decaudio(p, pk, 0);
 }
 
 extern int
-avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+avc_probe_audio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     avc_codec_t *ac = p->private;
     int ret;

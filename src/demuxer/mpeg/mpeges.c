@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -38,7 +38,7 @@ typedef struct mpeges {
 } mpeges_t;
 
 typedef struct mpeges_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     int size;
     u_char *data;
 } mpeges_packet_t;
@@ -50,7 +50,7 @@ mpeges_free_pk(void *p)
     free(ep->data);
 }
 
-static packet_t *
+static tcvp_packet_t *
 mpeges_packet(muxed_stream_t *ms, int str)
 {
     mpeges_t *me = ms->private;
@@ -71,7 +71,7 @@ mpeges_packet(muxed_stream_t *ms, int str)
     ep->data = buf;
     ep->size = size;
 
-    return &ep->pk;
+    return (tcvp_packet_t *) ep;
 }
 
 static void

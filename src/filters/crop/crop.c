@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -34,7 +34,7 @@ typedef struct crop {
 } crop_t;
 
 extern int
-crop_input(tcvp_pipe_t *p, packet_t *pk)
+crop_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     crop_t *c = p->private;
     int i;
@@ -46,13 +46,13 @@ crop_input(tcvp_pipe_t *p, packet_t *pk)
 	}
     }
 
-    p->next->input(p->next, pk);
+    p->next->input(p->next, (tcvp_packet_t *) pk);
 
     return 0;
 }
 
 extern int
-crop_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+crop_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     crop_t *c = p->private;
     video_stream_t *vs = &p->format.video;

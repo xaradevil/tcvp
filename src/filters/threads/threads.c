@@ -30,7 +30,7 @@
 typedef struct threads threads_t;
 
 typedef struct thr_packet {
-    packet_t *pk;
+    tcvp_data_packet_t *pk;
     int seq;
 } thr_packet_t;
 
@@ -38,7 +38,7 @@ typedef struct thread {
     tcvp_pipe_t *pipe, *end;
     thr_packet_t *pkq;
     int head, tail, nq;
-    packet_t *pk;
+    tcvp_data_packet_t *pk;
     int seq;
     pthread_mutex_t lock;
     pthread_cond_t cond;
@@ -103,7 +103,7 @@ th_run(void *p)
     while(wait_packet(t)){
 	tc2_print("THREADS", TC2_PRINT_DEBUG+1, "[%i] processing packet %i\n",
 		  t - th->threads, t->seq);
-	t->pipe->input(t->pipe, t->pk);
+	t->pipe->input(t->pipe, (tcvp_packet_t *) t->pk);
     }
 
     tc2_print("THREADS", TC2_PRINT_DEBUG, "[%i] done\n", t - th->threads);
@@ -111,8 +111,9 @@ th_run(void *p)
 }
 
 static int
-th_input(tcvp_pipe_t *p, packet_t *pk)
+th_input(tcvp_pipe_t *p, tcvp_packet_t *tpk)
 {
+    tcvp_data_packet_t *pk = (tcvp_data_packet_t *) tpk;
     thread_t *t = p->private;
     threads_t *th = t->th;
     int oqp;
@@ -157,7 +158,7 @@ thr_output(void *p)
 	return NULL;
 
     while(th->run){
-	packet_t *opk;
+	tcvp_data_packet_t *opk;
 	int pkn;
 
 	pthread_mutex_lock(&th->olock);
@@ -179,14 +180,14 @@ thr_output(void *p)
 	pthread_mutex_unlock(&th->olock);
 
 	tc2_print("THREADS", TC2_PRINT_DEBUG+2, "sending packet %i\n", pkn);
-	th->pipe->next->input(th->pipe->next, opk);
+	th->pipe->next->input(th->pipe->next, (tcvp_packet_t *) opk);
     }
 
     return NULL;
 }
 
 static int
-th_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+th_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     thread_t *t = p->private;
 
@@ -202,7 +203,7 @@ th_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern int
-thr_input(tcvp_pipe_t *p, packet_t *pk)
+thr_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     threads_t *th = p->private;
     thread_t *t;
@@ -264,7 +265,7 @@ thr_input(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-thr_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+thr_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     threads_t *th = p->private;
     int i, ps = PROBE_OK;

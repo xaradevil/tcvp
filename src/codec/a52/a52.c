@@ -158,7 +158,7 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 static void
 a52_free_pk(void *v)
 {
-    packet_t *p = v;
+    tcvp_data_packet_t *p = v;
     free(p->sizes);
     free(p->private);
 }
@@ -177,7 +177,7 @@ decode_frame(tcvp_pipe_t *p, u_char *frame, int str)
 
     for(i = 0; i < 6; i++){
 	int s;
-	packet_t *out;
+	tcvp_data_packet_t *out;
 	int16_t *outbuf = malloc(6*256*sizeof(*outbuf));
 
 	a52_block(ad->state);
@@ -198,14 +198,14 @@ decode_frame(tcvp_pipe_t *p, u_char *frame, int str)
 	    ad->ptsf = 0;
 	}
 
-	p->next->input(p->next, out);
+	p->next->input(p->next, (tcvp_packet_t *) out);
     }
 
     return 0;
 }
 
 extern int
-a52_decode(tcvp_pipe_t *p, packet_t *pk)
+a52_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     a52_decode_t *ad = p->private;
     int srate, brate;
@@ -215,7 +215,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
     int ret = 0;
 
     if(!pk->data){
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -279,7 +279,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+a52_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     a52_decode_t *ad = p->private;
     int flags, srate, bitrate, size = 0;

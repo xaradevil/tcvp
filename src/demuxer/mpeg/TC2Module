@@ -6,8 +6,6 @@ sources		mpeg.c mpegps.c mpegts.c mpeges.c mpegtsmux.c mpegpsmux.c crc32.c mpeg.
 implement	"video/mpeg"	"open"		mpeg_open
 implement	"video/x-mpeges" "open"		mpeges_open
 implement	"video/x-cdxa"  "open"		cdxa_open
-implement	"mux/mpeg-ts"	"new"		mpegts_new
-implement	"mux/mpeg-ps"	"new"		mpegps_new
 import		"tcvp/event"	"get"
 import		"tcvp/event"	"send"
 import		"tcvp/event"	"get_qname"
@@ -18,6 +16,21 @@ import		"Eventq"	"delete"
 import		"URL"		"open"
 import		"URL"		"getc"
 require		"URL/dvd"
+
+TCVP {
+	filter "mux/mpeg-ts" {
+		new mpegts_new
+		packet DATA mpegts_input
+		probe mpegts_probe
+		flush mpegts_flush
+	}
+	filter "mux/mpeg-ps" {
+		new mpegps_new
+		packet DATA mpegps_input
+		probe mpegps_probe
+	}
+}
+
 option		pes_size%i=0xfff2
 option		pts_interval%i=500
 option		ts_max_skip%i=10

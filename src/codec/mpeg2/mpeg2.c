@@ -48,7 +48,7 @@ typedef struct mpeg_dec {
 } mpeg_dec_t;
 
 typedef struct mpeg_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     mpeg_buf_t *buf;
     int sizes[3];
     mpeg_dec_t *mpd;
@@ -175,14 +175,14 @@ mpeg_free_packet(void *p)
 }
 
 extern int
-mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
+mpeg_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     mpeg_dec_t *mpd = p->private;
     mpeg_buf_t *fbuf;
     int state;
 
     if(!pk->data){
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -256,7 +256,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		    mpd->pts += nf * mpd->info->sequence->frame_period / 2;
 		}
 		pic->pk.private = pic;
-		p->next->input(p->next, &pic->pk);
+		p->next->input(p->next, (tcvp_packet_t *) pic);
 	    }
 
 	    if(mpd->info->discard_fbuf){
@@ -271,7 +271,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+mpeg_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     mpeg_dec_t *mpd = p->private;
     int state, ret = PROBE_AGAIN;

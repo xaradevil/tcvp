@@ -120,7 +120,7 @@ typedef struct avi_file {
 } avi_file_t;
 
 typedef struct avi_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     uint32_t flags;
     int size;
     u_char *data;
@@ -688,7 +688,7 @@ strtag(u_char *tag, u_char *str)
     return str;
 }
 
-static packet_t *
+static tcvp_packet_t *
 avi_packet(muxed_stream_t *ms, int stream)
 {
     u_char tag[5] = {[4] = 0}, stag[5];
@@ -704,7 +704,7 @@ avi_packet(muxed_stream_t *ms, int stream)
     uint64_t pos;
 
     if(stream > -2 && (pk = tclist_shift(af->packets)))
-	return &pk->pk;
+	return (tcvp_packet_t *) pk;
 
     /* FIXME: get rid of gotos */
  again:
@@ -852,7 +852,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 
     af->pkt++;
 
-    return (packet_t *) pk;
+    return (tcvp_packet_t *) pk;
 }
 
 static uint64_t
@@ -924,7 +924,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     return time;
 }
 
-static packet_t *
+static tcvp_packet_t *
 avi_packet_ni(muxed_stream_t *ms, int str)
 {
     avi_file_t *af = ms->private;
@@ -948,7 +948,7 @@ avi_packet_ni(muxed_stream_t *ms, int str)
 	pk->flags = ai->flags;
     }
 
-    return (packet_t *) pk;
+    return (tcvp_packet_t *) pk;
 }
 
 static uint64_t

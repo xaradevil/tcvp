@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -186,7 +186,7 @@ wav_close(pcm_write_t *pcm)
 }
 
 extern int
-wav_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+wav_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     pcm_write_t *pcm = p->private;
     u_char *head;

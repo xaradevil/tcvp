@@ -40,7 +40,7 @@ typedef struct tcvp_data_packet {
     int flags;
     uint64_t pts, dts;
     void *private;
-} tcvp_data_packet_t, packet_t;
+} tcvp_data_packet_t;
 
 typedef struct tcvp_flush_packet {
     int type;
@@ -137,7 +137,7 @@ struct muxed_stream {
     stream_t *streams;
     int *used_streams;
     uint64_t time;
-    packet_t *(*next_packet)(muxed_stream_t *, int stream);
+    tcvp_packet_t *(*next_packet)(muxed_stream_t *, int stream);
     uint64_t (*seek)(muxed_stream_t *, uint64_t);
     void *private;
 };
@@ -146,10 +146,10 @@ struct muxed_stream {
 typedef struct tcvp_pipe tcvp_pipe_t;
 struct tcvp_pipe {
     stream_t format;
-    int (*input)(tcvp_pipe_t *, packet_t *);
+    int (*input)(tcvp_pipe_t *, tcvp_packet_t *);
     int (*start)(tcvp_pipe_t *);
     int (*stop)(tcvp_pipe_t *);
-    int (*probe)(tcvp_pipe_t *, packet_t *, stream_t *);
+    int (*probe)(tcvp_pipe_t *, tcvp_data_packet_t *, stream_t *);
     int (*flush)(tcvp_pipe_t *, int drop);
     int (*buffer)(tcvp_pipe_t *, float);
     tcvp_pipe_t *next;

@@ -44,7 +44,7 @@ typedef struct avc_encvid {
 } avc_encvid_t;
 
 typedef struct avc_encpacket {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data, *buf;
     int size;
 } avc_encpacket_t;
@@ -57,7 +57,7 @@ avc_free_pk(void *p)
 }
 
 extern int
-avc_encvid(tcvp_pipe_t *p, packet_t *pk)
+avc_encvid(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     avc_encvid_t *enc = p->private;
     AVFrame *f = enc->frame;
@@ -65,7 +65,7 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
     int i, size;
 
     if(!pk->data)
-	return p->next->input(p->next, pk);
+	return p->next->input(p->next, (tcvp_packet_t *) pk);
 
     for(i = 0; i < 3; i++){
 	f->data[i] = pk->data[i];
@@ -102,7 +102,7 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 	ep->buf = ep->data = enc->buf;
 	ep->size = size;
 	enc->buf = malloc(ENCBUFSIZE);
-	p->next->input(p->next, &ep->pk);
+	p->next->input(p->next, (tcvp_packet_t *) ep);
     }
 
     tcfree(pk);
@@ -111,7 +111,7 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     avc_encvid_t *enc = p->private;
     AVCodecContext *ctx = enc->ctx;

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -36,7 +36,7 @@ typedef struct scale {
 } scale_t;
 
 typedef struct scale_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data[4];
     int sizes[4];
 } scale_packet_t;
@@ -52,7 +52,7 @@ scale_free_pk(void *p)
 }
 
 extern int
-scale_input(tcvp_pipe_t *p, packet_t *pk)
+scale_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     scale_t *s = p->private;
     int i;
@@ -86,13 +86,13 @@ scale_input(tcvp_pipe_t *p, packet_t *pk)
 	pk = &op->pk;
     }
 
-    p->next->input(p->next, pk);
+    p->next->input(p->next, (tcvp_packet_t *) pk);
 
     return 0;
 }
 
 extern int
-scale_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+scale_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     scale_t *sc = p->private;
     video_stream_t *vs = &p->format.video;

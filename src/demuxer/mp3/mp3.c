@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003, 2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -23,7 +23,6 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
@@ -64,8 +63,6 @@ typedef struct mp3_file {
 } mp3_file_t;
 
 #define min(a, b) ((a)<(b)?(a):(b))
-
-static int TCVP_STREAM_INFO;
 
 static int bitrates[16][4] = {
     {  0,   0,   0,   0},
@@ -375,7 +372,7 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
 }
 
 typedef struct mp3_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data;
     u_char *buf;
     int size;
@@ -424,7 +421,7 @@ make_packet(mp3_file_t *mf, int offset, int size)
     return mp;
 }
 
-static packet_t *
+static tcvp_packet_t *
 mp3_packet(muxed_stream_t *ms, int str)
 {
     mp3_file_t *mf = ms->private;
@@ -506,7 +503,7 @@ mp3_packet(muxed_stream_t *ms, int str)
 	}
     }
 
-    return &mp->pk;
+    return (tcvp_packet_t *) mp;
 }
 
 static void
@@ -642,12 +639,4 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     }
 
     return ms;
-}
-
-extern int
-mp3_init(char *p)
-{
-    TCVP_STREAM_INFO = tcvp_event_get("TCVP_STREAM_INFO");
-
-    return 0;
 }

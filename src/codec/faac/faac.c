@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -41,7 +41,7 @@ typedef struct faac_enc {
 } faac_enc_t;
 
 typedef struct faac_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data;
     int size;
 } faac_packet_t;
@@ -56,7 +56,7 @@ faac_free_pk(void *p)
 }
 
 static int
-encode(tcvp_pipe_t *p, packet_t *pk)
+encode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     faac_enc_t *ae = p->private;
     int size = ae->bpos, esize;
@@ -79,7 +79,7 @@ encode(tcvp_pipe_t *p, packet_t *pk)
 	    opk->pk.pts = ae->pts;
 	    ae->pts = -1;
 	}
-	p->next->input(p->next, &opk->pk);
+	p->next->input(p->next, (tcvp_packet_t *) opk);
     }
 
     ae->bpos = 0;
@@ -88,7 +88,7 @@ encode(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-faac_input(tcvp_pipe_t *p, packet_t *pk)
+faac_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     faac_enc_t *ae = p->private;
     u_char *data;
@@ -97,7 +97,7 @@ faac_input(tcvp_pipe_t *p, packet_t *pk)
     if(!pk->data){
 	if(ae->bpos)
 	    encode(p, pk);
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -135,7 +135,7 @@ faac_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern int
-faac_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+faac_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     faac_enc_t *ae = p->private;
     faacEncConfiguration *fec;

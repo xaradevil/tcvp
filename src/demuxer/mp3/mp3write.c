@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -23,13 +23,11 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
 #include <tcalloc.h>
 #include <tcendian.h>
-#include <pthread.h>
 #include <tcvp_types.h>
 #include <mp3_tc2.h>
 #include "id3.h"
@@ -40,8 +38,8 @@ typedef struct mp3_write {
     int probed;
 } mp3_write_t;
 
-static int
-mp3w_input(tcvp_pipe_t *p, packet_t *pk)
+extern int
+mp3w_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     mp3_write_t *mw = p->private;
 
@@ -52,14 +50,8 @@ mp3w_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
-mp3w_flush(tcvp_pipe_t *p, int drop)
-{
-    return 0;
-}
-
-static int
-mp3w_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+mp3w_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     mp3_write_t *mw = p->private;
 
@@ -77,10 +69,8 @@ mp3w_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 static void
 mp3w_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    mp3_write_t *mw = tp->private;
+    mp3_write_t *mw = p;
     mw->u->close(mw->u);
-    free(mw);
 }
 
 static struct {
@@ -94,21 +84,21 @@ static struct {
     { "audio/mp1", "mp3", 1 },
     { "audio/aac", "aac", 1 },
     { "audio/ac3", "ac3", 0 },
+    { "audio/dts", "dts", 0 },
     { NULL, NULL }
 };
 
-extern tcvp_pipe_t *
-mp3w_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+mp3w_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p;
     mp3_write_t *mw;
     char *url;
     url_t *u;
     int i;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
-	return NULL;
+	return -1;
 
     for(i = 0; codecs[i].codec; i++){
 	if(!strcmp(s->common.codec, codecs[i].codec))
@@ -116,23 +106,19 @@ mp3w_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     }
 
     if(!codecs[i].codec)
-	return NULL;
+	return -1;
 
     if(!(u = url_open(url, "w")))
-	return NULL;
+	return -1;
 
     if(codecs[i].id3)
 	id3v2_write_tag(u, ms);
 
-    mw = calloc(1, sizeof(*mw));
+    mw = tcallocdz(sizeof(*mw), NULL, mp3w_free);
     mw->u = u;
     mw->tag = codecs[i].tag;
 
-    p = tcallocdz(sizeof(*p), NULL, mp3w_free);
-    p->input = mp3w_input;
-    p->flush = mp3w_flush;
-    p->probe = mp3w_probe;
     p->private = mw;
 
-    return p;
+    return 0;
 }

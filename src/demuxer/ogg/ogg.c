@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -97,17 +97,17 @@ ogg_get_length(muxed_stream_t *ms)
 static void
 ogg_free_packet(void *v)
 {
-    packet_t *p = v;
+    tcvp_data_packet_t *p = v;
     free(p->data[0]);
     free(p->data);
     free(p->sizes);
 }
 
 
-extern packet_t *
+extern tcvp_packet_t *
 ogg_next_packet(muxed_stream_t *ms, int stream)
 {
-    packet_t *pk;
+    tcvp_data_packet_t *pk;
 
     ogg_stream_t *ost = ms->private;
     ogg_page og;
@@ -148,7 +148,7 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     pk->sizes[0] = op.bytes+sizeof(ogg_packet);
     pk->planes = 1;
 
-    return pk;
+    return (tcvp_packet_t *) pk;
 }
 
 static uint64_t

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -33,7 +33,7 @@
 #include <vorbis_tc2.h>
 
 typedef struct vorbis_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     ogg_packet ogg, *op;
     int size;
 } vorbis_packet_t;
@@ -85,9 +85,10 @@ ve_alloc(int s, ogg_packet *op)
 }
 
 static int
-ve_input(tcvp_pipe_t *p, packet_t *pk)
+ve_input(tcvp_pipe_t *p, tcvp_packet_t *tpk)
 {
     vorbis_enc_t *ve = p->private;
+    tcvp_data_packet_t *pk = &tpk->data;
     ogg_packet op;
     float **buf;
     int samples;
@@ -107,20 +108,20 @@ ve_input(tcvp_pipe_t *p, packet_t *pk)
 
 	while(vorbis_bitrate_flushpacket(&ve->vd, &op)){
 	    vorbis_packet_t *vp = ve_alloc(pk->stream, &op);
-	    p->next->input(p->next, &vp->pk);
+	    p->next->input(p->next, (tcvp_packet_t *) vp);
 	}
     }
 
     if(pk->data)
 	tcfree(pk);
     else
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 
     return 0;
 }
 
 static int
-ve_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     vorbis_enc_t *ve = p->private;
     ogg_packet header[3];	/* main, comments, codebook */

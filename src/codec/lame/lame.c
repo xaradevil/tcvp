@@ -41,7 +41,7 @@ typedef struct lame_enc {
 } lame_enc_t;
 
 typedef struct lame_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     int size;
     u_char *data, *buf;
 } lame_packet_t;
@@ -86,7 +86,7 @@ encode_frame(tcvp_pipe_t *p, int16_t *samples)
 	    lp->pk.flags |= TCVP_PKT_FLAG_PTS;
 	    le->pts = -1LL;
 	}
-	p->next->input(p->next, &lp->pk);
+	p->next->input(p->next, (tcvp_packet_t *) lp);
     } else {
 	free(buf);
     }
@@ -95,7 +95,7 @@ encode_frame(tcvp_pipe_t *p, int16_t *samples)
 }
 
 extern int
-l_input(tcvp_pipe_t *p, packet_t *pk)
+l_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     lame_enc_t *le = p->private;
     int16_t *data;
@@ -103,7 +103,7 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 
     if(!pk->data){
 	encode_frame(p, NULL);
-	return p->next->input(p->next, pk);
+	return p->next->input(p->next, (tcvp_packet_t *) pk);
     }
 
     if(pk->flags & TCVP_PKT_FLAG_PTS && le->pts != -1LL){
@@ -143,7 +143,7 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-l_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+l_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     lame_enc_t *le = p->private;
 

@@ -39,7 +39,7 @@ typedef struct pcm {
 } pcm_t;
 
 typedef struct pcm_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     int size;
     u_char *data, *buf;
 } pcm_packet_t;
@@ -51,7 +51,7 @@ pcm_free_pk(void *p)
     free(ep->buf);
 }
 
-static packet_t *
+static tcvp_packet_t *
 pcm_packet(muxed_stream_t *ms, int str)
 {
     pcm_t *pcm = ms->private;
@@ -86,7 +86,7 @@ pcm_packet(muxed_stream_t *ms, int str)
     pcm->pts = pcm->bytes / pcm->s.audio.block_align * 27000000LL /
 	pcm->s.audio.sample_rate;
 
-    return &ep->pk;
+    return (tcvp_packet_t *) ep;
 }
 
 static uint64_t

@@ -44,7 +44,7 @@ typedef struct x4_enc {
 } x4_enc_t;
 
 typedef struct x4_packet {
-    packet_t pk;
+    tcvp_data_packet_t pk;
     u_char *data, *buf;
     int size;
 } x4_packet_t;
@@ -90,7 +90,7 @@ encode_nals(u_char *buf, int size, x264_nal_t *nals, int nnal)
 }
 
 extern int
-x4_encode(tcvp_pipe_t *p, packet_t *pk)
+x4_encode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     x4_enc_t *x4 = p->private;
     x4_packet_t *ep;
@@ -100,7 +100,7 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     int bufsize = X4_BUFSIZE;
 
     if(!pk->data)
-	return p->next->input(p->next, pk);
+	return p->next->input(p->next, (tcvp_packet_t *) pk);
 
     x4->pic.img.i_csp = X264_CSP_I420;
     x4->pic.img.i_plane = 3;
@@ -144,14 +144,14 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     ep->data = buf;
     ep->buf = buf;
     ep->size = bufsize;
-    p->next->input(p->next, &ep->pk);
+    p->next->input(p->next, (tcvp_packet_t *) ep);
 
     tcfree(pk);
     return 0;
 }
 
 extern int
-x4_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+x4_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     x4_enc_t *x4 = p->private;
 

@@ -62,16 +62,18 @@ next_stream(mux_t *mx)
 }
 
 static int
-mux_packet(tcvp_pipe_t *tp, packet_t *pk)
+mux_packet(tcvp_pipe_t *tp, tcvp_packet_t *pk)
 {
     mux_t *mx = tp->private;
 
     pthread_mutex_lock(&mx->lock);
 
-    if(pk->flags & TCVP_PKT_FLAG_DTS)
-	mx->streams[pk->stream].time = pk->dts;
-    else if(pk->flags & TCVP_PKT_FLAG_PTS)
-	mx->streams[pk->stream].time = pk->pts;
+    if(pk->type == TCVP_PKT_TYPE_DATA){
+	if(pk->data.flags & TCVP_PKT_FLAG_DTS)
+	    mx->streams[pk->data.stream].time = pk->data.dts;
+	else if(pk->data.flags & TCVP_PKT_FLAG_PTS)
+	    mx->streams[pk->data.stream].time = pk->data.pts;
+    }
 
     mx->waiting++;
     pthread_cond_broadcast(&mx->cond);
@@ -80,20 +82,23 @@ mux_packet(tcvp_pipe_t *tp, packet_t *pk)
 /* 	      "%i time %llu, ns=%i, w=%i\n", pk->stream, */
 /* 	      mx->streams[pk->stream].time, mx->nstreams, mx->waiting); */
 
-    while(mx->waiting < mx->nstreams || next_stream(mx) != pk->stream)
+    while(mx->waiting < mx->nstreams || (pk->type == TCVP_PKT_TYPE_DATA &&
+					 next_stream(mx) != pk->data.stream))
 	pthread_cond_wait(&mx->cond, &mx->lock);
 
 /*     tc2_print("MUX", TC2_PRINT_DEBUG + 1, */
 /* 	      "sending packet %i, w=%i\n", pk->stream, mx->waiting); */
 
-    if(pk->data){
-	mx->streams[pk->stream].time +=
-	    pk->sizes[0] * mx->streams[pk->stream].rate;
-    } else {
-	mx->nstreams--;
-	mx->streams[pk->stream].time = -1LL;
-	tc2_print("MUX", TC2_PRINT_DEBUG,
-		  "stream %i end, ns=%i\n", pk->stream, mx->nstreams);
+    if(pk->type == TCVP_PKT_TYPE_DATA){
+	if(pk->data.data){
+	    mx->streams[pk->data.stream].time +=
+		pk->data.sizes[0] * mx->streams[pk->data.stream].rate;
+	} else {
+	    mx->nstreams--;
+	    mx->streams[pk->data.stream].time = -1LL;
+	    tc2_print("MUX", TC2_PRINT_DEBUG,
+		      "stream %i end, ns=%i\n", pk->data.stream, mx->nstreams);
+	}
     }
 
     mx->waiting--;
@@ -105,7 +110,7 @@ mux_packet(tcvp_pipe_t *tp, packet_t *pk)
 }
 
 static int
-mux_probe(tcvp_pipe_t *tp, packet_t *pk, stream_t *s)
+mux_probe(tcvp_pipe_t *tp, tcvp_data_packet_t *pk, stream_t *s)
 {
     mux_t *mx = tp->private;
     int ps;
@@ -138,6 +143,7 @@ mux_flush(tcvp_pipe_t *tp, int d)
     return tp->next->flush(tp->next, d);
 }
 
+#if 0
 static void
 mux_ref(void *p)
 {
@@ -149,6 +155,7 @@ mux_ref(void *p)
     tc2_print("MUX", TC2_PRINT_DEBUG, "ref, nstreams=%i\n", mx->nstreams);
     pthread_mutex_unlock(&mx->lock);
 }
+#endif
 
 static void
 mux_free(void *p)

@@ -157,7 +157,7 @@ convert_block(sample_t *f, int16_t *s16, int flags)
 static void
 dts_free_pk(void *v)
 {
-    packet_t *p = v;
+    tcvp_data_packet_t *p = v;
     free(p->sizes);
     free(p->private);
 }
@@ -181,7 +181,7 @@ decode_frame(tcvp_pipe_t *p, u_char *frame, int str)
 
     for(i = 0; i < blocks; i++){
 	int s;
-	packet_t *out;
+	tcvp_data_packet_t *out;
 	int16_t *outbuf = malloc(6 * 256 * sizeof(*outbuf));
 
 	dts_block(dts->state);
@@ -202,14 +202,14 @@ decode_frame(tcvp_pipe_t *p, u_char *frame, int str)
 	    dts->ptsf = 0;
 	}
 
-	p->next->input(p->next, out);
+	p->next->input(p->next, (tcvp_packet_t *) out);
     }
 
     return 0;
 }
 
 extern int
-dts_decode(tcvp_pipe_t *p, packet_t *pk)
+dts_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     dts_decode_t *dts = p->private;
     int srate, brate;
@@ -219,7 +219,7 @@ dts_decode(tcvp_pipe_t *p, packet_t *pk)
     int flength;
 
     if(!pk->data){
-	p->next->input(p->next, pk);
+	p->next->input(p->next, (tcvp_packet_t *) pk);
 	return 0;
     }
 
@@ -285,7 +285,7 @@ dts_decode(tcvp_pipe_t *p, packet_t *pk)
 }
 
 extern int
-dts_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+dts_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     dts_decode_t *dts = p->private;
     int flags, srate, bitrate, size = 0, flength;
