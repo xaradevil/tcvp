@@ -1,1 +1,1 @@
-bin_SCRIPTS = xmmsskin2tcvpx
+dist_bin_SCRIPTS = xmmsskin2tcvpx
