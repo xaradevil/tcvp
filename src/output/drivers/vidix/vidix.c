@@ -196,8 +196,8 @@ vx_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     case IMGFMT_YV12:
     case IMGFMT_I420:
 	strides[0] = align(vxw->width, vxw->pbc->dest.pitch.y);
-	strides[1] = align(vxw->width/2, vxw->pbc->dest.pitch.u);
-	strides[2] = align(vxw->width/2, vxw->pbc->dest.pitch.v);
+	strides[1] = align(vxw->width, vxw->pbc->dest.pitch.u) / 2;
+	strides[2] = align(vxw->width, vxw->pbc->dest.pitch.v) / 2;
 	planes = 3;
 	break;
     case IMGFMT_YUY2:
@@ -353,10 +353,14 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
     }
 
     if(!fmtok){
-	tc2_print("VIDIX", TC2_PRINT_ERROR, "No supported pixel format found.\n");
+	tc2_print("VIDIX", TC2_PRINT_ERROR,
+		  "No supported pixel format found.\n");
 	vdlClose(vxdrv);
 	return NULL;
     }
+
+    tc2_print("VIDIX", TC2_PRINT_DEBUG, "pixel format %s -> %x\n",
+	      vc, fccs[pxf].code);
 
     vxw = calloc(1, sizeof(*vxw));
     vxw->width = vs->width;
@@ -408,6 +412,8 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
     vdlSetGrKeys(vxdrv, &ck);
 
     vdlConfigPlayback(vxw->driver, vxw->pbc);
+    tc2_print("VIDIX", TC2_PRINT_DEBUG, "offsets Y %i, U %i, V %i\n",
+	      vxw->pbc->offset.y, vxw->pbc->offset.u, vxw->pbc->offset.v);
 
     if(!(vxw->wm = wm_open(dw, dh, vx_reconf, vxw,
 			   cs, WM_ABSCOORD))){
