@@ -187,14 +187,14 @@ vx_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     data[2] = fbase + vxw->pbc->offset.v;
 
     switch(vxw->pixel_format){
-    case PIXEL_FORMAT_YV12:
-    case PIXEL_FORMAT_I420:
+    case IMGFMT_YV12:
+    case IMGFMT_I420:
 	strides[0] = align(vxw->width, vxw->pbc->dest.pitch.y);
 	strides[1] = align(vxw->width/2, vxw->pbc->dest.pitch.u);
 	strides[2] = align(vxw->width/2, vxw->pbc->dest.pitch.v);
 	planes = 3;
 	break;
-    case PIXEL_FORMAT_YUY2:
+    case IMGFMT_YUY2:
 	strides[0] = align(vxw->width*2, vxw->pbc->dest.pitch.y);
 	planes = 1;
 	break;
@@ -265,18 +265,34 @@ vx_reconf(void *p, int event, int x, int y, int w, int h)
     return 0;
 }
 
-static int fccs[] = {
-    [PIXEL_FORMAT_YUY2] = IMGFMT_YUY2,
-    [PIXEL_FORMAT_I420] = IMGFMT_I420,
-    [PIXEL_FORMAT_YV12] = IMGFMT_YV12
+static struct {
+    char *name;
+    int code;
+} fccs[] = {
+    { "yuy2", IMGFMT_YUY2 },
+    { "i420", IMGFMT_I420 },
+    { "yv12", IMGFMT_YV12 },
+    { NULL, -1 }
 };
+
+static int
+get_fcc(char *name)
+{
+    int i;
+
+    for(i = 0; fccs[i].name; i++)
+	if(!strcmp(name, fccs[i].name))
+	    return i;
+
+    return -1;
+}
 
 extern video_driver_t *
 vx_open(video_stream_t *vs, tcconf_section_t *cs)
 {
     video_driver_t *vd;
     vx_window_t *vxw;
-    int i, fmtok = 1, pxf = vs->pixel_format;
+    int i, fmtok = 1, pxf;
     int frames = driver_video_vidix_conf_frames?: FRAMES;
     void *vxdrv;
     char *drvdir;
@@ -286,6 +302,14 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
     char *drv = NULL;
     float dasp = 0;
     int dw, dh;
+    char *vc;
+
+    if(!(vc = strstr(vs->codec, "raw-")))
+	return NULL;
+
+    vc += 4;
+    if((pxf = get_fcc(vc)) < 0)
+	return NULL;
 
     if(cs)
 	tcconf_getvalue(cs, "video/aspect", "%f", &dasp);
@@ -308,13 +332,13 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
 	return NULL;
     }
 
-    fcc.fourcc = fccs[vs->pixel_format];
+    fcc.fourcc = fccs[pxf].code;
     fcc.srcw = vs->width;
     fcc.srch = vs->height;
     if(vdlQueryFourcc(vxdrv, &fcc)){
 	fmtok = 0;
-	for(pxf = 1; pxf < sizeof(fccs)/sizeof(fccs[0]); pxf++){
-	    fcc.fourcc = fccs[pxf];
+	for(pxf = 0; pxf < sizeof(fccs)/sizeof(fccs[0]); pxf++){
+	    fcc.fourcc = fccs[pxf].code;
 	    if(!vdlQueryFourcc(vxdrv, &fcc)){
 		fmtok = 1;
 		break;
@@ -336,7 +360,7 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
     vxw->pbc = vdlAllocPlaybackS();
     vdlGetCapability(vxdrv, vxw->caps);
 
-    vxw->pixel_format = pxf;
+    vxw->pixel_format = fccs[pxf].code;
     vxw->pbc->fourcc = fcc.fourcc;
     vxw->pbc->src.w = vs->width;
     vxw->pbc->src.h = vs->height;
@@ -423,7 +447,7 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
 
     vd = calloc(1, sizeof(*vd));
     vd->frames = vxw->frames;
-    vd->pixel_format = pxf;
+    vd->pixel_format = fccs[pxf].name;
     vd->get_frame = vx_get;
     vd->show_frame = vx_show;
     vd->close = vx_close;

@@ -230,7 +230,7 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     if(ac->have_params){
 	p->format = *s;
-	p->format.audio.codec = avc_codec_name(ac->ctx->codec_id);
+	p->format.audio.codec = "audio/pcm-s16";
 	p->format.audio.sample_rate = ac->ctx->sample_rate;
 	p->format.audio.channels = ac->ctx->channels;
 	ret = p->next->probe(p->next, NULL, &p->format);
@@ -242,15 +242,15 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 
-static int pixel_fmts[] = {
-    [PIX_FMT_YUV420P] = PIXEL_FORMAT_I420,
-    [PIX_FMT_YUV422] = PIXEL_FORMAT_YUY2,
+static char *pixel_fmts[] = {
+    [PIX_FMT_YUV420P] = "video/raw-i420",
+    [PIX_FMT_YUV422] = "video/raw-yuy2",
     [PIX_FMT_RGB24] = 0,
     [PIX_FMT_BGR24] = 0,
-    [PIX_FMT_YUV422P] = 0,
+    [PIX_FMT_YUV422P] = "video/raw-yuv422p",
     [PIX_FMT_YUV444P] = 0,
     [PIX_FMT_RGBA32] = 0,
-    [PIX_FMT_YUV410P] = PIXEL_FORMAT_YVU9,
+    [PIX_FMT_YUV410P] = "video/raw-yvu9",
     [PIX_FMT_YUV411P] = 0,
     [PIX_FMT_RGB565] = 0,
     [PIX_FMT_RGB555] = 0,
@@ -269,7 +269,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     if(!pk){
 	p->format = *s;
-	p->format.video.codec = "video/yuv-420";
+	p->format.video.codec = "video/raw-i420";
 	ret = p->next->probe(p->next, NULL, &p->format);
 	goto out;
     }
@@ -293,10 +293,9 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	}
 
 	p->format = *s;
-	p->format.video.codec = "video/yuv-420";
+	p->format.video.codec = pixel_fmts[vc->ctx->pix_fmt];
 	p->format.video.width = vc->ctx->width;
 	p->format.video.height = vc->ctx->height;
-	p->format.video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
 	if(vc->ctx->frame_rate){
 	    vc->ptsn = (uint64_t) 27000000 * vc->ctx->frame_rate_base;
 	    vc->ptsd = vc->ctx->frame_rate;
@@ -426,9 +425,9 @@ static char *codec_names[][2] = {
     { (char *) CODEC_ID_MPEG2VIDEO, "video/mpeg2" },
     { (char *) CODEC_ID_H263, "video/h263" },
     { (char *) CODEC_ID_RV10, "video/rv10" },
-    { (char *) CODEC_ID_MP2, "audio/mp2" },
-    { (char *) CODEC_ID_MP2, "audio/mpeg" },
-    { (char *) CODEC_ID_MP3LAME, "audio/mp3" },
+    { (char *) CODEC_ID_MP3, "audio/mp2" },
+    { (char *) CODEC_ID_MP3, "audio/mp3" },
+    { (char *) CODEC_ID_MP3, "audio/mpeg" },
     { (char *) CODEC_ID_VORBIS, "audio/vorbis" },
     { (char *) CODEC_ID_AC3, "audio/ac3" },
     { (char *) CODEC_ID_MJPEG, "video/mjpeg" },

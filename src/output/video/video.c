@@ -297,10 +297,16 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     video_driver_t *vd = NULL;
     color_conv_t cconv = NULL;
     video_stream_t *vs = (video_stream_t *) s;
+    char *pf;
     int i;
 
     if(s->stream_type != STREAM_TYPE_VIDEO)
 	return PROBE_FAIL;
+
+    if(!(pf = strstr(vs->codec, "raw-")))
+	return PROBE_FAIL;
+
+    pf += 4;
 
     for(i = 0; i < output_video_conf_driver_count; i++){
 	driver_video_open_t vdo;
@@ -311,7 +317,7 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    continue;
 
 	if((vd = vdo(vs, vo->conf))){
-	    cconv = conv_table[vs->pixel_format][vd->pixel_format];
+	    cconv = get_cconv(pf, vd->pixel_format);
 	    if(cconv){
 		break;
 	    } else {

@@ -218,9 +218,11 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 	xvw->images[i] = xvi;
     }
 
+    XSync(xvw->dpy, False);
+
     vd = calloc(1, sizeof(*vd));
     vd->frames = frames;
-    vd->pixel_format = PIXEL_FORMAT_YV12;
+    vd->pixel_format = "yv12";
     vd->get_frame = xv_get;
     vd->show_frame = xv_show;
     vd->close = xv_close;

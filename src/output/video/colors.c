@@ -96,6 +96,18 @@ i420_yuy2(int width, int height, const u_char **in, int *istride,
     }									    \
 } while(0)
 
+#define red_plane(i, ip, dx, dy, x, y) do {			\
+    int j, k;							\
+    int w = min(istride[i], min(ostride[i], width / dx));	\
+    for(j = 0; j < height / dy / y; j++){			\
+	for(k = 0; k < w / x; k++){				\
+	    *(out[i] + j * ostride[i] + k) =			\
+		*(in[ip] + j * y * istride[i] + k * x);		\
+	}							\
+    }								\
+} while(0)
+		
+
 #define copy_planar(fin, fout, p0, p1, p2, d0, d1, d2)			\
 static void								\
 fin##_##fout(int width, int height, const u_char **in, int *istride,	\
@@ -118,17 +130,45 @@ yvu9_yv12(int width, int height, const u_char **in, int *istride,
 	  u_char **out, int *ostride)
 {
     copy_plane(0, 0, 1);
-/*     memset(out[1], 0x80, height / 2 * ostride[1]); */
-/*     memset(out[2], 0x80, height / 2 * ostride[2]); */
     exp_plane(1, 2, 4, 2, 2);
     exp_plane(2, 1, 4, 2, 2);
 }
 
-color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
-    [PIXEL_FORMAT_I420][PIXEL_FORMAT_I420] = i420_i420,
-    [PIXEL_FORMAT_YV12][PIXEL_FORMAT_YV12] = yv12_yv12,
-    [PIXEL_FORMAT_I420][PIXEL_FORMAT_YV12] = i420_yv12,
-    [PIXEL_FORMAT_YV12][PIXEL_FORMAT_I420] = yv12_i420,
-    [PIXEL_FORMAT_I420][PIXEL_FORMAT_YUY2] = i420_yuy2,
-    [PIXEL_FORMAT_YVU9][PIXEL_FORMAT_YV12] = yvu9_yv12,
+static void
+yuv422p_yv12(int width, int height, const u_char **in, int *istride,
+	     u_char **out, int *ostride)
+{
+    copy_plane(0, 0, 1);
+    red_plane(1, 2, 2, 1, 1, 2);
+    red_plane(2, 1, 2, 1, 1, 2);
+}
+
+#define cctab(in, out) { #in, #out, in##_##out }
+
+static struct {
+    char *in;
+    char *out;
+    color_conv_t conv;
+} conv_table[] = {
+    cctab(i420, i420),
+    cctab(i420, i420),
+    cctab(yv12, yv12),
+    cctab(i420, yv12),
+    cctab(yv12, i420),
+    cctab(i420, yuy2),
+    cctab(yvu9, yv12),
+    cctab(yuv422p, yv12),
+    { NULL, NULL, NULL }
 };
+
+extern color_conv_t
+get_cconv(char *in, char *out)
+{
+    int i;
+
+    for(i = 0; conv_table[i].in; i++)
+	if(!strcmp(in, conv_table[i].in) && !strcmp(out, conv_table[i].out))
+	    break;
+
+    return conv_table[i].conv;
+}
