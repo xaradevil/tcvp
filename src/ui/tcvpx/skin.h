@@ -26,7 +26,6 @@
 struct _skin_t {
     tcbackground_t *background;
     tcseek_bar_t *seek_bar;
-    tcstate_t *state;
     list *widgets;
     Window xw;
     GC wgc, bgc;
@@ -39,7 +38,13 @@ struct _skin_t {
     int x, y;
 };
 
+typedef struct {
+    char *action;
+    void *data;
+} action_data_t;
+
 skin_t* load_skin(char *skinfile);
 int create_ui(skin_t *skin);
+int register_actions();
 
 #endif /* _TCSKIN_H */

@@ -63,6 +63,7 @@ tcvpx_init(char *p)
     eventq_attach(qr, qn, EVENTQ_RECV);
 
     init_dynamic();
+    register_actions();
     init_graphics();
 
     if((skin=load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){

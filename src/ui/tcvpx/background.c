@@ -182,6 +182,17 @@ repaint_background(tcwidget_t *w)
 }
 
 
+static int
+destroy_background(tcwidget_t *w)
+{
+    free(*w->background.img->data);
+    free(w->background.img->data);
+    free(w->background.img);
+
+    return 0;
+}
+
+
 extern tcbackground_t*
 create_background(skin_t *skin, char *imagefile)
 {
@@ -195,6 +206,7 @@ create_background(skin_t *skin, char *imagefile)
     bg->y = 0;
     bg->onclick = NULL;
     bg->repaint = repaint_background;
+    bg->destroy = destroy_background;
     bg->skin = skin;
     bg->img = load_image(skin->path, imagefile);
     bg->width = bg->img->width;

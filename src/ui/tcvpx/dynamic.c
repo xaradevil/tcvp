@@ -52,10 +52,15 @@ change_text(char *key, char *text)
 	tcwidget_t *w;
 
 	while((w = list_next(lst, &current))!=NULL) {
-	    if(w->common.type == TCLABEL) {
-		char **d = ((tclabel_t*)w)->data;
-		parse_text(d[1], buf);
+	    action_data_t *ad = ((tclabel_t*)w)->data;
+	    parse_text(ad->data, buf);
+	    switch(w->common.type) {
+	    case TCLABEL:
 		change_label((tclabel_t*)w, buf);
+		break;
+	    case TCSTATE:
+		change_state((tcstate_t*)w, buf);
+		break;
 	    }
 	}
     }
@@ -178,6 +183,11 @@ extern int
 parse_text(char *text, char *result)
 {
     char *foo, *src, *dst;
+
+    if(!text) {
+	result[0]=0;
+	return 1;
+    }
 
     foo = src = strdup(text);
     dst = result;

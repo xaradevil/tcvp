@@ -119,6 +119,10 @@ x11_event(void *p)
 		    if(w->common.onclick){
 			w->common.onclick(w, &xe);
 		    }
+		}
+	    }
+	    while((w = list_next(click_list, &current))!=NULL) {
+		if(xe.xbutton.window == w->common.win){
 		    if(w->common.press){
 			w->common.press(w, &xe);
 			pbt = w;

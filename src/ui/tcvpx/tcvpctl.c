@@ -45,15 +45,15 @@ tcvp_event(void *p)
 		break;
 
 	    case TCVP_STATE_PLAYING:
-		update_state("play");
+		change_text("state", "play");
 		break;
 
 	    case TCVP_STATE_STOPPED:
-		update_state("pause");
+		change_text("state", "pause");
 		break;
 
 	    case TCVP_STATE_END:
-		update_state("stop");
+		change_text("state", "stop");
 		break;
 	    }
 	    break;
@@ -244,21 +244,6 @@ toggle_time(tcwidget_t *w, void *p)
 	show_time = TCTIME_REMAINING;
     } else if(show_time == TCTIME_REMAINING) {
 	show_time = TCTIME_ELAPSED;
-    }
-
-    return 0;
-}
-
-extern int
-update_state(char *state)
-{
-    list_item *current = NULL;
-    skin_t *skin;
-
-    while((skin = list_next(skin_list, &current))!=NULL) {
-	if(skin->state) {
-	    change_state(skin->state, state);
-	}
     }
 
     return 0;
