@@ -5,6 +5,7 @@ tc2version	0.6.0
 sources		mpeg2.c
 postinit	mpeg_init
 option		accel%i=0x80000000
+option		bufpool%i=8
 
 TCVP {
 	filter "decoder/video/mpeg" {
