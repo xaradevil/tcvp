@@ -3,7 +3,7 @@ name		"TCVP"
 version		0.1.0
 tc2version	0.4.0
 sources		tcvp.c
-implement	"tcvp"		"open"	t_open
+implement	"tcvp"		"new"	t_new
 import		"stream"	"open"
 import		"stream"	"play"
 import		"stream"	"probe"
@@ -11,3 +11,9 @@ import		"output/audio"	"open"
 import		"output/video"	"open"
 import		"codec"		"new"
 import		"timer"		"new"
+import		"Eventq"	"new"
+import		"Eventq"	"delete"
+import		"Eventq"	"send"
+import		"Eventq"	"recv"
+import		"Eventq"	"attach"
+import		"Eventq"	"detach"

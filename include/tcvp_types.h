@@ -20,6 +20,7 @@
 #define _TCVP_H
 
 #include <stdint.h>
+#include <tcalloc.h>
 
 typedef struct packet packet_t;
 struct packet {
@@ -103,5 +104,68 @@ struct tcvp_pipe {
 #define PROBE_OK    1
 #define PROBE_FAIL  2
 #define PROBE_AGAIN 3
+
+typedef struct tcvp_key_event {
+    int type;
+    char *key;
+} tcvp_key_event_t;
+
+typedef struct tcvp_open_event {
+    int type;
+    char *file;
+} tcvp_open_event_t;
+
+typedef struct {
+    int type;
+} tcvp_start_event_t, tcvp_stop_event_t, tcvp_close_event_t;
+
+typedef struct tcvp_seek_event {
+    int type;
+    int64_t time;
+    int how;
+} tcvp_seek_event_t;
+
+typedef struct tcvp_timer_event {
+    int type;
+    uint64_t time;
+} tcvp_timer_event_t;
+
+typedef struct tcvp_state_event {
+    int type;
+    int state;
+} tcvp_state_event_t;
+
+typedef union tcvp_event {
+    int type;
+    tcvp_key_event_t key;
+    tcvp_open_event_t open;
+    tcvp_start_event_t start;
+    tcvp_stop_event_t stop;
+    tcvp_close_event_t close;
+    tcvp_seek_event_t seek;
+    tcvp_timer_event_t timer;
+    tcvp_state_event_t state;
+} tcvp_event_t;
+
+#define TCVP_KEY       1
+#define TCVP_OPEN      2
+#define TCVP_START     3
+#define TCVP_STOP      4
+#define TCVP_PAUSE     5
+
+#define TCVP_SEEK      6
+#define TCVP_SEEK_ABS  0
+#define TCVP_SEEK_REL  1
+
+#define TCVP_CLOSE     7
+#define TCVP_TIMER     8
+
+#define TCVP_STATE     9
+#define TCVP_STATE_PLAYING 0
+#define TCVP_STATE_END     1
+#define TCVP_STATE_ERROR   2
+#define TCVP_STATE_STOPPED 3
+
+#define tcvp_alloc_event() tcalloc(sizeof(tcvp_event_t))
 
 #endif

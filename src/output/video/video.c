@@ -89,9 +89,8 @@ v_play(void *p)
 
     while(vo->state != STOP){
 	pthread_mutex_lock(&vo->smx);
-	while((!vo->frames && vo->state != STOP) || vo->state == PAUSE){
+	while((!vo->frames && vo->state != STOP) || vo->state == PAUSE)
 	    pthread_cond_wait(&vo->scd, &vo->smx);
-	}
 	pthread_mutex_unlock(&vo->smx);
 
 	if(vo->state == STOP)
@@ -117,12 +116,12 @@ v_play(void *p)
 
 	vo->driver->show_frame(vo->driver, vo->tail);
 
-	if(++vo->tail == vo->driver->frames){
-	    vo->tail = 0;
-	}
-
 	pthread_mutex_lock(&vo->smx);
-	vo->frames--;
+	if(vo->frames > 0){
+	    if(++vo->tail == vo->driver->frames)
+		vo->tail = 0;
+	    vo->frames--;
+	}
 	pthread_cond_broadcast(&vo->scd);
 	pthread_mutex_unlock(&vo->smx);
     }
@@ -233,8 +232,11 @@ v_flush(tcvp_pipe_t *p, int drop)
 	pthread_mutex_unlock(&vo->smx);
     } else {
 	pthread_mutex_lock(&vo->smx);
+	vo->timer->interrupt(vo->timer);
 	vo->tail = vo->head = 0;
 	vo->frames = 0;
+	if(vo->driver->flush)
+	    vo->driver->flush(vo->driver);
 	pthread_cond_broadcast(&vo->scd);
 	pthread_mutex_unlock(&vo->smx);
     }

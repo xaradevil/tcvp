@@ -27,11 +27,13 @@ typedef struct tcvp_player {
     tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;
     muxed_stream_t *stream;
     timer__t *timer;
-    tcvp_status_cb_t status;
-    void *cbdata;
-    pthread_t th_wait, th_ticker;
+    pthread_t th_ticker, th_event, th_wait;
     pthread_mutex_t tmx;
+    pthread_cond_t tcd;
     int state;
+    eventq_t qs, qr;
+    conf_section *conf;
+    int open;
 } tcvp_player_t;
 
 static int
@@ -47,6 +49,13 @@ t_start(player_t *pl)
 
     if(tp->timer)
 	tp->timer->start(tp->timer);
+
+    tp->state = TCVP_STATE_PLAYING;
+    tcvp_state_event_t *te = tcvp_alloc_event();
+    te->type = TCVP_STATE;
+    te->state = TCVP_STATE_PLAYING;
+    eventq_send(tp->qs, te);
+    tcfree(te);
 
     return 0;
 }
@@ -65,6 +74,13 @@ t_stop(player_t *pl)
     if(tp->video)
 	tp->video->stop(tp->video);
 
+    tp->state = TCVP_STATE_STOPPED;
+    tcvp_state_event_t *te = tcvp_alloc_event();
+    te->type = TCVP_STATE;
+    te->state = TCVP_STATE_STOPPED;
+    eventq_send(tp->qs, te);
+    tcfree(te);
+
     return 0;
 }
 
@@ -73,23 +89,37 @@ t_close(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
 
-    if(tp->demux)
+    if(tp->demux){
+	tp->demux->flush(tp->demux, 1);
+	pthread_join(tp->th_wait, NULL);
 	tp->demux->free(tp->demux);
+	tp->demux = NULL;
+    }
 
-    if(tp->acodec)
+    if(tp->acodec){
 	tp->acodec->free(tp->acodec);
+	tp->acodec = NULL;
+    }
 
-    if(tp->vcodec)
+    if(tp->vcodec){
 	tp->vcodec->free(tp->vcodec);
+	tp->vcodec = NULL;
+    }
 
-    if(tp->video)
+    if(tp->video){
 	tp->video->free(tp->video);
+	tp->video = NULL;
+    }
 
-    if(tp->sound)
+    if(tp->sound){
 	tp->sound->free(tp->sound);
+	tp->sound = NULL;
+    }
 
-    if(tp->stream)
+    if(tp->stream){
 	tp->stream->close(tp->stream);
+	tp->stream = NULL;
+    }
 
     pthread_mutex_lock(&tp->tmx);
     tp->state = TCVP_STATE_END;
@@ -97,17 +127,44 @@ t_close(player_t *pl)
 	tp->timer->interrupt(tp->timer);
     pthread_mutex_unlock(&tp->tmx);
 
-    pthread_join(tp->th_wait, NULL);
-
+    pthread_join(tp->th_ticker, NULL);
     if(tp->timer){
-	pthread_join(tp->th_ticker, NULL);
 	tp->timer->free(tp->timer);
+	tp->timer = NULL;
     }
+
+    pthread_mutex_lock(&tp->tmx);
+    tp->open = 0;
+    pthread_cond_broadcast(&tp->tcd);
+    pthread_mutex_unlock(&tp->tmx);
+
+    return 0;
+}
+
+static void
+t_free(player_t *pl)
+{
+    tcvp_player_t *tp = pl->private;
+    tcvp_event_t *te;
+
+    pthread_mutex_lock(&tp->tmx);
+    while(tp->open)
+	pthread_cond_wait(&tp->tcd, &tp->tmx);
+    pthread_mutex_unlock(&tp->tmx);
+
+    te = tcvp_alloc_event();
+    te->type = -1;
+    eventq_send(tp->qr, te);
+    tcfree(te);
+    pthread_join(tp->th_event, NULL);
+
+    eventq_delete(tp->qr);
+    eventq_delete(tp->qs);
+    pthread_mutex_destroy(&tp->tmx);
+    pthread_cond_destroy(&tp->tcd);
 
     free(tp);
     free(pl);
-
-    return 0;
 }
 
 static void
@@ -116,10 +173,7 @@ print_info(muxed_stream_t *stream)
     int i;
 
     for(i = 0; i < stream->n_streams; i++){
-	if(!stream->used_streams[i])
-	    continue;
-
-	printf("Stream %i, ", i);
+	printf("Stream %i%s, ", i, stream->used_streams[i]? "*": "");
 	switch(stream->streams[i].stream_type){
 	case STREAM_TYPE_AUDIO:
 	    printf("%s, %i Hz, %i channels, %i kb/s\n",
@@ -153,6 +207,12 @@ t_wait(void *p)
 	tp->timer->interrupt(tp->timer);
     pthread_mutex_unlock(&tp->tmx);
 
+    tcvp_state_event_t *te = tcvp_alloc_event();
+    te->type = TCVP_STATE;
+    te->state = TCVP_STATE_END;
+    eventq_send(tp->qs, te);
+    tcfree(te);
+
     return NULL;
 }
 
@@ -165,25 +225,60 @@ st_ticker(void *p)
     pthread_mutex_lock(&tp->tmx);
     while(tp->state != TCVP_STATE_END){
 	pthread_mutex_unlock(&tp->tmx);
-	if(tp->timer->wait(tp->timer, time += 100000) == 0){
-	    if(tp->status){
-		tp->status(tp->cbdata, tp->state, time);
-	    }
+	if(tp->timer->wait(tp->timer, time += 1000000) == 0){
+	    tcvp_timer_event_t *te = tcvp_alloc_event();
+	    te->type = TCVP_TIMER;
+	    te->time = time;
+	    eventq_send(tp->qs, te);
+	    tcfree(te);
 	}
 	pthread_mutex_lock(&tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
 
-    if(tp->status){
-	tp->status(tp->cbdata, tp->state, tp->timer->read(tp->timer));
-    }
-
     return NULL;
 }
 
+static int
+t_seek(player_t *pl, int64_t time, int how)
+{
+    tcvp_player_t *tp = pl->private;
+    uint64_t ntime;
 
-extern player_t *
-t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
+    if(tp->stream->seek){
+	int s = tp->state;
+	if(s == TCVP_STATE_PLAYING){
+	    tp->demux->stop(tp->demux);
+	    t_stop(pl);
+	}
+
+	if(how == TCVP_SEEK_REL){
+	    ntime = tp->timer->read(tp->timer);
+	    if(time < 0 && -time > ntime)
+		ntime = 0;
+	    else
+		ntime += time;
+	} else {
+	    ntime = time;
+	}
+	tp->stream->seek(tp->stream, ntime);
+	tp->timer->reset(tp->timer, ntime);
+
+	if(tp->vcodec)
+	    tp->vcodec->flush(tp->vcodec, 1);
+	if(tp->acodec)
+	    tp->acodec->flush(tp->acodec, 1);
+	if(s == TCVP_STATE_PLAYING){
+	    tp->demux->start(tp->demux);
+	    t_start(pl);
+	}
+    }
+
+    return 0;    
+}
+
+static int
+t_open(player_t *pl, char *name)
 {
     int i;
     stream_t *as = NULL, *vs = NULL;
@@ -193,18 +288,18 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     tcvp_pipe_t *sound = NULL, *video = NULL;
     muxed_stream_t *stream = NULL;
     timer__t *timer = NULL;
-    tcvp_player_t *tp;
-    player_t *pl;
+    tcvp_player_t *tp = pl->private;
     int ac = -1, vc = -1;
     int start;
 
-    if((stream = stream_open(name, cs)) == NULL)
-	return NULL;
+    if((stream = stream_open(name, tp->conf)) == NULL){
+	return -1;
+    }
 
     codecs = calloc(stream->n_streams, sizeof(*codecs));
 
-    if(cs){
-	if(conf_getvalue(cs, "video/stream", "%i", &vc) > 0){
+    if(tp->conf){
+	if(conf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
 	    if(vc >= 0 && vc < stream->n_streams &&
 	       stream->streams[vc].stream_type == STREAM_TYPE_VIDEO){
 		vs = &stream->streams[vc];
@@ -212,7 +307,7 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 		vc = -2;
 	    }
 	}
-	if(conf_getvalue(cs, "audio/stream", "%i", &ac) > 0){
+	if(conf_getvalue(tp->conf, "audio/stream", "%i", &ac) > 0){
 	    if(ac >= 0 && ac < stream->n_streams &&
 	       stream->streams[ac].stream_type == STREAM_TYPE_AUDIO){
 		as = &stream->streams[ac];
@@ -252,15 +347,17 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     if(!as && !vs){
 	printf("No supported streams found.\n");
 	stream->close(stream);
-	return NULL;
+	return -1;
     }
+
+    tp->open = 1;
 
     stream_probe(stream, codecs);
 
     print_info(stream);
 
     if(as){
-	if((sound = output_audio_open(&as->audio, cs, &timer))){
+	if((sound = output_audio_open(&as->audio, tp->conf, &timer))){
 	    acodec->next = sound;
 	} else {
 	    stream->used_streams[ac] = 0;
@@ -275,7 +372,7 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     }
 
     if(vs){
-	if((video = output_video_open(&vs->video, cs, timer))){
+	if((video = output_video_open(&vs->video, tp->conf, timer))){
 	    vcodec->next = video;
 	} else {
 	    stream->used_streams[vc] = 0;
@@ -285,21 +382,9 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 	}
     }
 
-    if(conf_getvalue(cs, "start_time", "%i", &start) == 1){
-	uint64_t spts = (uint64_t) start * 1000000LL;
-	if(stream->seek){
-	    stream->seek(stream, spts);
-	    for(i = 0; i < stream->n_streams; i++){
-		if(codecs[i]){
-		    codecs[i]->flush(codecs[i], 1);
-		}
-	    }
-	}
-    }
-
     demux = stream_play(stream, codecs);
 
-    tp = malloc(sizeof(*tp));
+    tp->state = TCVP_STATE_STOPPED;
     tp->demux = demux;
     tp->vcodec = vcodec;
     tp->acodec = acodec;
@@ -307,21 +392,14 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     tp->video = video;
     tp->stream = stream;
     tp->timer = timer;
-    tp->status = stcb;
-    tp->cbdata = cbdata;
-    pthread_mutex_init(&tp->tmx, NULL);
-    tp->state = TCVP_STATE_PLAYING;
 
-    if(timer)
-	pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
+    if(conf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
+	uint64_t spts = (uint64_t) start * 1000000LL;
+	t_seek(pl, spts, TCVP_SEEK_ABS);
+    }
+
+    pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
     pthread_create(&tp->th_wait, NULL, t_wait, tp);
-
-    pl = malloc(sizeof(*pl));
-    pl->start = t_start;
-    pl->stop = t_stop;
-    pl->seek = NULL;
-    pl->close = t_close;
-    pl->private = tp;
 
     demux->start(demux);
     if(tp->video && tp->video->buffer)
@@ -330,5 +408,125 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 	tp->sound->buffer(tp->sound, 0.9);
 
     free(codecs);
+    return 0;
+}
+
+static void *
+t_event(void *p)
+{
+    player_t *pl = p;
+    tcvp_player_t *tp = pl->private;
+    int r = 1;
+
+    while(r){
+	tcvp_event_t *te = eventq_recv(tp->qr);
+	switch(te->type){
+	case TCVP_OPEN:
+	    if(t_open(pl, te->open.file) < 0){
+		tcvp_state_event_t *te = tcvp_alloc_event();
+		te->type = TCVP_STATE;
+		te->state = TCVP_STATE_ERROR;
+		eventq_send(tp->qs, te);
+		tcfree(te);
+	    }		
+	    break;
+
+	case TCVP_START:
+	    t_start(pl);
+	    break;
+
+	case TCVP_STOP:
+	    t_stop(pl);
+	    break;
+
+	case TCVP_PAUSE:
+	    if(tp->state == TCVP_STATE_PLAYING)
+		t_stop(pl);
+	    else if(tp->state == TCVP_STATE_STOPPED)
+		t_start(pl);
+	    break;
+
+	case TCVP_SEEK:
+	    t_seek(pl, te->seek.time, te->seek.how);
+	    break;
+
+	case TCVP_CLOSE:
+	    t_close(pl);
+	    break;
+
+	case -1:
+	    r = 0;
+	    break;
+	}
+	tcfree(te);
+    }
+    return NULL;
+}
+
+static int
+q_cmd(player_t *pl, int cmd)
+{
+    tcvp_player_t *tp = pl->private;
+    tcvp_event_t *te = tcvp_alloc_event();
+    te->type = cmd;
+    eventq_send(tp->qs, te);
+    tcfree(te);
+    return 0;
+}
+
+static int
+q_start(player_t *pl)
+{
+    return q_cmd(pl, TCVP_START);
+}
+
+static int
+q_stop(player_t *pl)
+{
+    return q_cmd(pl, TCVP_STOP);
+}
+
+static int
+q_close(player_t *pl)
+{
+    return q_cmd(pl, TCVP_CLOSE);
+}
+
+static int
+q_seek(player_t *pl, uint64_t pts)
+{
+    tcvp_player_t *tp = pl->private;
+    tcvp_seek_event_t *se = tcvp_alloc_event();
+    se->type = TCVP_SEEK;
+    se->time = pts;
+    eventq_send(tp->qs, se);
+    tcfree(se);
+    return 0;
+}
+
+extern player_t *
+t_new(conf_section *cs)
+{
+    tcvp_player_t *tp;
+    player_t *pl;
+
+    tp = calloc(1, sizeof(*tp));
+    pl = malloc(sizeof(*pl));
+    pl->start = q_start;
+    pl->stop = q_stop;
+    pl->seek = q_seek;
+    pl->close = q_close;
+    pl->free = t_free;
+    pl->private = tp;
+
+    pthread_mutex_init(&tp->tmx, NULL);
+    pthread_cond_init(&tp->tcd, NULL);
+    tp->qs = eventq_new(NULL);
+    eventq_attach(tp->qs, "TCVP", EVENTQ_SEND);
+    tp->qr = eventq_new(tcref);
+    eventq_attach(tp->qr, "TCVP", EVENTQ_RECV);
+    pthread_create(&tp->th_event, NULL, t_event, pl);
+    tp->conf = cs;
+
     return pl;
 }

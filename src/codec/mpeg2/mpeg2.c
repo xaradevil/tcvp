@@ -64,10 +64,17 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		pic->sizes[2] = pic->sizes[0]/2;
 
 		if(mpd->info->display_picture->flags & PIC_FLAG_PTS){
-		    mpd->pts = mpd->info->display_picture->pts / 27;
+		    mpd->pts = mpd->info->display_picture->pts;
+		} else if(pk->pts){
+		    uint64_t pts = mpd->pts / 27;
+		    uint64_t ptsdiff = pk->pts>pts? pk->pts-pts: pts-pk->pts;
+		    if(ptsdiff > 1000000){
+			mpd->pts = pk->pts * 27;
+		    }
 		}
-		pic->pk.pts = mpd->pts;
-		mpd->pts += mpd->info->sequence->frame_period / 27;
+
+		pic->pk.pts = mpd->pts / 27;
+		mpd->pts += mpd->info->sequence->frame_period;
 
 		pic->pk.free = mpeg_free_pk;
 		pic->pk.private = pic;

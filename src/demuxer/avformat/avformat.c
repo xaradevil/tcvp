@@ -137,7 +137,7 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 	    pk->sizes = malloc(sizeof(*pk->sizes));
 	    pk->sizes[0] = apk->size;
 	    pk->planes = 1;
-	    pk->pts = apk->pts;
+	    pk->pts = 0;
 	    pk->free = avf_free_packet;
 	    pk->private = apk;
 
@@ -219,6 +219,7 @@ avf_open(char *name, conf_section *cs)
 	    ms->streams[i].audio.channels = afc->streams[i]->codec.channels;
 	    ms->streams[i].audio.codec =
 		codec_names[afc->streams[i]->codec.codec_id];
+	    ms->streams[i].audio.bit_rate = afc->streams[i]->codec.bit_rate;
 	    break;
 
 	default:

@@ -10,5 +10,6 @@ struct video_driver {
     int (*show_frame)(video_driver_t *, int);
     int (*put_frame)(video_driver_t *, int);
     int (*close)(video_driver_t *);
+    int (*flush)(video_driver_t *);
     void *private;
 };

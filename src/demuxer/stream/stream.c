@@ -174,14 +174,16 @@ s_flush(tcvp_pipe_t *p, int drop)
 
     if(drop){
 	vp->state = STOP;
+	flush_all(vp, drop);
     }
-
-    flush_all(vp, drop);
 
     pthread_mutex_lock(&vp->mtx);
     while(vp->streams > 0)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
+
+    if(!drop)
+	flush_all(vp, drop);
 
     pthread_mutex_lock(&vp->mtx);
     if(--vp->flushing == 0)

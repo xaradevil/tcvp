@@ -27,7 +27,7 @@
 #include <tcvp_types.h>
 #include <tcvp_tc2.h>
 
-static pthread_t play_thr;
+static pthread_t play_thr, evt_thr;
 
 static int nfiles;
 static char **files;
@@ -46,30 +46,51 @@ sigint(int s)
     sem_post(&psm);
 }
 
-static int
-tcvp_update(void *p, int state, uint64_t time)
+static void *
+tcl_event(void *p)
 {
-    if(state == TCVP_STATE_END)
-	sem_post(&psm);
-    return 0;
+    eventq_t qr = eventq_new(tcref);
+    eventq_attach(qr, "TCVP", EVENTQ_RECV);
+
+    for(;;){
+	tcvp_event_t *te = eventq_recv(qr);
+	switch(te->type){
+	case TCVP_STATE:
+	    switch(te->state.state){
+	    case TCVP_STATE_ERROR:
+		printf("Error opening file.\n");
+	    case TCVP_STATE_END:
+		sem_post(&psm);
+	    }
+	    break;
+	}
+	tcfree(te);
+    }
+    return NULL;
 }
 
 static void *
-tcvp_play(void *p)
+tcl_play(void *p)
 {
     int i;
+    player_t *pl = tcvp_new(cf);
+    eventq_t qs = eventq_new(NULL);
 
+    eventq_attach(qs, "TCVP", EVENTQ_SEND);
     sem_init(&psm, 0, 0);
 
     for(i = 0; i < nfiles; i++){
-	player_t *pl;
 	intr = 0;
 
 	if(validate){
 	    stream_validate(files[i], cf);
 	} else {
-	    if(!(pl = tcvp_open(files[i], tcvp_update, NULL, cf)))
-		continue;
+	    tcvp_open_event_t *te = tcvp_alloc_event();
+	    te->type = TCVP_OPEN;
+	    te->file = files[i];
+	    eventq_send(qs, te);
+	    tcfree(te);
+
 	    printf("Playing \"%s\"...\n", files[i]);
 	    pl->start(pl);
 	    sem_wait(&psm);
@@ -80,21 +101,29 @@ tcvp_play(void *p)
 	}
     }
 
+    pl->free(pl);
+    eventq_delete(qs);
+
     tc2_request(TC2_UNLOAD_MODULE, 0, "TCVP/cmdline");
     return NULL;
 }
 
 extern int
-tcvp_init(char *p)
+tcl_init(char *p)
 {
-    pthread_create(&play_thr, NULL, tcvp_play, NULL);
+    pthread_create(&evt_thr, NULL, tcl_event, NULL);
+    pthread_create(&play_thr, NULL, tcl_play, NULL);
+
     return 0;
 }
 
 extern int
-tcvp_stop(void)
+tcl_stop(void)
 {
     pthread_join(play_thr, NULL);
+    pthread_cancel(evt_thr);
+    pthread_join(evt_thr, NULL);
+
     return 0;
 }
 

@@ -38,6 +38,7 @@ typedef struct x11_wm {
     pthread_t eth;
     int color_key;
     int flags;
+    eventq_t qs;
 } x11_wm_t;
 
 static void *
@@ -46,7 +47,7 @@ x11_event(void *p)
     x11_wm_t *xwm = p;
     int run = 1;
 
-    XSelectInput(xwm->dpy, xwm->win, StructureNotifyMask);
+    XSelectInput(xwm->dpy, xwm->win, StructureNotifyMask | KeyPressMask);
     XMapWindow(xwm->dpy, xwm->win);
     XMapSubwindows(xwm->dpy, xwm->win);
 
@@ -98,9 +99,41 @@ x11_event(void *p)
 	    xwm->update(xwm->cbd, WM_HIDE, 0, 0, 0, 0);
 	    break;
 	}
+	case KeyPress: {
+	    int key = XLookupKeysym(&xe.xkey, 0);
+	    tcvp_event_t *te = tcvp_alloc_event();
+	    int e = 1;
+
+	    switch(key){
+	    case XK_space:
+		te->type = TCVP_PAUSE;
+		break;
+	    case XK_Up:
+		te->type = TCVP_SEEK;
+		te->seek.time = 60000000;
+		te->seek.how = TCVP_SEEK_REL;
+		break;
+	    case XK_Down:
+		te->type = TCVP_SEEK;
+		te->seek.time = -60000000;
+		te->seek.how = TCVP_SEEK_REL;
+		break;
+	    case XK_q:
+		te->type = TCVP_CLOSE;
+		break;
+	    default:
+		e = 0;
+		break;
+	    }
+	    if(e)
+		eventq_send(xwm->qs, te);
+	    tcfree(te);
+	    break;
+	}
 	case DestroyNotify:
 	    run = 0;
 	    break;
+
 	}
     }
 
@@ -118,6 +151,9 @@ x11_close(window_manager_t *wm)
     pthread_join(xwm->eth, NULL);
 
     XCloseDisplay(xwm->dpy);
+
+    eventq_delete(xwm->qs);
+
     free(xwm);
     free(wm);
 
@@ -179,6 +215,9 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     xwm->swin = XCreateWindow(dpy, win, 0, 0, width, height, 0, CopyFromParent,
 			      InputOutput, CopyFromParent, 0, NULL);
     XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
+
+    xwm->qs = eventq_new(NULL);
+    eventq_attach(xwm->qs, "TCVP", EVENTQ_SEND);
 
     wm = malloc(sizeof(*wm));
     wm->close = x11_close;

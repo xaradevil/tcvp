@@ -595,7 +595,6 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     avi_file_t *af = ms->private;
     off_t pos = 0;
     int i;
-    char st[5];
 
     if(!af->index)
 	return -1;

@@ -44,9 +44,12 @@ typedef struct vidix_window {
     int vframes;
     int use_dma;
     char **dmabufs;
-    int *vfmap, *vfq;
-    int head, fqh, fqt;
-    sem_t hsm, tsm, dsm;
+    int *vfmap;
+    int *vfq, vfh, vft, vfc;
+    int *ffq, ffh, fft, ffc;
+    int lf;
+    pthread_mutex_t mx;
+    pthread_cond_t cv;
     vidix_dma_t *dma;
     int run;
     pthread_t dmath;
@@ -59,9 +62,22 @@ vx_show(video_driver_t *vd, int frame)
     vx_window_t *vxw = vd->private;
 
     if(vxw->use_dma){
-	sem_wait(&vxw->tsm);
-	vdlPlaybackFrameSelect(vxw->driver, vxw->vfmap[frame]);
-	sem_post(&vxw->hsm);
+	int vframe;
+	pthread_mutex_lock(&vxw->mx);
+	while(vxw->vfmap[frame] < 0)
+	    pthread_cond_wait(&vxw->cv, &vxw->mx);
+	vframe = vxw->vfmap[frame];
+	vdlPlaybackFrameSelect(vxw->driver, vframe);
+	if(vxw->lf > -1){
+	    vxw->ffq[vxw->ffh] = vframe;
+	    vxw->vfmap[vxw->lf] = -1;
+	    vxw->ffc++;
+	    if(++vxw->ffh == vxw->vframes)
+		vxw->ffh = 0;
+	    pthread_cond_broadcast(&vxw->cv);
+	}
+	vxw->lf = frame;
+	pthread_mutex_unlock(&vxw->mx);
     } else {
 	vdlPlaybackFrameSelect(vxw->driver, frame);
     }
@@ -73,28 +89,37 @@ static void *
 vx_dmacpy(void *p)
 {
     vx_window_t *vxw = p;
-    int frame;
+    int frame, vframe;
 
     while(vxw->run){
-	sem_wait(&vxw->hsm);
-	sem_wait(&vxw->dsm);
-	if(!vxw->run)
+	pthread_mutex_lock(&vxw->mx);
+	while(!(vxw->ffc && vxw->vfc) && vxw->run)
+	    pthread_cond_wait(&vxw->cv, &vxw->mx);
+	if(!vxw->run){
+	    pthread_mutex_unlock(&vxw->mx);
 	    break;
+	}
+	
+	frame = vxw->vfq[vxw->vft];
+	vframe = vxw->ffq[vxw->fft];
 
-	frame = vxw->vfq[vxw->fqt];
+	if(++vxw->vft == vxw->frames)
+	    vxw->vft = 0;
+	vxw->vfc--;
+	if(++vxw->fft == vxw->vframes)
+	    vxw->fft = 0;
+	vxw->ffc--;
+	pthread_mutex_unlock(&vxw->mx);
 
 	vxw->dma->src = vxw->dmabufs[frame];
-	vxw->dma->dest_offset = vxw->pbc->offsets[vxw->head];
-	vxw->dma->idx = vxw->head;
-	vxw->vfmap[frame] = vxw->head;
+	vxw->dma->dest_offset = vxw->pbc->offsets[vframe];
+	vxw->dma->idx = vframe;
 	vdlPlaybackCopyFrame(vxw->driver, vxw->dma);
 
-	if(++vxw->head == vxw->vframes)
-	    vxw->head = 0;
-	if(++vxw->fqt == vxw->frames)
-	    vxw->fqt = 0;
-
-	sem_post(&vxw->tsm);
+	pthread_mutex_lock(&vxw->mx);
+	vxw->vfmap[frame] = vframe;
+	pthread_cond_broadcast(&vxw->cv);
+	pthread_mutex_unlock(&vxw->mx);
     }
 
     return NULL;
@@ -105,10 +130,41 @@ vx_put(video_driver_t *vd, int frame)
 {
     vx_window_t *vxw = vd->private;
 
-    vxw->vfq[vxw->fqh] = frame;
-    sem_post(&vxw->dsm);
-    if(++vxw->fqh == vxw->frames)
-	vxw->fqh = 0;
+    pthread_mutex_lock(&vxw->mx);
+    while(vxw->vfc == vxw->frames)
+	pthread_cond_wait(&vxw->cv, &vxw->mx);
+    vxw->vfq[vxw->vfh] = frame;
+    vxw->vfc++;
+    if(++vxw->vfh == vxw->frames)
+	vxw->vfh = 0;
+    pthread_cond_broadcast(&vxw->cv);
+    pthread_mutex_unlock(&vxw->mx);
+
+    return 0;
+}
+
+static int
+vx_flush(video_driver_t *vd)
+{
+    vx_window_t *vxw = vd->private;
+    int i;
+
+    if(vxw->use_dma){
+	pthread_mutex_lock(&vxw->mx);
+	vxw->vfh = 0;
+	vxw->vft = 0;
+	vxw->vfc = 0;
+
+	vxw->ffh = 0;
+	vxw->fft = 0;
+	vxw->ffc = vxw->vframes - 2;
+	for(i = 0; i < vxw->vframes; i++)
+	    vxw->ffq[i] = i;
+	for(i = 0; i < vxw->frames; i++)
+	    vxw->vfmap[i] = -1;
+	vxw->lf = -1;
+	pthread_mutex_unlock(&vxw->mx);
+    }
 
     return 0;
 }
@@ -154,9 +210,10 @@ vx_close(video_driver_t *vd)
     int i;
 
     if(vxw->use_dma){
+	pthread_mutex_lock(&vxw->mx);
 	vxw->run = 0;
-	sem_post(&vxw->hsm);
-	sem_post(&vxw->dsm);
+	pthread_cond_broadcast(&vxw->cv);
+	pthread_mutex_unlock(&vxw->mx);
 	pthread_join(vxw->dmath, NULL);
     }
 
@@ -167,12 +224,15 @@ vx_close(video_driver_t *vd)
     vdlFreeCapabilityS(vxw->caps);
     vdlFreePlaybackS(vxw->pbc);
     if(vxw->use_dma){
+	pthread_mutex_destroy(&vxw->mx);
+	pthread_cond_destroy(&vxw->cv);
 	vdlFreeDmaS(vxw->dma);
 	for(i = 0; i < vxw->frames; i++)
 	    free(vxw->dmabufs[i]);
 	free(vxw->dmabufs);
 	free(vxw->vfmap);
 	free(vxw->vfq);
+	free(vxw->ffq);
     }
 
     free(vxw);
@@ -306,20 +366,26 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	return NULL;
     }
 
-    if(vxw->caps->flags & FLAG_DMA){
+    if(vxw->caps->flags & FLAG_SYNC_DMA){
 	vxw->dma = vdlAllocDmaS();
 	vxw->frames = frames;
 	vxw->vframes = vxw->pbc->num_frames;
-	vxw->head = 0;
-	sem_init(&vxw->hsm, 0, vxw->vframes - 2);
-	sem_init(&vxw->tsm, 0, 0);
-	sem_init(&vxw->dsm, 0, 0);
-	vxw->dmabufs = malloc(frames * sizeof(*vxw->dmabufs));
+	pthread_mutex_init(&vxw->mx, NULL);
+	pthread_cond_init(&vxw->cv, NULL);
 	vxw->vfmap = calloc(frames, sizeof(*vxw->vfmap));
+	for(i = 0; i < vxw->frames; i++)
+	    vxw->vfmap[i] = -1;
 	vxw->vfq = calloc(frames, sizeof(*vxw->vfq));
-	for(i = 0; i < frames; i++){
+	vxw->ffq = calloc(vxw->vframes, sizeof(*vxw->ffq));
+	vxw->ffc = vxw->vframes - 2;
+	for(i = 0; i < vxw->vframes; i++)
+	    vxw->ffq[i] = i;
+	vxw->lf = -1;
+
+	vxw->dmabufs = malloc(frames * sizeof(*vxw->dmabufs));
+	for(i = 0; i < frames; i++)
 	    vxw->dmabufs[i] = valloc(vxw->pbc->frame_size);
-	}
+
 	vxw->dma->size = vxw->pbc->frame_size;
 	vxw->dma->flags = BM_DMA_BLOCK;
 	vxw->use_dma = 1;
@@ -339,6 +405,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
     vd->get_frame = vx_get;
     vd->show_frame = vx_show;
     vd->close = vx_close;
+    vd->flush = vx_flush;
     vd->private = vxw;
     if(vxw->use_dma)
 	vd->put_frame = vx_put;
