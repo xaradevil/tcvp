@@ -159,6 +159,7 @@ ve_free(void *p)
 	free(ve->vc.user_comments[i]);
     free(ve->vc.user_comments);
     free(ve->vc.comment_lengths);
+    free(ve);
 }
 
 static char *comments[] = {

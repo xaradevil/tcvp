@@ -2,10 +2,12 @@ module		pcm
 name		"TCVP/codec/pcm"
 version		0.1.1
 tc2version	0.4.0
-sources		pcm.c
-implement	"decoder/audio/pcm-s32be"	"new"		pcm_new
-implement	"decoder/audio/pcm-s32le"	"new"		pcm_new
-implement	"decoder/audio/pcm-s16be"	"new"		pcm_new
-implement	"decoder/audio/pcm-s16le"	"new"		pcm_new
-implement	"decoder/audio/pcm-u8"		"new"		pcm_new
-implement	"decoder/audio/pcm-s8"		"new"		pcm_new
+TCVP {
+	filter "decoder/audio/pcm-u8" {
+		alias "decoder/audio/pcm-s32be"
+		alias "decoder/audio/pcm-s32le"
+		alias "decoder/audio/pcm-s16be"
+		alias "decoder/audio/pcm-s16le"
+		alias "decoder/audio/pcm-u8"
+	}
+}

@@ -4,6 +4,14 @@ version		0.1.0
 tc2version	0.4.0
 sources		mpeg2.c
 postinit	mpeg_init
-implement	"decoder/video/mpeg"	"new"	mpeg_new
-implement	"decoder/video/mpeg2"	"new"	mpeg_new
 option		accel%i=0x80000000
+
+TCVP {
+	filter "decoder/video/mpeg" {
+		alias "decoder/video/mpeg2"
+		new mpeg_new
+		packet DATA mpeg_decode
+		probe mpeg_probe
+		flush mpeg_flush
+	}
+}

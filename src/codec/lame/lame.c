@@ -31,7 +31,7 @@ l_free_pk(void *p)
     free(lp->data);
 }
 
-static int
+extern int
 l_input(tcvp_pipe_t *p, packet_t *pk)
 {
     lame_enc_t *le = p->private;
@@ -85,13 +85,7 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
-l_flush(tcvp_pipe_t *p, int drop)
-{
-    return p->next->flush(p->next, drop);
-}
-
-static int
+extern int
 l_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     lame_enc_t *le = p->private;
@@ -118,20 +112,14 @@ l_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     p->format = *s;
     p->format.audio.codec = "audio/mp3";
     p->format.audio.bit_rate = lame_get_brate(le->gf) * 1000;
-    return p->next->probe(p->next, NULL, &p->format);
+    return PROBE_OK;
 }
 
-static void
-l_free(void *p){
-    tcvp_pipe_t *tp = p;
-    free(tp->private);
-}
-
-extern tcvp_pipe_t *
-l_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
+extern int
+l_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
+      tcvp_timer_t *t, muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p = tcallocdz(sizeof(*p), NULL, l_free);
-    lame_enc_t *le = calloc(1, sizeof(*le));
+    lame_enc_t *le = tcallocz(sizeof(*le));
     union { int i; float f; } tmp;
 
     le->gf = lame_init();
@@ -148,12 +136,8 @@ l_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     lame_set(ratio, compression_ratio, f);
     lame_set(preset, preset, i);
 
-    p->format = *s;
     p->format.common.codec = "audio/mp3";
-    p->input = l_input;
-    p->flush = l_flush;
-    p->probe = l_probe;
     p->private = le;
 
-    return p;
+    return 0;
 }

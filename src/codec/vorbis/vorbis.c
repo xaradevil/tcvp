@@ -29,7 +29,8 @@ vorbis_free_packet(void *v)
 }
 
 
-static inline int conv(int samples, float **pcm, char *buf, int channels) {
+static inline int
+conv(int samples, float **pcm, char *buf, int channels) {
     int i, j, val ;
     ogg_int16_t *ptr, *data = (ogg_int16_t*)buf ;
     float *mono ;
@@ -42,19 +43,19 @@ static inline int conv(int samples, float **pcm, char *buf, int channels) {
 	    
 	    val = mono[j] * 32767.f;
 	    
-	    if(val > 32767) val = 32767 ;
-	    if(val < -32768) val = -32768 ;
+	    if(val > 32767) val = 32767;
+	    if(val < -32768) val = -32768;
 	   	    
-	    *ptr = val ;
+	    *ptr = val;
 	    ptr += channels;
 	}
     }
     
-    return 0 ;
+    return 0;
 }
 
 
-static int
+extern int
 vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     packet_t *out;
@@ -103,7 +104,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     ogg_packet *op=(ogg_packet*)pk->data[0];
@@ -125,7 +126,7 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    s->audio.bit_rate = vc->vi.bitrate_nominal;
 	    vorbis_synthesis_init(&vc->vd, &vc->vi);
 	    vorbis_block_init(&vc->vd, &vc->vb); 
-	    ret = p->next->probe(p->next, NULL, &p->format);
+	    ret = PROBE_OK;
 	}
     }
     tcfree(pk);
@@ -135,8 +136,7 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 static void
 vorbis_free_pipe(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    VorbisContext_t *vc = tp->private;
+    VorbisContext_t *vc = p;
 
     vorbis_block_clear(&vc->vb);
     vorbis_dsp_clear(&vc->vd);
@@ -145,37 +145,23 @@ vorbis_free_pipe(void *p)
 
     if(vc->buf)
 	free(vc->buf);
-    free(vc);
 }
 
-
-static int
-vorbis_flush(tcvp_pipe_t *p, int drop)
-{
-    return p->next->flush(p->next, drop);
-}
-
-extern tcvp_pipe_t *
-vorbis_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+vorbis_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	   muxed_stream_t *ms)
 {
-    tcvp_pipe_t *p = NULL;
     VorbisContext_t *vc;
 
-    vc = calloc(sizeof(VorbisContext_t),1);
+    vc = tcallocdz(sizeof(*vc), NULL, vorbis_free_pipe);
 
-    vorbis_info_init(&vc->vi) ;
-    vorbis_comment_init(&vc->vc) ;
+    vorbis_info_init(&vc->vi);
+    vorbis_comment_init(&vc->vc);
 
-    vc->buf=malloc(131072);
+    vc->buf = malloc(131072);
 
-    p = tcallocdz(sizeof(*p), NULL, vorbis_free_pipe);
-    p->format = *s;
     p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
-    p->input = vorbis_decode;
-    p->probe = vorbis_read_header;
-    p->flush = vorbis_flush;
     p->private = vc;
 
-    return p;
+    return 0;
 }

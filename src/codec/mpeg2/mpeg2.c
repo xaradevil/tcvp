@@ -27,7 +27,7 @@ typedef struct mpeg_packet {
     int sizes[3];
 } mpeg_packet_t;
 
-static int
+extern int
 mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     mpeg_dec_t *mpd = p->private;
@@ -93,7 +93,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
+extern int
 mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     mpeg_dec_t *mpd = p->private;
@@ -120,7 +120,7 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    tcreduce(&p->format.video.frame_rate);
 	    if(!(seq->flags & SEQ_FLAG_PROGRESSIVE_SEQUENCE))
 		p->format.video.flags |= TCVP_STREAM_FLAG_INTERLACED;
-	    ret = p->next->probe(p->next, NULL, &p->format);
+	    ret = PROBE_OK;
 	    break;
 	case STATE_INVALID:
 	    ret = PROBE_FAIL;
@@ -131,7 +131,7 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return ret;
 }
 
-static int
+extern int
 mpeg_flush(tcvp_pipe_t *p, int drop)
 {
     mpeg_dec_t *mpd = p->private;
@@ -142,38 +142,30 @@ mpeg_flush(tcvp_pipe_t *p, int drop)
 	memset(mpd->rpts, 0, sizeof(mpd->rpts));
     }
 
-    return p->next->flush(p->next, drop);
+    return 0;
 }
 
 static void
 mpeg_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    mpeg_dec_t *mpd = tp->private;
+    mpeg_dec_t *mpd = p;
 
     mpeg2_close(mpd->mpeg2);
-    free(mpd);
 }
 
-extern tcvp_pipe_t *
-mpeg_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+mpeg_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
 {
     mpeg_dec_t *mpd;
-    tcvp_pipe_t *p;
 
-    mpd = calloc(1, sizeof(*mpd));
+    mpd = tcallocdz(sizeof(*mpd), NULL, mpeg_free);
     mpd->mpeg2 = mpeg2_init();
 
-    p = tcallocdz(sizeof(*p), NULL, mpeg_free);
-    p->format = *s;
     p->format.common.codec = "video/raw-i420";
-    p->input = mpeg_decode;
-    p->probe = mpeg_probe;
-    p->flush = mpeg_flush;
     p->private = mpd;
 
-    return p;
+    return 0;
 }
 
 extern int

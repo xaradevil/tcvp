@@ -3,5 +3,12 @@ name		"TCVP/codec/lame"
 version		0.1.2
 tc2version	0.4.0
 sources		lame.c
-implement	"encoder/audio/mpeg"	"new"	l_new
-implement	"encoder/audio/mp3"	"new"	l_new
+
+TCVP {
+	filter "encoder/audio/mpeg" {
+		alias "encoder/audio/mp3"
+		new l_new
+		packet DATA l_input
+		probe l_probe
+	}
+}
