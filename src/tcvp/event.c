@@ -31,23 +31,6 @@
 #include <tcendian.h>
 #include <tcvp_core_tc2.h>
 
-/* key */
-
-static void
-key_free(void *p)
-{
-    tcvp_key_event_t *te = p;
-    free(te->key);
-}
-
-extern void *
-key_alloc(int type, va_list args)
-{
-    tcvp_key_event_t *te = tcvp_event_alloc(type, sizeof(*te), key_free);
-    te->key = strdup(va_arg(args, char *));
-    return te;
-}
-
 /* open */
 
 static void
@@ -129,7 +112,7 @@ seek_alloc(int type, va_list args)
 {
     tcvp_seek_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
     te->time = va_arg(args, int64_t);
-    te->how = va_arg(args, int);
+    te->how = va_arg(args, int64_t);
     return te;
 }
 

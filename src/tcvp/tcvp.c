@@ -49,7 +49,6 @@ typedef struct tcvp_player {
 
 typedef union tcvp_core_event {
     int type;
-    tcvp_key_event_t key;
     tcvp_open_event_t open;
     tcvp_open_multi_event_t open_m;
     tcvp_seek_event_t seek;

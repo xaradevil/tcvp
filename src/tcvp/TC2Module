@@ -27,7 +27,6 @@ TCVP {
 		event control	TCVP_CLOSE	te_close
 		event control	TCVP_QUERY	te_query
 	}
-	event TCVP_KEY		key_alloc NULL NULL
 	event TCVP_TIMER	timer_alloc timer_ser timer_deser
 	event TCVP_STATE	state_alloc state_ser state_deser
 	event TCVP_LOAD		load_alloc load_ser load_deser
