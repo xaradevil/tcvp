@@ -1,0 +1,4 @@
+inherit "audio"
+symbol  "streaminfo" int (*%s)(muxed_stream_t *, stream_t *, u_char *, int)
+include
+#include <tcvp_types.h>

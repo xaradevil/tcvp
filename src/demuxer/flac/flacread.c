@@ -229,10 +229,9 @@ flr_packet(muxed_stream_t *ms, int s)
     return (tcvp_packet_t *) fp;
 }
 
-static int
-flr_streaminfo(muxed_stream_t *ms, u_char *p, int size)
+extern int
+flr_streaminfo(muxed_stream_t *ms, stream_t *st, u_char *p, int size)
 {
-    flacread_t *flr = ms->private;
     uint64_t samples;
     uint32_t scb;
 
@@ -244,14 +243,14 @@ flr_streaminfo(muxed_stream_t *ms, u_char *p, int size)
     scb = htob_32(unaligned32(p));
     p += 4;
 
-    flr->s.audio.sample_rate = scb >> 12;
-    flr->s.audio.channels = ((scb >> 9) & 7) + 1;
+    st->audio.sample_rate = scb >> 12;
+    st->audio.channels = ((scb >> 9) & 7) + 1;
 
     samples = (uint64_t) (scb & 0xf) << 32;
     samples += htob_32(unaligned32(p));
-    flr->s.audio.samples = samples;
+    st->audio.samples = samples;
 
-    ms->time = samples * 27000000LL / flr->s.audio.sample_rate;
+    ms->time = samples * 27000000LL / st->audio.sample_rate;
 
     return 0;
 }
@@ -361,7 +360,7 @@ flr_header(muxed_stream_t *ms)
     while(!err && !flr_metadata(flr->url, &fm)){
 	switch(fm.type){
 	case FLAC_META_STREAMINFO:
-	    err = flr_streaminfo(ms, fm.data, fm.size);
+	    err = flr_streaminfo(ms, &flr->s, fm.data, fm.size);
 	    flr->s.common.codec_data = fm.data;
 	    flr->s.common.codec_data_size = fm.size;
 	    fm.data = NULL;
