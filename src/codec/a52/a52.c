@@ -154,8 +154,8 @@ static int
 a52_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     a52_decode_t *ad = p->private;
-    int psize = pk->sizes[0];
-    char *pdata = pk->data[0];
+    int psize;
+    char *pdata;
     int i;
     int ret = 0;
 
@@ -169,6 +169,9 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	p->next->input(p->next, NULL);
 	return 0;
     }
+
+    psize = pk->sizes[0];
+    pdata = pk->data[0];
 
     while(psize > 0){
 	if(ad->fsize > 0){
