@@ -42,7 +42,7 @@ typedef struct mpegps_stream {
     int64_t pts_offset;
     uint64_t time;
     eventq_t qr;
-    dvd_functions_t *dvd_funcs;
+    dvd_functions_t *dvd_info;
     pthread_t eth;
 } mpegps_stream_t;
 
@@ -358,11 +358,11 @@ mpegps_event(void *p)
 	    tcvp_button_event_t *be = (tcvp_button_event_t *) te;
 	    if(be->button == 1 &&
 	       be->action == TCVP_BUTTON_PRESS)
-		s->dvd_funcs->button(s->stream, be->x, be->y);
+		s->dvd_info->button(s->stream, be->x, be->y);
 	} else if(te->type == TCVP_KEY){
 	    tcvp_key_event_t *ke = (tcvp_key_event_t *) te;
 	    if(!strcmp(ke->key, "escape"))
-		s->dvd_funcs->menu(s->stream);
+		s->dvd_info->menu(s->stream);
 	} else if(te->type == -1){
 	    run = 0;
 	}
@@ -569,7 +569,20 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->stream = tcref(u);
     s->ps1substr = 1;
 
-    if(mpegps_findpsm(ms, ns)){
+    s->dvd_info = tcattr_get(u, "dvd");
+
+    if(s->dvd_info){
+	int i;
+	ms->n_streams = s->dvd_info->n_streams;
+	ms->streams =
+	    realloc(ms->streams, ms->n_streams * sizeof(*ms->streams));
+	for(i = 0; i < ms->n_streams; i++){
+	    ms->streams[i] = s->dvd_info->streams[i];
+	    s->imap[s->dvd_info->streams[i].common.index] = i;
+	    s->map[i] = s->dvd_info->streams[i].common.index;
+	    ms->streams[i].common.index = i;
+	}
+    } else if(mpegps_findpsm(ms, ns)){
 	u->seek(u, 0, SEEK_SET);
 	mpegps_findstreams(ms, ns);
     }
@@ -583,9 +596,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     tc2_print("MPEGPS", TC2_PRINT_DEBUG, "at %x\n",
 	      s->stream->tell(s->stream));
 
-    s->dvd_funcs = tcattr_get(u, "dvd");
-
-    if(!(u->flags & URL_FLAG_STREAMED) && u->size > 1048576 && !s->dvd_funcs){
+    if(!(u->flags & URL_FLAG_STREAMED) && u->size > 1048576 && !s->dvd_info){
 	uint64_t stime, etime = -1, tt;
 	uint64_t spos, epos;
 
@@ -608,7 +619,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     s->stream->seek(s->stream, 0, SEEK_SET);
 
-    if(s->dvd_funcs){
+    if(s->dvd_info){
 	char *qname, *qn;
 	qname = tcvp_event_get_qname(cs);
 	qn = alloca(strlen(qname) + 10);
@@ -619,7 +630,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	TCVP_BUTTON = tcvp_event_get("TCVP_BUTTON");
 	TCVP_KEY = tcvp_event_get("TCVP_KEY");
 	pthread_create(&s->eth, NULL, mpegps_event, s);
-	s->dvd_funcs->enable(u, 1);
+	s->dvd_info->enable(u, 1);
     }
 
     return ms;
