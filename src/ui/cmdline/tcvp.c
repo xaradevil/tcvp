@@ -25,11 +25,12 @@
 #include <semaphore.h>
 #include <signal.h>
 #include <tcalloc.h>
+#include <sys/time.h>
 #include <tcvp_types.h>
 #include <tcvp_event.h>
 #include <tcvp_tc2.h>
 
-static pthread_t check_thr, evt_thr;
+static pthread_t check_thr, evt_thr, intr_thr;
 
 static int nfiles;
 static char **files;
@@ -38,7 +39,7 @@ static int intr;
 static conf_section *cf;
 static int validate;
 static player_t *pl;
-static eventq_t qr;
+static eventq_t qr, qs;
 static char *qname;
 static char *sel_ui;
 static playlist_t *pll;
@@ -62,11 +63,9 @@ show_help(void)
 static void
 sigint(int s)
 {
-    if(intr)
-	return;
-
-    intr = 1;
-    sem_post(&psm);
+    if(pthread_self() == intr_thr){
+	sem_post(&psm);
+    }
 }
 
 static void *
@@ -100,6 +99,36 @@ tcl_event(void *p)
 }
 
 static void *
+tcl_intr(void *p)
+{
+    struct timeval tv;
+    uint64_t lt = 0;
+
+    while(intr){
+	uint64_t t;
+
+	sem_wait(&psm);
+	if(!intr)
+	    break;
+
+	gettimeofday(&tv, NULL);
+	t = 1000000LL * tv.tv_sec + tv.tv_usec;
+	
+	if(t - lt < 200000){
+	    tc2_request(TC2_UNLOAD_ALL, 0);
+	} else {
+	    tcvp_event_t *te;
+	    te = tcvp_alloc_event(TCVP_PL_NEXT);
+	    eventq_send(qs, te);
+	    tcfree(te);
+	}
+	lt = t;
+    }
+
+    return NULL;
+}
+
+static void *
 tcl_check(void *p)
 {
     int i;
@@ -126,11 +155,6 @@ tcl_init(char *p)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
     if(!sel_ui){
-	struct sigaction sa;
-	sa.sa_handler = sigint;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	sigaction(SIGINT, &sa, NULL);
     }
 
     pll = playlist_new(cf);
@@ -144,8 +168,8 @@ tcl_init(char *p)
 	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
     } else if(nfiles) {
 	char qn[strlen(qname)+9];
+	struct sigaction sa;
 	tcvp_event_t *te;
-	eventq_t qs;
 
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
@@ -157,8 +181,15 @@ tcl_init(char *p)
 	eventq_attach(qs, qn, EVENTQ_SEND);
 	te = tcvp_alloc_event(TCVP_PL_START);
 	eventq_send(qs, te);
-	tcfree(qs);
-	eventq_delete(qs);
+	tcfree(te);
+
+	sem_init(&psm, 0, 0);
+	sa.sa_handler = sigint;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGINT, &sa, NULL);
+	intr = 1;
+	pthread_create(&intr_thr, NULL, tcl_intr, NULL);
     } else {
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
@@ -173,11 +204,18 @@ tcl_stop(void)
     if(validate)
 	pthread_join(check_thr, NULL);
 
-    if(qr){
+    if(!sel_ui){
 	tcvp_event_t *te = tcvp_alloc_event(-1);
 	eventq_send(qr, te);
 	tcfree(te);
 	pthread_join(evt_thr, NULL);
+
+	intr = 0;
+	sem_post(&psm);
+	pthread_join(intr_thr, NULL);
+	eventq_delete(qs);
+	eventq_delete(qr);
+	sem_destroy(&psm);
     }
 
     pl->free(pl);

@@ -53,7 +53,7 @@ pl_add(playlist_t *pl, char **files, int n, int p)
     nf = tpl->nf + n;
 
     if(nf > tpl->af){
-	tpl->files = realloc(tpl->files, nf + 16);
+	tpl->files = realloc(tpl->files, (nf + 16) * sizeof(*tpl->files));
 	tpl->af = nf + 16;
     }
 
@@ -126,8 +126,6 @@ pl_start(tcvp_playlist_t *tpl)
     if(tpl->cur >= tpl->nf)
 	tpl->cur = 0;
 
-    tpl->state = PLAYING;
-
     te = tcvp_alloc_event(TCVP_CLOSE);
     eventq_send(tpl->sc, te);
     tcfree(te);
@@ -166,7 +164,6 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 	goto out;
     }
 
-
     if(c < 0){
 	tpl->state = STOPPED;
 	ret = -1;
@@ -178,8 +175,10 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 out:
     pthread_mutex_unlock(&tpl->lock);
 
-    if(tpl->state == PLAYING)
+    if(tpl->state == PLAYING){
+	tpl->state = STOPPED;
 	pl_start(tpl);
+    }
 
     return ret;
 }

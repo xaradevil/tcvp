@@ -89,10 +89,16 @@ t_close(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
 
+    pthread_mutex_lock(&tp->tmx);
+
     if(tp->demux){
 	tp->demux->flush(tp->demux, 1);
+	pthread_mutex_unlock(&tp->tmx);
 	pthread_join(tp->th_wait, NULL);
-	tp->demux->free(tp->demux);
+
+	pthread_mutex_lock(&tp->tmx);
+	if(tp->demux)
+	    tp->demux->free(tp->demux);
 	tp->demux = NULL;
     }
 
@@ -121,21 +127,20 @@ t_close(player_t *pl)
 	tp->stream = NULL;
     }
 
-    pthread_mutex_lock(&tp->tmx);
     tp->state = TCVP_STATE_END;
     if(tp->timer)
 	tp->timer->interrupt(tp->timer);
     pthread_mutex_unlock(&tp->tmx);
 
     pthread_join(tp->th_ticker, NULL);
+
+    pthread_mutex_lock(&tp->tmx);
     if(tp->timer){
 	tp->timer->free(tp->timer);
 	tp->timer = NULL;
     }
 
-    pthread_mutex_lock(&tp->tmx);
     tp->open = 0;
-    pthread_cond_broadcast(&tp->tcd);
     pthread_mutex_unlock(&tp->tmx);
 
     return 0;
@@ -147,12 +152,12 @@ t_free(player_t *pl)
     tcvp_player_t *tp = pl->private;
     tcvp_event_t *te;
 
-    t_close(pl);
-
     te = tcvp_alloc_event(-1);
     eventq_send(tp->qr, te);
     tcfree(te);
     pthread_join(tp->th_event, NULL);
+
+    t_close(pl);
 
     eventq_delete(tp->qr);
     eventq_delete(tp->qs);
