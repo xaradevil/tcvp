@@ -105,6 +105,8 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	tcfraction_t asp = { s->video.height * s->video.aspect.num,
 			     s->video.width * s->video.aspect.den };
 	tcreduce(&asp);
+	tc2_print("AVCODEC", TC2_PRINT_DEBUG,
+		  "SAR = %i/%i\n", asp.num, asp.den);
 	if(asp.num > 255 || asp.den > 255){
 	    double a = (double) asp.num / asp.den;
 	    if(asp.num > asp.den){
