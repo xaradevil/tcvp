@@ -31,7 +31,7 @@ typedef struct tcvp_player {
     pthread_mutex_t tmx;
     pthread_cond_t tcd;
     int state;
-    eventq_t qs, qr;
+    eventq_t qs, qr, qt;
     conf_section *conf;
     int open;
 } tcvp_player_t;
@@ -160,6 +160,7 @@ t_free(player_t *pl)
 
     eventq_delete(tp->qr);
     eventq_delete(tp->qs);
+    eventq_delete(tp->qt);
     pthread_mutex_destroy(&tp->tmx);
     pthread_cond_destroy(&tp->tcd);
 
@@ -221,10 +222,6 @@ st_ticker(void *p)
 {
     tcvp_player_t *tp = p;
     uint64_t time = 0;
-    eventq_t qt;
-
-    qt = eventq_new(NULL);
-    eventq_attach(qt, "TCVP/timer", EVENTQ_SEND);
 
     pthread_mutex_lock(&tp->tmx);
     while(tp->state != TCVP_STATE_END){
@@ -233,14 +230,13 @@ st_ticker(void *p)
 	    tcvp_timer_event_t *te = tcvp_alloc_event();
 	    te->type = TCVP_TIMER;
 	    te->time = time;
-	    eventq_send(qt, te);
+	    eventq_send(tp->qt, te);
 	    tcfree(te);
 	}
 	pthread_mutex_lock(&tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
 
-    eventq_delete(qt);
     return NULL;
 }
 
@@ -534,12 +530,19 @@ t_new(conf_section *cs)
 
     pthread_mutex_init(&tp->tmx, NULL);
     pthread_cond_init(&tp->tcd, NULL);
+
     tp->qs = eventq_new(NULL);
     sprintf(qn, "%s/status", qname);
     eventq_attach(tp->qs, qn, EVENTQ_SEND);
+
     tp->qr = eventq_new(tcref);
     sprintf(qn, "%s/control", qname);
     eventq_attach(tp->qr, qn, EVENTQ_RECV);
+
+    tp->qt = eventq_new(NULL);
+    sprintf(qn, "%s/timer", qname);
+    eventq_attach(tp->qt, qn, EVENTQ_SEND);
+
     pthread_create(&tp->th_event, NULL, t_event, pl);
     tp->conf = cs;
 
