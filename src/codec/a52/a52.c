@@ -253,7 +253,14 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
     }
 
     while(psize > 6){
-	int fsize = a52_syncinfo(pdata, &ad->flags, &srate, &brate);
+	int fsize = 0;
+	while(psize > 6){
+	    fsize = a52_syncinfo(pdata, &ad->flags, &srate, &brate);
+	    if(fsize > 0)
+		break;
+	    psize--;
+	    pdata++;
+	}
 	if(psize < fsize)
 	    break;
 	decode_frame(p, pdata, pk->stream);
@@ -352,6 +359,7 @@ a52_flush(tcvp_pipe_t *p, int drop)
     if(drop){
 	ad->fsize = 0;
 	ad->fpos = 0;
+	ad->ptsf = 0;
     }
 
     return 0;
