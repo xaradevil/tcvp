@@ -56,12 +56,14 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 
     while(ogg_stream_packetout(&ost->os, &op) != 1) {
 	while(ogg_sync_pageout(&ost->oy, &og) != 1) {
-	    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE) ;
-	    fread(buf, BUFFER_SIZE, 1, ost->f);
-	    /* fixme: detect eof */
-	    ogg_sync_wrote(&ost->oy, BUFFER_SIZE) ; 
-	}	
-	/* fixme: detect eof */
+	    int l;
+	    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+	    l = fread(buf, BUFFER_SIZE, 1, ost->f);
+	    ogg_sync_wrote(&ost->oy, l);
+	    if(l==0){
+		return NULL;
+	    }
+	}
 	ogg_stream_pagein(&ost->os, &og);
     }
 
