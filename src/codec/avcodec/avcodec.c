@@ -281,10 +281,11 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    p->format.video.frame_rate.den = 1;
 	}
 	tcreduce(&p->format.video.frame_rate);
-	if(vc->ctx->aspect_ratio){
+	if(vc->ctx->sample_aspect_ratio.num){
 	    p->format.video.aspect.num =
-		vc->ctx->height * vc->ctx->aspect_ratio;
-	    p->format.video.aspect.den = vc->ctx->height;
+		vc->ctx->width * vc->ctx->sample_aspect_ratio.num;
+	    p->format.video.aspect.den =
+		vc->ctx->height * vc->ctx->sample_aspect_ratio.den;
 	    tcreduce(&p->format.video.aspect);
 	}
 	ret = p->next->probe(p->next, NULL, &p->format);

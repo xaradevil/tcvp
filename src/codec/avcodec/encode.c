@@ -81,8 +81,13 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     ctx->frame_rate_base = s->video.frame_rate.den;
     ctx->width = s->video.width;
     ctx->height = s->video.height;
-    if(s->video.aspect.num)
-	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
+    if(s->video.aspect.num){
+	tcfraction_t asp = { s->video.height * s->video.aspect.num,
+			     s->video.width * s->video.aspect.den };
+	tcreduce(&asp);
+	ctx->sample_aspect_ratio.num = asp.num;
+	ctx->sample_aspect_ratio.den = asp.den;
+    }
     if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED)
 	ctx->flags |= CODEC_FLAG_INTERLACED_DCT;
     avcodec_open(ctx, enc->avc);
@@ -167,7 +172,6 @@ avc_encvideo_new(stream_t *s, char *codec, tcconf_section_t *cf)
     ctx_conf(p_masking, f);
     ctx_conf(dark_masking, f);
     ctx_conf(slice_count, i);
-    ctx_conf(aspect_ratio, f);
     ctx_conf(debug, i);
     ctx_conf(mb_qmin, i);
     ctx_conf(mb_qmax, i);
