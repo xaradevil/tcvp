@@ -23,7 +23,11 @@
 #include <X11/Xlib.h>
 #include "widgets.h"
 
-static int tcvp_playlist(tcwidget_t *w, void *p);
+static int tcvp_open_ui(tcwidget_t *w, void *p);
+static int tcvp_close_ui(tcwidget_t *w, void *p);
+static int tcvp_replace_ui(tcwidget_t *w, void *p);
+
+static int ui_count = 1;
 
 typedef struct {
     char *name;
@@ -36,13 +40,12 @@ saction_t actions[] = {
     {"pause", tcvp_pause},
     {"previous", tcvp_previous},
     {"next", tcvp_next},
-    {"playlist", tcvp_playlist},
-    {"close", tcvp_close},
+    {"open_ui", tcvp_open_ui},
+    {"close_ui", tcvp_close_ui},
+    {"replace_ui", tcvp_replace_ui},
     {"toggle_time", toggle_time},
     {NULL, NULL}
 };
-
-static int pl_visible = 0;
 
 static action_cb_t
 lookup_action(char *name)
@@ -70,8 +73,8 @@ load_skin(char *skinconf)
     int i=0;
 
     if(!(skin->config = conf_load_file (NULL, skinconf))){
-	fprintf(stderr, "Error loading file.\n");
-	exit(1);
+	fprintf(stderr, "Error loading file \"%s\".\n", skinconf);
+	return NULL;
     }
 
     skin->file = skinconf;
@@ -121,10 +124,11 @@ create_skinned_background(skin_t *skin, conf_section *sec)
 static tcimage_button_t*
 create_skinned_button(skin_t *skin, conf_section *sec)
 {
-    char *file, *action, *of = NULL, *df = NULL;
+    char *file, *action, *of = NULL, *df = NULL, *ad = NULL;
     int x, y;
     int i=0;
     action_cb_t acb;
+    tcimage_button_t *b;
 
     i += conf_getvalue(sec, "action", "%s", &action);
     i += conf_getvalue(sec, "image", "%s", &file);
@@ -136,9 +140,13 @@ create_skinned_button(skin_t *skin, conf_section *sec)
 
     conf_getvalue(sec, "mouse_over", "%s", &of);
     conf_getvalue(sec, "pressed", "%s", &df);
+    conf_getvalue(sec, "action_data", "%s", &ad);
 
     acb = lookup_action(action);
-    return(create_button(skin, x, y, file, of, df, acb, action));
+    b = create_button(skin, x, y, file, of, df, acb, action);
+    b->data = ad;
+
+    return b;
 }
 
 
@@ -265,31 +273,50 @@ create_skinned_state(skin_t *skin, conf_section *sec, char *state,
     
 
 static int
-tcvp_playlist(tcwidget_t *w, void *p)
+tcvp_replace_ui(tcwidget_t *w, void *p)
 {
-    if(pl_visible == 0) {
-	char *plfile = alloca(strlen(w->common.skin->path) +
-			      strlen(w->common.skin->playlistfile) + 2);
-
-	sprintf(plfile, "%s/%s", w->common.skin->path,
-		w->common.skin->playlistfile);
-
-	skin_t *pl = load_skin(plfile);
-	create_window(pl);
-	create_ui(pl);
-
-	XMapWindow (xd, pl->xw);
-	XMapSubwindows(xd, pl->xw);
-
-	w->common.data = pl;
-
-	pl_visible = 1;
-    } else {
-	skin_t *pl = w->common.data;
-
-	destroy_window(pl);
-	pl_visible = 0;
+    if(tcvp_open_ui(w, p) == 0) {
+	tcvp_close_ui(w, p);
     }
+    return 0;
+}
+
+static int
+tcvp_close_ui(tcwidget_t *w, void *p)
+{
+    destroy_window(w->common.skin);
+
+    ui_count--;
+    if(ui_count == 0) {
+	tcvp_quit();
+    }
+
+    return 0;
+}
+
+static int
+tcvp_open_ui(tcwidget_t *w, void *p)
+{
+    char *uifile = alloca(strlen(w->common.skin->path) +
+			  strlen((char *)w->common.data) + 2);
+
+    sprintf(uifile, "%s/%s", w->common.skin->path,
+	    (char *)w->common.data);
+
+    skin_t *ui = load_skin(uifile);
+
+    if(!ui) {
+	return -1;
+    }
+
+    create_window(ui);
+    create_ui(ui);
+
+    XMapWindow (xd, ui->xw);
+    XMapSubwindows(xd, ui->xw);
+
+    ui_count++;
+
     return 0;
 }
 
@@ -299,8 +326,6 @@ create_ui(skin_t *skin)
 {
     conf_section *sec;
     void *w, *s;
-
-    conf_getvalue(skin->config, "playlist", "%s", &skin->playlistfile);
 
     if((skin->background = create_skinned_background(skin, skin->config)) ==
        NULL) {

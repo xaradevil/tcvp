@@ -23,11 +23,13 @@
 #include <unistd.h>
 
 static int tcvpstate=-1;
+int s_time;
+int s_length;
+static int show_time = TCTIME_ELAPSED;
 
 extern void *
 tcvp_event(void *p)
 {
-    skin_t *skin = p;
     muxed_stream_t *st = NULL;
 
     while(!quit){
@@ -102,13 +104,13 @@ tcvp_event(void *p)
 /* 	    printf("%ld (%d/%d)\n", frames, frame_rate_num, frame_rate_den); */
 /* 	    printf("%d\n", s_length); */
 
-	    if(skin->seek_bar) {
-		if(s_length > 0){
-		    enable_seek_bar(skin->seek_bar);
-		} else {
-		    disable_seek_bar(skin->seek_bar);
-		}
-	    }
+/* 	    if(skin->seek_bar) { */
+/* 		if(s_length > 0){ */
+/* 		    enable_seek_bar(skin->seek_bar); */
+/* 		} else { */
+/* 		    disable_seek_bar(skin->seek_bar); */
+/* 		} */
+/* 	    } */
 	    break;
 	}
 	tcfree(te);
@@ -202,16 +204,14 @@ tcvp_seek(tcwidget_t *w, void *p)
 
 
 extern int
-tcvp_close(tcwidget_t *w, void *p)
+tcvp_quit()
 {
     quit = 1;
-    w->common.skin->enabled = 0;
 
-    tcvp_stop(w, NULL);
+    tcvp_stop(NULL, NULL);
 
     tc2_request(TC2_UNLOAD_ALL, 0);
 
-    XDestroyWindow(xd, w->common.skin->xw);
     XSync(xd, False);
 
     return 0;
@@ -224,6 +224,80 @@ tcvp_add_file(char *file)
     tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_ADD, &file, 1, -1);
     eventq_send(qs, te);
     tcfree(te);
+
+    return 0;
+}
+
+extern int
+toggle_time(tcwidget_t *w, void *p)
+{
+    if(show_time == TCTIME_ELAPSED) {
+	show_time = TCTIME_REMAINING;
+    } else if(show_time == TCTIME_REMAINING) {
+	show_time = TCTIME_ELAPSED;
+    }
+
+    return 0;
+}
+
+extern int
+update_state(char *state)
+{
+    list_item *current = NULL;
+    skin_t *skin;
+
+    while((skin = list_next(skin_list, &current))!=NULL) {
+	if(skin->state) {
+	    change_state(skin->state, state);
+	}
+    }
+
+    return 0;
+}
+
+extern int
+update_time()
+{
+    char text[8];
+    int t = 0;
+    char sign = ' ';
+
+    if(show_time == TCTIME_ELAPSED) {
+	t = s_time;
+    } else if(show_time == TCTIME_REMAINING) {
+	sign = '-';
+	if(s_length > 0){
+	    t = s_length - s_time;
+	} else {
+	    t = 0;
+	}
+    }
+
+    list_item *current = NULL;
+    skin_t *skin;
+
+    while((skin = list_next(skin_list, &current))!=NULL) {
+	if(skin->seek_bar) {
+	    if(s_length > 0){
+		change_seek_bar(skin->seek_bar, (double)s_time/s_length);
+	    } else {
+		change_seek_bar(skin->seek_bar, 0);
+	    }
+	}
+
+	char *spaces;
+	int m = t/60;
+	if(m < 10){
+	    spaces = "  ";
+	} else if(m >= 10 && m < 100){
+	    spaces = " ";
+	} else {
+	    spaces = "";
+	}
+
+	snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
+	change_text("time", text);
+    }
 
     return 0;
 }

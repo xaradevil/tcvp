@@ -21,7 +21,7 @@
 
 #include "widgets.h"
 
-int tcvp_close(tcwidget_t *w, void *p);
+int tcvp_quit();
 int tcvp_previous(tcwidget_t *w, void *p);
 int tcvp_next(tcwidget_t *w, void *p);
 int tcvp_play(tcwidget_t *w, void *p);

@@ -53,8 +53,6 @@ tcwidget_t *drag, *pbt;
 extern void *
 x11_event(void *p)
 {
-    skin_t *skin = p;
-
     while(!quit){
         XEvent xe;
 
@@ -67,13 +65,23 @@ x11_event(void *p)
 	    break;
 
 	case ConfigureNotify:
-	    if(skin->background->transparent) {
-		repaint_widgets();
-		draw_widgets();
+	{
+	    list_item *current=NULL;
+	    tcwidget_t *w;
+
+	    while((w = list_next(click_list, &current))!=NULL) {
+		if(xe.xbutton.window == w->common.win){
+		    if(w->common.skin->background->transparent) {
+			repaint_widgets();
+			draw_widgets();
+		    }
+		    w->common.skin->x = xe.xconfigure.x;
+		    w->common.skin->y = xe.xconfigure.y;
+		    break;
+		}
 	    }
-	    skin->x = xe.xconfigure.x;
-	    skin->y = xe.xconfigure.y;
 	    break;
+	}
 
  	case ButtonRelease:
 	{
@@ -173,7 +181,8 @@ x11_event(void *p)
 	    mapped = 0;
 	    break;
 
-	case SelectionNotify: {
+	case SelectionNotify:
+	{
 	    Atom ret_type;
 	    int ret_format;
 	    unsigned long ret_item;
@@ -218,45 +227,51 @@ x11_event(void *p)
 	}
 
 	case ClientMessage:
-	    if(xe.xclient.message_type == XdndEnter) {
-/* 		fprintf(stderr, "enter\n"); */
+	{
+	    list_item *current=NULL;
+	    tcwidget_t *w;
 
-	    } else if(xe.xclient.message_type == XdndPosition) {
-		XEvent xevent;
+	    while((w = list_next(click_list, &current))!=NULL) {
+		if(xe.xclient.window == w->common.win){
+		    if(xe.xclient.message_type == XdndEnter) {
+			/* Nothing yet */
+		    } else if(xe.xclient.message_type == XdndPosition) {
+			XEvent xevent;
 
-/* 		fprintf(stderr, "position\n"); */
+			memset (&xevent, 0, sizeof(xevent));
+			xevent.xany.type = ClientMessage;
+			xevent.xany.display = xd;
+			xevent.xclient.window = xe.xclient.data.l[0];
+			xevent.xclient.message_type = XdndStatus;
+			xevent.xclient.format = 32;
+			xevent.xclient.data.l[0] = w->common.skin->xw;
+			xevent.xclient.data.l[1] = 3;
+			xevent.xclient.data.l[2] =
+			    (w->common.skin->x << 16) |
+			    w->common.skin->y;
+			xevent.xclient.data.l[3] =
+			    (w->common.skin->width << 16) |
+			    w->common.skin->height;
+			xevent.xclient.data.l[4] = XdndActionPrivate;
+			XSendEvent(xd, xe.xclient.data.l[0], 0, 0, &xevent);
 
-		memset (&xevent, 0, sizeof(xevent));
-		xevent.xany.type = ClientMessage;
-		xevent.xany.display = xd;
-		xevent.xclient.window = xe.xclient.data.l[0];
-		xevent.xclient.message_type = XdndStatus;
-		xevent.xclient.format = 32;
-		xevent.xclient.data.l[0] = skin->xw;
-		xevent.xclient.data.l[1] = 3;
-		xevent.xclient.data.l[2] = (skin->x << 16) | skin->y;
-		xevent.xclient.data.l[3] = (skin->width << 16) | skin->height;
-		xevent.xclient.data.l[4] = XdndActionPrivate;
-		XSendEvent(xd, xe.xclient.data.l[0], 0, 0, &xevent);
+		    } else if(xe.xclient.message_type == XdndDrop) {
+			XConvertSelection(xd, XdndSelection, XdndType, tcvpxa,
+					  xe.xclient.window, CurrentTime);
 
-	    } else if(xe.xclient.message_type == XdndDrop) {
-/* 		fprintf(stderr, "drop\n"); */
-
-		XConvertSelection(xd, XdndSelection, XdndType, tcvpxa,
-				  xe.xclient.window, CurrentTime);
-
-	    } else if(xe.xclient.message_type == XdndLeave) {
-/* 		fprintf(stderr, "leave\n"); */
-/* 	    } else { */
-/* 		fprintf(stderr, "other %d\n", xe.xclient.message_type); */
+		    } else if(xe.xclient.message_type == XdndLeave) {
+			/* Nothing yet */
+		    }
+		}
 	    }
 	    break;
 	}
+	default:
+	    break;
+	}
     }
-
     return NULL;
 }
-
 
 static int
 check_wm(skin_t *skin)

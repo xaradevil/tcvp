@@ -34,7 +34,6 @@ struct _skin_t {
     char *file;
     char *path;
     conf_section *config;
-    char *playlistfile;
     int enabled;
     int net_wm_support;
     int x, y;

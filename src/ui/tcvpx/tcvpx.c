@@ -29,95 +29,13 @@
 #include "tcvpx.h"
 #include "tcvpctl.h"
 
-
 int quit = 0;
 
 player_t *pl;
 eventq_t qs;
 eventq_t qr;
 
-int s_time;
-int s_length;
-static int show_time = TCTIME_ELAPSED;
-
-int p_state = STOPPED;
-
 static pthread_t xth, eth, sth;
-
-extern int
-toggle_time(tcwidget_t *w, void *p)
-{
-    if(show_time == TCTIME_ELAPSED) {
-	show_time = TCTIME_REMAINING;
-    } else if(show_time == TCTIME_REMAINING) {
-	show_time = TCTIME_ELAPSED;
-    }
-
-    return 0;
-}
-
-extern int
-update_state(char *state)
-{
-    list_item *current = NULL;
-    skin_t *skin;
-
-    while((skin = list_next(skin_list, &current))!=NULL) {
-	if(skin->state) {
-	    change_state(skin->state, state);
-	}
-    }
-
-    return 0;
-}
-
-extern int
-update_time()
-{
-    char text[8];
-    int t = 0;
-    char sign = ' ';
-
-    if(show_time == TCTIME_ELAPSED) {
-	t = s_time;
-    } else if(show_time == TCTIME_REMAINING) {
-	sign = '-';
-	if(s_length > 0){
-	    t = s_length - s_time;
-	} else {
-	    t = 0;
-	}
-    }
-
-    list_item *current = NULL;
-    skin_t *skin;
-
-    while((skin = list_next(skin_list, &current))!=NULL) {
-	if(skin->seek_bar) {
-	    if(s_length > 0){
-		change_seek_bar(skin->seek_bar, (double)s_time/s_length);
-	    } else {
-		change_seek_bar(skin->seek_bar, 0);
-	    }
-	}
-
-	char *spaces;
-	int m = t/60;
-	if(m < 10){
-	    spaces = "  ";
-	} else if(m >= 10 && m < 100){
-	    spaces = " ";
-	} else {
-	    spaces = "";
-	}
-
-	snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
-	change_text("time", text);
-    }
-
-    return 0;
-}
-
 
 extern int
 tcvpx_init(char *p)
@@ -179,8 +97,8 @@ tcvpx_init(char *p)
     
     XSync(xd, False);
 
-    pthread_create(&xth, NULL, x11_event, skin);
-    pthread_create(&eth, NULL, tcvp_event, skin);
+    pthread_create(&xth, NULL, x11_event, NULL);
+    pthread_create(&eth, NULL, tcvp_event, NULL);
     if(list_items(sl_list)>0) {
 	pthread_create(&sth, NULL, scroll_labels, NULL);
     }
