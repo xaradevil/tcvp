@@ -52,7 +52,7 @@ pl_add(playlist_t *pl, char **files, int n, int p)
     pthread_mutex_lock(&tpl->lock);
 
     if(p < 0)
-	p = tpl->nf - p + 1;
+	p = tpl->nf + p + 1;
     if(p < 0)
 	p = 0;
 
@@ -88,7 +88,7 @@ pl_addlist(playlist_t *pl, char *file, int pos)
 	return -1;
 
     if(pos < 0)
-	pos = tpl->nf - pos + 1;
+	pos = tpl->nf + pos + 1;
     if(pos < 0)
 	pos = 0;
 
@@ -127,7 +127,7 @@ pl_remove(playlist_t *pl, int s, int n)
     pthread_mutex_lock(&tpl->lock);
 
     if(s < 0)
-	s = tpl->nf - s + 1;
+	s = tpl->nf + s + 1;
     if(s < 0)
 	s = 0;
 
@@ -174,7 +174,7 @@ pl_shuffle(playlist_t *pl, int s, int n)
     int i;
 
     if(s < 0)
-	s = tpl->nf - s + 1;
+	s = tpl->nf + s + 1;
     if(s < 0)
 	s = 0;
 
