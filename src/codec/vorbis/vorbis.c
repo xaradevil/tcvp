@@ -142,7 +142,7 @@ vorbis_new(stream_t *s, int mode, tcvp_pipe_t *out)
     if(mode != CODEC_MODE_DECODE)
 	return NULL;
 
-    vc = malloc(sizeof(VorbisContext_t));
+    vc = calloc(sizeof(VorbisContext_t),1);
 
     vorbis_info_init(&vc->vi) ;
     vorbis_comment_init(&vc->vc) ;
