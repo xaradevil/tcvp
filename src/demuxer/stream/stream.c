@@ -69,6 +69,7 @@ typedef struct s_play {
     int streams;
     pthread_t *threads;
     int state;
+    int flushing;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
 } s_play_t;
@@ -138,6 +139,10 @@ s_flush(tcvp_pipe_t *p, int drop)
     s_play_t *vp = p->private;
     int i;
 
+    pthread_mutex_lock(&vp->mtx);
+    vp->flushing++;
+    pthread_mutex_unlock(&vp->mtx);
+
     if(drop)
 	vp->state = STOP;
 
@@ -152,6 +157,11 @@ s_flush(tcvp_pipe_t *p, int drop)
 	}
     }
 
+    pthread_mutex_lock(&vp->mtx);
+    if(--vp->flushing == 0)
+	pthread_cond_broadcast(&vp->cnd);
+    pthread_mutex_unlock(&vp->mtx);
+
     return 0;
 }
 
@@ -162,6 +172,11 @@ s_free(tcvp_pipe_t *p)
     int i, j;
 
     s_flush(p, 1);
+
+    pthread_mutex_lock(&vp->mtx);
+    while(vp->flushing)
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
+    pthread_mutex_unlock(&vp->mtx);
 
     for(i = 0, j = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
@@ -185,7 +200,7 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out)
     s_play_t *vp;
     int i, j;
 
-    vp = malloc(sizeof(*vp));
+    vp = calloc(1, sizeof(*vp));
     vp->stream = ms;
     vp->pipes = calloc(ms->n_streams, sizeof(tcvp_pipe_t *));
     vp->threads = calloc(ms->n_streams, sizeof(pthread_t));
