@@ -434,7 +434,7 @@ mp3_packet(muxed_stream_t *ms, int str)
 
     size = mf->file->read(mp->data, 1, size, mf->file);
     if(size <= 0){
-	mp3_free_pk((packet_t *) mp);
+	tcfree(mp);
 	return NULL;
     }
 
