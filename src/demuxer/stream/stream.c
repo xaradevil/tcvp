@@ -173,11 +173,6 @@ s_free(tcvp_pipe_t *p)
 
     s_flush(p, 1);
 
-    pthread_mutex_lock(&vp->mtx);
-    while(vp->flushing)
-	pthread_cond_wait(&vp->cnd, &vp->mtx);
-    pthread_mutex_unlock(&vp->mtx);
-
     for(i = 0, j = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
 	    pthread_join(vp->threads[j], NULL);
@@ -185,10 +180,15 @@ s_free(tcvp_pipe_t *p)
 	}
     }
 
+    pthread_mutex_lock(&vp->mtx);
+    while(vp->flushing)
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
     free(vp->pipes);
     free(vp->threads);
     free(vp);
     free(p);
+
+    pthread_mutex_unlock(&vp->mtx);
 
     return 0;
 }
