@@ -30,6 +30,8 @@ typedef struct tcvp_player {
     tcvp_status_cb_t status;
     void *cbdata;
     pthread_t th_wait, th_ticker;
+    pthread_mutex_t tmx;
+    int state;
 } tcvp_player_t;
 
 static int
@@ -89,14 +91,18 @@ t_close(player_t *pl)
     if(tp->stream)
 	tp->stream->close(tp->stream);
 
+    pthread_mutex_lock(&tp->tmx);
+    tp->state = TCVP_STATE_END;
     if(tp->timer)
 	tp->timer->interrupt(tp->timer);
+    pthread_mutex_unlock(&tp->tmx);
 
     pthread_join(tp->th_wait, NULL);
-    pthread_join(tp->th_ticker, NULL);
 
-    if(tp->timer)
+    if(tp->timer){
+	pthread_join(tp->th_ticker, NULL);
 	tp->timer->free(tp->timer);
+    }
 
     free(tp);
     free(pl);
@@ -139,9 +145,11 @@ t_wait(void *p)
     tcvp_player_t *tp = p;
 
     tp->demux->flush(tp->demux, 0);
-    if(tp->status){
-	tp->status(tp->cbdata, TCVP_STATE_END, tp->timer->read(tp->timer));
-    }
+    pthread_mutex_lock(&tp->tmx);
+    tp->state = TCVP_STATE_END;
+    if(tp->timer)
+	tp->timer->interrupt(tp->timer);
+    pthread_mutex_unlock(&tp->tmx);
 
     return NULL;
 }
@@ -152,12 +160,20 @@ st_ticker(void *p)
     tcvp_player_t *tp = p;
     uint64_t time = 0;
 
-    for(;;){
-	if(tp->timer->wait(tp->timer, time += 100000) < 0)
-	    break;
-	if(tp->status){
-	    tp->status(tp->cbdata, TCVP_STATE_PLAYING, time);
+    pthread_mutex_lock(&tp->tmx);
+    while(tp->state != TCVP_STATE_END){
+	pthread_mutex_unlock(&tp->tmx);
+	if(tp->timer->wait(tp->timer, time += 100000) == 0){
+	    if(tp->status){
+		tp->status(tp->cbdata, tp->state, time);
+	    }
 	}
+	pthread_mutex_lock(&tp->tmx);
+    }
+    pthread_mutex_unlock(&tp->tmx);
+
+    if(tp->status){
+	tp->status(tp->cbdata, tp->state, tp->timer->read(tp->timer));
     }
 
     return NULL;
@@ -252,9 +268,12 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata)
     tp->timer = timer;
     tp->status = stcb;
     tp->cbdata = cbdata;
+    pthread_mutex_init(&tp->tmx, NULL);
+    tp->state = TCVP_STATE_PLAYING;
 
+    if(timer)
+	pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
     pthread_create(&tp->th_wait, NULL, t_wait, tp);
-    pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
     pl = malloc(sizeof(*pl));
     pl->start = t_start;
