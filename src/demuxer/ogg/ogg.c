@@ -163,12 +163,16 @@ ogg_open(char *name)
     char *buf;
     int l;
     muxed_stream_t *ms;
+    FILE *f;
+
+    if(!(f = fopen(name, "r")))
+	return NULL;
 
     ost=malloc(sizeof(ogg_stream_t));
 
     ogg_sync_init(&ost->oy);
 
-    ost->f=fopen(name, "r");
+    ost->f=f;
 
     ms = malloc(sizeof(*ms));
     ms->n_streams = 1;
