@@ -20,3 +20,4 @@ import		"tcvp/event"	"send"
 import		"tcvp/event"	"get"
 option		id3v1_encoding%s="ISO-8859-1"
 option		override_encoding%s
+option		starttime%li=0

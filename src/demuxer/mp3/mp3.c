@@ -414,7 +414,7 @@ mp3_packet(muxed_stream_t *ms, int str)
 
     size = mp->size;
     mp->pk.flags = TCVP_PKT_FLAG_PTS;
-    mp->pk.pts = mf->samples * 27000000 / mf->stream.audio.sample_rate;
+    mp->pk.pts = mf->samples * 27000000LL / mf->stream.audio.sample_rate;
 
     f = mp->data + mf->fsize;
     while(f - mp->data < size - mf->header_size){
@@ -568,6 +568,9 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 	tcfree(ms);
 	return NULL;
     }
+
+    mf->samples = (uint64_t) tcvp_demux_mp3_conf_starttime *
+	mf->stream.audio.sample_rate / 1000;
 
     ms->next_packet = mp3_packet;
     ms->seek = mp3_seek;
