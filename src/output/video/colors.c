@@ -79,13 +79,13 @@ i420_yuy2(int width, int height, const u_char **in, int *istride,
     }
 }
 
-#define copy_plane(i, ip, d) do {				\
-    int j;							\
-    for(j = 0; j < height / d; j++){				\
-	memcpy(out[i] + j * ostride[i],				\
-	       in[ip] + j * istride[i],				\
-	       min(istride[i], min(ostride[i], width / d)));	\
-    }								\
+#define copy_plane(i, ip, d, bpp) do {					\
+    int j;								\
+    for(j = 0; j < height / d; j++){					\
+	memcpy(out[i] + j * ostride[i],					\
+	       in[ip] + j * istride[i],					\
+	       bpp * min(istride[i], min(ostride[i], width / d)));	\
+    }									\
 } while(0)
 
 #define exp_plane(i, ip, d, x, y) do {					    \
@@ -119,9 +119,17 @@ static void								\
 fin##_##fout(int width, int height, const u_char **in, int *istride,	\
 	     u_char **out, int *ostride)				\
 {									\
-    copy_plane(0, p0, d0);						\
-    copy_plane(1, p1, d1);						\
-    copy_plane(2, p2, d2);						\
+    copy_plane(0, p0, d0, 1);						\
+    copy_plane(1, p1, d1, 1);						\
+    copy_plane(2, p2, d2, 1);						\
+}
+
+#define copy_packed(fin, fout, ss)					\
+static void								\
+fin##_##fout(int width, int height, const u_char **in, int *istride,	\
+	     u_char **out, int *ostride)				\
+{									\
+    copy_plane(0, 0, 1, ss);						\
 }
 
 #define alias(f1, f2) f1() __attribute__((alias(#f2)))
@@ -131,11 +139,13 @@ copy_planar(i420, yv12, 0, 2, 1, 1, 2, 2)
 alias(void yv12_i420, i420_yv12);
 alias(void i420_i420, yv12_yv12);
 
+copy_packed(rgb555, rgb555, 2)
+
 static void
 yvu9_yv12(int width, int height, const u_char **in, int *istride,
 	  u_char **out, int *ostride)
 {
-    copy_plane(0, 0, 1);
+    copy_plane(0, 0, 1, 1);
     exp_plane(1, 2, 4, 2, 2);
     exp_plane(2, 1, 4, 2, 2);
 }
@@ -144,7 +154,7 @@ static void
 yuv422p_yv12(int width, int height, const u_char **in, int *istride,
 	     u_char **out, int *ostride)
 {
-    copy_plane(0, 0, 1);
+    copy_plane(0, 0, 1, 1);
     red_plane(1, 2, 2, 1, 1, 2);
     red_plane(2, 1, 2, 1, 1, 2);
 }
@@ -164,6 +174,7 @@ static struct {
     cctab(i420, yuy2),
     cctab(yvu9, yv12),
     cctab(yuv422p, yv12),
+    cctab(rgb555, rgb555),
     { NULL, NULL, NULL }
 };
 
