@@ -90,6 +90,7 @@ static int
 alsa_flush(tcvp_pipe_t *p, int drop)
 {
     alsa_out_t *ao = p->private;
+    int s;
 
     if(drop)
 	snd_pcm_drop(ao->pcm);
@@ -97,7 +98,9 @@ alsa_flush(tcvp_pipe_t *p, int drop)
 	snd_pcm_drain(ao->pcm);
 
     ao->timer->interrupt(ao->timer);
-    snd_pcm_prepare(ao->pcm);
+    s = snd_pcm_state(ao->pcm);
+    if(s != SND_PCM_STATE_RUNNING && s != SND_PCM_STATE_PREPARED)
+	snd_pcm_prepare(ao->pcm);
 
     return 0;
 }
@@ -124,7 +127,7 @@ alsa_play(tcvp_pipe_t *p, packet_t *pk)
 	    snd_pcm_prepare(ao->pcm);
 	} else if(r < 0){
 	    if(snd_pcm_prepare(ao->pcm) < 0){
-		fprintf(stderr, "ALSA: write error: %s\n", snd_strerror(r));
+		fprintf(stderr, "ALSA: error: %s\n", snd_strerror(r));
 		return -1;
 	    }
 	}
