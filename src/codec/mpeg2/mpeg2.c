@@ -167,7 +167,7 @@ mpeg_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     p = tcallocdz(sizeof(*p), NULL, mpeg_free);
     p->format = *s;
-    p->format.common.codec = "video/yuv-422";
+    p->format.common.codec = "video/raw-i420";
     p->input = mpeg_decode;
     p->probe = mpeg_probe;
     p->flush = mpeg_flush;

@@ -370,7 +370,7 @@ avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 
 	p = tcallocdz(sizeof(*p), NULL, avc_free_vpipe);
 	p->format = *s;
-	p->format.video.codec = "video/yuv-420";
+	p->format.video.codec = "video/raw";
 	p->input = avc_decvideo;
 	p->probe = avc_probe_video;
 	p->private = vc;
