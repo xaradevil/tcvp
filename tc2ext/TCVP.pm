@@ -77,19 +77,29 @@ sub tc2module {
 	TC2::tc2_import('tcvp/event', 'format');
 	TC2::tc2_import('tcvp/event', 'get_qname');
 	TC2::tc2_require("tcvp/events/$2");
-    } elsif (not $module and /event\s+(\w+)(?:\s+(\w+)\s+(\w+)\s+(\w+))?/) {
+    } elsif (not $module and
+	     /event\s+(\w+)(?:\s+(\w+)(?:\s+(\w+)\s+(\w+))?)?/) {
 	$events{$1} = { alloc => $2,
 			ser => $3,
 			deser => $4 };
 	TC2::tc2_import('tcvp/event', $2? 'register': 'get');
 	TC2::tc2_import('tcvp/event', 'format');
 	if ($2) {
-	    TC2::tc2_export("tcvp/events/$1", "alloc",
-			    $2 eq 'NULL'? '@tcvp/events:alloc': $2);
-	    TC2::tc2_export("tcvp/events/$1", "serialize",
-			    $3 eq 'NULL'? '@tcvp/events:serialize': $3);
-	    TC2::tc2_export("tcvp/events/$1", "deserialize",
-			    $4 eq 'NULL'? '@tcvp/events:deserialize': $4);
+	    my($alloc, $ser, $deser);
+	    if($2 eq 'auto'){
+		my $pfx = lc $1 . "_auto_";
+		$events{$1}{alloc} = $alloc = $pfx . 'alloc';
+		$events{$1}{ser} = $ser = $pfx . 'serialize';
+		$events{$1}{deser} = $deser = $pfx . 'deserialize';
+		$events{$1}{auto} = 1;
+	    } else {
+		$alloc = $2 eq 'NULL'? '@tcvp/events:alloc': $2;
+		$ser = $3 eq 'NULL'? '@tcvp/events:serialize': $3;
+		$deser = $4 eq 'NULL'? '@tcvp/events:deserialize': $4;
+	    }
+	    TC2::tc2_export("tcvp/events/$1", "alloc", $alloc);
+	    TC2::tc2_export("tcvp/events/$1", "serialize", $ser);
+	    TC2::tc2_export("tcvp/events/$1", "deserialize", $deser);
 	} else {
 	    TC2::tc2_require("tcvp/events/$1");
 	}
@@ -102,30 +112,49 @@ sub tc2module {
     return 1;
 }
 
-my %etypes = (i => 'int32_t',
-	      I => 'int64_t',
-	      u => 'uint32_t',
-	      U => 'uint64_t',
-	      f => 'double',
-	      's' => 'char *',
-	      p => 'void *');
+my %etypes = ( i => { type => 'int32_t',
+		      size => 'sizeof(%s)',
+		      get => '%s' },
+	       I => { type => 'int64_t',
+		      size => 'sizeof(%s)',
+		      get => '%s' },
+	       u => { type => 'uint32_t',
+		      size => 'sizeof(%s)',
+		      get => '%s' },
+	       U => { type => 'uint64_t',
+		      size => 'sizeof(%s)',
+		      get => '%s' },
+	       f => { type => 'double',
+		      size => 'sizeof(%s)',
+		      get => '%s' },
+	       c => { type => 'int',
+		      size => '1',
+		      get => '%s' },
+	       's' => { type => 'char *',
+			size => '(strlen(%s) + 1)',
+			get => 'strdup(%s)',
+			free => 'free(%s)' },
+	       p => { type => 'void *',
+		      get => '%s' });
 
 sub interface {
     my $int = shift;
     $_ = shift;
 
-    if(/event\s+(\w+)\s*((\w+%([IiUufsp](\[(.*?)\])?)\s*)*)/){
+    if(/event\s+(\w+)\s*((\w+%([IiUufcsp](\[(.*?)\])?)\s*)*)/){
 	my($n, $d) = ($1, $2);
 	my $et = lc $n . '_event';
 	if ($d) {
 	    my $fmt;
 	    push @{$$int{include}}, "typedef struct $et \{\n";
 	    push @{$$int{include}}, "    int type;\n";
-	    while ($d =~ /(\w+)%([IiUufsp](\[(.*?)\])?)/g) {
+	    while ($d =~ /(\w+)%([IiUufcsp](\[(.*?)\])?)/g) {
 		my($f, $t, $t1) = ($1, $2, $4);
-		my $type = $t1 || $etypes{$t};
+		my $type = $t1 || $etypes{$t}{type};
 		push @{$$int{include}}, "    $type $f;\n";
-		$fmt .= substr $t, 0, 1;
+		my $fc = substr $t, 0, 1;
+		push @{$events{$n}{fields}}, [$type, $f, $fc];
+		$fmt .= $fc;
 	    }
 	    push @{$$int{include}}, "} ${et}_t;\n";
 	    $events{$n}{format} = $fmt;
@@ -133,6 +162,7 @@ sub interface {
 	    push @{$$int{include}}, "typedef tcvp_event_t ${et}_t;\n";
 	    $events{$n}{format} = '';
 	}
+	$events{$n}{type} = $et;
 	unshift @{$$int{inherit}}, 'tcvp/events';
     } else {
 	return 0;
@@ -340,6 +370,119 @@ $$_{w}new(tcconf_section_t *cs)
 }
 END_C
 	}
+    }
+
+    print $fh "#include <tcendian.h>\n";
+
+    while (my($name, $e) = each %events) {
+	next if !$$e{auto};
+	die "can't create funcs for $name ($1)\n" if $$e{format} =~ /([fp])/;
+	my $free = 'NULL';
+	if ($$e{format} =~ /s/) {
+	    $free = $$e{type} . '_auto_free';
+	    print $fh <<END_C;
+static void
+$free(void *p)
+{
+    $$e{type}_t *e = p;
+END_C
+	    for (@{$$e{fields}}) {
+		my($t, $n, $c) = @$_;
+		printf $fh "    $etypes{$c}{free};\n", "e->$n"
+		  if exists $etypes{$c}{free};
+	    }
+	    print $fh "}\n\n";
+	}
+	print $fh <<END_C;
+extern void *
+$$e{alloc}(int type, va_list args)
+{
+    $$e{type}_t *e = tcvp_event_alloc(type, sizeof(*e), $free);
+END_C
+	for (@{$$e{fields}}) {
+	    my($t, $n, $c) = @$_;
+	    printf $fh "    e->$n = $etypes{$c}{get};\n", "va_arg(args, $t)";
+	}
+	print $fh "    return e;\n";
+	print $fh "}\n\n";
+
+	print $fh <<END_C;
+extern u_char *
+$$e{ser}(char *name, void *event, int *size)
+{
+    $$e{type}_t *e = event;
+    u_char *sb, *p;
+    int s = strlen(name) + 1;
+END_C
+	printf $fh "    s += %s;\n", join '+',
+	  map sprintf($etypes{$$_[2]}{size}, "e->$$_[1]"), @{$$e{fields}};
+	print $fh "    p = sb = malloc(s);\n";
+	print $fh qq/    p += sprintf(p, "$name") + 1;\n/;
+	for (@{$$e{fields}}) {
+	    my($t, $n, $c) = @$_;
+	    if ($c eq 'i' or $c eq 'u') {
+		print $fh "    st_unaligned32(htob_32(e->$n), p);\n";
+		print $fh "    p += 4;\n"
+	    } elsif ($c eq 'I' or $c eq 'U') {
+		print $fh "    st_unaligned64(htob_64(e->$n), p);\n";
+		print $fh "    p += 8;\n"
+	    } elsif ($c eq 'c') {
+		print $fh "    *p++ = e->$n;\n";
+	    } elsif ($c eq 's') {
+		print $fh qq/    p += sprintf(p, "%s", e->$n) + 1;\n/;
+	    }
+	}
+	print $fh "    *size = s;\n";
+	print $fh "    return sb;\n";
+	print $fh "}\n\n";
+
+	print $fh <<END_C;
+extern void *
+$$e{deser}(int type, u_char *_event, int _size)
+{
+    u_char *_p = memchr(_event, 0, _size);
+END_C
+	print $fh "    u_char *_n;\n" if $$e{format} =~ /s/;
+	print $fh "    $$_[0] $$_[1];\n" for (@{$$e{fields}});
+	print $fh "    _size -= ++_p - _event;\n";
+	for (@{$$e{fields}}) {
+	    my($t, $n, $c) = @$_;
+	    if ($c eq 'i' or $c eq 'u') {
+		print $fh <<END_C;
+    if(_size < 4)
+	return NULL;
+    $n = htob_32(unaligned32(_p));
+    _p += 4;
+    _size -= 4;
+END_C
+	    } elsif ($c eq 'I' or $c eq 'U') {
+		print $fh <<END_C;
+    if(_size < 8)
+	return NULL;
+    $n = htob_64(unaligned64(_p));
+    _p += 8;
+    _size -= 8;
+END_C
+	    } elsif ($c eq 'c') {
+		print $fh <<END_C;
+    if(_size < 1)
+	return NULL;
+    $n = *_p++;
+    _size--;
+END_C
+	    } elsif ($c eq 's') {
+		print $fh <<END_C;
+    _n = memchr(_p, 0, _size - (_p - _event));
+    if(!_n)
+	return NULL;
+    $n = _p;
+    _p = _n + 1;
+END_C
+	    }
+	}
+	printf $fh "    return tcvp_event_new(type, %s);\n",
+	  join ',', map $$_[1], @{$$e{fields}};
+	print $fh "}\n";
     }
 }
 
