@@ -9,3 +9,4 @@ import		"mux/wav"	"header"
 option		device%s="default"
 option		period%i=6000
 option		buffer%i=12000
+option		timestamp%i=0

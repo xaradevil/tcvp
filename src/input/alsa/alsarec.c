@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tcalloc.h>
+#include <sys/time.h>
 #include <alsa/asoundlib.h>
 #include <alsarec_tc2.h>
 
@@ -38,7 +39,20 @@ extern int
 alsa_read(void *buf, size_t size, size_t count, url_t *u)
 {
     alsa_in_t *ai = u->private;
-    snd_pcm_uframes_t frames = size * count / ai->bpf;
+    size_t bytes = size * count;
+    snd_pcm_uframes_t frames;
+
+    if(tcvp_input_alsa_conf_timestamp){
+	uint64_t pts;
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	pts = (uint64_t) tv.tv_sec * 27000000LL + tv.tv_usec * 27;
+	memcpy(buf, &pts, sizeof(pts));
+	buf += sizeof(pts);
+	bytes -= sizeof(pts);
+    }
+
+    frames = bytes / ai->bpf;
 
     while(frames > 0){
 	snd_pcm_sframes_t r = snd_pcm_readi(ai->pcm, buf, frames);
@@ -94,7 +108,7 @@ alsa_open(char *name, char *mode)
     int hsize, bpf;
     stream_t s;
     char *dev;
-    url_t *u;
+    url_t *u, *vu;
     int tmp;
 
     if(*mode != 'r')
@@ -152,7 +166,10 @@ alsa_open(char *name, char *mode)
     u->private = ai;
     u->size = 0;
 
-    return url_vheader_new(u, ai->header, hsize);
+    vu = url_vheader_new(u, ai->header, hsize);
+    if(tcvp_input_alsa_conf_timestamp)
+	tcattr_set(vu, "tcvp/timestamp", "tcvp/timestamp", NULL, NULL);
+    return vu;
 
 err:
     snd_pcm_close(pcm);

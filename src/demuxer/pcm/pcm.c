@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -34,19 +34,20 @@ typedef struct pcm {
     uint64_t pts;
     stream_t s;
     int used;
+    int tstamp;
 } pcm_t;
 
 typedef struct pcm_packet {
     packet_t pk;
     int size;
-    u_char *data;
+    u_char *data, *buf;
 } pcm_packet_t;
 
 static void
 pcm_free_pk(void *p)
 {
     pcm_packet_t *ep = p;
-    free(ep->data);
+    free(ep->buf);
 }
 
 static packet_t *
@@ -68,6 +69,14 @@ pcm_packet(muxed_stream_t *ms, int str)
     ep->pk.sizes = &ep->size;
     ep->pk.planes = 1;
     ep->pk.flags = TCVP_PKT_FLAG_PTS;
+    ep->buf = buf;
+
+    if(pcm->tstamp){
+	pcm->pts = *(uint64_t *) buf;
+	buf += 8;
+	size -= 8;
+    }
+
     ep->pk.pts = pcm->pts;
     ep->data = buf;
     ep->size = size;
@@ -117,6 +126,11 @@ pcm_open(url_t *u, char *codec, int channels, int srate, int samples,
     pcm->s.audio.bit_rate = brate;
     pcm->s.audio.samples = samples;
     pcm->s.audio.block_align = channels * bits / 8;
+
+    if(tcattr_get(u, "tcvp/timestamp")){
+	tc2_print("PCM", TC2_PRINT_DEBUG, "timestamps present\n");
+	pcm->tstamp = 1;
+    }
 
     ms = tcallocdz(sizeof(*ms), NULL, pcm_free);
     ms->n_streams = 1;
