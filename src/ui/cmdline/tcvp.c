@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <unistd.h>
 #include <tcalloc.h>
 #include <mcheck.h>
 #include <sys/time.h>
@@ -39,6 +40,7 @@ static int nadd;
 static tcvp_addon_t **addons;
 static char **commands;
 static int ncmds;
+static int isdaemon;
 
 static int TCVP_STATE;
 static int TCVP_PL_START;
@@ -74,6 +76,7 @@ show_help(void)
 	   "   -f      --fullscreen          Fill entire screen\n"
 	   "           --aspect=a[/b]        Force video aspect ratio\n"
 	   "           --skin=file           Select skin\n"
+	   "   -D      --daemon              Fork into background.\n"
 	   "           --play\n"
 	   "           --pause\n"
 	   "           --stop\n"
@@ -112,7 +115,8 @@ tcl_event(void *p)
 		if(!prl)
 		    break;
 	    case TCVP_STATE_PL_END:
-		tc2_request(TC2_UNLOAD_ALL, 0);
+		if(!isdaemon)
+		    tc2_request(TC2_UNLOAD_ALL, 0);
 		break;
 	    }
 	} else if(te->type == -1){
@@ -189,7 +193,7 @@ tcl_init(char *p)
 	return 0;
     }
 
-    if(!ncmds && !nfiles && !npl && !sel_ui){
+    if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon){
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
 	return 0;
@@ -391,6 +395,7 @@ parse_options(int argc, char **argv)
 	{"play", no_argument, 0, OPT_PLAY},
 	{"pause", no_argument, 0, OPT_PAUSE},
 	{"stop", no_argument, 0, OPT_STOP},
+	{"daemon", no_argument, 0, 'D'},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
@@ -399,7 +404,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:px:",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:px:D",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -514,6 +519,10 @@ parse_options(int argc, char **argv)
 	    add_cmd("TCVP_CLOSE");
 	    break;
 
+	case 'D':
+	    isdaemon = 1;
+	    break;
+
 	case OPT_TC2_DEBUG:
 	    tc2_debug(strtol(optarg, NULL, 0));
 	    break;
@@ -539,6 +548,9 @@ main(int argc, char **argv)
     cf = tcconf_new(NULL);
 
     opt_num = parse_options(argc, argv);
+
+    if(isdaemon)
+	daemon(0, 0);
 
     nfiles = argc - opt_num;
     files = argv + opt_num;
