@@ -99,6 +99,7 @@ mpeges_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     me->u = tcref(u);
     me->s.stream_type = STREAM_TYPE_VIDEO;
     me->s.video.codec = "video/mpeg";
+    me->s.video.flags = TCVP_STREAM_FLAG_TRUNCATED;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpeges_free);
     ms->n_streams = 1;
