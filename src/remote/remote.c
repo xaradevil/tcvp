@@ -177,6 +177,41 @@ end:
     return ret;
 }
 
+static int
+send_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
+{
+    void *s = NULL;
+    char *f, l;
+
+    while(tcconf_nextvalue(rm->conf, "feature", &s, "%s", &f) > 0){
+	l = strlen(f);
+	send(cl->socket, &l, 1, MSG_NOSIGNAL | MSG_MORE);
+	send(cl->socket, f, l, MSG_NOSIGNAL | MSG_MORE);
+	free(f);
+    }
+
+    l = 0;
+    send(cl->socket, &l, 1, MSG_NOSIGNAL | MSG_MORE);
+
+    return 0;
+}
+
+static int
+recv_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
+{
+    char l;
+
+    while(recv(cl->socket, &l, 1, MSG_NOSIGNAL) == 1 && l > 0){
+	char *f = malloc(l + 1);
+	recv(cl->socket, f, l, MSG_NOSIGNAL);
+	f[l] = 0;
+	tcconf_setvalue(rm->conf, "feature", "%s", f);
+	free(f);
+    }
+
+    return 0;
+}
+
 static void *
 rm_listen(void *p)
 {
@@ -222,6 +257,7 @@ rm_listen(void *p)
 		       !memcmp(cookie, rm->cookie, COOKIE_SIZE)){
 			cl->auth = 1;
 			write(cl->socket, "auth", 4);
+			send_features(rm, cl);
 		    } else {
 			tclist_remove(rm->clients, li);
 			FD_CLR(cl->socket, &rm->clf);
@@ -349,6 +385,7 @@ rm_new(tcconf_section_t *cs)
 	cl->socket = sock;
 	cl->addr = rsa;
 	cl->auth = 1;
+	recv_features(rm, cl);
 	tclist_push(rm->clients, cl);
 	rm->ssock = -1;
     } else {
@@ -376,7 +413,8 @@ get_event(char *evt, int type)
     int e = tcvp_event_get(evt);
     if(e > max_event){
 	event_types = realloc(event_types, (e + 1) * sizeof(*event_types));
-	memset(event_types + e, 0, (e - max_event) * sizeof(*event_types));
+	memset(event_types + max_event + 1, 0,
+	       (e - max_event) * sizeof(*event_types));
 	max_event = e;
     }
     event_types[e] = type;
@@ -394,7 +432,7 @@ rm_init(char *p)
     get_event("TCVP_PL_REMOVE", CONTROL);
     get_event("TCVP_PL_SHUFFLE", CONTROL);
     get_event("TCVP_STATE", STATUS);
-    get_event("TCVP_OPEN", CONTROL); 
+    get_event("TCVP_OPEN", CONTROL);
     get_event("TCVP_START", CONTROL);
     get_event("TCVP_PAUSE", CONTROL);
     get_event("TCVP_STOP", CONTROL);

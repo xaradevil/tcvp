@@ -740,31 +740,60 @@ te_query(tcvp_module_t *tm, tcvp_event_t *e)
 static u_int plc;
 
 extern int
+t_init(tcvp_module_t *tm)
+{
+    tcvp_player_t *tp = tm->private;
+    char *qname, qn[32];
+    void *s = NULL;
+    int core = 0;
+    char *f;
+
+    while(tcconf_nextvalue(tp->conf, "feature", &s, "%s", &f) > 0){
+	if(!strcmp(f, "core"))
+	    core = 1;
+	free(f);
+    }
+
+    if(core)
+	return -1;
+
+    tcconf_getvalue(tp->conf, "qname", "%s", &qname);
+    sprintf(qn, "%s/status", qname);
+    eventq_attach(tp->qs, qn, EVENTQ_SEND);
+
+    sprintf(qn, "%s/timer", qname);
+    eventq_attach(tp->qt, qn, EVENTQ_SEND);
+
+    tcconf_setvalue(tp->conf, "feature", "%s", "core");
+
+    free(qname);
+    return 0;
+}
+
+extern int
 t_new(tcvp_module_t *tm, tcconf_section_t *cs)
 {
     tcvp_player_t *tp;
-    char qn[32];
-    char qname[16];
+    char *qname;
 
     tp = tcallocdz(sizeof(*tp), NULL, t_free);
     tp->state = TCVP_STATE_END;
 
-    sprintf(qname, "TCVP-%u", plc++);
-    tcconf_setvalue(cs, "qname", "%s", qname);
+    if(tcconf_getvalue(cs, "qname", "%s", &qname) < 1){
+	qname = malloc(16);
+	sprintf(qname, "TCVP-%u", plc++);
+	tcconf_setvalue(cs, "qname", "%s", qname);
+    }
+
+    tp->qs = eventq_new(NULL);
+    tp->qt = eventq_new(NULL);
 
     pthread_mutex_init(&tp->tmx, NULL);
     pthread_cond_init(&tp->tcd, NULL);
 
-    tp->qs = eventq_new(NULL);
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(tp->qs, qn, EVENTQ_SEND);
-
-    tp->qt = eventq_new(NULL);
-    sprintf(qn, "%s/timer", qname);
-    eventq_attach(tp->qt, qn, EVENTQ_SEND);
-
     tp->conf = tcref(cs);
-
     tm->private = tp;
+
+    free(qname);
     return 0;
 }

@@ -13,7 +13,7 @@ import		"tcvp/event"	"new"
 require		"filter"
 
 TCVP {
-	module "tcvp/core" t_new
+	module "tcvp/core" t_new t_init
 	event control	TCVP_KEY	NULL key_alloc NULL NULL
 	event control	TCVP_OPEN	te_open open_alloc open_ser open_deser
 	event control	TCVP_OPEN_MULTI	te_openm open_multi_alloc NULL NULL
