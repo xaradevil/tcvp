@@ -70,8 +70,7 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
     } else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
 	if(te->type == TCVP_LOAD) {
 	    char *title;
-	    if(st)
-		tcfree(st);
+
 	    st = ((tcvp_load_event_t *)te)->stream;
 	    tcref(st);
 
@@ -127,6 +126,9 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	    }
 	    if(st->time)
 		s_length = st->time / 27000000;
+
+	    tcfree(st);
+	    st = NULL;
 
 	    update_time();
 	}
