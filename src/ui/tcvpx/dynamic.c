@@ -60,18 +60,20 @@ change_variable(char *key, void *data)
 	xtk_widget_t *w;
 
 	while((w = tclist_next(lst, &current))!=NULL) {
-	    XTK_SLIDER(w, s);
-	    widget_data_t *ad = w->data;
-	    parse_variable(ad->value, &tmp, NULL);
-	    if(s) {
-		double pos = (tmp)?*((double *)tmp):0;
-		if(pos < 0) {
-		    xtk_widget_disable(w);
-		} else {
-		    xtk_widget_enable(w);
+	    widget_data_t *ad = xtk_widget_get_data(w);
+	    if(ad) {
+		XTK_SLIDER(w, s);
+		parse_variable(ad->value, &tmp, NULL);
+		if(s) {
+		    double pos = (tmp)?*((double *)tmp):0;
+		    if(pos < 0) {
+			xtk_widget_disable(w);
+		    } else {
+			xtk_widget_enable(w);
+		    }
+		    xtk_widget_slider_set_position(w, pos);
+		    break;
 		}
-		xtk_widget_slider_set_position(w, pos);
-		break;
 	    }
 	}
     }
@@ -103,13 +105,15 @@ change_text(char *key, char *text)
     if(lst) {
 	xtk_widget_t *w;
 	while((w = tclist_next(lst, &current))!=NULL) {
-	    widget_data_t *ad = w->data;
-	    parse_text(ad->value, buf, 1024);
-	    xtk_widget_label_set_text(w, buf);
-	    xtk_widget_state_set_state(w, buf);
-	    XTK_WINDOW(w, win);
-	    if(win){
-		xtk_window_set_title(w, buf);
+	    widget_data_t *ad = xtk_widget_get_data(w);
+	    if(ad) {
+		parse_text(ad->value, buf, 1024);
+		xtk_widget_label_set_text(w, buf);
+		xtk_widget_state_set_state(w, buf);
+		XTK_WINDOW(w, win);
+		if(win){
+		    xtk_window_set_title(w, buf);
+		}
 	    }
 	}
     }

@@ -205,10 +205,13 @@ tcvp_seek(xtk_widget_t *w, void *p)
 extern int
 tcvp_seek_rel(xtk_widget_t *w, void *p)
 {
-    char *d = ((widget_data_t *)w->data)->action_data;
-    uint64_t time = strtol(d, NULL, 0) * 27000000;
+    widget_data_t *wd = xtk_widget_get_data(w);
+    if(wd) {
+	char *d = wd->action_data;
+	uint64_t time = strtol(d, NULL, 0) * 27000000;
 
-    tcvp_event_send(qs, TCVP_SEEK, time, TCVP_SEEK_REL);
+	tcvp_event_send(qs, TCVP_SEEK, time, TCVP_SEEK_REL);
+    }
 
     return 0;
 }
