@@ -53,8 +53,10 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
     }
 
     if(pk->flags & TCVP_PKT_FLAG_PTS){
-	le->pts = pk->pts -
-	    delay * 27000000LL / p->format.audio.sample_rate;
+	uint64_t dp = delay * 27000000LL / p->format.audio.sample_rate;
+	le->pts = pk->pts;
+	if(dp < le->pts)
+	    le->pts -= dp;
 	le->fpts = 1;
     }
 
