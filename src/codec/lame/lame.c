@@ -9,10 +9,13 @@
 #include <tcvp_types.h>
 #include <lame/lame.h>
 #include <lame_tc2.h>
+#include <assert.h>
 
 typedef struct lame_enc {
     lame_global_flags *gf;
     int channels;
+    uint64_t pts;
+    int fpts;
 } lame_enc_t;
 
 typedef struct lame_packet {
@@ -49,6 +52,12 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 					    samples, buf, bs);
     }
 
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
+	le->pts = pk->pts -
+	    delay * 27000000LL / p->format.audio.sample_rate;
+	le->fpts = 1;
+    }
+
     if(bs > 0){
 	lame_packet_t *lp = tcallocdz(sizeof(*lp), NULL, l_free_pk);
 	lp->pk.stream = pk->stream;
@@ -57,17 +66,20 @@ l_input(tcvp_pipe_t *p, packet_t *pk)
 	lp->pk.sizes = &lp->size;
 	lp->size = bs;
 	lp->pk.planes = 1;
-	if(pk->flags & TCVP_PKT_FLAG_PTS){
-	    lp->pk.pts = pk->pts -
-		delay * 27000000LL / p->format.audio.sample_rate;
+	if(le->fpts){
+	    lp->pk.pts = le->pts;
 	    lp->pk.flags |= TCVP_PKT_FLAG_PTS;
+	    le->fpts = 0;
 	}
 	p->next->input(p->next, &lp->pk);
     } else {
 	free(buf);
     }
 
-    tcfree(pk);
+    if(!pk->data)
+	p->next->input(p->next, pk);
+    else
+	tcfree(pk);
     return 0;
 }
 
