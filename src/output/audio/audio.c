@@ -101,7 +101,8 @@ audio_free(void *p)
     pthread_cond_broadcast(&ao->cd);
     pthread_mutex_unlock(&ao->mx);
 
-    pthread_join(ao->pth, NULL);
+    if(ao->pth)
+	pthread_join(ao->pth, NULL);
     pthread_mutex_lock(&ao->mx);
     if(ao->driver)
 	tcfree(ao->driver);
