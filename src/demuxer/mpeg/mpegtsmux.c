@@ -132,7 +132,7 @@ tmx_output(void *p)
 	while(tsm->bpos < tsm->bsize && tsm->running)
 	    pthread_cond_wait(&tsm->cnd, &tsm->lock);
 
-	if(tsm->bitrate){
+	if((tsm->out->flags & URL_FLAG_STREAMED) && tsm->bitrate){
 	    (*tsm->timer)->wait(*tsm->timer, tsm->pcr);
 	    tsm->pcr += 27000000 * tsm->bpos * 8 / tsm->bitrate;
 	}
