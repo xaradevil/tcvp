@@ -264,7 +264,7 @@ avi_header(FILE *f)
 	case TAG('i','d','x','1'):{
 	    int idxoff;
 	    int idxl = size / sizeof(avi_index_t);
-	    af->index = malloc(size);
+	    af->index = calloc(idxl, sizeof(*af->index));
 	    idxl = fread(af->index, sizeof(avi_index_t), idxl, f);
 	    af->idxlen = idxl;
 	    idxoff = movi_start - af->index[0].offset;
