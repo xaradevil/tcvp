@@ -303,8 +303,8 @@ post_packet(mpegts_mux_t *tsm)
     tsm->bytes += TS_PACKET_SIZE;
 }
 
-static int
-tmx_input(tcvp_pipe_t *p, packet_t *pk)
+extern int
+mpegts_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     mpegts_mux_t *tsm = p->private;
     int64_t dts;
@@ -387,7 +387,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    else
 		dts = pk->pts + tsm->pcr_offset;
 
-	    if(dts - os->lpts > tsm->pts_interval){
+	    if(dts - os->lpts > tsm->pts_interval || os->lpts == -1){
 		if(pk->flags & TCVP_PKT_FLAG_PTS)
 		    ppts = pk->pts + tsm->delay;
 		if(pk->flags & TCVP_PKT_FLAG_DTS)
@@ -428,7 +428,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    tsm->last_psi = tsm->pcr;
 	}
 
-	if(tsm->pcr - tsm->last_pcr > tsm->pcr_int){
+	if(tsm->pcr - tsm->last_pcr > tsm->pcr_int || tsm->last_pcr == -1){
 	    put_pcr(tsm->pcr_packet + 6, tsm->pcr);
 	    memcpy(tsm->outbuf + tsm->bpos, tsm->pcr_packet, TS_PACKET_SIZE);
 	    if(tsm->discont){
@@ -483,8 +483,8 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-static int
-tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
+extern int
+mpegts_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     mpegts_mux_t *tsm = p->private;
     mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
@@ -578,8 +578,8 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return PROBE_OK;
 }
 
-static int
-tmx_flush(tcvp_pipe_t *p, int drop)
+extern int
+mpegts_flush(tcvp_pipe_t *p, int drop)
 {
     mpegts_mux_t *tsm = p->private;
 
@@ -598,8 +598,7 @@ tmx_flush(tcvp_pipe_t *p, int drop)
 static void
 tmx_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    mpegts_mux_t *tsm = tp->private;
+    mpegts_mux_t *tsm = p;
 
     tsm->out->close(tsm->out);
     free(tsm->outbuf);
@@ -610,29 +609,27 @@ tmx_free(void *p)
     if(tsm->streams)
 	free(tsm->streams);
     tcfree(tsm->timer);
-    free(tsm);
 }
 
-extern tcvp_pipe_t *
-mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+extern int
+mpegts_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	   muxed_stream_t *ms)
 {
     mpegts_mux_t *tsm;
-    tcvp_pipe_t *p;
     char *url;
     url_t *out;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
 	tc2_print("MPEGTS-MUX", TC2_PRINT_ERROR, "No output specified.\n");
-	return NULL;
+	return -1;
     }
 
     if(!(out = url_open(url, "w"))){
 	tc2_print("MPEGTS-MUX", TC2_PRINT_ERROR, "Error opening %s.\n", url);
-	return NULL;
+	return -1;
     }
 
-    tsm = calloc(1, sizeof(*tsm));
+    tsm = tcallocdz(sizeof(*tsm), NULL, tmx_free);
     tsm->out = out;
     tsm->bsize = outbuf_size;
 
@@ -686,15 +683,11 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->audio_offset *= 27000;
     tsm->video_offset *= 27000;
 
-    p = tcallocdz(sizeof(*p), NULL, tmx_free);
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
     p->format.common.codec = "mpeg-ts";
-    p->input = tmx_input;
-    p->probe = tmx_probe;
-    p->flush = tmx_flush;
     p->private = tsm;
 
     free(url);
 
-    return p;
+    return 0;
 }
