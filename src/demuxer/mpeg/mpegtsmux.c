@@ -255,7 +255,7 @@ tmx_output(void *p)
 		tsm->bitrate;
 	}
 
-	if(tsm->out->write(tsm->outbuf, 188, op, tsm->out) != op)
+	if(tsm->out->write(tsm->outbuf, 1, tsm->bpos, tsm->out) != tsm->bpos)
 	    tsm->running = 0;
 	tsm->bpos = 0;
 	tsm->psic -= op;
