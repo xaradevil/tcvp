@@ -291,6 +291,7 @@ mp3_getparams(muxed_stream_t *ms)
     uint64_t maxscan, i;
     off_t pos = f->tell(f);
     u_char head[MAX_HEADER_SIZE];
+    int found = 0;
     int resync;
 
     if(mf->parse_header){
@@ -301,7 +302,7 @@ mp3_getparams(muxed_stream_t *ms)
 	maxscan = MAX_FRAME_SIZE;
     }
 
-    if(f->read(head, 1, MAX_HEADER_SIZE, f) < mf->header_size)
+    if(f->read(head, 1, MAX_HEADER_SIZE, f) < MAX_HEADER_SIZE)
 	return -1;
 
     for(i = 0; i < maxscan; i++){
@@ -309,9 +310,11 @@ mp3_getparams(muxed_stream_t *ms)
 	    off_t pos2 = f->tell(f);
 	    u_char head2[MAX_HEADER_SIZE];
 	    f->seek(f, pos + i + fr.size, SEEK_SET);
-	    f->read(head2, 1, mf->header_size, f);
+	    if(f->read(head2, 1, mf->header_size, f) < mf->header_size)
+		break;
 	    if(!mf->parse_header(head2, &fr)){
 		f->seek(f, pos + i, SEEK_SET);
+		found = 1;
 		break;
 	    }
 	    f->seek(f, pos2, SEEK_SET);
@@ -323,6 +326,9 @@ mp3_getparams(muxed_stream_t *ms)
 	if(f->read(head + MAX_HEADER_SIZE - 1, 1, 1, f) != 1)
 	    return -1;
     }
+
+    if(!found)
+	return -1;
 
     if(!mf->stream.audio.bit_rate)
 	mf->stream.audio.bit_rate = fr.bitrate;
