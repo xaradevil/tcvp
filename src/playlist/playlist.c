@@ -179,7 +179,8 @@ pl_remove(playlist_t *pl, int s, int n)
     for(i = 0; i < nr; i++)
 	free(tpl->files[s + i]);
 
-    memmove(tpl->files + s, tpl->files + s + nr, nr * sizeof(*tpl->files));
+    memmove(tpl->files + s, tpl->files + s + nr,
+	    (tpl->nf - s - nr) * sizeof(*tpl->files));
     for(i = 0, j = 0; i < tpl->nf; i++){
 	if(tpl->order[i] < s)
 	    tpl->order[j++] = tpl->order[i];
