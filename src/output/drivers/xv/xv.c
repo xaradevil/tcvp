@@ -52,7 +52,7 @@ typedef struct xv_window {
     GC gc;
     XvPortID port;
     int width, height;
-    int dw, dh;
+    int dx, dy, dw, dh;
     XShmSegmentInfo *shm;
     XvImage **images;
     window_manager_t *wm;
@@ -65,7 +65,7 @@ do_show(xv_window_t *xvw, int frame)
     XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
 		  xvw->images[frame],
 		  0, 0, xvw->width, xvw->height,
-		  0, 0, xvw->dw, xvw->dh,
+		  xvw->dx, xvw->dy, xvw->dw, xvw->dh,
 		  False);
     XSync(xvw->dpy, False);
 
@@ -104,6 +104,8 @@ xv_reconf(void *p, int event, int x, int y, int w, int h)
     xv_window_t *xvw = p;
 
     if(event == WM_MOVE){
+	xvw->dx = x;
+	xvw->dy = y;
 	xvw->dw = w;
 	xvw->dh = h;
     }
