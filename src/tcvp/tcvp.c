@@ -323,7 +323,7 @@ extern int
 te_seek(tcvp_module_t *pl, tcvp_event_t *te)
 {
     tcvp_seek_event_t *se = (tcvp_seek_event_t *) te;
-    return t_seek(pl, se->time, se->how);
+    return t_seek(pl, se->time * 27000, se->how);
 }
 
 static char *
