@@ -8,3 +8,5 @@ implement	"mux/mpeg-ts"	"new"		mpegts_new
 implement	"mux/mpeg-ps"	"new"		mpegps_new
 import		"URL"		"open"
 import		"URL"		"getc"
+option		ts_delay_factor%f=2
+option		ts_rate_factor%f=2
