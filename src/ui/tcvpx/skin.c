@@ -48,10 +48,9 @@ load_skin(char *skinconf)
 /*     if(conf_getvalue(skin->config, "name", "%s", &tmp) == 1) */
 /* 	printf("Loaded skin: \"%s\"\n", tmp); */
 
-    i += conf_getvalue(skin->config, "width", "%d", &skin->width);
-    i += conf_getvalue(skin->config, "height", "%d", &skin->height);
-
-    if(i != 2){
+    i = conf_getvalue(skin->config, "size", "%d %d", &skin->width,
+		      &skin->height);
+    if(i != 2) {
 	return NULL;
     }
 
