@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -22,8 +22,8 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#ifndef _TCVP_TYPES_H
-#define _TCVP_TYPES_H
+#ifndef TCVP_TYPES_H
+#define TCVP_TYPES_H
 
 #include <stdint.h>
 #include <tctypes.h>
@@ -39,6 +39,7 @@ typedef struct tcvp_data_packet {
     int x, y, w, h;		/* slice position */
     int flags;
     uint64_t pts, dts;
+    u_int samples;
     void *private;
 } tcvp_data_packet_t;
 
