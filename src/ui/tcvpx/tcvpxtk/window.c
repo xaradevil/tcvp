@@ -359,7 +359,7 @@ wm_set_property(window_t *window, char *atom, int enabled)
 extern int
 set_sticky(window_t *window, int enabled)
 {
-    if(window->net_wm_support == 1) {
+    if(window->net_wm_support != 0) {
 	Atom xa_wm_desktop;
 	XEvent xev;
 
@@ -409,7 +409,7 @@ set_sticky(window_t *window, int enabled)
 extern int
 set_always_on_top(window_t *window, int enabled)
 {
-    if(window->net_wm_support == 1) {
+    if(window->net_wm_support != 0) {
 	wm_set_property(window, "_NET_WM_STATE_STAYS_ON_TOP", 1);
     }
 
@@ -589,11 +589,13 @@ show_window(window_t *window)
     if(!window->subwindow) {
 	XMapWindow (xd, window->xw);
     }
-    XMapSubwindows(xd, window->xw);
     window->mapped = 1;
 
     while((w = list_next(window->widgets, &current))!=NULL) {
-	if(w->type == TCBOX) {
+/* 	if(w->common.visible == 1) { */
+/* 	        XMapWindow(xd, w->common.win); */
+/* 	} */
+	if(w->type == TCBOX && w->box.visible != 0) {
 	    show_window(w->box.subwindow);
 	}
     }
@@ -611,12 +613,12 @@ hide_window(window_t *window)
     if(!window->subwindow) {
 	XUnmapWindow (xd, window->xw);
     }
-    XUnmapSubwindows(xd, window->xw);
+/*     XUnmapSubwindows(xd, window->xw); */
     window->mapped = 0;
 
     while((w = list_next(window->widgets, &current))!=NULL) {
-	if(w->type == TCBOX) {
-	    show_window(w->box.subwindow);
+	if(w->type == TCBOX && w->box.visible != 0) {
+	    hide_window(w->box.subwindow);
 	}
     }
 

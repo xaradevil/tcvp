@@ -46,6 +46,7 @@ typedef int(*on_xevent_cb_t)(xtk_widget_t *, void *);
     Pixmap pixmap;				\
     Window win;					\
     int x,y;					\
+    int visible;	       			\
     image_info_t *background;			\
     on_xevent_cb_t onclick;			\
     on_xevent_cb_t onpress;			\
@@ -169,6 +170,8 @@ int draw_widget(tcwidget_t *w);
 int draw_widgets();
 int repaint_widgets();
 int destroy_widget(tcwidget_t *w);
+int show_window(window_t *window);
+int hide_window(window_t *window);
 
 int alpha_render(unsigned char *src, unsigned char *dest, int width,
 		 int height, int depth);

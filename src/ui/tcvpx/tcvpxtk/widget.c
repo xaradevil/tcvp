@@ -72,7 +72,7 @@ draw_window(window_t *win)
 extern int
 draw_widget(tcwidget_t *w)
 {
-    if(w->common.window->mapped==1){
+    if(w->common.window->mapped != 0 && w->common.visible != 0){
 	XCopyArea(xd, w->common.pixmap, w->common.win,
 		  w->common.window->bgc, 0, 0, w->common.width,
 		  w->common.height, 0, 0);
@@ -107,7 +107,9 @@ repaint_window(window_t *win)
 	tcwidget_t *w;
 	list_item *current=NULL;
 	while((w = list_next(win->widgets, &current))!=NULL) {
-	    if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
+	    if(w->common.repaint && w->common.visible != 0) {
+		w->common.repaint((xtk_widget_t *)w);
+	    }
 	    if(w->type == TCBOX && w->box.enabled != 0) {
 		repaint_window(w->box.subwindow);
 	    }
@@ -189,7 +191,10 @@ extern int
 show_widget(tcwidget_t *w)
 {
     XMapWindow(xd, w->common.win);
-    w->common.enabled = 1;
+    if(w->type == TCBOX) {
+	show_window(w->box.subwindow);
+    }
+    w->common.visible = 1;
 
     return 0;
 }
@@ -198,7 +203,11 @@ extern int
 hide_widget(tcwidget_t *w)
 {
     XUnmapWindow(xd, w->common.win);
-    w->common.enabled = 0;
+    w->common.visible = 0;
+
+    if(w->type == TCBOX) {
+	hide_window(w->box.subwindow);
+    }
 
     return 0;
 }

@@ -700,7 +700,7 @@ create_template(window_t *win, skin_t *skin, conf_section *config,
 	    conf_getvalue(sec, "id", "%s", &id);			\
 	    if(id) hash_replace(skin->id_hash, id, w);			\
 	    conf_getvalue(sec, "enabled", "%d", &e);			\
-	    if(e == 0) xtk_hide_widget(w);				\
+	    if(e != 0) xtk_show_widget(w);				\
 	}								\
     }
 
@@ -713,7 +713,8 @@ create_ui(window_t *win, skin_t *skin, conf_section *config,
     list_item *lc;
     template_t *t;
 
-    create_skinned_background(win, skin, config, parameters);
+    w = create_skinned_background(win, skin, config, parameters);
+    if(w) xtk_show_widget(w);
 
     create_skinned_widget("box", create_skinned_box);
     create_skinned_widget("button", create_skinned_button);
