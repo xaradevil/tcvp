@@ -125,7 +125,7 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 	    av_free_packet(apk);
     } while(!ms->used_streams[sx]);
 
-    pk = tcallocd(sizeof(*pk), NULL, avf_free_packet);
+    pk = tcallocdz(sizeof(*pk), NULL, avf_free_packet);
     pk->stream = sx;
     pk->data = &apk->data;
     pk->sizes = malloc(sizeof(*pk->sizes));

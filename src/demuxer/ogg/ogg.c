@@ -112,7 +112,7 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 	ost->grp = ogg_page_granulepos(&og);
     }
 
-    pk = tcallocd(sizeof(*pk), NULL, ogg_free_packet);
+    pk = tcallocdz(sizeof(*pk), NULL, ogg_free_packet);
     pk->stream = 0;
     pk->flags = 0;
     if(gp != -1 && ms->streams[0].audio.sample_rate){

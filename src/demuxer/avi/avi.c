@@ -626,7 +626,7 @@ avi_free_packet(void *p)
 static avi_packet_t *
 avi_alloc_packet(size_t size)
 {
-    avi_packet_t *pk = tcallocd(sizeof(*pk), NULL, avi_free_packet);
+    avi_packet_t *pk = tcallocdz(sizeof(*pk), NULL, avi_free_packet);
 
     pk->buf = malloc(size + 16);
     memset(pk->buf + size, 0, 16);

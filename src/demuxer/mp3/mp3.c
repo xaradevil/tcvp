@@ -447,7 +447,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 8);
-    mf->qs = eventq_new(tcref);
+    mf->qs = eventq_new(NULL);
     sprintf(qn, "%s/status", qname);
     eventq_attach(mf->qs, qn, EVENTQ_SEND);
     free(qname);

@@ -277,7 +277,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	if((mp.unit_start && tb->bpos) || tb->bpos > MAX_PACKET_SIZE){
 	    if(tb->start){
-		pk = tcallocd(sizeof(*pk), NULL, mpegts_free_pk);
+		pk = tcallocdz(sizeof(*pk), NULL, mpegts_free_pk);
 		pk->pk.stream = sx;
 		pk->pk.data = &pk->data;
 		pk->data = tb->buf + tb->hlen;

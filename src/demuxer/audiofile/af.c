@@ -91,7 +91,7 @@ af_next_packet(muxed_stream_t *ms, int stream)
     int i;
     float fs = afGetFrameSize(aff, AF_DEFAULT_TRACK, 0);
 
-    pk = tcallocd(sizeof(*pk), NULL, af_free_packet);
+    pk = tcallocdz(sizeof(*pk), NULL, af_free_packet);
     pk->stream = 0;
     pk->flags = 0;
     pk->data = malloc(sizeof(*pk->data));
