@@ -16,41 +16,21 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <tcstring.h>
-#include <tctypes.h>
-#include <tclist.h>
-#include <pthread.h>
+#ifndef _ALSAMOD_H
+#define _ALSAMOD_H
+
+#define ALSA_PCM_NEW_HW_PARAMS_API 1
+#include <alsa/asoundlib.h>
+#include <alsa/pcm_plugin.h>
+
 #include <tcvp_types.h>
-#include <pcm_tc2.h>
+#include <alsa_tc2.h>
 
-static int
-pcm_input(tcvp_pipe_t *p, packet_t *pk)
-{
-    return p->next->input(p->next, pk);
-}
 
-static int
-pcm_free_pipe(tcvp_pipe_t *p)
-{
-    free(p);
-    return 0;
-}
+#define RUN  1
+#define STOP 2
 
-static int
-pcm_flush(tcvp_pipe_t *p, int drop)
-{
-    return p->next->flush(p->next, drop);
-}
+extern timer__t *open_timer(snd_pcm_t *pcm);
 
-extern tcvp_pipe_t *
-pcm_new(stream_t *s, int mode)
-{
-    tcvp_pipe_t *np = calloc(1, sizeof(*np));
-    np->input = pcm_input;
-    np->free = pcm_free_pipe;
-    np->flush = pcm_flush;
 
-    return np;
-}
+#endif

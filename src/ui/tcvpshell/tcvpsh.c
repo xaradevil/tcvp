@@ -24,16 +24,19 @@
 #include <tcvpsh_tc2.h>
 
 static player_t *player;
+static pthread_mutex_t pmx = PTHREAD_MUTEX_INITIALIZER;
 
 static int
 tcvp_pause(char *p)
 {
     static int paused = 0;
 
+    pthread_mutex_lock(&pmx);
     if(!player)
 	return -1;
 
     (paused ^= 1)? player->stop(player): player->start(player);
+    pthread_mutex_unlock(&pmx);
 
     return 0;
 }
@@ -41,10 +44,25 @@ tcvp_pause(char *p)
 static int
 tcvp_stop(char *p)
 {
-    if(player){
-	player->close(player);
-	player = NULL;
-    }
+    player_t *pl;
+
+    pthread_mutex_lock(&pmx);
+    pl = player;
+    player = NULL;
+    pthread_mutex_unlock(&pmx);
+
+    if(pl)
+	pl->close(pl);
+
+    return 0;
+}
+
+static int
+tcvp_status(void *p, int state, uint64_t time)
+{
+    fprintf(stderr, "\r%li", time);
+    if(state == TCVP_STATE_END)
+	tcvp_stop(NULL);
 
     return 0;
 }
@@ -54,10 +72,13 @@ tcvp_play(char *file)
 {
     tcvp_stop(NULL);
 
-    if(!(player = tcvp_open(file)))
+    pthread_mutex_lock(&pmx);
+
+    if(!(player = tcvp_open(file, tcvp_status, NULL)))
 	return -1;
 
     player->start(player);
+    pthread_mutex_unlock(&pmx);
 
     return 0;
 }

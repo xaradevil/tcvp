@@ -1,5 +1,7 @@
-symbol "open" player_t *(*%s)(char *name)
+symbol "open" player_t *(*%s)(char *name, tcvp_status_cb_t, void *)
 include
+#include <stdint.h>
+
 typedef struct player player_t;
 struct player {
     int (*start)(player_t *);
@@ -8,3 +10,8 @@ struct player {
     int (*close)(player_t *);
     void *private;
 };
+
+typedef int (*tcvp_status_cb_t)(void *, int state, uint64_t time);
+
+#define TCVP_STATE_PLAYING 0
+#define TCVP_STATE_END     1

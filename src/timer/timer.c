@@ -46,7 +46,7 @@ tm_wait(timer__t *t, uint64_t time)
 	pthread_cond_wait(&st->cd, &st->mx);
     pthread_mutex_unlock(&st->mx);
 
-    return 0;
+    return st->time == -1? -1: 0;
 }
 
 static uint64_t
@@ -82,6 +82,12 @@ tm_stop(timer__t *t)
     sw_timer_t *st = t->private;
     st->state = PAUSE;
     return 0;
+}
+
+static int
+tm_intr(timer__t *t)
+{
+    tm_reset(t, -1);
 }
 
 static void
@@ -159,6 +165,7 @@ timer_new(int res)
     tm->read = tm_read;
     tm->reset = tm_reset;
     tm->free = tm_free;
+    tm->interrupt = tm_intr;
     tm->private = st;
 
     return tm;

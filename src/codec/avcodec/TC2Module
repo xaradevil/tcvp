@@ -10,3 +10,4 @@ implement	"codec/audio/mp2"	"new"	avc_new
 implement	"codec/video/mpeg4"	"new"	avc_new
 implement	"codec/video/mpeg"	"new"	avc_new
 implement	"codec/video/msmpeg4v3"	"new"	avc_new
+implement	"codec/audio/wmav2"	"new"	avc_new

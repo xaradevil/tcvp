@@ -68,8 +68,11 @@ v_play(void *p)
 	pthread_mutex_unlock(&vo->smx);
 
 	sem_wait(&vo->tsem);
+	if(vo->state == STOP)
+	    break;
 
-	vo->timer->wait(vo->timer, vo->pts[vo->tail]);
+	if(vo->timer->wait(vo->timer, vo->pts[vo->tail]) < 0)
+	    break;
 
 #ifdef DEBUG
 	if(!(++f & 0x3f)){
@@ -141,12 +144,32 @@ v_stop(tcvp_pipe_t *p)
 }
 
 static int
+v_flush(tcvp_pipe_t *p, int drop)
+{
+    video_out_t *vo = p->private;
+
+    if(!drop){
+	while(vo->head != vo->tail){
+	    sem_wait(&vo->hsem);
+	}
+    } else {
+	while(sem_trywait(&vo->tsem) == 0){
+	    sem_post(&vo->hsem);
+	}
+	vo->tail = vo->head;
+    }
+
+    return 0;
+}
+
+static int
 v_free(tcvp_pipe_t *p)
 {
     video_out_t *vo = p->private;
 
     vo->state = STOP;
     sem_post(&vo->tsem);
+    vo->timer->interrupt(vo->timer);
     pthread_join(vo->thr, NULL);
 
     vo->driver->close(vo->driver);
@@ -205,6 +228,7 @@ v_open(video_stream_t *vs, char *device, timer__t *timer)
     pipe->start = v_start;
     pipe->stop = v_stop;
     pipe->free = v_free;
+    pipe->flush = v_flush;
     pipe->private = vo;
 
     return pipe;

@@ -66,6 +66,7 @@ s_close(muxed_stream_t *ms)
 typedef struct s_play {
     muxed_stream_t *stream;
     tcvp_pipe_t **pipes;
+    int streams;
     pthread_t *threads;
     int state;
     pthread_mutex_t mtx;
@@ -86,8 +87,6 @@ play_stream(void *p)
     int stream = vt->stream;
     packet_t *pk;
 
-/*     fprintf(stderr, "playing stream %i\n", vt->stream); */
-
     while(vp->state != STOP){
 	pthread_mutex_lock(&vp->mtx);
 	while(vp->state == PAUSE){
@@ -101,7 +100,10 @@ play_stream(void *p)
 	vp->pipes[stream]->input(vp->pipes[stream], pk);
     }
 
-/*     fprintf(stderr, "done playing stream %i\n", vt->stream); */
+    pthread_mutex_lock(&vp->mtx);
+    vp->streams--;
+    pthread_cond_broadcast(&vp->cnd);
+    pthread_mutex_unlock(&vp->mtx);
 
     free(vt);
     return NULL;
@@ -125,9 +127,30 @@ stop(tcvp_pipe_t *p)
 {
     s_play_t *vp = p->private;
 
-    pthread_mutex_lock(&vp->mtx);
     vp->state = PAUSE;
+
+    return 0;
+}
+
+static int
+s_flush(tcvp_pipe_t *p, int drop)
+{
+    s_play_t *vp = p->private;
+    int i;
+
+    if(drop)
+	vp->state = STOP;
+
+    pthread_mutex_lock(&vp->mtx);
+    while(vp->streams > 0)
+	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
+
+    for(i = 0; i < vp->stream->n_streams; i++){
+	if(vp->stream->used_streams[i]){
+	    vp->pipes[i]->flush(vp->pipes[i], drop);
+	}
+    }
 
     return 0;
 }
@@ -138,9 +161,7 @@ s_free(tcvp_pipe_t *p)
     s_play_t *vp = p->private;
     int i, j;
 
-    pthread_mutex_lock(&vp->mtx);
-    vp->state = STOP;
-    pthread_mutex_unlock(&vp->mtx);
+    s_flush(p, 1);
 
     for(i = 0, j = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
@@ -183,11 +204,14 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out)
 	}
     }
 
+    vp->streams = j;
+
     p = calloc(1, sizeof(tcvp_pipe_t));
     p->input = NULL;
     p->start = start;
     p->stop = stop;
     p->free = s_free;
+    p->flush = s_flush;
     p->private = vp;
 
     return p;

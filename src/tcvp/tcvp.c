@@ -27,6 +27,9 @@ typedef struct tcvp_player {
     tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;
     muxed_stream_t *stream;
     timer__t *timer;
+    tcvp_status_cb_t status;
+    void *cbdata;
+    pthread_t th_wait, th_ticker;
 } tcvp_player_t;
 
 static int
@@ -87,6 +90,12 @@ t_close(player_t *pl)
 	tp->stream->close(tp->stream);
 
     if(tp->timer)
+	tp->timer->interrupt(tp->timer);
+
+    pthread_join(tp->th_wait, NULL);
+    pthread_join(tp->th_ticker, NULL);
+
+    if(tp->timer)
 	tp->timer->free(tp->timer);
 
     free(tp);
@@ -124,8 +133,39 @@ print_info(muxed_stream_t *stream)
     }
 }
 
+static void *
+t_wait(void *p)
+{
+    tcvp_player_t *tp = p;
+
+    tp->demux->flush(tp->demux, 0);
+    if(tp->status){
+	tp->status(tp->cbdata, TCVP_STATE_END, tp->timer->read(tp->timer));
+    }
+
+    return NULL;
+}
+
+static void *
+st_ticker(void *p)
+{
+    tcvp_player_t *tp = p;
+    uint64_t time = 0;
+
+    for(;;){
+	if(tp->timer->wait(tp->timer, time += 100000) < 0)
+	    break;
+	if(tp->status){
+	    tp->status(tp->cbdata, TCVP_STATE_PLAYING, time);
+	}
+    }
+
+    return NULL;
+}
+
+
 extern player_t *
-t_open(char *name)
+t_open(char *name, tcvp_status_cb_t stcb, void *cbdata)
 {
     int i;
     timer_new_t tmnew;
@@ -175,7 +215,7 @@ t_open(char *name)
     print_info(stream);
 
     if(as){
-	if((sound = output_audio_open(&as->audio, NULL, vs? &timer: NULL))){
+	if((sound = output_audio_open(&as->audio, NULL, &timer))){
 	    acodec->next = sound;
 	} else {
 	    stream->used_streams[ac] = 0;
@@ -210,6 +250,11 @@ t_open(char *name)
     tp->video = video;
     tp->stream = stream;
     tp->timer = timer;
+    tp->status = stcb;
+    tp->cbdata = cbdata;
+
+    pthread_create(&tp->th_wait, NULL, t_wait, tp);
+    pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
     pl = malloc(sizeof(*pl));
     pl->start = t_start;

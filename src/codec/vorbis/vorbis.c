@@ -142,6 +142,12 @@ vorbis_free_pipe(tcvp_pipe_t *p)
 }
 
 
+static int
+vorbis_flush(tcvp_pipe_t *p, int drop)
+{
+    return p->next->flush(p->next, drop);
+}
+
 extern tcvp_pipe_t *
 vorbis_new(stream_t *s, int mode)
 {
@@ -165,6 +171,7 @@ vorbis_new(stream_t *s, int mode)
     p->stop = NULL;
     p->free = vorbis_free_pipe;
     p->probe = vorbis_read_header;
+    p->flush = vorbis_flush;
     p->private = vc;
 
     return p;

@@ -286,6 +286,12 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return ret;
 }
 
+static int
+avc_flush(tcvp_pipe_t *p, int drop)
+{
+    return p->next->flush(p->next, drop);
+}
+
 extern tcvp_pipe_t *
 avc_new(stream_t *s, int mode)
 {
@@ -346,6 +352,8 @@ avc_new(stream_t *s, int mode)
 	p->private = vc;
 	break;
     }
+
+    p->flush = avc_flush;
 
     avcodec_open(avctx, avc);
 

@@ -9,6 +9,7 @@ struct timer {
     int (*wait)(timer__t *, uint64_t);
     uint64_t (*read)(timer__t *);
     int (*reset)(timer__t *, uint64_t);
+    int (*interrupt)(timer__t *);
     void (*free)(timer__t *);
     void *private;
 };

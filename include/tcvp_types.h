@@ -74,6 +74,7 @@ struct tcvp_pipe {
     int (*stop)(tcvp_pipe_t *);
     int (*free)(tcvp_pipe_t *);
     int (*probe)(tcvp_pipe_t *, packet_t *, stream_t *);
+    int (*flush)(tcvp_pipe_t *, int drop);
     tcvp_pipe_t *next;
     void *private;
 };
