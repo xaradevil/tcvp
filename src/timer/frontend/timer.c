@@ -31,6 +31,7 @@
 
 #define RUN   1
 #define STOP  2
+#define PAUSE 3
 
 typedef struct atimer {
     timer_driver_t *driver;
@@ -68,7 +69,7 @@ tm_wait(tcvp_timer_t *t, uint64_t time, pthread_mutex_t *lock)
 
     pthread_mutex_lock(&at->mx);
     wait = ++at->wait;
-    while(at->time < time && at->state == RUN && (intr = (wait > at->intr))){
+    while(at->time < time && at->state != STOP && (intr = (wait > at->intr))){
 	if(l && lock){
 	    pthread_mutex_unlock(lock);
 	    l = 0;
@@ -119,6 +120,7 @@ static int
 tm_start(tcvp_timer_t *t)
 {
     atimer_t *at = t->private;
+    at->state = RUN;
     if(at->driver)
 	at->driver->start(at->driver);
     return 0;
@@ -128,6 +130,7 @@ static int
 tm_stop(tcvp_timer_t *t)
 {
     atimer_t *at = t->private;
+    at->state = PAUSE;
     if(at->driver)
 	at->driver->stop(at->driver);
     return 0;
@@ -159,7 +162,8 @@ tm_setdriver(tcvp_timer_t *t, timer_driver_t *td)
 
     if(td){
 	td->set_timer(td, t);
-	td->start(td);
+	if(at->state == RUN)
+	    td->start(td);
     }
 
     t->have_driver = !!td;
@@ -176,7 +180,7 @@ tm_new(tcconf_section_t *cf)
     at = calloc(1, sizeof(*at));
     pthread_mutex_init(&at->mx, NULL);
     pthread_cond_init(&at->cd, NULL);
-    at->state = RUN;
+    at->state = PAUSE;
 
     tm = tcallocdz(sizeof(*tm), NULL, free_timer);
     tm->start = tm_start;
