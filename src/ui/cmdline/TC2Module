@@ -15,6 +15,7 @@ import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 require		"tcvp/module"
+require		"tcvp/playlist"
 option		ui%s
 Default user interface module.
 option		*module%s

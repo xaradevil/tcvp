@@ -50,7 +50,7 @@ static tcconf_section_t *cf;
 static int validate;
 static eventq_t qr, qs;
 static int have_ui, have_local;
-static int shuffle;
+static uint32_t pl_sflags, pl_cflags;
 static int prl;
 static char **modnames, **nmodnames;
 static int nadd, nnadd;
@@ -67,7 +67,7 @@ static int TCVP_PL_START;
 static int TCVP_PL_NEXT;
 static int TCVP_PL_ADD;
 static int TCVP_PL_ADDLIST;
-static int TCVP_PL_SHUFFLE;
+static int TCVP_PL_FLAGS;
 static int TCVP_OPEN_MULTI;
 static int TCVP_START;
 
@@ -337,7 +337,8 @@ tcl_init(char *p)
 	tcfree(localf);
     }
 
-    if(!have_cmds && !nfiles && !npl && !have_ui && !isdaemon && !shuffle){
+    if(!have_cmds && !nfiles && !npl && !have_ui && !isdaemon &&
+       !pl_sflags && !pl_cflags){
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
 	return 0;
@@ -353,7 +354,7 @@ tcl_init(char *p)
     TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
     TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
     TCVP_PL_ADDLIST = tcvp_event_get("TCVP_PL_ADDLIST");
-    TCVP_PL_SHUFFLE = tcvp_event_get("TCVP_PL_SHUFFLE");
+    TCVP_PL_FLAGS = tcvp_event_get("TCVP_PL_FLAGS");
     TCVP_OPEN_MULTI = tcvp_event_get("TCVP_OPEN_MULTI");
     TCVP_START = tcvp_event_get("TCVP_START");
 
@@ -377,10 +378,12 @@ tcl_init(char *p)
 	tcvp_event_send(qs, TCVP_OPEN_MULTI, nfiles, files);
     }
 
-    if(shuffle > 0)
-	tcvp_event_send(qs, TCVP_PL_SHUFFLE, 1);
-    else if(shuffle < 0)
-	tcvp_event_send(qs, TCVP_PL_SHUFFLE, 0);
+    pl_sflags &= ~pl_cflags;
+
+    if(pl_sflags)
+	tcvp_event_send(qs, TCVP_PL_FLAGS, pl_sflags, TCVP_PL_FLAGS_OR);
+    if(pl_cflags)
+	tcvp_event_send(qs, TCVP_PL_FLAGS, ~pl_cflags, TCVP_PL_FLAGS_AND);
 
     if(!have_cmds && tcvp_ui_cmdline_conf_autoplay){
 	if(prl){
@@ -494,6 +497,8 @@ parse_options(int argc, char **argv)
 	{"tc2-print", required_argument, 0, OPT_TC2_PRINT},
 	{"shuffle", no_argument, 0, 'z'},
 	{"noshuffle", no_argument, 0, 'Z'},
+	{"repeat", no_argument, 0, 'r'},
+	{"norepeat", no_argument, 0, 'R'},
 	{"playlist", required_argument, 0, '@'},
 	{"fullscreen", required_argument, 0, 'f'},
 	{"aspect", required_argument, 0, OPT_ASPECT},
@@ -521,7 +526,7 @@ parse_options(int argc, char **argv)
 	int c, opt_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:D",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:DrR",
 			long_options, &opt_index);
 	
 	if(c == -1)
@@ -577,11 +582,19 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'z':
-	    shuffle = 1;
+	    pl_sflags |= TCVP_PL_FLAG_SHUFFLE;
 	    break;
 
 	case 'Z':
-	    shuffle = -1;
+	    pl_cflags |= TCVP_PL_FLAG_SHUFFLE;
+	    break;
+
+	case 'r':
+	    pl_sflags |= TCVP_PL_FLAG_REPEAT;
+	    break;
+
+	case 'R':
+	    pl_cflags |= TCVP_PL_FLAG_REPEAT;
 	    break;
 
 	case '@':
