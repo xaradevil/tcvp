@@ -235,7 +235,7 @@ alsa_play(void *p)
 		    int64_t dt;
 		    snd_pcm_sframes_t df;
 		    snd_pcm_delay(ao->pcm, &df);
-		    d = (uint64_t) (df - bc / ao->bpf) * 1000000 / ao->rate;
+		    d = (uint64_t) (df - bc / ao->bpf) * 27000000 / ao->rate;
 		    t = ao->ptsq[ao->pqt].pts - d;
 		    tm = ao->timer->read(ao->timer);
 		    dt = tm > t? tm - t: t - tm;

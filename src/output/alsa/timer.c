@@ -117,9 +117,11 @@ tm_wait(timer__t *t, uint64_t time)
     alsa_timer_t *at = t->private;
     int intr = 1, wait;
 
+    time = (time * 1000) / 27;
+
     pthread_mutex_lock(&at->mx);
     wait = ++at->wait;
-    while(at->time < time * 1000 && at->state == RUN &&
+    while(at->time < time && at->state == RUN &&
 	  (intr = (wait > at->intr)))
 	pthread_cond_wait(&at->cd, &at->mx);
     pthread_mutex_unlock(&at->mx);
@@ -131,7 +133,7 @@ static uint64_t
 tm_read(timer__t *t)
 {
     alsa_timer_t *at = t->private;
-    return at->time / 1000;
+    return (at->time * 27) / 1000;
 }
 
 static int
@@ -140,7 +142,7 @@ tm_reset(timer__t *t, uint64_t time)
     alsa_timer_t *at = t->private;
 
     pthread_mutex_lock(&at->mx);
-    at->time = time * 1000;
+    at->time = (time * 1000) / 27;
     pthread_cond_broadcast(&at->cd);
     pthread_mutex_unlock(&at->mx);
 

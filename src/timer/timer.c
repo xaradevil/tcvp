@@ -120,7 +120,7 @@ timer_run(void *p)
     time.tv_nsec = stime.tv_usec * 1000;
 
     while(st->state != STOP){
-	time.tv_nsec += st->res * 1000;
+	time.tv_nsec += (st->res * 1000) / 27;
 	if(time.tv_nsec > 1000000000){
 	    time.tv_sec++;
 	    time.tv_nsec -= 1000000000;

@@ -375,7 +375,7 @@ mp3_getparams(muxed_stream_t *ms)
     mf->stream.audio.bit_rate = fr.bitrate;
     mf->stream.audio.codec = codecs[fr.layer];
     if(fr.bitrate)
-	ms->time = 8000000LL * mf->size / fr.bitrate;
+	ms->time = 27 * 8000000LL * mf->size / fr.bitrate;
 
     return 0;
 }
@@ -389,7 +389,7 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
     if(!mf->stream.audio.bit_rate)
 	return -1LL;
 
-    pos = time * mf->stream.audio.bit_rate / 8000000;
+    pos = time * mf->stream.audio.bit_rate / (27 * 8000000);
 
     if(pos > mf->size)
 	return -1LL;
@@ -397,7 +397,7 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
     mf->file->seek(mf->file, mf->start + pos, SEEK_SET);
     if(!mp3_getparams(ms))
 	if(mf->stream.audio.bit_rate)
-	    time = pos * 8000000LL / mf->stream.audio.bit_rate;
+	    time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
 
     return time;
 }
@@ -455,7 +455,7 @@ mp3_packet(muxed_stream_t *ms, int str)
 			mf->file->tell(mf->file) - size+(f-mp->data));
 #endif
 		mf->stream.audio.bit_rate = br;
-		ms->time = 8000000LL * mf->size / br;
+		ms->time = 27 * 8000000LL * mf->size / br;
 		tcvp_event_t *te = tcvp_alloc_event(TCVP_STREAM_INFO);
 		eventq_send(mf->qs, te);
 		tcfree(te);

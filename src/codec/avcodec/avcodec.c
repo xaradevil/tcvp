@@ -319,7 +319,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	p->format.video.width = vc->ctx->width;
 	p->format.video.height = vc->ctx->height;
 	p->format.video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
-	vc->ptsn = (uint64_t) 1000000 * vc->ctx->frame_rate_base;
+	vc->ptsn = (uint64_t) 27000000 * vc->ctx->frame_rate_base;
 	vc->ptsd = vc->ctx->frame_rate;
 	ret = p->next->probe(p->next, vc->out, &p->format);
 	vc->out = NULL;
@@ -403,7 +403,7 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 
 	vc = calloc(1, sizeof(*vc));
 	vc->ctx = avctx;
-	vc->ptsn = (uint64_t) 1000000 * s->video.frame_rate.den;
+	vc->ptsn = (uint64_t) 27000000 * s->video.frame_rate.den;
 	vc->ptsd = s->video.frame_rate.num?: 1;
 	vc->pts = 0;
 	vc->pts_delay = 1;

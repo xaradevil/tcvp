@@ -490,7 +490,7 @@ avi_header(FILE *f)
 		    ms->streams[sidx].video.frame_rate.den = ftime;
 		}
 
-		af->streams[sidx].ptsn = 1000000LL * frd;
+		af->streams[sidx].ptsn = 27000000LL * frd;
 		af->streams[sidx].ptsd = frn;
 
 		ms->streams[sidx].video.frames = length;
@@ -508,11 +508,12 @@ avi_header(FILE *f)
 		af->has_video = 1;
 	    } else if(stype == TAG('a','u','d','s')){
 		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
-		af->streams[sidx].ptsn = 1000000LL * af->streams[sidx].scale;
+		af->streams[sidx].ptsn = 27000000LL * af->streams[sidx].scale;
 		af->streams[sidx].ptsd = af->streams[sidx].rate;
 	    }
 
-	    ms->streams[sidx].common.start_time = start;
+	    ms->streams[sidx].common.index = sidx;
+	    ms->streams[sidx].common.start_time = start * 27;
 	    if(start){
 		fprintf(stderr, "AVI: start = %i\n", start);
 	    }

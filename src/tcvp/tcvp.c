@@ -21,6 +21,7 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
+#include <tchash.h>
 #include <tcvp_types.h>
 #include <tcvp_event.h>
 #include <tcvp_core_tc2.h>
@@ -36,6 +37,7 @@ typedef struct tcvp_player {
     eventq_t qs, qr, qt;
     conf_section *conf;
     int open;
+    hash_table *filters;
 } tcvp_player_t;
 
 static int
@@ -176,11 +178,12 @@ print_stream(stream_t *s)
 	break;
 
     case STREAM_TYPE_VIDEO:
-	printf("%s, %ix%i, %lf fps\n",
+	printf("%s, %ix%i, %lf fps, aspect %lf\n",
 	       s->video.codec,
 	       s->video.width,
 	       s->video.height,
-	       (double) s->video.frame_rate.num / s->video.frame_rate.den);
+	       (double) s->video.frame_rate.num / s->video.frame_rate.den,
+	       (double) s->video.aspect.num / s->video.aspect.den);
 	break;
     }
 }
@@ -218,7 +221,7 @@ st_ticker(void *p)
 	tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER, time);
 	eventq_send(tp->qt, te);
 	tcfree(te);
-	tp->timer->wait(tp->timer, time + 1000000);
+	tp->timer->wait(tp->timer, time + 27000000);
 	pthread_mutex_lock(&tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
@@ -270,7 +273,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
     void *cs = NULL;
 
     while((f = conf_nextsection(p, "filter", &cs))){
-	char *type;
+	char *type, *id;
 	filter_new_t fn;
 
 	pn = NULL;
@@ -278,11 +281,22 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
 	if(conf_getvalue(f, "type", "%s", &type) < 1)
 	    continue;
 
-	if(!(fn = tc2_get_symbol(type, "new")))
-	    break;
+	if(conf_getvalue(f, "id", "%s", &id) > 0)
+	    hash_find(tp->filters, id, &pn);
 
-	if(!(pn = fn(s, tp->conf, &tp->timer)))
-	    break;
+	if(!pn){
+	    if(!(fn = tc2_get_symbol(type, "new")))
+		break;
+
+	    if(!(pn = fn(s, tp->conf, &tp->timer)))
+		break;
+
+	    if(id)
+		hash_replace(tp->filters, id, pn);
+	}
+
+	if(id)
+	    tcref(pn);
 
 	if(!pipe)
 	    pipe = pn;
@@ -356,6 +370,8 @@ t_open(player_t *pl, char *name)
 	return -1;
     }
 
+    tp->filters = hash_new(10, 0);
+
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
 	conf_section *pc;
@@ -387,13 +403,15 @@ t_open(player_t *pl, char *name)
 	}
     }
 
+    hash_destroy(tp->filters, tcfree);
+
     if(!as && !vs)
 	goto err;
 
     tp->open = 1;
 
     if(!tp->timer){
-	tp->timer = timer_new(10000);
+	tp->timer = timer_new(270000);
     }
 
     demux = stream_play(stream, codecs, tp->conf);
@@ -411,14 +429,14 @@ t_open(player_t *pl, char *name)
 			int frn = st->video.frame_rate.num;
 			int frd = st->video.frame_rate.den;
 			if(frn > 0 && frd > 0 && frames > 0){
-			    len = (uint64_t) frames * 1000000LL * frd / frn;
+			    len = (uint64_t) frames * 27000000LL * frd / frn;
 			    break;
 			}
 		    } else if(st->stream_type == STREAM_TYPE_AUDIO){
 			int samples = st->audio.samples;
 			int srate = st->audio.sample_rate;
 			if(srate > 0 && samples > 0){
-			    len = (uint64_t) samples *1000000LL / srate;
+			    len = (uint64_t) samples * 27000000LL / srate;
 			    stream->streams[i].audio.sample_rate = 
 				st->audio.sample_rate;
 			    break;
@@ -454,7 +472,7 @@ t_open(player_t *pl, char *name)
     tp->stream = stream;
 
     if(conf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
-	uint64_t spts = (uint64_t) start * 1000000LL;
+	uint64_t spts = (uint64_t) start * 27000000LL;
 	t_seek(pl, spts, TCVP_SEEK_ABS);
     }
 

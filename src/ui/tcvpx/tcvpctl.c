@@ -59,7 +59,7 @@ tcvp_event(void *p)
 	    break;
 
 	case TCVP_TIMER:
-	    s_time = te->timer.time/1000000;
+	    s_time = te->timer.time / 27000000;
 	    if(s_time > s_length)
 		s_length = s_time;
 	    update_time();
@@ -100,7 +100,7 @@ tcvp_event(void *p)
 		break;
 
 	    if(st->time)
-		s_length = st->time / 1000000;
+		s_length = st->time / 27000000;
 
 /* 	    list_item *current = NULL; */
 /* 	    skin_t *skin; */
@@ -199,7 +199,7 @@ extern int
 tcvp_seek(xtk_widget_t *w, void *p)
 {
     double pos = *((double*)p);
-    uint64_t time = s_length * pos * 1000000;
+    uint64_t time = s_length * pos * 27000000;
 
     tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, time, TCVP_SEEK_ABS);
     eventq_send(qs, se);

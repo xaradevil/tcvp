@@ -210,6 +210,7 @@ avf_open(char *name, conf_section *cs)
 	ms->streams[i].common.codec_data = afc->streams[i]->codec.extradata;
 	ms->streams[i].common.codec_data_size =
 	    afc->streams[i]->codec.extradata_size;
+	ms->streams[i].common.index = i;
     }
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = avf_next_packet;

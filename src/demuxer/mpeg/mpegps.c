@@ -172,7 +172,7 @@ mpegps_packet(muxed_stream_t *ms, int str)
     pk->private = mp;
 
     if(mp->pts_flag){
-	pk->pts = (mp->pts * 100) / 9;
+	pk->pts = mp->pts * 300;
 	pk->flags |= TCVP_PKT_FLAG_PTS;
     }
 
@@ -224,7 +224,7 @@ mpegps_getinfo(muxed_stream_t *ms)
 	    if(mpeg_stream_types[stype].stream_type){
 		sp->stream_type = mpeg_stream_types[stype].stream_type;
 		sp->common.codec = mpeg_stream_types[stype].codec;
-		ms->n_streams++;
+		sp->common.index = ms->n_streams++;
 		sp++;
 	    }
 
@@ -259,7 +259,7 @@ mpegps_getinfo(muxed_stream_t *ms)
 			sp->stream_type = STREAM_TYPE_AUDIO;
 			sp->common.codec = "audio/mpeg";
 		    }
-		    ms->n_streams++;
+		    sp->common.index = ms->n_streams++;
 		    sp++;
 		}
 	    } else {

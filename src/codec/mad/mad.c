@@ -227,7 +227,7 @@ do_decode(tcvp_pipe_t *p)
 	    md->ptsc -= md->stream.next_frame - md->stream.this_frame;
 	    if(md->ptsc <= 0 && md->out){
 		md->out->pk.pts = md->npts - ((md->out->dp - md->out->data) /
-		    md->synth.pcm.channels) * 1000000 /
+		    md->synth.pcm.channels) * 27000000 /
 		    md->frame.header.samplerate;
 		md->out->pk.flags |= TCVP_PKT_FLAG_PTS;
 	    }

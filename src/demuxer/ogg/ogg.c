@@ -149,7 +149,7 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
     int l;
     char *buf;
 
-    uint64_t pos = time * ms->streams[0].audio.sample_rate / 1000000;
+    uint64_t pos = time * ms->streams[0].audio.sample_rate / 27000000;
 
     ogg_stream_t *ost = ms->private;
     url_t *f = ost->f;
@@ -194,7 +194,7 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
     ogg_sync_wrote(&ost->oy, l);
     ogg_sync_pageseek(&ost->oy, &og);
 
-    return (1000000*ppos)/ms->streams[0].audio.sample_rate;
+    return (27000000*ppos)/ms->streams[0].audio.sample_rate;
 }
 
 static void

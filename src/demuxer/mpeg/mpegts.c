@@ -231,15 +231,12 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	mpegpes_header(&pes, mp->datap, 0);
 	hlen = pes.data - mp->datap;
 	if(pes.pts_flag){
-	    uint64_t upts = pes.pts;
-	    upts *= 100ULL;
-	    upts /= 9ULL;
 	    if(pes.pts < s->pts[sx] &&
 	       s->pts[sx] - pes.pts > 24000){
 		fprintf(stderr, "MPEGTS: PTS discontinuous\n");
 	    }
 	    s->pts[sx] = pes.pts;
-	    pk->pts = upts;
+	    pk->pts = pes.pts * 300;
 	    pk->flags |= TCVP_PKT_FLAG_PTS;
 	}
 
@@ -352,7 +349,7 @@ mpegts_getinfo(muxed_stream_t *ms)
 	    if(mpeg_stream_types[stype].stream_type){
 		sp->stream_type = mpeg_stream_types[stype].stream_type;
 		sp->common.codec = mpeg_stream_types[stype].codec;
-		ms->n_streams++;
+		sp->common.index = ms->n_streams++;
 		sp++;
 	    }
 	}
