@@ -197,11 +197,16 @@ flr_packet(muxed_stream_t *ms, int s)
 		fp->size = size;
 		fp->data = flr->buf + flr->bpos;
 		fp->buf = tcref(flr->buf);
+	    }
+
+	    if(crc == fcrc || (i < flr->bend - 2 &&
+			       flr->buf[flr->bpos+2] == flr->buf[i+2])){
+		if(crc != fcrc)
+		    tc2_print("FLAC", TC2_PRINT_WARNING, "bad frame CRC\n");
 		flr->bpos = i;
 		i += hsize;
 	    } else {
-		tc2_print("FLAC", TC2_PRINT_WARNING, "bad frame CRC\n");
-		flr->bpos = i;
+		i++;
 	    }
 	}
 
