@@ -81,6 +81,7 @@ typedef struct mpegts_mux {
     uint64_t rate_lookahead;
     int64_t audio_offset;
     int64_t video_offset;
+    double padding;
 } mpegts_mux_t;
 
 static void
@@ -562,7 +563,7 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 		  s->common.index, rate);
     }
 
-    tsm->bitrate += rate * 1.05;
+    tsm->bitrate += rate * tsm->padding;
 
     return PROBE_OK;
 }
@@ -636,6 +637,7 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->realtime = out->flags & URL_FLAG_STREAMED;
     tsm->pts_interval = tcvp_demux_mpeg_conf_pts_interval;
     tsm->rate_lookahead = tcvp_demux_mpeg_conf_ts_rate_lookahead;
+    tsm->padding = 1.05;
 
     tcconf_getvalue(cs, "realtime", "%i", &tsm->realtime);
     tcconf_getvalue(cs, "delay", "%li", &tsm->delay);
@@ -646,6 +648,7 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "rate_lookahead", "%li", &tsm->rate_lookahead);
     tcconf_getvalue(cs, "audio_offset", "%li", &tsm->audio_offset);
     tcconf_getvalue(cs, "video_offset", "%li", &tsm->video_offset);
+    tcconf_getvalue(cs, "padding", "%lf", &tsm->padding);
 
     tsm->bitrate = 8 * TS_PACKET_SIZE * 1000 / tsm->pcr_int +
 	2 * 8 * TS_PACKET_SIZE * 1000 / tsm->psi_interval;
