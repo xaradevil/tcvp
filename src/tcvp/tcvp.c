@@ -463,7 +463,6 @@ t_open(player_t *pl, char *name)
     }
 
     hash_destroy(tp->filters, tcfree);
-    tcfree(prsec);
 
     if(!as && !vs)
 	goto err;
@@ -471,8 +470,13 @@ t_open(player_t *pl, char *name)
     tp->open = 1;
 
     if(!tp->timer->have_driver){
-	tp->timer->set_driver(tp->timer, driver_timer_new(270000));
+	int tres = 10;
+	tcconf_getvalue(prsec, "timer/resolution", "%i", &tres);
+	tres *= 27000;
+	tp->timer->set_driver(tp->timer, driver_timer_new(tres));
     }
+
+    tcfree(prsec);
 
     demux = stream_play(stream, codecs, tp->conf);
 
