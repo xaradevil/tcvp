@@ -223,7 +223,7 @@ recv_features(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
     while(recv(cl->socket, &l, 1, MSG_NOSIGNAL) == 1 && l > 0){
 	char *f = malloc(l + 1);
 	recv(cl->socket, f, l, MSG_NOSIGNAL);
-	f[l] = 0;
+	f[(int)l] = 0;
 	tcconf_setvalue(rm->conf, "feature", "%s", f);
 	free(f);
     }

@@ -308,6 +308,7 @@ sub hmod {
 	    print $fh
 	      "extern int $$_{new}(tcvp_module_t *, tcconf_section_t *);\n"
 		if $$_{new};
+	    print $fh "extern int $$_{init}(tcvp_module_t *);\n" if $$_{init};
 	    for my $e (values %{$$_{events}}) {
 		print $fh "extern int $$e{handler}(tcvp_module_t *, tcvp_event_t *);\n" if $$e{handler};
 	    }

@@ -50,7 +50,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     char *codec, *extra = NULL;
     uint16_t channels, bits, extrasize = 0, fmt, align;
     uint32_t srate, brate;
-    int data_size;
+    int data_size = 0;
     int data = 0;
     char tags[5];
 
