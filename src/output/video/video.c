@@ -32,8 +32,6 @@
 #define PAUSE 2
 #define STOP  3
 
-#undef DEBUG
-
 typedef struct video_out {
     video_driver_t *driver;
     video_stream_t *vstream;
@@ -77,16 +75,6 @@ v_play(void *p)
 {
     video_out_t *vo = p;
 
-#ifdef DEBUG
-    int f = 0;
-    struct timeval tv;
-    uint64_t lu = 0, st;
-    uint64_t lpts = 0;
-
-    gettimeofday(&tv, NULL);
-    st = tv.tv_sec * 1000000 + tv.tv_usec;
-#endif
-
     while(vo->state != STOP){
 	pthread_mutex_lock(&vo->smx);
 	while((!vo->frames && vo->state != STOP) || vo->state == PAUSE)
@@ -99,21 +87,6 @@ v_play(void *p)
 	if(vo->timer->wait(vo->timer, vo->pts[vo->tail]) < 0)
 	    continue;
 
-#ifdef DEBUG
-	if(!(++f & 0x3f)){
-	    uint64_t us;
-	    gettimeofday(&tv, NULL);
-	    us = tv.tv_sec * 1000000 + tv.tv_usec - st;
-
-	    fprintf(stderr, "pts = %li, dpts = %li, us = %li, dus = %li\n",
-		    vo->pts[vo->tail],
-		    vo->pts[vo->tail] - lpts,
-		    us, us - lu);
-	    lu = us;
-	    lpts = vo->pts[vo->tail];
-	}
-#endif
-
 	vo->driver->show_frame(vo->driver, vo->tail);
 
 	pthread_mutex_lock(&vo->smx);
@@ -121,8 +94,8 @@ v_play(void *p)
 	    if(++vo->tail == vo->driver->frames)
 		vo->tail = 0;
 	    vo->frames--;
+	    pthread_cond_broadcast(&vo->scd);
 	}
-	pthread_cond_broadcast(&vo->scd);
 	pthread_mutex_unlock(&vo->smx);
     }
 
@@ -152,12 +125,12 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 
     if(!vo->drop[vo->dropcnt]){
 	pthread_mutex_lock(&vo->smx);
-	while(vo->frames == vo->driver->frames && vo->state != STOP){
+	vo->framecnt++;
+	while(vo->frames == vo->driver->frames && vo->state != STOP)
 	    pthread_cond_wait(&vo->scd, &vo->smx);
-	}
 	pthread_mutex_unlock(&vo->smx);
 
-	if(vo->state == STOP){
+	if(!vo->framecnt || vo->state == STOP){
 	    pk->free(pk);
 	    return 0;
 	}
@@ -166,13 +139,15 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);
 	if(vo->driver->put_frame)
 	    vo->driver->put_frame(vo->driver, vo->head);
-	vo->pts[vo->head] = pk->pts;
 
 	pthread_mutex_lock(&vo->smx);
-	vo->frames++;
-	if(++vo->head == vo->driver->frames)
-	    vo->head = 0;
-	pthread_cond_broadcast(&vo->scd);
+	if(vo->framecnt){
+	    vo->pts[vo->head] = pk->pts;
+	    vo->frames++;
+	    if(++vo->head == vo->driver->frames)
+		vo->head = 0;
+	    pthread_cond_broadcast(&vo->scd);
+	}
 	pthread_mutex_unlock(&vo->smx);
     }
 
@@ -189,8 +164,6 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	for(i = 0; bfr < drop_thresholds[i]; i++);
 	vo->drop = drops[i];
     }
-
-    vo->framecnt++;
 
     pk->free(pk);
 
@@ -229,6 +202,7 @@ v_flush(tcvp_pipe_t *p, int drop)
 	pthread_mutex_lock(&vo->smx);
 	while(vo->frames)
 	    pthread_cond_wait(&vo->scd, &vo->smx);
+	vo->framecnt = 0;
 	pthread_mutex_unlock(&vo->smx);
     } else {
 	pthread_mutex_lock(&vo->smx);
@@ -236,12 +210,11 @@ v_flush(tcvp_pipe_t *p, int drop)
 	vo->frames = 0;
 	if(vo->driver->flush)
 	    vo->driver->flush(vo->driver);
+	vo->framecnt = 0;
 	vo->timer->interrupt(vo->timer);
 	pthread_cond_broadcast(&vo->scd);
 	pthread_mutex_unlock(&vo->smx);
     }
-
-    vo->framecnt = 0;
 
     return 0;
 }
