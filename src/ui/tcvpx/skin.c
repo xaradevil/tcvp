@@ -373,7 +373,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     char *color, *align_s, *stype_s;
     int alpha = 0xff;
     int stype, align;
-    int i = 0, j;
+    int i = 0;
     char *action = NULL, *bg = NULL, *text, *default_text;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *l, *w;
@@ -690,6 +690,7 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
+    xtk_window_set_title(skin->window, "TCVP");
 
     create_ui(skin->window, skin, skin->config, NULL);
 

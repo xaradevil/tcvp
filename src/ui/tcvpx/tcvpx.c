@@ -84,6 +84,7 @@ tcvpx_init(char *p)
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
+    xtk_window_set_title(skin->window, "TCVP");
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);

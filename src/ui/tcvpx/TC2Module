@@ -83,6 +83,7 @@ import		"xtk/window"		"set_always_on_top"
 import		"xtk/window"		"set_dnd_callback"
 import		"xtk/window"		"set_position"
 import		"xtk/window"		"set_sticky"
+import		"xtk/window"		"set_title"
 import		"xtk/window"		"show"
 
 import		"URL"			"open"
