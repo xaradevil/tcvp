@@ -115,10 +115,6 @@ typedef struct tcvp_open_event {
     char *file;
 } tcvp_open_event_t;
 
-typedef struct {
-    int type;
-} tcvp_start_event_t, tcvp_stop_event_t, tcvp_close_event_t;
-
 typedef struct tcvp_seek_event {
     int type;
     int64_t time;
@@ -139,9 +135,6 @@ typedef union tcvp_event {
     int type;
     tcvp_key_event_t key;
     tcvp_open_event_t open;
-    tcvp_start_event_t start;
-    tcvp_stop_event_t stop;
-    tcvp_close_event_t close;
     tcvp_seek_event_t seek;
     tcvp_timer_event_t timer;
     tcvp_state_event_t state;
