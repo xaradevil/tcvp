@@ -27,40 +27,79 @@
 #include <tcvp_types.h>
 #include <stream_tc2.h>
 
+#ifdef HAVE_LIBMAGIC
+#include <magic.h>
+
+static magic_t file_magic;
+#endif
+
+#define magic_size tcvp_demux_stream_conf_magic_size
+
 static int TCVP_STATE;
+
+static char *suffix_map[][2] = {
+    { ".ogg", "audio/x-ogg" },
+    { ".avi", "video/x-avi" },
+    { ".mp3", "audio/mpeg" },
+    { ".wav", "audio/x-wav" },
+    { ".mov", "video/quicktime" },
+    { ".mpg", "video/mpeg" },
+    { ".mpeg", "video/mpeg" },
+    { NULL, NULL }
+};
 
 extern muxed_stream_t *
 s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 {
+    const char *mg;
     char *m = NULL;
-    char *ext;
     url_t *u;
+    char *buf[magic_size];
+    int mgs;
     demux_open_t sopen;
-
-    ext = strrchr(name, '.');
-
-    if(ext++){
-	if(!strcmp(ext, "ogg")) {
-	    m = "audio/x-ogg";
-	} else if(!strcmp(ext, "avi")){
-	    m = "video/x-avi";
-	} else if(!strcmp(ext, "mp3")){
-	    m = "audio/mpeg";
-	} else if(!strcmp(ext, "wav")){
-	    m = "audio/x-wav";
-	}
-    }
-
-    if(!m){
-	m = "video/mpeg";
-    }
 
     if(!(u = url_open(name, "r")))
 	return NULL;
 
+#ifdef HAVE_LIBMAGIC
+    mgs = u->read(buf, 1, magic_size, u);
+    u->seek(u, 0, SEEK_SET);
+    if(mgs < magic_size)
+	return NULL;
+    mg = magic_buffer(file_magic, buf, mgs);
+    if(mg){
+	int e;
+	m = strdup(mg);
+	e = strcspn(m, " ;");
+	m[e] = 0;
+	if(strncmp(m, "audio/", 6) && strncmp(m, "video/", 0)){
+	    free(m);
+	    m = NULL;
+	}
+    }
+#endif
+
+    if(!m){
+	char *s = strrchr(name, '.');
+	if(s){
+	    int i;
+	    for(i = 0; suffix_map[i][0]; i++){
+		if(!strcmp(s, suffix_map[i][0])){
+		    m = strdup(suffix_map[i][1]);
+		    break;
+		}
+	    }
+	}
+    }
+
+    if(!m){
+	m = strdup("video/mpeg");
+    }
+
     if(!(sopen = tc2_get_symbol(m, "open")))
 	return NULL;
     
+    free(m);
     return sopen(name, u, cs, t);
 }
 
@@ -479,5 +518,19 @@ s_init(char *p)
 {
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
 
+#ifdef HAVE_LIBMAGIC
+    file_magic = magic_open(MAGIC_MIME);
+    magic_load(file_magic, NULL);
+#endif
+
+    return 0;
+}
+
+extern int
+s_shdn(void)
+{
+#ifdef HAVE_LIBMAGIC
+    magic_close(file_magic);
+#endif
     return 0;
 }

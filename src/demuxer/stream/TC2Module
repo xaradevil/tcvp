@@ -4,6 +4,7 @@ version		0.1.0
 tc2version	0.4.0
 sources		stream.c
 postinit	s_init
+shutdown	s_shdn
 implement	"stream"	"open"		s_open
 implement	"stream"	"next_packet"	s_next_packet
 implement	"stream" 	"play"		s_play
@@ -22,3 +23,6 @@ Number of packets to read ahead for each stream.
 
 option		max_probe%i=1024
 Maximum number of packets read when probing stream parameters.
+
+option		magic_size%i=16
+Number of bytes to check for magic signatures.
