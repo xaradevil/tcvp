@@ -10,5 +10,10 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile
 		 src/demuxer/Makefile
 		 src/demuxer/avformat/Makefile
-		 src/demuxer/video/Makefile])
+		 src/demuxer/video/Makefile
+		 src/codec/Makefile
+		 src/codec/pcm/Makefile
+		 src/output/Makefile
+		 src/output/alsa/Makefile
+		 src/tcvp/Makefile])
 AC_OUTPUT
