@@ -174,13 +174,19 @@ conv_str(char *s, size_t size, char *fset, char *tset)
 static char *
 id3v2_gettext(u_char *buf, int size)
 {
-    if(!encodings[*buf]){
+    char *enc;
+
+    if(tcvp_demux_mp3_conf_override_encoding){
+	enc = tcvp_demux_mp3_conf_override_encoding;
+    } else if(encodings[*buf]){
+	enc = encodings[*buf];
+    } else {
 	tc2_print("ID3", TC2_PRINT_WARNING,
 		  "Unknown ID3v2 encoding %i\n", *buf);
 	return NULL;
     }
 
-    return conv_str(buf + 1, size - 1, encodings[*buf], "UTF-8");
+    return conv_str(buf + 1, size - 1, enc, "UTF-8");
 }
 
 extern int
@@ -361,7 +367,7 @@ id3v1_strdup(char *p, int s)
     while(!(*e & ~0x20) && e > p)
 	e--;
     s = e - p + 1;
-    return conv_str(p, s, tcvp_demux_mp3_conf_id3v1_charset, "UTF-8");
+    return conv_str(p, s, tcvp_demux_mp3_conf_id3v1_encoding, "UTF-8");
 }
 
 extern int
