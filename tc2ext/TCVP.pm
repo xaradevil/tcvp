@@ -79,7 +79,7 @@ sub tc2module {
 	$events{$1} = { alloc => $2,
 			ser => $3,
 			deser => $4 };
-	TC2::tc2_import('tcvp/event', 'register');
+	TC2::tc2_import('tcvp/event', $2? 'register': 'get');
     } elsif (/^}/) {
 	undef $module;
     } else {
