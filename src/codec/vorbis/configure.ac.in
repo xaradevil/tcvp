@@ -1,1 +1,2 @@
-TC2_CHECK_LIBS(libvorbis, vorbis, vorbis_synthesis)
+TC2_CHECK_LIBS(libvorbis, vorbis, vorbis_synthesis,,
+	       libvorbis, vorbisenc, vorbis_encode_setup_vbr)
