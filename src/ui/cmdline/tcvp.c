@@ -254,7 +254,7 @@ tcl_check(void *p)
 	stream_validate(files[i], cf);
     }
 
-    tc2_request(TC2_UNLOAD_MODULE, 0, MODULE_INFO.name);
+    tc2_request(TC2_UNLOAD_ALL, 0);
     return NULL;
 }
 
