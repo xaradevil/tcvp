@@ -183,11 +183,10 @@ load_skin(char *skinconf)
     skin->file = skinconf;
     skin->path = strdup(skinconf);
     tmp = strrchr(skin->path, '/');
-    if(tmp == NULL) {
-	free(skin->path);
-	skin->path = strdup("");	
+    if(!tmp){
+	strcpy(skin->path, ".");
     } else {
-	*tmp=0;
+	*tmp = 0;
     }
 
 /*     if(tcconf_getvalue(skin->config, "name", "%s", &tmp) == 1) */
