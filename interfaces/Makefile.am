@@ -1,1 +1,1 @@
-nobase_interface_DATA = video.tc2
+nobase_interface_DATA = $(shell find $(srcdir) -name '*.tc2' | sed s,^$(srcdir)/,,)

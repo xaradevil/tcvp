@@ -5,10 +5,10 @@ tc2version	0.4.0
 sources		tcvp.c
 postinit	tcvp_init
 shutdown	tcvp_shdn
-import		"video"	"open"
-import		"video" "play"
-import		"output/audio" "open"
-import		"output/video" "open"
+import		"stream"	"open"
+import		"stream"	"play"
+import		"output/audio"	"open"
+import		"output/video"	"open"
 import		"Shell" "register_command"
 import		"Shell" "unregister_command"
 import		"Shell" "register_prompt"

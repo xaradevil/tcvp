@@ -23,24 +23,24 @@
 #include <tclist.h>
 #include <pthread.h>
 #include <tcvp.h>
-#include <video_tc2.h>
+#include <stream_tc2.h>
 
 
 extern muxed_stream_t *
-v_open(char *name)
+s_open(char *name)
 {
     video_open_t vopen = tc2_get_symbol("video/mpeg", "open");
     return vopen(name);
 }
 
 extern packet_t *
-v_next_packet(muxed_stream_t *ms, int stream)
+s_next_packet(muxed_stream_t *ms, int stream)
 {
     return ms->next_packet(ms, stream);
 }
 
 extern int
-v_close(muxed_stream_t *ms)
+s_close(muxed_stream_t *ms)
 {
     return ms->close(ms);
 }
@@ -49,25 +49,25 @@ v_close(muxed_stream_t *ms)
 #define PAUSE   2
 #define STOP    3
 
-typedef struct v_play {
+typedef struct s_play {
     muxed_stream_t *stream;
     tcvp_pipe_t **pipes;
     pthread_t *threads;
     int state;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
-} v_play_t;
+} s_play_t;
 
 typedef struct vp_thread {
     int stream;
-    v_play_t *vp;
+    s_play_t *vp;
 } vp_thread_t;
 
 static void *
 play_stream(void *p)
 {
     vp_thread_t *vt = p;
-    v_play_t *vp = vt->vp;
+    s_play_t *vp = vt->vp;
     muxed_stream_t *ms = vp->stream;
     int stream = vt->stream;
     packet_t *pk;
@@ -96,7 +96,7 @@ play_stream(void *p)
 static int
 start(tcvp_pipe_t *p)
 {
-    v_play_t *vp = p->private;
+    s_play_t *vp = p->private;
 
     pthread_mutex_lock(&vp->mtx);
     vp->state = RUN;
@@ -109,7 +109,7 @@ start(tcvp_pipe_t *p)
 static int
 stop(tcvp_pipe_t *p)
 {
-    v_play_t *vp = p->private;
+    s_play_t *vp = p->private;
 
     pthread_mutex_lock(&vp->mtx);
     vp->state = PAUSE;
@@ -119,9 +119,9 @@ stop(tcvp_pipe_t *p)
 }
 
 static int
-v_free(tcvp_pipe_t *p)
+s_free(tcvp_pipe_t *p)
 {
-    v_play_t *vp = p->private;
+    s_play_t *vp = p->private;
     int i, j;
 
     pthread_mutex_lock(&vp->mtx);
@@ -144,10 +144,10 @@ v_free(tcvp_pipe_t *p)
 }
 
 extern tcvp_pipe_t *
-v_play(muxed_stream_t *ms, tcvp_pipe_t **out)
+s_play(muxed_stream_t *ms, tcvp_pipe_t **out)
 {
     tcvp_pipe_t *p;
-    v_play_t *vp;
+    s_play_t *vp;
     int i, j;
 
     vp = malloc(sizeof(*vp));
@@ -173,7 +173,7 @@ v_play(muxed_stream_t *ms, tcvp_pipe_t **out)
     p->input = NULL;
     p->start = start;
     p->stop = stop;
-    p->free = v_free;
+    p->free = s_free;
     p->private = vp;
 
     return p;

@@ -42,7 +42,7 @@ tcvp_play(char *arg)
 
     tcvp_stop(NULL);
 
-    if((stream = video_open(arg)) == NULL)
+    if((stream = stream_open(arg)) == NULL)
 	return -1;
 
     for(i = 0; i < stream->n_streams; i++){
@@ -109,7 +109,7 @@ tcvp_play(char *arg)
 	codecs[vci] = vcodec;
     }
 
-    demux = video_play(stream, codecs);
+    demux = stream_play(stream, codecs);
 
     demux->start(demux);
     if(timer)
