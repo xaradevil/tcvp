@@ -92,7 +92,9 @@ show_help(void)
 	   "   -f      --fullscreen          Fill entire screen\n"
 	   "   -h      --help                This text\n"
 	   "   -o file --output=file         Set output file\n"
+	   "   -P name --profile=name        Select profile\n"
 	   "   -s t    --seek=t              Seek t seconds at start\n"
+	   "   -S #    --subtitle=#          Select subtitle stream\n"
 	   "   -t t    --time=t              Play t seconds\n"
 	   "   -u name --user-interface=name Select user interface\n"
 	   "   -v #    --video-stream=#      Select video stream\n"
@@ -492,6 +494,7 @@ parse_options(int argc, char **argv)
 	{"audio-stream", required_argument, 0, 'a'},
 	{"video-device", required_argument, 0, 'V'},
 	{"video-stream", required_argument, 0, 'v'},
+	{"subtitle", required_argument, 0, 'S'},
 	{"validate", no_argument, 0, 'C'},
 	{"seek", required_argument, 0, 's'},
 	{"time", required_argument, 0, 't'},
@@ -530,7 +533,7 @@ parse_options(int argc, char **argv)
 	int c, opt_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:DrR",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:DrRS:",
 			long_options, &opt_index);
 	
 	if(c == -1)
@@ -562,6 +565,13 @@ parse_options(int argc, char **argv)
 	    if(*ot)
 		s = -1;
 	    tcconf_setvalue(cf, "video/stream", "%i", s);
+	    break;
+
+	case 'S':
+	    s = strtol(optarg, &ot, 0);
+	    if(*ot)
+		s = -1;
+	    tcconf_setvalue(cf, "subtitle/stream", "%i", s);
 	    break;
 
 	case 'C':
