@@ -43,6 +43,7 @@ typedef struct alsa_timer {
     pthread_cond_t cd;
     int state;
     pthread_t th;
+    int system;
 } alsa_timer_t;
 
 static void
@@ -60,10 +61,27 @@ free_timer(timer__t *t)
     free(at);
 }
 
+static int
+stm_start(timer__t *t)
+{
+    alsa_timer_t *at = t->private;
+    snd_timer_start(at->timer);
+    return 0;
+}
+
+static int
+stm_stop(timer__t *t)
+{
+    alsa_timer_t *at = t->private;
+    snd_timer_stop(at->timer);
+    return 0;
+}
+
 static void *
 run_timer(void *p)
 {
-    alsa_timer_t *at = p;
+    timer__t *tmr = p;
+    alsa_timer_t *at = tmr->private;
     snd_timer_t *timer = at->timer;
     struct pollfd *pfd;
     int pfds;
@@ -79,10 +97,50 @@ run_timer(void *p)
 	int s = poll(pfd, pfds, 100);
 	uint64_t t = 0;
 
-	if(s == 0)
+	if(s == 0){
+	    if(at->system){
+		int res;
+		char name[128];
+		snd_timer_params_t *pm;
+		snd_timer_info_t *inf;
+
+		snd_timer_params_malloc(&pm);
+		snd_timer_info_malloc(&inf);
+
+		sprintf(name, "hw:CLASS=%i,SCLASS=%i,CARD=0,DEV=%i,SUBDEV=0",
+			SND_TIMER_CLASS_GLOBAL, SND_TIMER_SCLASS_NONE,
+			SND_TIMER_GLOBAL_SYSTEM);
+		s = snd_timer_open(&timer, name, SND_TIMER_OPEN_NONBLOCK);
+		if(s){
+		    fprintf(stderr, "ALSA: snd_timer_open: %s\n",
+			    snd_strerror(s));
+		    break;
+		}
+		snd_timer_info(timer, inf);
+		res = snd_timer_info_get_resolution(inf);
+		snd_timer_params_set_ticks(pm, 10000000 / res);
+		snd_timer_params_set_auto_start(pm, 1);
+		snd_timer_params(timer, pm);
+
+		free(pfd);
+		pfds = snd_timer_poll_descriptors_count(timer);
+		pfd = calloc(pfds, sizeof(*pfd));
+		snd_timer_poll_descriptors(timer, pfd, pfds);
+		snd_timer_start(timer);
+
+		snd_timer_params_free(pm);
+		snd_timer_info_free(inf);
+		snd_timer_close(at->timer);
+
+		at->timer = timer;
+		at->system = 0;
+		tmr->start = stm_start;
+		tmr->stop = stm_stop;
+	    }
 	    continue;
-	else if(s < 0)
+	} else if(s < 0){
 	    break;
+	}
 
 	while(snd_timer_read(timer, &tr, sizeof(tr)) == sizeof(tr)){
 	    t += tr.resolution * tr.ticks;
@@ -166,6 +224,14 @@ tm_stop(timer__t *t)
     return 0;
 }
 
+extern int
+tm_system(timer__t *t)
+{
+    alsa_timer_t *at = t->private;
+    at->system = 1;
+    return 0;
+}
+
 extern timer__t *
 open_timer(snd_pcm_t *pcm)
 {
@@ -193,7 +259,7 @@ open_timer(snd_pcm_t *pcm)
     snd_timer_params_set_ticks(pm, 1);
     snd_timer_params(timer, pm);
 
-    at = malloc(sizeof(*at));
+    at = calloc(1, sizeof(*at));
     at->timer = timer;
     at->time = 0;
     at->intr = 0;
@@ -202,7 +268,7 @@ open_timer(snd_pcm_t *pcm)
     pthread_cond_init(&at->cd, NULL);
     at->state = RUN;
 
-    tm = malloc(sizeof(*tm));
+    tm = calloc(1, sizeof(*tm));
     tm->start = tm_noop;
     tm->stop = tm_noop;
     tm->wait = tm_wait;
@@ -212,7 +278,7 @@ open_timer(snd_pcm_t *pcm)
     tm->free = free_timer;
     tm->private = at;
 
-    pthread_create(&at->th, NULL, run_timer, at);
+    pthread_create(&at->th, NULL, run_timer, tm);
 
     return tm;
 }

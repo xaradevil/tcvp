@@ -33,5 +33,6 @@
 
 extern timer__t *open_timer(snd_pcm_t *pcm);
 extern int tm_stop(timer__t *t);
+extern int tm_system(timer__t *t);
 
 #endif

@@ -49,6 +49,7 @@ typedef struct alsa_out {
     pthread_cond_t cd;
     pthread_t pth;
     int can_pause;
+    int data_end;
 } alsa_out_t;
 
 static int
@@ -77,9 +78,13 @@ alsa_stop(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
-    if(ao->can_pause && snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING)
+    pthread_mutex_lock(&ao->mx);
+
+    if(ao->can_pause && (snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING))
 	snd_pcm_pause(ao->pcm, 1);
     ao->state = PAUSE;
+
+    pthread_mutex_unlock(&ao->mx);
 
     return 0;
 }
@@ -110,7 +115,6 @@ static int
 alsa_flush(tcvp_pipe_t *p, int drop)
 {
     alsa_out_t *ao = p->private;
-    int s;
 
     pthread_mutex_lock(&ao->mx);
 
@@ -125,9 +129,6 @@ alsa_flush(tcvp_pipe_t *p, int drop)
     }
 
     ao->timer->interrupt(ao->timer);
-    s = snd_pcm_state(ao->pcm);
-    if(s != SND_PCM_STATE_RUNNING && s != SND_PCM_STATE_PREPARED)
-	snd_pcm_prepare(ao->pcm);
 
     pthread_cond_broadcast(&ao->cd);
     pthread_mutex_unlock(&ao->mx);
@@ -142,8 +143,10 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
     size_t count;
     u_char *data;
 
-    if(!pk)
+    if(!pk){
+	ao->data_end = 1;
 	return 0;
+    }
 
     count = pk->sizes[0];
     data = pk->data[0];
@@ -178,13 +181,13 @@ alsa_play(void *p)
 {
     alsa_out_t *ao = p;
 
+
     while(ao->state != STOP){
 	int count, r;
 
 	pthread_mutex_lock(&ao->mx);
 	while((!ao->bbytes || ao->state == PAUSE) && ao->state != STOP)
 	    pthread_cond_wait(&ao->cd, &ao->mx);
-	pthread_mutex_unlock(&ao->mx);
 
 	if(ao->state == STOP)
 	    break;
@@ -192,30 +195,32 @@ alsa_play(void *p)
 	count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->bpf;
 	r = snd_pcm_writei(ao->pcm, ao->tail, count);
 
-	if(r == -EAGAIN){
-	    snd_pcm_wait(ao->pcm, 40);
-	} else if(r < 0){
-	    fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
-	    if(snd_pcm_prepare(ao->pcm) < 0){
-		fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
-		return NULL;
-	    }
-	}
-
-	if(r < 0)
-	    continue;
-
-	count -= r;
-	pthread_mutex_lock(&ao->mx);
-	if(ao->bbytes){
+	if(r > 0){
+	    count -= r;
 	    ao->bbytes -= r * ao->bpf;
 	    ao->tail += r * ao->bpf;
 	    if(ao->tail - ao->buf == ao->bufsize)
 		ao->tail = ao->buf;
 	    pthread_cond_broadcast(&ao->cd);
+	} else if(r == -EAGAIN){
+	    pthread_mutex_unlock(&ao->mx);
+	    snd_pcm_wait(ao->pcm, 1000);
+	} else if(r < 0){
+	    int e;
+	    if((e = snd_pcm_prepare(ao->pcm)) < 0){
+		fprintf(stderr, "ALSA: %s\n", snd_strerror(e));
+		break;
+	    }
 	}
-	pthread_mutex_unlock(&ao->mx);
+	if(r != -EAGAIN){
+	    pthread_mutex_unlock(&ao->mx);
+	}
+	if(!ao->bbytes && ao->data_end){
+	    tm_system(ao->timer);
+	}
     }
+
+    pthread_mutex_unlock(&ao->mx);
 
     return NULL;
 }
