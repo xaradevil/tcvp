@@ -50,7 +50,7 @@ char *current_file;
 
 
 extern int
-toggle_time(tcwidget_t *p, XEvent *e)
+toggle_time(tcwidget_t *w, void *p)
 {
     if(show_time == TCTIME_ELAPSED) {
 	show_time = TCTIME_REMAINING;
@@ -151,6 +151,7 @@ tcvpx_init(char *p)
 
     return 0;
 }
+
 
 extern int
 tcvpx_shdn(void)

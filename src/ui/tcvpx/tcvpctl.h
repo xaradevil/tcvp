@@ -21,11 +21,12 @@
 
 #include "widgets.h"
 
-int tcvp_close(tcwidget_t *p, XEvent *e);
-int tcvp_previous(tcwidget_t *p, XEvent *e);
-int tcvp_next(tcwidget_t *p, XEvent *e);
-int tcvp_play(tcwidget_t *p, XEvent *e);
-int tcvp_stop(tcwidget_t *p, XEvent *e);
-int tcvp_pause(tcwidget_t *p, XEvent *e);
+int tcvp_close(tcwidget_t *w, void *p);
+int tcvp_previous(tcwidget_t *w, void *p);
+int tcvp_next(tcwidget_t *w, void *p);
+int tcvp_play(tcwidget_t *w, void *p);
+int tcvp_stop(tcwidget_t *w, void *p);
+int tcvp_pause(tcwidget_t *w, void *p);
+int tcvp_seek(tcwidget_t *w, void *p);
 
 #endif /* _TCVPCTL_H */

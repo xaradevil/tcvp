@@ -18,6 +18,7 @@
 
 #include "tcvpx.h"
 
+
 extern int
 repaint_seek_bar(tcwidget_t *w)
 {
@@ -91,10 +92,17 @@ change_seek_bar(tcseek_bar_t *w, double position)
 }
 
 
+extern int
+seek_bar_onclick(tcwidget_t *w, XEvent *xe)
+{
+    return 0;
+}
+
+
 extern tcseek_bar_t*
 create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 		int ep_x, int ep_y, char *background, char *indicator,
-		double position, onclick_cb_t onclick)
+		double position, action_cb_t action)
 {
     tcseek_bar_t *sb = calloc(sizeof(tcseek_bar_t), 1);
 
@@ -105,7 +113,6 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
     sb->start_y = sp_y;
     sb->end_x = ep_x;
     sb->end_y = ep_y;
-    sb->onclick = onclick;
     sb->repaint = repaint_seek_bar;
     sb->skin = skin;
     sb->position = position;
@@ -123,7 +130,9 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 				sb->height, depth);
 
     list_push(widget_list, sb);
-    if(onclick){
+    if(action){
+	sb->onclick = seek_bar_onclick;
+	sb->action = action;
 	list_push(bt_list, sb);
 	XSelectInput(xd, sb->win, ButtonPressMask);
     }

@@ -21,6 +21,7 @@
 #include "tcvpctl.h"
 #include <string.h>
 
+
 extern void *
 tcvp_event(void *p)
 {
@@ -126,7 +127,7 @@ tcvp_event(void *p)
 
 
 extern int
-tcvp_pause(tcwidget_t *p, XEvent *e)
+tcvp_pause(tcwidget_t *w, void *p)
 {
     tcvp_event_t *te = tcvp_alloc_event(TCVP_PAUSE);
     eventq_send(qs, te);
@@ -136,7 +137,7 @@ tcvp_pause(tcwidget_t *p, XEvent *e)
 
 
 extern int
-tcvp_stop(tcwidget_t *p, XEvent *e)
+tcvp_stop(tcwidget_t *w, void *p)
 {
     tcvp_event_t *te = tcvp_alloc_event(TCVP_CLOSE);
     p_state = STOPPED;
@@ -148,7 +149,7 @@ tcvp_stop(tcwidget_t *p, XEvent *e)
 
 
 extern int
-tcvp_play(tcwidget_t *p, XEvent *e)
+tcvp_play(tcwidget_t *w, void *p)
 {
     if(current_file != NULL) {
 	tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
@@ -163,7 +164,7 @@ tcvp_play(tcwidget_t *p, XEvent *e)
 
 
 extern int
-tcvp_next(tcwidget_t *p, XEvent *e)
+tcvp_next(tcwidget_t *w, void *p)
 {
     int state_tmp = p_state;
     tcvp_stop(NULL, NULL);
@@ -172,7 +173,7 @@ tcvp_next(tcwidget_t *p, XEvent *e)
 	if(state_tmp == PLAYING) tcvp_play(NULL, NULL);
     } else { 
 	p_state = STOPPED;
-	change_label(p->common.skin->title, "Stopped");
+	change_label(w->common.skin->title, "Stopped");
     }
 
     return 0;
@@ -180,7 +181,7 @@ tcvp_next(tcwidget_t *p, XEvent *e)
 
 
 extern int
-tcvp_previous(tcwidget_t *p, XEvent *e)
+tcvp_previous(tcwidget_t *w, void *p)
 {
     int state_tmp = p_state;
 
@@ -190,7 +191,7 @@ tcvp_previous(tcwidget_t *p, XEvent *e)
 	if(state_tmp == PLAYING) tcvp_play(NULL, NULL);
     } else {
 	p_state = STOPPED;
-	change_label(p->common.skin->title, "Stopped");
+	change_label(w->common.skin->title, "Stopped");
     }
 
     return 0;
@@ -198,9 +199,23 @@ tcvp_previous(tcwidget_t *p, XEvent *e)
 
 
 extern int
-tcvp_close(tcwidget_t *p, XEvent *e)
+tcvp_seek(tcwidget_t *w, void *p)
 {
-    tcvp_stop(p, NULL);
+    double pos = *((double*)p);
+
+    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK);
+    se->time = 0;
+    se->how = TCVP_SEEK_ABS;
+    eventq_send(qr, se);
+    tcfree(se);
+    return 0;
+}
+
+
+extern int
+tcvp_close(tcwidget_t *w, void *p)
+{
+    tcvp_stop(w, NULL);
 
     tc2_request(TC2_UNLOAD_ALL, 0);
 

@@ -20,6 +20,7 @@
 #include <X11/extensions/shape.h>
 #include <string.h>
 
+
 extern int
 update_root(skin_t *skin)
 {
@@ -129,6 +130,7 @@ repaint_background(tcwidget_t *w)
     }
     return 0;
 }
+
 
 extern tcbackground_t*
 create_background(skin_t *skin, char *imagefile)

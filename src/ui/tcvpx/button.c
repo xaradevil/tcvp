@@ -18,6 +18,7 @@
 
 #include "tcvpx.h"
 
+
 extern int
 repaint_button(tcwidget_t *w)
 {
@@ -37,16 +38,16 @@ repaint_button(tcwidget_t *w)
     return 0;
 }
 
+
 extern tcimage_button_t*
 create_button(skin_t *skin, int x, int y, char *imagefile,
-	      onclick_cb_t onclick)
+	      action_cb_t action)
 {
     tcimage_button_t *btn = calloc(sizeof(tcimage_button_t), 1);
 
     btn->type = TCIMAGEBUTTON;
     btn->x = x;
     btn->y = y;
-    btn->onclick = onclick;
     btn->repaint = repaint_button;
     btn->skin = skin;
     btn->img = load_image(skin->path, imagefile);
@@ -62,7 +63,9 @@ create_button(skin_t *skin, int x, int y, char *imagefile,
 				btn->height, depth);
 
     list_push(widget_list, btn);
-    if(onclick){
+    if(action){
+	btn->action = action;
+	btn->onclick = widget_onclick;
 	list_push(bt_list, btn);
 	XSelectInput(xd, btn->win, ButtonPressMask);
     }

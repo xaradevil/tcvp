@@ -22,6 +22,7 @@
 #include "tcvpctl.h"
 #include <X11/Xlib.h>
 
+
 extern skin_t*
 load_skin(char *skinconf)
 {
@@ -62,8 +63,9 @@ create_skinned_background(skin_t *skin, conf_section *sec)
     return(create_background(skin, file));
 }
 
+
 static tcimage_button_t*
-create_skinned_button(skin_t *skin, conf_section *sec, onclick_cb_t ocb)
+create_skinned_button(skin_t *skin, conf_section *sec, action_cb_t acb)
 {
     char *file;
     int x, y;
@@ -71,12 +73,13 @@ create_skinned_button(skin_t *skin, conf_section *sec, onclick_cb_t ocb)
     conf_getvalue(sec, "image", "%s", &file);
     conf_getvalue(sec, "position", "%d %d", &x, &y);
 
-    return(create_button(skin, x, y, file, ocb));
+    return(create_button(skin, x, y, file, acb));
 }
+
 
 static tclabel_t*
 create_skinned_label(skin_t *skin, conf_section *sec, char *text,
-		     onclick_cb_t ocb)
+		     action_cb_t acb)
 {
     int x, y;
     int w, h;
@@ -96,12 +99,13 @@ create_skinned_label(skin_t *skin, conf_section *sec, char *text,
     conf_getvalue(sec, "scroll", "%d", &stype);
 
     return(create_label(skin, x, y, w, h, xoff, yoff, text, font,
-			color, alpha, stype, ocb));
+			color, alpha, stype, acb));
 }
+
 
 static tcseek_bar_t*
 create_skinned_seek_bar(skin_t *skin, conf_section *sec, double position,
-		       onclick_cb_t ocb)
+		       action_cb_t acb)
 {
     int x, y;
     int sp_x, sp_y;
@@ -115,8 +119,9 @@ create_skinned_seek_bar(skin_t *skin, conf_section *sec, double position,
     conf_getvalue(sec, "indicator_image", "%s", &indicator);
 
     return(create_seek_bar(skin, x, y, sp_x, sp_y, ep_x, ep_y, bg,
-			   indicator, position, ocb));
+			   indicator, position, acb));
 }
+
 
 extern int
 create_ui(skin_t *skin)
@@ -167,7 +172,7 @@ create_ui(skin_t *skin)
 
     sec = conf_getsection(skin->config, "seek_bar");
     if(sec){
-	skin->seek_bar = create_skinned_seek_bar(skin, sec, 0, NULL);
+	skin->seek_bar = create_skinned_seek_bar(skin, sec, 0, tcvp_seek);
     }
 
     return 0;

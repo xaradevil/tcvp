@@ -19,6 +19,7 @@
 #include "tcvpx.h"
 #include <string.h>
 
+
 static int
 alpha_render_text(unsigned char *src, unsigned char *dest, int width,
 		  int height, int s_width, int s_height, int xoff,
@@ -231,7 +232,7 @@ repaint_label(tcwidget_t *txt)
 extern tclabel_t*
 create_label(skin_t *skin, int x, int y, int width, int height,
 	     int xoff, int yoff, char *text, char *font,
-	     char *color, short alpha, int scroll, onclick_cb_t onclick)
+	     char *color, short alpha, int scroll, action_cb_t action)
 {
     XColor xc;
     XParseColor(xd, DefaultColormap(xd, xs), color, &xc);
@@ -254,7 +255,6 @@ create_label(skin_t *skin, int x, int y, int width, int height,
     txt->y = y;
     txt->width = width;
     txt->height = height;
-    txt->onclick = onclick;
     txt->repaint = repaint_label;
     txt->skin = skin;
     txt->font = strdup(font);
@@ -300,7 +300,10 @@ create_label(skin_t *skin, int x, int y, int width, int height,
 	list_push(sl_list, txt);
     }
     list_push(widget_list, txt);
-    if(onclick){
+    if(action){
+	txt->onclick = widget_onclick;
+	txt->action = action;
+
 	list_push(bt_list, txt);
 	XSelectInput(xd, txt->win, ButtonPressMask);
     }

@@ -35,37 +35,31 @@
 
 typedef union _tcwidget_t tcwidget_t;
 typedef int(*onclick_cb_t)(tcwidget_t *, XEvent *);
+typedef int(*action_cb_t)(tcwidget_t *, void *);
 typedef int(*repaint_cb_t)(tcwidget_t *);
 typedef struct _skin_t skin_t;
 
-typedef struct {
-    int type;
-    int width, height;
-    Pixmap pixmap;
-    Window win;    
-    onclick_cb_t onclick;
-    repaint_cb_t repaint;
-    void *data;
-    skin_t *skin;
-    int x,y;
-    int enabled;
+#define WIDGET_COMMON				\
+    int type;					\
+    int width, height;				\
+    Pixmap pixmap;				\
+    Window win;    				\
+    onclick_cb_t onclick;			\
+    action_cb_t action;                         \
+    repaint_cb_t repaint;			\
+    void *data;					\
+    skin_t *skin;				\
+    int x,y;					\
+    int enabled
 
+typedef struct {
+    WIDGET_COMMON;
     image_info_t *img;
     int transparent;
 } tcbackground_t;
 
 typedef struct {
-    int type;
-    int width, height;
-    Pixmap pixmap;
-    Window win;    
-    onclick_cb_t onclick;
-    repaint_cb_t repaint;
-    void *data;
-    skin_t *skin;
-    int x,y;
-    int enabled;
-
+    WIDGET_COMMON;
     image_info_t *background;
     image_info_t *indicator;
     int start_x, start_y;
@@ -74,32 +68,12 @@ typedef struct {
 } tcseek_bar_t;
 
 typedef struct {
-    int type;
-    int width, height;
-    Pixmap pixmap;
-    Window win;
-    onclick_cb_t onclick;
-    repaint_cb_t repaint;
-    void *data;
-    skin_t *skin;
-    int x,y;
-    int enabled;
-
+    WIDGET_COMMON;
     image_info_t *img;
 } tcimage_button_t;
 
 typedef struct {
-    int type;
-    int width, height;
-    Pixmap pixmap;
-    Window win;
-    onclick_cb_t onclick;
-    repaint_cb_t repaint;
-    void *data;
-    skin_t *skin;
-    int x,y;
-    int enabled;
-
+    WIDGET_COMMON;
     char *colorname;
     uint32_t color;
     short alpha;
@@ -121,16 +95,7 @@ typedef struct {
 } tclabel_t;
 
 typedef struct {
-    int type;
-    int width, height;
-    Pixmap pixmap;
-    Window win;    
-    onclick_cb_t onclick;
-    repaint_cb_t repaint;
-    void *data;
-    skin_t *skin;
-    int x,y;
-    int enabled;
+    WIDGET_COMMON;
 } tcwidget_common_t;
 
 union _tcwidget_t {
@@ -144,6 +109,7 @@ union _tcwidget_t {
 
 extern list *widget_list, *bt_list, *sl_list;
 
+int widget_onclick(tcwidget_t *w, XEvent *xe);
 int draw_widget(tcwidget_t *w);
 int draw_widgets();
 int repaint_widgets();
@@ -160,18 +126,18 @@ int update_root(skin_t *skin);
 tcbackground_t* create_background(skin_t *skin, char *imagefile);
 
 tcimage_button_t* create_button(skin_t *skin, int x, int y,
- 			       char *imagefile, onclick_cb_t onclick);
+ 			       char *imagefile, action_cb_t action);
 
 int change_label(tclabel_t *txt, char *text);
 tclabel_t* create_label(skin_t *skin, int x, int y, int width, int height,
 			int xoff, int yoff, char *text, char *font,
 			char *color, short alpha, int scroll,
-			onclick_cb_t onclick);
+			action_cb_t action);
 
 int change_seek_bar(tcseek_bar_t *sb, double position);
 tcseek_bar_t *create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 			      int ep_x, int ep_y, char *bg, char *indicator,
-			      double position, onclick_cb_t ocb);
+			      double position, action_cb_t action);
 int enable_seek_bar(tcseek_bar_t *sb);
 int disable_seek_bar(tcseek_bar_t *sb);
 

@@ -21,6 +21,7 @@
 
 list *widget_list, *bt_list, *sl_list;
 
+
 extern void *
 scroll_labels(void *p)
 {
@@ -101,6 +102,7 @@ alpha_render_part(unsigned char *src, unsigned char *dest,
     return 0;
 }
 
+
 extern int
 alpha_render(unsigned char *src, unsigned char *dest,
 	     int width, int height, int depth)
@@ -108,6 +110,7 @@ alpha_render(unsigned char *src, unsigned char *dest,
     return alpha_render_part(src, dest, 0, 0, 0, 0, width, height,
 			     width, height, depth);
 }
+
 
 extern int
 draw_widget(tcwidget_t *w)
@@ -148,5 +151,15 @@ repaint_widgets()
 	}
     }
 
+    return 0;
+}
+
+
+extern int
+widget_onclick(tcwidget_t *p, XEvent *xe)
+{
+    if(p->common.enabled && p->common.action){
+	return p->common.action(p, NULL);
+    }
     return 0;
 }
