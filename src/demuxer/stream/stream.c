@@ -281,8 +281,18 @@ read_stream(void *_p)
 		list_push(vp->streams[str].pq, p);
 		sem_post(&vp->streams[str].ps);
 	    } else {
-		vp->streams[s].str = NULL;
-		sem_post(&vp->streams[s].ps);
+		muxed_stream_t *ms = vp->streams[s].str;
+		int o = vp->streams[s].soff;
+		int n = ms->n_streams;
+		int i;
+
+		for(i = 0; i < n; i++){
+		    if(ms->used_streams[i]){
+			vp->streams[o + i].str = NULL;
+			sem_post(&vp->streams[o + i].ps);
+		    }
+		}
+
 		if(++vp->eof == vp->nms)
 		    break;
 	    }
@@ -302,7 +312,7 @@ get_packet(s_play_t *vp, int s)
 	sem_wait(&vp->streams[s].ps);
     }
     p = list_shift(vp->streams[s].pq);
-    if(list_items(vp->streams[s].pq) < min_buffer && !vp->eof)
+    if(list_items(vp->streams[s].pq) < min_buffer && vp->streams[s].str)
 	sem_post(&vp->rsm);
     return p;
 }
