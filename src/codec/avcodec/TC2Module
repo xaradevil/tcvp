@@ -41,6 +41,7 @@ TCVP {
 		alias "decoder/video/svq1"
 		alias "decoder/video/svq3"
 		alias "decoder/video/indeo3"
+		alias "decoder/video/truemotion1"
 		new avc_new
 		probe avc_probe_video
 		packet DATA avc_decvideo

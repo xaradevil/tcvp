@@ -236,9 +236,9 @@ static char *pixel_fmts[] = {
     [PIX_FMT_RGBA32] = 0,
     [PIX_FMT_YUV410P] = "video/raw-yvu9",
     [PIX_FMT_YUV411P] = 0,
-    [PIX_FMT_RGB565] = 0,
-    [PIX_FMT_RGB555] = 0,
-    [PIX_FMT_GRAY8] = 0,
+    [PIX_FMT_RGB565] = "video/raw-rgb565",
+    [PIX_FMT_RGB555] = "video/raw-rgb555",
+    [PIX_FMT_GRAY8] = "video/raw-gray8",
     [PIX_FMT_MONOWHITE] = 0,
     [PIX_FMT_MONOBLACK] = 0,
     [PIX_FMT_PAL8] = 0,
@@ -435,6 +435,7 @@ static char *codec_names[][2] = {
     { (char *) CODEC_ID_INDEO3, "video/indeo3" },
     { (char *) CODEC_ID_VP3, "video/vp3" },
     { (char *) CODEC_ID_CINEPAK, "video/cinepak" },
+    { (char *) CODEC_ID_TRUEMOTION1, "video/truemotion1" },
 
     /* various pcm "codecs" */
     { (char *) CODEC_ID_PCM_S16LE, "audio/pcm-s16le" },
