@@ -700,6 +700,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		sp->common.codec = mpeg_stream_types[sti].codec;
 		sp->common.index = ms->n_streams;
 		sp->common.start_time = -1;
+		sp->common.flags = TCVP_STREAM_FLAG_TRUNCATED;
 
 		for(j = 0; j < esil;){
 		    int tl = dp[1] + 2;

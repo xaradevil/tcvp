@@ -595,8 +595,6 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    s->imap[s->dvd_info->streams[i].common.index] = i;
 	    s->map[i] = s->dvd_info->streams[i].common.index;
 	    ms->streams[i].common.index = i;
-	    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "map %x -> %i\n",
-		      s->map[i], i);
 	}
 	ms->time = s->dvd_info->index_unit * s->dvd_info->index_size;
     } else if(mpegps_findpsm(ms, ns)){
@@ -611,8 +609,11 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     }
 
     for(i = 0; i < ms->n_streams; i++){
+	ms->streams[i].common.flags |= TCVP_STREAM_FLAG_TRUNCATED;
 	if(ms->streams[i].stream_type == STREAM_TYPE_SUBTITLE)
 	    ms->streams[i].common.flags |= TCVP_STREAM_FLAG_NOBUFFER;
+	tc2_print("MPEGPS", TC2_PRINT_DEBUG, "map %x -> %i\n",
+		  s->map[i], i);
     }
 
     tc2_print("MPEGPS", TC2_PRINT_DEBUG, "at %x\n",
