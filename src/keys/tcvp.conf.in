@@ -2,4 +2,8 @@
 bind 'q'	'*'	'quit'
 bind 'Up'	'video'	'send(TCVP_SEEK, 60000, 1)'
 bind 'Down'	'video'	'send(TCVP_SEEK, -60000, 1)'
+bind 'Right'	'video'	'send(TCVP_SEEK, 10000, 1)'
+bind 'Left'	'video'	'send(TCVP_SEEK, -10000, 1)'
 bind 'space'	'video'	'send(TCVP_PAUSE)'
+bind 'Next'	'video'	'send(TCVP_PL_NEXT)'
+bind 'Prior'	'video'	'send(TCVP_PL_PREV)'
