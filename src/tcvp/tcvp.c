@@ -25,7 +25,7 @@
 #include <tcvp.h>
 #include <tcvp_tc2.h>
 
-static tcvp_pipe_t *demux, *codec, *sound;
+static tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;
 static muxed_stream_t *stream;
 
 static int tcvp_stop(char *p);
@@ -33,9 +33,11 @@ static int tcvp_stop(char *p);
 static int
 tcvp_play(char *arg)
 {
-    int i;
+    int i, j;
     char buf[64];
-    codec_new_pipe_t cnew;
+    codec_new_t acnew, vcnew;
+    stream_t *as = NULL, *vs = NULL;
+    tcvp_pipe_t *codecs[2];
 
     tcvp_stop(NULL);
 
@@ -51,6 +53,7 @@ tcvp_play(char *arg)
 		   stream->streams[i].audio.sample_rate,
 		   stream->streams[i].audio.channels);
 	    break;
+
 	case STREAM_TYPE_VIDEO:
 	    printf("%s, %ix%i, %f fps\n",
 		   stream->streams[i].video.codec,
@@ -61,26 +64,38 @@ tcvp_play(char *arg)
 	}
     }
 
-    for(i = 0; i < stream->n_streams; i++){
-	if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO){
-	    break;
+    for(i = 0, j = 0; i < stream->n_streams; i++){
+	if(stream->streams[i].stream_type == STREAM_TYPE_VIDEO && !vs){
+	    vs = &stream->streams[i];
+	    sprintf(buf, "codec/%s", vs->video.codec);
+	    if((vcnew = tc2_get_symbol(buf, "new")) == NULL){
+		fprintf(stderr, "TCVP: Can't load %s\n", buf);
+		vs = NULL;
+		continue;
+	    }
+	    stream->used_streams[i] = 1;
+	    video = output_video_open((video_stream_t *) vs, NULL);
+	    vcodec = vcnew(vs, CODEC_MODE_DECODE, video);
+	    codecs[j++] = vcodec;
+	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO && !as){
+	    as = &stream->streams[i];
+	    sprintf(buf, "codec/%s", as->audio.codec);
+	    if((acnew = tc2_get_symbol(buf, "new")) == NULL){
+		fprintf(stderr, "TCVP: Can't load %s\n", buf);
+		as = NULL;
+		continue;
+	    }
+	    stream->used_streams[i] = 1;
+	    sound = output_audio_open((audio_stream_t *) as, NULL);
+	    acodec = acnew(as, CODEC_MODE_DECODE, sound);
+	    codecs[j++] = acodec;
 	}
     }
 
-    if(i == stream->n_streams)
+    if(!as && !vs)
 	return -1;
 
-    stream->used_streams[i] = 1;
-
-    sprintf(buf, "codec/%s", stream->streams[i].audio.codec);
-    if((cnew = tc2_get_symbol(buf, "new_pipe")) == NULL){
-	fprintf(stderr, "TCVP: Can't load %s\n", buf);
-	return -1;
-    }
-
-    sound = output_audio_open((audio_stream_t *)&stream->streams[i], NULL);
-    codec = cnew(CODEC_MODE_DECODE, sound);
-    demux = video_play(stream, &codec);
+    demux = video_play(stream, codecs);
 
     demux->start(demux);
 
@@ -111,14 +126,24 @@ tcvp_stop(char *p)
 	demux = NULL;
     }
 
-    if(codec){
-	codec->free(codec);
-	codec = NULL;
+    if(acodec){
+	acodec->free(acodec);
+	acodec = NULL;
+    }
+
+    if(vcodec){
+	vcodec->free(vcodec);
+	vcodec = NULL;
     }
 
     if(sound){
 	sound->free(sound);
 	sound = NULL;
+    }
+
+    if(video){
+	video->free(video);
+	video = NULL;
     }
 
     if(stream){
