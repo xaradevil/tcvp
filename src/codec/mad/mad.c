@@ -380,6 +380,8 @@ mad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     md->buf = malloc(BUFFER_SIZE);
 
     p = tcallocdz(sizeof(*p), NULL, mad_free);
+    p->format = *s;
+    p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->input = decode;
     p->probe = probe;
     p->flush = mad_flush;
