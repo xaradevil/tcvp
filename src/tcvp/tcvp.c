@@ -217,7 +217,7 @@ print_stream(stream_t *s)
 	if(s->video.frame_rate.den)
 	    printf(", %.2lf fps",
 		   (double) s->video.frame_rate.num / s->video.frame_rate.den);
-	if(s->video.aspect.den)
+	if(s->video.aspect.num && s->video.aspect.den)
 	    printf(", aspect %i/%i (%.2lf)",
 		   s->video.aspect.num, s->video.aspect.den,
 		   (double) s->video.aspect.num / s->video.aspect.den);
@@ -288,6 +288,9 @@ t_seek(tcvp_module_t *pl, int64_t time, int how)
     uint64_t ntime, stime = -1;
     int s = tp->state;
     int i;
+
+    if(tp->state == TCVP_STATE_END)
+	return 0;
 
     if(s == TCVP_STATE_PLAYING){
 	t_stop(pl, NULL);
