@@ -118,6 +118,8 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	cpattr(ms, u, "artist");
 	cpattr(ms, u, "album");
 	cpattr(ms, u, "track");
+	cpattr(ms, u, "year");
+	cpattr(ms, u, "genre");
 
 	a = tcattr_get(ms, "artist");
 	p = tcattr_get(ms, "performer");
