@@ -64,7 +64,7 @@ getu16(FILE *f)
 }
 
 typedef struct avi_index {
-    uint32_t tag;
+    char tag[4];
     uint32_t flags;
     uint32_t offset;
     uint32_t size;
@@ -80,6 +80,7 @@ typedef struct avi_file {
     int pkt;
     avi_index_t *index;
     int idxlen;
+    int idxok;
 } avi_file_t;
 
 static muxed_stream_t *
@@ -330,6 +331,12 @@ valid_tag(char *t)
 	isprint(t[2]) && isprint(t[3]);
 }
 
+static inline int
+tag2str(char *tag)
+{
+    return (xval[tag[0]] << 4) + xval[tag[1]];    
+}
+
 static packet_t *
 avi_packet(muxed_stream_t *ms, int stream)
 {
@@ -345,18 +352,18 @@ avi_packet(muxed_stream_t *ms, int stream)
 	int tried_index = 0, tried_bkup = 0, skipped = 0;
 	do {
 	    char *buf;
-	    size_t pos = ftell(af->file);
+	    size_t pos;
 
 	    /* FIXME: get rid of gotos */
 	again:
+	    pos = ftell(af->file);
 	    if(!get4c(tag, af->file))
 		break;
-
-	    size = getu32(af->file);
 
 	    if(!strcmp(tag, "LIST")){
 		getu32(af->file); /* size */
 		getu32(af->file); /* rec */
+		goto again;
 	    } else if(!strcmp(tag, "idx1")){
 		af->eof = 1;
 		break;
@@ -365,35 +372,50 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    if(!valid_tag(tag)){
 		fprintf(stderr, "AVI[%i]: Bad packet header @ %08x\n",
 			stream, pos);
-		if(!tried_index && af->index){
+		if(!tried_index && af->idxok > 256){
 		    fprintf(stderr, "AVI: Index => %08x\n",
 			    af->index[af->pkt].offset);
 		    fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
 		    tried_index++;
 		    goto again;
-		} else if(!tried_bkup){
-		    fprintf(stderr, "AVI: Backing up 4 bytes.\n");
-		    fseek(af->file, pos-4, SEEK_SET);
+		} else if(tried_bkup < 16){
+		    if(!tried_bkup){
+			fprintf(stderr, "AVI: Backing up 32 bytes.\n");
+			fseek(af->file, -36, SEEK_CUR);
+		    }
 		    tried_bkup++;
 		    goto again;
-		} else if(skipped < 8 && af->index){
+		} else if(skipped < 8 && af->idxok > 256){
 		    fprintf(stderr, "AVI: Skipping frame.\n");
-		    /* FIXME: PTS */
+		    if(ms->streams[tag2str(af->index[af->pkt].tag)].
+		       stream_type == STREAM_TYPE_VIDEO)
+			af->pts += af->ptsn;
 		    af->pkt++;
 		    fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
+		    skipped++;
 		    goto again;
 		}
 
 		fprintf(stderr, "AVI: Can't find valid packet.  Giving up.\n");
-		fprintf(stderr, "AVI: %02x%02x%02x%02x:%s %8x %16lx\n",
-			tag[0], tag[1], tag[2], tag[3], tag, size, pos);
+		fprintf(stderr, "AVI: %02x%02x%02x%02x:%s @ %16lx\n",
+			tag[0], tag[1], tag[2], tag[3], tag, pos);
 		af->eof = 1;
 		break;
 	    }
 
+	    if(af->index){
+		if(af->index[af->pkt].offset == pos){
+		    af->idxok++;
+		} else {
+		    af->idxok = 0;
+		}
+	    }
+
 	    af->pkt++;
 
-	    str = (xval[tag[0]] << 4) + xval[tag[1]];
+	    size = getu32(af->file);
+
+	    str = tag2str(tag);
 	    if(!ms->used_streams[str]){
 		fseek(af->file, size + (size&1), SEEK_CUR);
 		continue;
@@ -407,7 +429,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    pk = malloc(sizeof(*pk));
 	    pk->private = buf;
 	    pk->data = (u_char **) &pk->private;
-	    pk->sizes = malloc(sizeof(size_t));
+	    pk->sizes = malloc(sizeof(*pk->sizes));
 	    pk->sizes[0] = size;
 	    pk->planes = 1;
 	    pk->pts = af->pts / af->ptsd;
