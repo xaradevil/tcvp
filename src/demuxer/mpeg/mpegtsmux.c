@@ -63,6 +63,7 @@ typedef struct mpegts_mux {
 	int bitrate;
 	int bytes;
 	uint64_t bdts;
+	uint64_t lpts;
     } *streams;
     int psic, psifreq;
     u_char *pat;
@@ -75,7 +76,8 @@ typedef struct mpegts_mux {
     int64_t tbytes, padbytes;
     int realtime;
     double rate_factor;
-    int pcr_delay;
+    int64_t pcr_delay;
+    uint64_t pts_interval;
 } mpegts_mux_t;
 
 static u_char *
@@ -373,11 +375,13 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 		int pesflags = 0, pessize;
 		int peshl;
 
-		if(pk->flags & TCVP_PKT_FLAG_PTS){
+		if(pk->flags & TCVP_PKT_FLAG_PTS &&
+		   pk->pts - os->lpts > tsm->pts_interval){
+		    os->lpts = pk->pts;
 		    pesflags |= PES_FLAG_PTS;
+		    if(pk->flags & TCVP_PKT_FLAG_DTS)
+			pesflags |= PES_FLAG_DTS;
 		}
-		if(pk->flags & TCVP_PKT_FLAG_DTS)
-		    pesflags |= PES_FLAG_DTS;
 
 		pessize = os->stream_type == STREAM_TYPE_VIDEO? 0: size;
 		peshl = write_pes_header(out, os->stream_id,
@@ -471,6 +475,7 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     tsm->streams[s->common.index].pid = pid;
     tsm->streams[s->common.index].stream_id = str_type->stream_id_base;
     tsm->streams[s->common.index].bitrate = s->common.bit_rate?: 320000;
+    tsm->streams[s->common.index].lpts = 1LL << 63;
     tsm->nstreams++;
 
     if(s->common.start_time < tsm->start_time)
@@ -560,14 +565,17 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->realtime = out->flags & URL_FLAG_STREAMED;
     tsm->rate_factor = tcvp_demux_mpeg_conf_ts_rate_factor;
     tsm->pcr_delay = tcvp_demux_mpeg_conf_pcr_delay;
+    tsm->pts_interval = tcvp_demux_mpeg_conf_pts_interval;
 
     tcconf_getvalue(cs, "bitrate", "%i", &tsm->bitrate);
     tcconf_getvalue(cs, "pad", "%i", &tsm->pad);
     tcconf_getvalue(cs, "realtime", "%i", &tsm->realtime);
     tcconf_getvalue(cs, "rate_factor", "%lf", &tsm->rate_factor);
-    tcconf_getvalue(cs, "pcr_delay", "%i", &tsm->pcr_delay);
+    tcconf_getvalue(cs, "pcr_delay", "%li", &tsm->pcr_delay);
+    tcconf_getvalue(cs, "pts_interval", "%li", &tsm->pts_interval);
 
     tsm->pcr_delay *= 27000;
+    tsm->pts_interval *= 27000;
 
     p = tcallocdz(sizeof(*p), NULL, tmx_free);
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;

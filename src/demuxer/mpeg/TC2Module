@@ -21,3 +21,4 @@ option		pes_size%i=0xfff2
 option		ts_rate_window%i=1000
 option		ts_rate_factor%f=2
 option		pcr_delay%i=0
+option		pts_interval%i=500
