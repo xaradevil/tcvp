@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -446,6 +446,9 @@ tcl_stop(void)
     for(i = 0; i < npl; i++)
 	free(playlist[i]);
 
+    if(skin)
+	free(skin);
+
     return 0;
 }
 
@@ -595,7 +598,7 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case OPT_SKIN:
-	    skin = optarg;
+	    skin = fullpath(optarg);
 	    break;
 
 	case 'p':
