@@ -1,0 +1,16 @@
+symbol	"new"	audio_driver_t *(*%s)(audio_stream_t *, tcconf_section_t *, tcvp_timer_t *)
+require "timer"
+include
+#include <tcvp_types.h>
+
+typedef struct audio_driver audio_driver_t;
+struct audio_driver {
+    char *format;
+    int (*write)(audio_driver_t *, void *data, int samples);
+    int (*wait)(audio_driver_t *, int timeout);
+    int (*delay)(audio_driver_t *);
+    int (*start)(audio_driver_t *);
+    int (*stop)(audio_driver_t *);
+    int (*flush)(audio_driver_t *, int drop);
+    void *private;
+};

@@ -1,6 +1,7 @@
 # -*- tcconf -*-
 TC2/interface {
 	# Give the better modules higher priority
+	priority "audio/mpeg"		"TCVP/demux/mp3"	5
 	priority "audio/mp3"		"TCVP/demux/mp3"	5
 	priority "video/mpeg"		"TCVP/demux/mpeg"	5
 	priority "decoder/audio/mp2"	"TCVP/codec/mad"	5
@@ -9,9 +10,13 @@ TC2/interface {
 	priority "decoder/video/mpeg"	"TCVP/codec/mpeg2"	5
 	priority "decoder/video/mpeg2"	"TCVP/codec/mpeg2"	5
 	priority "decoder/audio/ac3"	"TCVP/codec/a52"	5
-	priority "output/audio" 	"TCVP/output/alsa"	5
-	priority "driver/timer"	 	"TCVP/output/alsa"	5
+	priority "driver/timer"	 "TCVP/driver/audio/alsa"	5
 }
 
 # add Xv as default video driver
 output/video/driver "Xv" 1
+
+output/audio {
+	driver "alsa"	2
+	driver "oss"	1
+}
