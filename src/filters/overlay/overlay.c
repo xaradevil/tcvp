@@ -62,6 +62,8 @@ ovl_input(tcvp_pipe_t *p, packet_t *pk)
 		tcvp_data_packet_t *vp = ov->fifo[ov->fifopos];
 		tcvp_data_packet_t *next, *opk = NULL;
 
+		ov->fifo[ov->fifopos] = NULL;
+
 		next = tclist_head(ov->next);
 		if(next && next->pts <= vp->pts){
 		    tcfree(ov->current);
