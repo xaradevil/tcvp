@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <getopt.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <pthread.h>
@@ -32,6 +33,7 @@ static int nfiles;
 char **files;
 sem_t psm;
 int intr;
+conf_section *cf;
 
 static void
 sigint(int s)
@@ -54,10 +56,8 @@ tcvp_update(void *p, int state, uint64_t time)
 static void *
 tcvp_play(void *p)
 {
-    conf_section *cf;
     int i;
 
-    cf = conf_new(NULL);
     sem_init(&psm, 0, 0);
 
     for(i = 0; i < nfiles; i++){
@@ -74,8 +74,6 @@ tcvp_play(void *p)
 	    sem_wait(&psm);
 	}
     }
-
-    conf_free(cf);
 
     tc2_request(TC2_UNLOAD_MODULE, 0, "TCVP/cmdline");
     return NULL;
@@ -94,13 +92,61 @@ tcvp_stop(void)
     pthread_join(play_thr, NULL);
 }
 
+static int verbose_flag=0;
+static int
+parse_options(int argc, char **argv)
+{
+    int c;
+
+    while (1)
+    {
+	static struct option long_options[] =
+	    {
+		{"help", no_argument, 0, 'h'},
+		{"alsa-device", required_argument, 0, 'd'},
+		{0, 0, 0, 0}
+	    };
+	int option_index = 0;
+     
+	c = getopt_long (argc, argv, "hd:", 
+			 long_options, &option_index);
+	
+	if (c == -1)
+	    break;
+
+	switch (c)
+	{
+	case 'h':
+	    /* FIXME: better helpscreen */
+	    printf("TCVP helpscreen\n"
+		   "   -h, --help          This helpscreen\n"
+		   "   -d, --alsa-device   Select audio device\n");
+	    break;
+	case 'd':
+	    conf_setvalue(cf,"audio/device","%s",optarg);
+	    break;
+	}
+    }
+    return optind;
+}
+
 extern int
 main(int argc, char **argv)
 {
     struct sigaction sa;
+    int opt_num;
 
-    nfiles = argc - 1;
-    files = argv + 1;
+    cf = conf_new(NULL);
+
+    opt_num = parse_options(argc, argv);
+
+    if(argc == opt_num) {
+	/* FIXME: print message */
+	return 0;
+    }
+
+    nfiles = argc - opt_num;
+    files = argv + opt_num;
 
     sa.sa_handler = sigint;
     sigemptyset(&sa.sa_mask);
@@ -112,5 +158,8 @@ main(int argc, char **argv)
     tc2_request(TC2_ADD_MODULE, 0, NULL, &tc2__module_info);
     tc2_request(TC2_LOAD_MODULE, 0, "TCVP/cmdline", NULL);
     tc2_run();
+
+    conf_free(cf);
+
     return 0;
 }
