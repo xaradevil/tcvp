@@ -426,7 +426,7 @@ create_label(skin_t *skin, int x, int y, int width, int height,
 	XSelectInput(xd, txt->win, ButtonPressMask | PointerMotionMask |
 		     ButtonReleaseMask | ExposureMask);
     } else if(action){
-	XSelectInput(xd, sb->win, ButtonPressMask | ExposureMask);
+	XSelectInput(xd, txt->win, ButtonPressMask | ExposureMask);
     } else {
 	XSelectInput(xd, txt->win, ExposureMask);
     }	

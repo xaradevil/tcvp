@@ -120,7 +120,7 @@ create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
 	list_push(click_list, st);
 	XSelectInput(xd, st->win, ButtonPressMask | ExposureMask);
     } else {
-	XSelectInput(xd, sb->win, ExposureMask);
+	XSelectInput(xd, st->win, ExposureMask);
     }
 
     return st;
