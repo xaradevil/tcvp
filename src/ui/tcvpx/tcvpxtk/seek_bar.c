@@ -245,9 +245,11 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 		image_info_t *down_image, double position,
 		action_cb_t action, void *data)
 {
-    tcseek_bar_t *sb = calloc(sizeof(tcseek_bar_t), 1);
+    tcseek_bar_t *sb;
     long emask;
 
+    if(!background || !indicator) return NULL;
+    sb = calloc(sizeof(tcseek_bar_t), 1);
     sb->type = TCSEEKBAR;
     sb->x = x;
     sb->y = y;

@@ -123,9 +123,12 @@ create_button(window_t *window, int x, int y, image_info_t *bg,
 	      image_info_t *image, image_info_t *over_image,
 	      image_info_t *down_image, action_cb_t action, void *data)
 {
-    tcimage_button_t *btn = calloc(sizeof(tcimage_button_t), 1);
+    tcimage_button_t *btn;
     long emask = 0;
 
+    if(!image) return NULL;
+
+    btn = calloc(sizeof(tcimage_button_t), 1);
     btn->type = TCIMAGEBUTTON;
     btn->x = x;
     btn->y = y;

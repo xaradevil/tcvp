@@ -235,8 +235,12 @@ create_background(window_t *window, image_info_t *image)
 {
     char *data;
     Pixmap maskp;
-    tcbackground_t *bg = calloc(sizeof(tcbackground_t), 1);
     int x, y;
+    tcbackground_t *bg;
+
+    if(!image) return NULL;
+
+    bg = calloc(sizeof(tcbackground_t), 1);
 
     bg->type = TCBACKGROUND;
     bg->x = 0;

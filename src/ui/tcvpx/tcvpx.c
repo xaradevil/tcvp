@@ -77,7 +77,7 @@ tcvpx_init(char *p)
 
     skin->window = xtk_create_window("TCVP", skin->width, skin->height);
     
-    if(create_ui(skin->window, skin, skin->config) != 0){
+    if(create_ui(skin->window, skin, skin->config, NULL) != 0){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n",
 		tcvp_ui_tcvpx_conf_skin);
 	return -1;

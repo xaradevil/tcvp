@@ -44,10 +44,12 @@ typedef struct {
     window_t *window;
     int state;
     hash_table *id_hash;
+    list *templates;
 } skin_t;
 
 skin_t* load_skin(char *skinfile);
-int create_ui(window_t *win, skin_t *skin, conf_section *config);
+int create_ui(window_t *win, skin_t *skin, conf_section *config, 
+	      hash_table *parameters);
 
 int init_skins(void);
 extern void cleanup_skins(void);
