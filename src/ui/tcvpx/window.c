@@ -19,6 +19,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/shape.h>
 #include "tcvpx.h"
+#include <string.h>
 
 #define MWM_HINTS_DECORATIONS   (1L << 1)
 #define PROP_MWM_HINTS_ELEMENTS 5
@@ -127,6 +128,7 @@ create_window(skin_t *skin)
 			CopyFromParent, InputOutput,
 			CopyFromParent, 0, 0);
 
+    memset(&mwmhints, 0, sizeof(MWMHints));
     prop = XInternAtom(xd, "_MOTIF_WM_HINTS", False);
     mwmhints.flags = MWM_HINTS_DECORATIONS;
     mwmhints.decorations = 0;
