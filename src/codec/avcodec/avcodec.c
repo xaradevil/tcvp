@@ -43,8 +43,9 @@ typedef struct avc_codec {
     char *buf;
 
     /* video */
-    uint64_t pts;
+    uint64_t pts, npts;
     uint64_t ptsn, ptsd;
+    int bfc, pts_delay, ptsc;
     AVFrame *frame;
 
     int have_params;
@@ -163,12 +164,9 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	return 0;
     }
 
-    if(pk->flags & TCVP_PKT_FLAG_PTS){
-	uint64_t pts = vc->pts / vc->ptsd;
-	uint64_t ptsdiff = pk->pts > pts? pk->pts - pts: pts - pk->pts;
-	if(ptsdiff > 1000000){
-	    vc->pts = pk->pts * vc->ptsd;
-	}
+    if(pk->flags & TCVP_PKT_FLAG_PTS && !vc->ptsc){
+	vc->npts = pk->pts * vc->ptsd;
+	vc->ptsc = vc->pts_delay;
     }
 
     while(insize > 0){
@@ -195,6 +193,9 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    }
 	    out->planes = i;
 
+	    if(vc->ptsc > 0 && --vc->ptsc == 0)
+		vc->pts = vc->npts;
+
 	    out->flags = TCVP_PKT_FLAG_PTS;
 	    out->pts = vc->pts / vc->ptsd;
 	    vc->pts += vc->ptsn;
@@ -214,6 +215,12 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 		    pk->free(pk);
 		}
 		return 0;
+	    }
+	    if(vc->frame->pict_type == FF_B_TYPE){
+		vc->bfc++;
+	    } else if(vc->bfc){
+		vc->pts_delay = vc->bfc + 1;
+		vc->bfc = 0;
 	    }
 	}
     }
@@ -390,8 +397,8 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 	avctx->height = s->video.height;
 	avctx->frame_rate = s->video.frame_rate.num;
 	avctx->frame_rate_base = s->video.frame_rate.den;
-	avctx->workaround_bugs = 0x3ff;
-	avctx->error_resilience = FF_ER_AGGRESSIVE;
+	avctx->workaround_bugs = 1;
+	avctx->error_resilience = FF_ER_COMPLIANT;
 	avctx->error_concealment = 3;
 
 	vc = calloc(1, sizeof(*vc));
@@ -399,6 +406,7 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 	vc->ptsn = (uint64_t) 1000000 * s->video.frame_rate.den;
 	vc->ptsd = s->video.frame_rate.num?: 1;
 	vc->pts = 0;
+	vc->pts_delay = 1;
 	vc->frame = avcodec_alloc_frame();
 
 	p = tcallocdz(sizeof(*p), NULL, avc_free_vpipe);
