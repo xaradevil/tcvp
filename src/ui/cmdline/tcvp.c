@@ -394,7 +394,7 @@ main(int argc, char **argv)
     tc2_run();
     tc2_free();
 
-    conf_free(cf);
+    tcfree(cf);
 
     return 0;
 }

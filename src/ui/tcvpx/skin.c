@@ -17,6 +17,7 @@
 **/
 
 #include <tcconf.h>
+#include <tcalloc.h>
 #include "tcvpx.h"
 #include <string.h>
 #include "tcvpctl.h"
@@ -248,7 +249,7 @@ static void
 free_skin(skin_t *skin)
 {
     free(skin->path);
-    conf_free(skin->config);
+    tcfree(skin->config);
     hash_destroy(skin->id_hash, NULL);
     list_destroy(skin->templates, free_template);
     free(skin);
