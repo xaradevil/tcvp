@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -96,18 +96,23 @@ typedef struct mpegts_pk {
 static int
 fill_buf(mpegts_stream_t *s)
 {
-    int n;
+    int bpos = (s->tsp - s->tsbuf) % 188;
+    int n = s->tsnbuf * TS_PACKET_SIZE + s->extra;
 
-    memmove(s->tsbuf, s->tsp, s->extra);
-    n = TS_PACKET_SIZE * TS_PACKET_BUF - s->extra;
-    n = s->stream->read(s->tsbuf + s->extra, 1, n, s->stream);
-    if(n <= 0)
-	return -1;
+    memmove(s->tsbuf, s->tsp - bpos, n);
+    s->tsp = s->tsbuf + bpos;
 
-    n += s->extra;
-    s->tsnbuf =  n / TS_PACKET_SIZE;
+    while(s->tsnbuf < TS_PACKET_BUF){
+	int r = TS_PACKET_SIZE * TS_PACKET_BUF - n;
+	r = s->stream->read(s->tsbuf + n, 1, r, s->stream);
+	if(r <= 0)
+	    return -1;
+
+	n += r;
+	s->tsnbuf = n / TS_PACKET_SIZE;
+    }
+
     s->extra = n - s->tsnbuf * TS_PACKET_SIZE;
-    s->tsp = s->tsbuf;
 
     return 0;
 }
@@ -121,7 +126,9 @@ resync(mpegts_stream_t *s)
     }
 
     while(s->tsp[0] != MPEGTS_SYNC || s->tsp[188] != MPEGTS_SYNC){
-	u_char *bufmax = s->tsbuf + (s->tsnbuf - 1) * TS_PACKET_SIZE;
+	ptrdiff_t bpos = s->tsp - s->tsbuf;
+	u_char *bufmax =
+	    s->tsp - bpos % 188 + (s->tsnbuf - 1) * TS_PACKET_SIZE + s->extra;
 	int sync = 0;
 	int nb;
 
@@ -133,7 +140,7 @@ resync(mpegts_stream_t *s)
 	    s->tsp++;
 	}
 
-	nb = s->tsnbuf * TS_PACKET_SIZE - (s->tsp - s->tsbuf);
+	nb = bufmax - s->tsp + TS_PACKET_SIZE;
 	memmove(s->tsbuf, s->tsp, nb);
 	s->tsp = s->tsbuf + nb;
 
@@ -149,8 +156,10 @@ resync(mpegts_stream_t *s)
 		if(rb < 0)
 		    return -1;
 		nb += rb;
-		if(nb == 188)
+		if(nb == 188){
 		    s->tsnbuf++;
+		    nb = 0;
+		}
 	    }
 	    s->tsp = s->tsbuf;
 	    s->extra = nb;
@@ -579,6 +588,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s = calloc(1, sizeof(*s));
     s->stream = tcref(u);
     s->tsbuf = malloc(2 * TS_PACKET_SIZE * TS_PACKET_BUF);
+    s->tsp = s->tsbuf;
     s->end = -1;
     s->mp.pid = -1;
 
