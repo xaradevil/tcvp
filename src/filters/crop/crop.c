@@ -52,10 +52,10 @@ crop_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     video_stream_t *vs = &p->format.video;
     double pa = 1.0;
 
+    p->format = *s;
+
     if(vs->aspect.num)
 	pa = (double) vs->height * vs->aspect.num / vs->aspect.den / vs->width;
-
-    p->format = *s;
 
     if(c->x >= 0){
 	if(c->x < vs->width)
