@@ -29,6 +29,7 @@ typedef struct alsa_out {
     tcvp_timer_t *timer;
     timer_driver_t *tmdrivers[2];
     int can_pause;
+    int restore_timer;
 } alsa_out_t;
 
 static int
@@ -90,6 +91,8 @@ alsa_flush(audio_driver_t *p, int drop)
 	    snd_pcm_drop(ao->pcm);
     } else {
 	snd_pcm_drain(ao->pcm);
+	ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
+	ao->restore_timer = 1;
     }
 
     return 0;
@@ -100,6 +103,11 @@ alsa_write(audio_driver_t *ad, void *data, int samples)
 {
     alsa_out_t *ao = ad->private;
     int r;
+
+    if(ao->restore_timer){
+	ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[PCM]));
+	ao->restore_timer = 0;
+    }
 
     r = snd_pcm_writei(ao->pcm, data, samples);
 
