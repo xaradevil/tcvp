@@ -1,0 +1,6 @@
+module		vheader
+name		"TCVP/input/vheader"
+version		0.1.0
+tc2version	0.4.0
+sources		vh.c
+implement	"URL/vheader" "new" vh_new

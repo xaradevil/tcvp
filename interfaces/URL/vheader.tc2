@@ -1,0 +1,2 @@
+symbol "new" url_t *(*%s)(url_t *u, char *header, int hsize)
+require "URL"
