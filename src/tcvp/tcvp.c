@@ -465,8 +465,6 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 	t_seek(pl, start_time, TCVP_SEEK_ABS);
     }
 
-    tp->timer->reset(tp->timer, start_time);
-
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
     for(i = 0; i < tp->nstreams; i++){
