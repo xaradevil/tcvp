@@ -20,8 +20,6 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tclist.h>
-#include <pthread.h>
 #include <tcvp.h>
 #include <tcvp_tc2.h>
 
@@ -95,13 +93,13 @@ tcvp_play(char *arg)
     if(!as && !vs)
 	return -1;
 
-    if(as && acnew && output_audio_open){
+    if(as){
 	sound = output_audio_open((audio_stream_t *) as, NULL, &timer);
 	acodec = acnew(as, CODEC_MODE_DECODE, sound);
 	codecs[aci] = acodec;
     }
 
-    if(vs && vcnew){
+    if(vs){
 	if(!timer){
 	    tmnew = tc2_get_symbol("timer", "new");
 	    timer = tmnew(10000);
