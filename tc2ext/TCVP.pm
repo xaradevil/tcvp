@@ -18,13 +18,10 @@ sub tc2module {
 	my $w = TC2::symbol("_tcvp_$2_");
 	my @tags;
 	if($1 eq 'filter'){
-	    @tags = (wpacket => $w . 'packet',
-		     wflush => $w . 'flush',
-		     type => 'filter',
+	    @tags = (type => 'filter',
 		     dtype => 'tcvp_pipe_t');
 	} else {
-	    @tags = (winit => $w . 'init',
-		     type => 'module',
+	    @tags = (type => 'module',
 		     dtype => 'tcvp_module_t');
 	}
 	$modules{$2} = { wnew => $w . 'new',
@@ -137,14 +134,14 @@ $$_{w}probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     int ps = PROBE_OK;
     p->format = *s;
 END_C
-	    if ($$_{probe}) {
-		print $fh <<END_C;
+	    print $fh <<END_C if $$_{probe};
+    if(pk)
+	tcref(pk);
     ps = $$_{probe}(p, pk, s);
+END_C
+	    print $fh <<END_C;
     if(ps == PROBE_OK)
 	ps = p->next->probe(p->next, pk, &p->format);
-END_C
-	    }
-	    print $fh <<END_C;
     return ps;
 }
 
@@ -171,9 +168,7 @@ static int
 $$_{w}flush(tcvp_pipe_t *p, int drop)
 {
 END_C
-	    if ($$_{flush}) {
-		print $fh "    $$_{flush}(p, drop);\n";
-	    }
+	    print $fh "    $$_{flush}(p, drop);\n" if $$_{flush};
 	    print $fh <<END_C;
     return p->next->flush(p->next, drop);
 }
@@ -185,14 +180,18 @@ $$_{w}new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	  muxed_stream_t *ms)
 {
     $$_{wtype}_t *p = tcallocdz(sizeof(*p), NULL, $$_{w}free);
+    p->p.format = *s;
     p->p.input = $$_{w}packet;
     p->p.probe = $$_{w}probe;
     p->p.flush = $$_{w}flush;
-
+END_C
+	    print $fh <<END_C if $$_{new};
     if($$_{new}(&p->p, s, cs, t, ms)){
 	tcfree(p);
 	return NULL;
     }
+END_C
+	    print $fh <<END_C;
     return &p->p;
 }
 
@@ -286,12 +285,13 @@ sub hmod {
     for (values %modules) {
 	if ($$_{type} eq 'module') {
 	    print $fh
-	      "extern int $$_{new}(tcvp_module_t *, tcconf_section_t *);\n";
+	      "extern int $$_{new}(tcvp_module_t *, tcconf_section_t *);\n"
+		if $$_{new};
 	    for my $e (values %{$$_{events}}) {
 		print $fh "extern int $$e{handler}(tcvp_module_t *, tcvp_event_t *);\n" if $$e{handler};
 	    }
 	} elsif ($$_{type} eq 'filter') {
-	    print $fh <<END_C;
+	    print $fh <<END_C if $$_{new};
 extern int $$_{new}(tcvp_pipe_t *, stream_t *, tcconf_section_t *,
 		    tcvp_timer_t *, muxed_stream_t *);
 END_C
