@@ -20,7 +20,7 @@
 #include <remote_tc2.h>
 
 typedef struct tcvp_remote {
-    eventq_t qr, sc, ss;
+    eventq_t qr, sc, ss, st;
     pthread_t eth, lth;
     int ssock, rsock;
     tcconf_section_t *conf;
@@ -109,7 +109,7 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 	p += r;
     }
 
-    fprintf(stderr, "REMOTE: received %s\n", buf);
+/*     fprintf(stderr, "REMOTE: received %s\n", buf); */
 
     te = tcvp_event_deserialize(buf, size);
     if(te){
@@ -120,6 +120,8 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 	    eventq_send(rm->sc, te);
 	} else if(event_types[te->type] == STATUS){
 	    eventq_send(rm->ss, te);
+	} else if(event_types[te->type] == TIMER){
+	    eventq_send(rm->st, te);
 	}
 	tcfree(te);
     }
@@ -205,6 +207,8 @@ rm_free(void *p)
 	eventq_delete(rm->ss);
     if(rm->sc)
 	eventq_delete(rm->sc);
+    if(rm->st)
+	eventq_delete(rm->st);
     if(rm->conf)
 	tcfree(rm->conf);
 }
@@ -221,6 +225,7 @@ rm_start(tcvp_addon_t *ad)
     rm->qr = eventq_new(tcref);
     rm->ss = eventq_new(NULL);
     rm->sc = eventq_new(NULL);
+    rm->st = eventq_new(NULL);
 
     sprintf(qn, "%s/control", qname);
     eventq_attach(rm->qr, qn, EVENTQ_RECV);
@@ -229,6 +234,10 @@ rm_start(tcvp_addon_t *ad)
     sprintf(qn, "%s/status", qname);
     eventq_attach(rm->qr, qn, EVENTQ_RECV);
     eventq_attach(rm->ss, qn, EVENTQ_SEND);
+
+    sprintf(qn, "%s/timer", qname);
+    eventq_attach(rm->qr, qn, EVENTQ_RECV);
+    eventq_attach(rm->st, qn, EVENTQ_SEND);
 
     free(qname);
 
@@ -317,7 +326,9 @@ rm_init(char *p)
     get_event("TCVP_STATE", STATUS);
     get_event("TCVP_OPEN", CONTROL); 
     get_event("TCVP_START", CONTROL);
+    get_event("TCVP_PAUSE", CONTROL);
     get_event("TCVP_CLOSE", CONTROL);
+    get_event("TCVP_SEEK", CONTROL);
     get_event("TCVP_TIMER", TIMER);
 
     return 0;
