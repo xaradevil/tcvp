@@ -79,7 +79,7 @@ static int
 pl_addlist(playlist_t *pl, char *file, int pos)
 {
     tcvp_playlist_t *tpl = pl->private;
-    FILE *plf = fopen(file, "r");
+    url_t *plf = url_open(file, "r");
     char buf[1024], *line = alloca(1024), **lp = &line;
     char *d, *l;
     int n = 0;
@@ -102,7 +102,7 @@ pl_addlist(playlist_t *pl, char *file, int pos)
 	d = ".";
     }
 
-    while(fgets(buf, 1024, plf)){
+    while(url_gets(buf, 1024, plf)){
 	if(buf[0] != '#'){
 	    buf[strlen(buf)-1] = 0;
 	    if(buf[0] == '/') {
@@ -116,7 +116,7 @@ pl_addlist(playlist_t *pl, char *file, int pos)
     }
 
     free(l);
-    fclose(plf);
+    plf->close(plf);
 
     return n;
 }
