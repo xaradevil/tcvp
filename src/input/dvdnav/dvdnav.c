@@ -444,7 +444,7 @@ dvd_open(char *url, char *mode)
     if(ifo){
 	pgcit_t *pgcit = ifo->vts_pgcit;
 	vtsi_mat_t *vtsi = ifo->vtsi_mat;
-	video_attr_t *vattr = &vtsi->vtsm_video_attr;
+	video_attr_t *vattr = &vtsi->vts_video_attr;
 	pgc_t *pgc = pgcit->pgci_srp[0].pgc;
 	vts_tmapt_t *tmapt = ifo->vts_tmapt;
 	vts_tmap_t *tmap;
