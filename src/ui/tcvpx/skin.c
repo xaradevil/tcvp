@@ -369,7 +369,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int x, y;
     int width, height;
     int xoff = 0, yoff = 0;
-    char *font, *bitmap, pfont[1024];
+    char *font;
     char *color, *align_s, *stype_s;
     int alpha;
     int stype, align;
@@ -377,33 +377,31 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     char *action = NULL, *bg = NULL, *text, *default_text;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *l, *w;
+    tcconf_section_t *bfnt = NULL;
 
     i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
     i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
 
     i += tcconf_getvalue(sec, "text", "%s", &text);
 
-    if(tcconf_getvalue(sec, "bitmap", "%s", &bitmap) == 1) {
-	sprintf(pfont, "bitmap:%s/%s", skin->path, bitmap);
-	free(bitmap);
+    if((bfnt = tcconf_getsection(sec, "bitmap"))){
+	tcconf_setvalue(bfnt, "path", "%s", skin->path);
 	i++;
-    } else if(tcconf_getvalue(sec, "font", "%s", &font) == 1) {
-	sprintf(pfont, "xft:%s", font);
-	free(font);
+    } else if(tcconf_getvalue(sec, "font", "%s", &font) == 1){
 	i++;
     }
 
-    if((j = tcconf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
+    if((j = tcconf_getvalue(sec, "color", "%s %d", &color, &alpha)) == 1){
 	alpha = 0xff;
 	j++;
     }
     i += j;
-    if((j = tcconf_getvalue(sec, "scroll_style", "%s", &stype_s))<1){
+    if((j = tcconf_getvalue(sec, "scroll_style", "%s", &stype_s)) < 1){
 	stype_s = strdup("none");
 	j = 1;
     }
     i += j;
-    if((j = tcconf_getvalue(sec, "align", "%s", &align_s))<1){
+    if((j = tcconf_getvalue(sec, "align", "%s", &align_s)) < 1){
 	j = 1;
 	align_s = strdup("left");
     }
@@ -441,7 +439,13 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     wd->value = text;
     wd->skin = skin;
     l = xtk_widget_label_create(win, x, y, width, height);
-    xtk_widget_label_set_font(l, pfont);
+    if(bfnt){
+	xtk_widget_label_set_bitmapfont(l, bfnt);
+	tcfree(bfnt);
+    } else {
+	xtk_widget_label_set_font(l, font);
+	free(font);
+    }
     xtk_widget_label_set_offset(l, xoff, yoff);
     xtk_widget_label_set_color(l, color, alpha);
     xtk_widget_label_set_text(l, default_text);
