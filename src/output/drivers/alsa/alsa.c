@@ -180,6 +180,9 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     } else if(strstr(as->codec, "pcm-u8")){
 	afmt = SND_PCM_FORMAT_U8;
 	format = "u8";
+    } else if(strstr(as->codec, "pcm-s8")){
+	afmt = SND_PCM_FORMAT_S8;
+	format = "s8";
     } else {
 	fprintf(stderr, "ALSA: unsupported format %s\n", as->codec);
 	goto err;
