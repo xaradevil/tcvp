@@ -126,7 +126,7 @@ xv_open(video_stream_t *vs, char *display)
     Window win;
     int i;
     GC gc;
-    int frames = FRAMES;
+    int frames = tcvp_driver_video_xv_conf_frames?: FRAMES;
     int color_key;
     XEvent xe;
 
