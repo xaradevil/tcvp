@@ -14,6 +14,7 @@ implement	"decoder/audio/ac3"	"new"	avc_new
 implement	"decoder/audio/adpcm-ms"	"new"	avc_new
 
 implement	"decoder/video/mpeg"	"new"	avc_new
+implement	"decoder/video/mpeg2"	"new"	avc_new
 implement	"decoder/video/h263"	"new"	avc_new
 implement	"decoder/video/h263p"	"new"	avc_new
 implement	"decoder/video/h263i"	"new"	avc_new
