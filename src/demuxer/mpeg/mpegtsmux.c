@@ -327,13 +327,13 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    dts = pk->dts;
 	else
 	    dts = pk->pts;
-	dts -= 27000000 / 25;
-	os->dts = dts;
-	if(dts - bdts > 27000000 / 30){
+	if(dts - bdts > 27000000 / 10){
 	    os->bitrate = (27000000LL * os->bytes * 8) / (dts - bdts);
 	    os->bdts = dts;
 	    os->bytes = 0;
 	}
+	dts -= (27000000LL * size * 8) / (os->bitrate?: tsm->bitrate);
+	os->dts = dts;
 	pthread_cond_broadcast(&tsm->cnd);
 	pthread_mutex_unlock(&tsm->lock);
     } else {
@@ -587,7 +587,7 @@ mpegts_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
     tsm->psifreq = tsm->bitrate / (8 * 188);
     tsm->timer = t;
     tsm->null = null_packet();
-    tsm->pcr_int = 27000 * mux_mpeg_ts_conf_pcr_interval / 2;
+    tsm->pcr_int = 27000 * mux_mpeg_ts_conf_pcr_interval * 3 / 4;
     tsm->start_time = -1;
 
     conf_getvalue(cs, "bitrate", "%i", &tsm->bitrate);
