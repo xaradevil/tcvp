@@ -232,11 +232,11 @@ v_flush(tcvp_pipe_t *p, int drop)
 	pthread_mutex_unlock(&vo->smx);
     } else {
 	pthread_mutex_lock(&vo->smx);
-	vo->timer->interrupt(vo->timer);
 	vo->tail = vo->head = 0;
 	vo->frames = 0;
 	if(vo->driver->flush)
 	    vo->driver->flush(vo->driver);
+	vo->timer->interrupt(vo->timer);
 	pthread_cond_broadcast(&vo->scd);
 	pthread_mutex_unlock(&vo->smx);
     }
