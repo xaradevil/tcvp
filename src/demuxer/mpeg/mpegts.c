@@ -719,8 +719,10 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    if((mst = mpeg_stream_type_id(stype)) != NULL){
 		if(!strncmp(mst->codec, "video/", 6))
 		    sp->stream_type = STREAM_TYPE_VIDEO;
-		else
+		else if(!strncmp(mst->codec, "audio/", 6))
 		    sp->stream_type = STREAM_TYPE_AUDIO;
+		else if(!strncmp(mst->codec, "subtitle/", 9))
+		    sp->stream_type = STREAM_TYPE_SUBTITLE;
 		sp->common.codec = mst->codec;
 		sp->common.index = ms->n_streams;
 		sp->common.start_time = -1;
