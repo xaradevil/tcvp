@@ -26,3 +26,4 @@
 >4	byte&0x1f		0x07		video/x-h264
 0	beshort			0x0b77		audio/ac3
 0	belong			0x1a45dfa3	video/x-matroska
+0	string			fLaC		audio/x-flac
