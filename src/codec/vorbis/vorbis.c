@@ -84,6 +84,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
     }
 
     out = tcallocd(sizeof(*out), NULL, vorbis_free_packet);
+    out->stream = pk->stream;
     out->data = (u_char **) &out->private;
     out->sizes = malloc(sizeof(*out->sizes));
     out->sizes[0] = total_bytes;
@@ -169,6 +170,8 @@ vorbis_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     vc->buf=malloc(131072);
 
     p = tcallocdz(sizeof(*p), NULL, vorbis_free_pipe);
+    p->format = *s;
+    p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->input = vorbis_decode;
     p->probe = vorbis_read_header;
     p->flush = vorbis_flush;
