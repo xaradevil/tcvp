@@ -18,6 +18,7 @@
 
 #include "tcvpx.h"
 #include <string.h>
+#include <ctype.h>
 
 hash_table *variable_hash;
 hash_table *widget_hash;
@@ -326,6 +327,8 @@ parse_text(char *text, char *result)
 	char *tmp;
 	char *key;
 	char *default_text = NULL;
+	int upcase = 0, downcase = 0;
+	int l, i;
 
 	tmp = strstr(src, "${");
 	if(!tmp) break;
@@ -341,19 +344,40 @@ parse_text(char *text, char *result)
 
 	tmp = strchr(key, ':');
 	if(tmp) {
-	    tmp[0] = 0;
-	    tmp += 2;
-	    default_text = tmp;
+	    int f = 1;
+	    *tmp++ = 0;
+	    while(f && *tmp){
+		switch(*tmp++){
+		case 'u':
+		    upcase = 1;
+		    break;
+		case 'l':
+		    downcase = 1;
+		    break;
+		case '-':
+		    default_text = tmp;
+		    break;
+		}
+	    }
 	}
 
 	tmp = lookup_variable(key);
 
+	if(!tmp && default_text)
+	    tmp = default_text;
+
 	if(tmp) {
-	    memcpy(dst, tmp, strlen(tmp));
-	    dst += strlen(tmp);	    
-	} else if(default_text) {
-	    memcpy(dst, default_text, strlen(default_text));
-	    dst += strlen(default_text);
+	    l = strlen(tmp);
+	    if(upcase){
+		for(i = 0; i < l; i++)
+		    *dst++ = toupper(*tmp++);
+	    } else if(downcase){
+		for(i = 0; i < l; i++)
+		    *dst++ = tolower(*tmp++);
+	    } else {
+		memcpy(dst, tmp, l);
+		dst += l;
+	    }
 	}
     }
 
