@@ -8,7 +8,6 @@ TCVP {
 	filter "filter/overlay" {
 		new ovl_new
 		packet DATA ovl_input
-		probe ovl_probe
 		flush ovl_flush
 	}
 }

@@ -34,7 +34,7 @@ typedef struct ovl {
     tclist_t *next;
     tcvp_data_packet_t **fifo;
     int fifosize, fifopos;
-    int width, height;
+    int video;
     int *overlays;
     pthread_mutex_t lock;
     pthread_cond_t cond;
@@ -162,23 +162,26 @@ extern int
 ovl_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     ovl_t *ov = p->private;
+    int ret;
 
     if(s->stream_type == STREAM_TYPE_VIDEO){
-	if(ov->width)
+	if(ov->video >= 0)
 	    return PROBE_FAIL;
-	ov->width = s->video.width;
-	ov->height = s->video.height;
+	ov->video = s->common.index;
 	tc2_print("OVERLAY", TC2_PRINT_DEBUG, "video stream %i\n",
 		  s->common.index);
+	p->format = *s;
+	ret = p->next->probe(p->next, pk, &p->format);
     } else if(s->stream_type == STREAM_TYPE_SUBTITLE){
 	ov->overlays[s->common.index] = 1;
 	tc2_print("OVERLAY", TC2_PRINT_DEBUG, "overlay stream %i\n",
 		  s->common.index);
+	ret = PROBE_OK;
     } else {
-	return PROBE_FAIL;
+	ret = PROBE_FAIL;
     }
 
-    return PROBE_OK;
+    return ret;
 }
 
 static void
@@ -205,6 +208,7 @@ ovl_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     ovl_t *ov;
 
     ov = tcallocdz(sizeof(*ov), NULL, ovl_free);
+    ov->video = -1;
     ov->overlays = calloc(ms->n_streams, sizeof(*ov->overlays));
     ov->fifosize = tcvp_filter_overlay_conf_delay;
     ov->fifo = calloc(ov->fifosize, sizeof(*ov->fifo));
@@ -212,6 +216,7 @@ ovl_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     pthread_mutex_init(&ov->lock, NULL);
     pthread_cond_init(&ov->cond, NULL);
 
+    p->probe = ovl_probe;
     p->private = ov;
     
     return 0;
