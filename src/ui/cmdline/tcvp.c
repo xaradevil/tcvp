@@ -34,6 +34,7 @@ static pthread_t check_thr, evt_thr, intr_thr;
 
 static int nfiles;
 static char **files;
+static char *playlist;
 static sem_t psm;
 static int intr;
 static conf_section *cf;
@@ -59,6 +60,7 @@ show_help(void)
 	   "   -s t    --seek=t              Seek t seconds at start\n"
 	   "   -u name --user-interface=name Select user interface\n"
 	   "   -z      --shuffle             Shuffle files\n"
+	   "   -@ file --playlist=file       Load playlist from file\n"
 	);
 }
 
@@ -161,6 +163,17 @@ tcl_init(char *p)
 
     pll = playlist_new(cf);
     pll->add(pll, files, nfiles, 0);
+    if(playlist){
+	FILE *pl = fopen(playlist, "r");
+	char *buf = alloca(1024), **bp = &buf;
+	while(fgets(buf, 1024, pl)){
+	    if(buf[0] != '#'){
+		buf[strlen(buf)-1] = 0;
+		pll->add(pll, bp, 1, nfiles++);
+	    }
+	}
+    }
+
     if(shuffle)
 	pll->shuffle(pll, 0, nfiles);
 
@@ -250,6 +263,7 @@ parse_options(int argc, char **argv)
 	{"tc2-debug", required_argument, 0, OPT_TC2_DEBUG},
 	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
 	{"shuffle", no_argument, 0, 'z'},
+	{"playlist", required_argument, 0, '@'},
 	{0, 0, 0, 0}
     };
 
@@ -257,7 +271,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -305,6 +319,10 @@ parse_options(int argc, char **argv)
 
 	case 'z':
 	    shuffle = 1;
+	    break;
+
+	case '@':
+	    playlist = optarg;
 	    break;
 
 	case OPT_TC2_DEBUG:
