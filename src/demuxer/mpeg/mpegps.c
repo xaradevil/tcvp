@@ -416,8 +416,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		    s->imap[pk->stream_id] = ms->n_streams;
 		    s->map[ms->n_streams] = pk->stream_id;
 
-		    fprintf(stderr, "MPEGPS: found stream id %02x\n",
-			    pk->stream_id);
+/* 		    fprintf(stderr, "MPEGPS: found stream id %02x\n", */
+/* 			    pk->stream_id); */
 
 		    if(pk->stream_id & 0x20){
 			sp->stream_type = STREAM_TYPE_VIDEO;
