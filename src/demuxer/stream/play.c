@@ -584,7 +584,6 @@ do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
     case PROBE_DISCARD:
 	tc2_print("STREAM", TC2_PRINT_DEBUG, "[%i] probing\n",
 		  pk->stream);
-	tcref(pk);
 	sp->ms->streams[ps].common.index = pk->stream;
 	str->probe = str->pipe->probe(str->pipe, pk,
 				      sp->ms->streams + ps);
