@@ -290,7 +290,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 			  "duplicate packet, PID %x\n", mp.pid);
 		continue;
 	    } else if(ccd != 1){
-		tc2_print("MPEGTS", TC2_PRINT_VERBOSE,
+		tc2_print("MPEGTS", TC2_PRINT_WARNING,
 			  "lost packet, PID %x: %i %i\n",
 			  mp.pid, tb->cc, mp.cont_counter);
 /* 		tb->start = 0; */
