@@ -16,21 +16,21 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
-#include "tcvpx.h"
+#include "widgets.h"
 
 
 static int
 repaint_button(tcwidget_t *w)
 {
-    if(mapped==1 && w->button.skin->enabled == 1){
+    if(w->button.window->mapped==1 && w->button.window->enabled == 1){
 	XImage *img;
-	img = XGetImage(xd, w->button.skin->background->pixmap,
+	img = XGetImage(xd, w->button.window->background->pixmap,
 			w->button.x, w->button.y,
 			w->button.width, w->button.height,
 			AllPlanes, ZPixmap);
 	alpha_render(*w->button.img->data, img->data, img->width,
 		     img->height, depth);
-	XPutImage(xd, w->button.pixmap, w->background.skin->bgc, img,
+	XPutImage(xd, w->button.pixmap, w->background.window->bgc, img,
 		  0, 0, 0, 0, w->button.width, w->button.height);
 	XSync(xd, False);
 	XDestroyImage(img);
@@ -50,7 +50,7 @@ destroy_button(tcwidget_t *w)
 
 
 static int
-press_button(tcwidget_t *w, XEvent *xe)
+press_button(tcwidget_t *w, void *xe)
 {
     w->button.img = w->button.down_img;
     repaint_button(w);
@@ -60,7 +60,7 @@ press_button(tcwidget_t *w, XEvent *xe)
 
 
 static int
-release_button(tcwidget_t *w, XEvent *xe)
+release_button(tcwidget_t *w, void *xe)
 {
     w->button.img = w->button.bgimg;
     repaint_button(w);
@@ -70,7 +70,7 @@ release_button(tcwidget_t *w, XEvent *xe)
 
 
 static int
-enter_button(tcwidget_t *w, XEvent *xe)
+enter_button(tcwidget_t *w, void *xe)
 {
     w->button.img = w->button.over_img;
     repaint_button(w);
@@ -80,7 +80,7 @@ enter_button(tcwidget_t *w, XEvent *xe)
 
 
 static int
-exit_button(tcwidget_t *w, XEvent *xe)
+exit_button(tcwidget_t *w, void *xe)
 {
     w->button.img = w->button.bgimg;
     repaint_button(w);
@@ -90,8 +90,9 @@ exit_button(tcwidget_t *w, XEvent *xe)
 
 
 extern tcimage_button_t*
-create_button(skin_t *skin, int x, int y, char *imagefile, char *over_image,
-	      char *down_image, action_cb_t action, void *data)
+create_button(window_t *window, int x, int y, image_info_t *image,
+	      image_info_t *over_image, image_info_t *down_image,
+	      action_cb_t action, void *data)
 {
     tcimage_button_t *btn = calloc(sizeof(tcimage_button_t), 1);
     long emask = 0;
@@ -101,31 +102,31 @@ create_button(skin_t *skin, int x, int y, char *imagefile, char *over_image,
     btn->y = y;
     btn->repaint = repaint_button;
     btn->destroy = destroy_button;
-    btn->skin = skin;
-    btn->img = btn->bgimg = load_image(skin->path, imagefile);
+    btn->window = window;
+    btn->img = btn->bgimg = image;
     btn->width = btn->img->width;
     btn->height = btn->img->height;
     btn->enabled = 1;
     btn->data = data;
 
     if(over_image != NULL) {
-	btn->over_img = load_image(skin->path, over_image);
+	btn->over_img = over_image;
 	emask |= EnterWindowMask | LeaveWindowMask;
 	btn->enter = enter_button;
 	btn->exit = exit_button;
     }
     if(down_image != NULL) {
-	btn->down_img = load_image(skin->path, down_image);
+	btn->down_img = down_image;
 	emask |= ButtonPressMask | ButtonReleaseMask;
 	btn->press = press_button;
 	btn->release = release_button;
     }
 
-    btn->win = XCreateWindow(xd, skin->xw, btn->x, btn->y,
+    btn->win = XCreateWindow(xd, window->xw, btn->x, btn->y,
 			     btn->width, btn->height,
 			     0, CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
-    btn->pixmap = XCreatePixmap(xd, skin->xw, btn->width,
+    btn->pixmap = XCreatePixmap(xd, window->xw, btn->width,
 				btn->height, depth);
 
     list_push(widget_list, btn);
@@ -139,6 +140,8 @@ create_button(skin_t *skin, int x, int y, char *imagefile, char *over_image,
     }
 
     XSelectInput(xd, btn->win, emask);
+
+    list_push(window->widgets, btn);
 
     return btn;
 }

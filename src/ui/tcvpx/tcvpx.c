@@ -35,7 +35,7 @@ player_t *pl;
 eventq_t qs;
 eventq_t qr;
 
-static pthread_t xth, eth, sth;
+static pthread_t eth;
 
 extern int
 tcvpx_init(char *p)
@@ -64,45 +64,38 @@ tcvpx_init(char *p)
 
     init_dynamic();
     register_actions();
-    init_graphics();
+    xtk_init_graphics();
 
-    if((skin=load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){
+    if((skin = load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n",
 		tcvp_ui_tcvpx_conf_skin);
 	return -1;
     }
 
-    create_window(skin);
-
+    skin->window = xtk_create_window("TCVP", skin->width, skin->height);
+    
     if(create_ui(skin) != 0){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n",
 		tcvp_ui_tcvpx_conf_skin);
 	return -1;
     }
 
-    update_root(skin);
+    xtk_update_root(skin->window);
 
-    XMapWindow (xd, skin->xw);
-    XMapSubwindows(xd, skin->xw);
+    xtk_show_window(skin->window);
 
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
-	wm_set_sticky(skin, 1);
+	xtk_set_sticky(skin->window, 1);
     }
 
     if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
-	wm_set_always_on_top(skin, 1);
+	xtk_set_always_on_top(skin->window, 1);
     }
 
-    repaint_widgets();
-    draw_widgets();
-    
-    XSync(xd, False);
+    xtk_repaint_widgets();
+    xtk_draw_widgets();
 
-    pthread_create(&xth, NULL, x11_event, NULL);
     pthread_create(&eth, NULL, tcvp_event, NULL);
-    if(list_items(sl_list)>0) {
-	pthread_create(&sth, NULL, scroll_labels, NULL);
-    }
     return 0;
 }
 
@@ -112,14 +105,10 @@ tcvpx_shdn(void)
 {
     tcvp_stop(NULL, NULL);
 
-    if(list_items(sl_list)>0) {
-	pthread_join(sth, NULL);
-    }
     /* FIXME: join event thread */
 /*     pthread_join(eth, NULL); */
-    pthread_join(xth, NULL);
 
-    XCloseDisplay(xd);
+/*     XCloseDisplay(xd); */
 
     eventq_delete(qs);
 

@@ -1,0 +1,28 @@
+module		tcvpxtk
+name		"TCVP/ui/tcvpxtk"
+version		0.1.0
+tc2version	0.4.0
+sources		background.c button.c label.c seek_bar.c state.c widget.c window.c
+require		"image"
+
+implement	"xtk"	"update_root"		update_root
+implement	"xtk"	"create_background"	create_background
+implement	"xtk"	"create_button"		create_button
+implement	"xtk"	"change_label"		change_label
+implement	"xtk"	"create_label"		create_label
+implement	"xtk"	"change_seek_bar"	change_seek_bar
+implement	"xtk"	"create_seek_bar"	create_seek_bar
+implement	"xtk"	"enable_seek_bar"	enable_seek_bar
+implement	"xtk"	"disable_seek_bar"	disable_seek_bar
+implement	"xtk"	"create_state"		create_state
+implement	"xtk"	"change_state"		change_state
+implement	"xtk"	"init_graphics"		init_graphics
+implement	"xtk"	"create_window"		create_window
+implement	"xtk"	"destroy_window"	destroy_window
+implement	"xtk"	"show_window"		show_window
+implement	"xtk"	"hide_window"		hide_window
+implement	"xtk"	"set_always_on_top"	set_always_on_top
+implement	"xtk"	"set_sticky"		set_sticky
+implement	"xtk"	"widget_cmp"		widget_cmp
+implement	"xtk"	"draw_widgets"		draw_widgets
+implement	"xtk"	"repaint_widgets"	repaint_widgets

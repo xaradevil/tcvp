@@ -16,13 +16,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
-#include "tcvpx.h"
+#include "widgets.h"
 #include <X11/extensions/shape.h>
 #include <string.h>
 
 
 static Pixmap
-get_root(skin_t *skin)
+get_root(window_t *window)
 {
     Atom xa_pmap = XInternAtom(xd, "PIXMAP", True);
     Atom aret;
@@ -31,7 +31,7 @@ get_root(skin_t *skin)
     unsigned char *buf;
     Pixmap pmap;
 
-    XGetWindowProperty(xd, RootWindow(xd, xs), skin->background->xa_rootpmap,
+    XGetWindowProperty(xd, RootWindow(xd, xs), window->background->xa_rootpmap,
 		       0, 1, False, xa_pmap, &aret, &fret, &nitems,
 		       &remain, &buf);
 
@@ -43,11 +43,11 @@ get_root(skin_t *skin)
 }
 
 static int
-check_root(skin_t *skin)
+check_root(window_t *window)
 {
-    if(skin->background->xa_rootpmap != None) {
-	Pixmap p = get_root(skin);
-	if(p != skin->background->xa_rootpmap) {
+    if(window->background->xa_rootpmap != None) {
+	Pixmap p = get_root(window);
+	if(p != window->background->xa_rootpmap) {
 	    root = p;
 	}
     }
@@ -56,18 +56,18 @@ check_root(skin_t *skin)
 }
 
 extern int
-update_root(skin_t *skin)
+update_root(window_t *window)
 {
-    if(skin->background->transparent){
-	skin->background->xa_rootpmap = XInternAtom(xd, "_XROOTPMAP_ID", True);
+    if(window->background->transparent){
+	window->background->xa_rootpmap = XInternAtom(xd, "_XROOTPMAP_ID", True);
 
-	if(skin->background->xa_rootpmap != None) {
-	    root = get_root(skin);
+	if(window->background->xa_rootpmap != None) {
+	    root = get_root(window);
 	} else {	
 	    XImage *img;
 	    img = XGetImage(xd, RootWindow(xd, xs), 0, 0, root_width, 
 			    root_height, AllPlanes, ZPixmap);
-	    XPutImage(xd, root, skin->bgc, img, 0, 0, 0, 0, root_width,
+	    XPutImage(xd, root, window->bgc, img, 0, 0, 0, 0, root_width,
 		      root_height);
 	    XSync(xd, False);
 
@@ -84,7 +84,7 @@ extern int
 repaint_background(tcwidget_t *w)
 {
     XImage *img;
-    GC bgc = w->background.skin->bgc;
+    GC bgc = w->background.window->bgc;
 
     if(w->background.transparent){
 	XWindowAttributes wa;
@@ -92,7 +92,7 @@ repaint_background(tcwidget_t *w)
 	int x, y;
 
 	XLockDisplay(xd);
-	check_root(w->background.skin);
+	check_root(w->background.window);
 
 	XGetWindowAttributes(xd, w->background.win, &wa);
 	XTranslateCoordinates(xd, w->background.win, RootWindow(xd, xs),
@@ -140,7 +140,7 @@ repaint_background(tcwidget_t *w)
 		tmp_h = w->background.height;
 	    }
 
-	    pmap = XCreatePixmap(xd, w->background.skin->xw,
+	    pmap = XCreatePixmap(xd, w->background.window->xw,
 				 w->background.width,
 				 w->background.height, depth);
 
@@ -194,7 +194,7 @@ destroy_background(tcwidget_t *w)
 
 
 extern tcbackground_t*
-create_background(skin_t *skin, char *imagefile)
+create_background(window_t *window, image_info_t *image)
 {
     char *data;
     Pixmap maskp;
@@ -207,14 +207,14 @@ create_background(skin_t *skin, char *imagefile)
     bg->onclick = NULL;
     bg->repaint = repaint_background;
     bg->destroy = destroy_background;
-    bg->skin = skin;
-    bg->img = load_image(skin->path, imagefile);
+    bg->window = window;
+    bg->img = image;
     bg->width = bg->img->width;
     bg->height = bg->img->height;
     bg->transparent = 0;
-    bg->pixmap = XCreatePixmap(xd, skin->xw, bg->width,
+    bg->pixmap = XCreatePixmap(xd, window->xw, bg->width,
 			       bg->height, depth);
-    bg->win = skin->xw;
+    bg->win = window->xw;
     bg->enabled = 1;
 
     data = calloc(bg->width * bg->height,1);
@@ -232,13 +232,17 @@ create_background(skin_t *skin, char *imagefile)
 	}
     }
 
-    maskp = XCreateBitmapFromData(xd, skin->xw, data, bg->width, bg->height);
+    maskp = XCreateBitmapFromData(xd, window->xw, data, bg->width, bg->height);
     free(data);
-    XShapeCombineMask(xd, skin->xw, ShapeBounding, 0, 0, maskp, ShapeSet);
+    XShapeCombineMask(xd, window->xw, ShapeBounding, 0, 0, maskp, ShapeSet);
     XSync(xd, False);
     XFreePixmap(xd, maskp);
 
     list_push(widget_list, bg);
+
+    window->background = bg;
+
+    list_push(window->widgets, bg);
 
     return bg;
 }

@@ -102,24 +102,20 @@ tcvp_event(void *p)
 	    if(st->time)
 		s_length = st->time / 1000000;
 
-/* 	    printf("%ld (%d)\n", samples, sample_rate); */
-/* 	    printf("%ld (%d/%d)\n", frames, frame_rate_num, frame_rate_den); */
-/* 	    printf("%d\n", s_length); */
+/* 	    list_item *current = NULL; */
+/* 	    skin_t *skin; */
 
-	    list_item *current = NULL;
-	    skin_t *skin;
-
-	    while((skin = list_next(skin_list, &current))!=NULL) {
-		if(skin->seek_bar) {
-		    if(skin->seek_bar) {
-			if(s_length > 0){
-			    enable_seek_bar(skin->seek_bar);
-			} else {
-			    disable_seek_bar(skin->seek_bar);
-			}
-		    }
-		}
-	    }
+/* 	    while((skin = list_next(skin_list, &current))!=NULL) { */
+/* 		if(skin->seek_bar) { */
+/* 		    if(skin->seek_bar) { */
+/* 			if(s_length > 0){ */
+/* 			    enable_seek_bar(skin->seek_bar); */
+/* 			} else { */
+/* 			    disable_seek_bar(skin->seek_bar); */
+/* 			} */
+/* 		    } */
+/* 		} */
+/* 	    } */
 	    break;
 	}
 	tcfree(te);
@@ -129,7 +125,7 @@ tcvp_event(void *p)
 
 
 extern int
-tcvp_pause(tcwidget_t *w, void *p)
+tcvp_pause(xtk_widget_t *w, void *p)
 {
     tcvp_event_t *te = tcvp_alloc_event(TCVP_PAUSE);
     eventq_send(qs, te);
@@ -139,7 +135,7 @@ tcvp_pause(tcwidget_t *w, void *p)
 
 
 extern int
-tcvp_stop(tcwidget_t *w, void *p)
+tcvp_stop(xtk_widget_t *w, void *p)
 {
     tcvp_event_t *te;
     te = tcvp_alloc_event(TCVP_PL_STOP);
@@ -155,7 +151,7 @@ tcvp_stop(tcwidget_t *w, void *p)
 
 
 extern int
-tcvp_play(tcwidget_t *w, void *p)
+tcvp_play(xtk_widget_t *w, void *p)
 {
     if(tcvpstate == TCVP_STATE_STOPPED) {
 	tcvp_pause(w, p);
@@ -178,7 +174,7 @@ tcvp_play(tcwidget_t *w, void *p)
 
 
 extern int
-tcvp_next(tcwidget_t *w, void *p)
+tcvp_next(xtk_widget_t *w, void *p)
 {
     tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_NEXT);
     eventq_send(qs, te);
@@ -189,7 +185,7 @@ tcvp_next(tcwidget_t *w, void *p)
 
 
 extern int
-tcvp_previous(tcwidget_t *w, void *p)
+tcvp_previous(xtk_widget_t *w, void *p)
 {
     tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_PREV);
     eventq_send(qs, te);
@@ -200,7 +196,7 @@ tcvp_previous(tcwidget_t *w, void *p)
 
 
 extern int
-tcvp_seek(tcwidget_t *w, void *p)
+tcvp_seek(xtk_widget_t *w, void *p)
 {
     double pos = *((double*)p);
     uint64_t time = s_length * pos * 1000000;
@@ -221,7 +217,7 @@ tcvp_quit()
 
     tc2_request(TC2_UNLOAD_ALL, 0);
 
-    XSync(xd, False);
+/*     XSync(xd, False); */
 
     return 0;
 }
@@ -238,7 +234,7 @@ tcvp_add_file(char *file)
 }
 
 extern int
-toggle_time(tcwidget_t *w, void *p)
+toggle_time(xtk_widget_t *w, void *p)
 {
     if(show_time == TCTIME_ELAPSED) {
 	show_time = TCTIME_REMAINING;
@@ -255,6 +251,7 @@ update_time()
     char text[8];
     int t = 0;
     char sign = ' ';
+    double *pos = malloc(sizeof(*pos));
 
     if(show_time == TCTIME_ELAPSED) {
 	t = s_time;
@@ -267,31 +264,21 @@ update_time()
 	}
     }
 
-    list_item *current = NULL;
-    skin_t *skin;
+    *pos = (s_length>0)?(double)s_time/s_length:0;
+    change_variable("position", pos);
 
-    while((skin = list_next(skin_list, &current))!=NULL) {
-	if(skin->seek_bar) {
-	    if(s_length > 0){
-		change_seek_bar(skin->seek_bar, (double)s_time/s_length);
-	    } else {
-		change_seek_bar(skin->seek_bar, 0);
-	    }
-	}
-
-	char *spaces;
-	int m = t/60;
-	if(m < 10){
-	    spaces = "  ";
-	} else if(m >= 10 && m < 100){
-	    spaces = " ";
-	} else {
-	    spaces = "";
-	}
-
-	snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
-	change_text("time", text);
+    char *spaces;
+    int m = t/60;
+    if(m < 10){
+	spaces = "  ";
+    } else if(m >= 10 && m < 100){
+	spaces = " ";
+    } else {
+	spaces = "";
     }
+
+    snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
+    change_text("time", text);
 
     return 0;
 }

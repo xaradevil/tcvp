@@ -19,7 +19,7 @@
 #ifndef _TCVPX_H
 #define _TCVPX_H
 
-#include "skin.h"
+#include "tcvpx_tc2.h"
 #include <tchash.h>
 
 #define STOPPED 0
@@ -29,35 +29,40 @@
 #define TCTIME_ELAPSED   0
 #define TCTIME_REMAINING 1
 
+typedef struct {
+    conf_section *config;
+    char *file;
+    char *path;
+    int width, height;
+    window_t *window;
+} skin_t;
 
-int init_graphics();
-int create_window(skin_t *);
-int destroy_window(skin_t *);
-int wm_set_sticky(skin_t *, int);
-int wm_set_always_on_top(skin_t *, int);
+skin_t* load_skin(char *skinfile);
+int create_ui(skin_t *skin);
+
+int register_actions();
 
 int init_dynamic();
+
 int parse_text(char *text, char *result);
+int parse_variable(char *text, void **result);
+
 int change_text(char *key, char *text);
-int unregister_textwidget(tcwidget_t *w, char *text);
-int register_textwidget(tcwidget_t *w, char *text);
+int change_variable(char *key, void *data);
+
+int unregister_textwidget(xtk_widget_t *w, char *text);
+int register_textwidget(xtk_widget_t *w, char *text);
+
+int unregister_varwidget(xtk_widget_t *w, char *text);
+int register_varwidget(xtk_widget_t *w, char *text);
 
 int update_time();
 int update_state(char *state);
 
-void *x11_event(void *p);
 void *tcvp_event(void *p);
-void *scroll_labels(void *p);
-int toggle_time(tcwidget_t *w, void *p);
+int toggle_time(xtk_widget_t *w, void *p);
 
-extern int mapped;
 extern int quit;
-extern Display *xd;
-extern int xs;
-extern Pixmap root;
-extern int root_width;
-extern int root_height;
-extern int depth;
 
 extern player_t *pl;
 extern eventq_t qs;
@@ -66,6 +71,12 @@ extern eventq_t qr;
 extern int s_time;
 extern int s_length;
 hash_table *text_hash;
+
+typedef struct {
+    char *action;
+    void *data;
+    skin_t *skin;
+} action_data_t;
 
 
 #endif /* _TCVPX_H */

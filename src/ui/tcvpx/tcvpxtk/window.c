@@ -18,8 +18,7 @@
 
 #include <X11/Xlib.h>
 #include <X11/extensions/shape.h>
-#include "tcvpx.h"
-#include "tcvpctl.h"
+#include "widgets.h"
 #include <string.h>
 
 #define MWM_HINTS_DECORATIONS   (1L << 1)
@@ -36,7 +35,9 @@ typedef struct _mwmhints {
 #define _NET_WM_STATE_ADD           1
 #define _NET_WM_STATE_TOGGLE        2
 
-int mapped=1;
+int mapped = 1;
+int quit = 0;
+static pthread_t xth, sth;
 
 Atom XdndEnter, XdndLeave, XdndPosition, XdndStatus, XdndDrop,
     XdndType, XdndSelection, XdndFinished, XdndActionPrivate, tcvpxa;
@@ -67,9 +68,9 @@ x11_event(void *p)
 	case ConfigureNotify:
 	{
 	    list_item *current=NULL;
-	    skin_t *s;
+	    window_t *s;
 
-	    while((s = list_next(skin_list, &current))!=NULL) {
+	    while((s = list_next(window_list, &current))!=NULL) {
 		if(xe.xbutton.window == s->xw){
 		    if(s->background->transparent) {
 			repaint_widgets();
@@ -222,7 +223,8 @@ x11_event(void *p)
 	    do {
 		if((tmp = strchr(buf, '\n')))
 		   *tmp++ = 0;
-		tcvp_add_file(buf);
+		/* FIXME */
+/* 		tcvp_add_file(buf); */
 		buf = tmp;
 	    } while(tmp);
 
@@ -268,7 +270,7 @@ x11_event(void *p)
 }
 
 static int
-check_wm(skin_t *skin)
+check_wm(window_t *window)
 {
     Atom supporting, xa_window;
     Atom r_type;
@@ -308,13 +310,13 @@ check_wm(skin_t *skin)
 	}
     }
 
-    skin->net_wm_support = ret;
+    window->net_wm_support = ret;
     return ret;
 }
 
 
 static int
-wm_set_property(skin_t *skin, char *atom, int enabled)
+wm_set_property(window_t *window, char *atom, int enabled)
 {
     XEvent xev;
     Atom xa_wm_state, xa_prop;
@@ -324,7 +326,7 @@ wm_set_property(skin_t *skin, char *atom, int enabled)
 
     memset(&xev, 0, sizeof(xev));
     xev.type = ClientMessage;
-    xev.xclient.window = skin->xw;
+    xev.xclient.window = window->xw;
     xev.xclient.message_type = xa_wm_state;
     xev.xclient.format = 32;
     xev.xclient.data.l[0] = (enabled>0)?_NET_WM_STATE_ADD:_NET_WM_STATE_REMOVE;
@@ -339,9 +341,9 @@ wm_set_property(skin_t *skin, char *atom, int enabled)
 
 
 extern int
-wm_set_sticky(skin_t *skin, int enabled)
+set_sticky(window_t *window, int enabled)
 {
-    if(skin->net_wm_support == 1) {
+    if(window->net_wm_support == 1) {
 	Atom xa_wm_desktop;
 	XEvent xev;
 
@@ -352,7 +354,7 @@ wm_set_sticky(skin_t *skin, int enabled)
 	unsigned long count, bytes_remain;
 	unsigned char *p = NULL;
 
-	wm_set_property(skin, "_NET_WM_STATE_STICKY", enabled);
+	wm_set_property(window, "_NET_WM_STATE_STICKY", enabled);
 
 	if(enabled <= 0) {
 	    xa_cardinal = XInternAtom(xd, "CARDINAL", True);
@@ -375,7 +377,7 @@ wm_set_sticky(skin_t *skin, int enabled)
 
 	memset(&xev, 0, sizeof(xev));
 	xev.type = ClientMessage;
-	xev.xclient.window = skin->xw;
+	xev.xclient.window = window->xw;
 	xev.xclient.message_type = xa_wm_desktop;
 	xev.xclient.format = 32;
 	xev.xclient.data.l[0] = desktop;
@@ -389,10 +391,10 @@ wm_set_sticky(skin_t *skin, int enabled)
 
 
 extern int
-wm_set_always_on_top(skin_t *skin, int enabled)
+set_always_on_top(window_t *window, int enabled)
 {
-    if(skin->net_wm_support == 1) {
-	wm_set_property(skin, "_NET_WM_STATE_STAYS_ON_TOP", 1);
+    if(window->net_wm_support == 1) {
+	wm_set_property(window, "_NET_WM_STATE_STAYS_ON_TOP", 1);
     }
 
     return 0;
@@ -406,7 +408,7 @@ init_graphics()
     drag_list = list_new(TC_LOCK_SLOPPY);
     widget_list = list_new(TC_LOCK_SLOPPY);
     sl_list = list_new(TC_LOCK_SLOPPY);
-    skin_list = list_new(TC_LOCK_SLOPPY);
+    window_list = list_new(TC_LOCK_SLOPPY);
 
     XInitThreads();
     xd = XOpenDisplay(NULL);
@@ -421,28 +423,34 @@ init_graphics()
     root = XCreatePixmap(xd, RootWindow(xd, xs), root_width,
 			 root_height, depth);
 
+    pthread_create(&xth, NULL, x11_event, NULL);
+    pthread_create(&sth, NULL, scroll_labels, NULL);
+
     return 0;
 }
 
 
-extern int 
-create_window(skin_t *skin)
+extern window_t *
+create_window(char *title, int width, int height)
 {
     Atom prop;
     MWMHints mwmhints;
     XClassHint *classhints;
     XSizeHints *sizehints;
     XTextProperty windowName;
-    char *title = "TCVP";
     Atom xdndversion = 3, xa_atom;
     Window toplevel;
 
-    skin->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
-			     skin->width, skin->height, 0,
+    window_t *window = calloc(sizeof(window_t), 1);
+    window->width = width;
+    window->height = height;
+
+    window->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
+			     window->width, window->height, 0,
 			     CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
 
-    XSelectInput(xd, skin->xw, ExposureMask | StructureNotifyMask |
+    XSelectInput(xd, window->xw, ExposureMask | StructureNotifyMask |
 		 EnterWindowMask | LeaveWindowMask);
 
     xa_atom = XInternAtom(xd, "ATOM", False);
@@ -462,14 +470,14 @@ create_window(skin_t *skin)
     prop = XInternAtom(xd, "_MOTIF_WM_HINTS", False);
     mwmhints.flags = MWM_HINTS_DECORATIONS;
     mwmhints.decorations = 0;
-    XChangeProperty(xd, skin->xw, prop, prop, 32, PropModeReplace,
+    XChangeProperty(xd, window->xw, prop, prop, 32, PropModeReplace,
 		    (unsigned char *) &mwmhints,
 		    PROP_MWM_HINTS_ELEMENTS);
 
-    check_wm(skin);
+    check_wm(window);
 
     prop = XInternAtom(xd, "XdndAware", False);
-    toplevel = skin->xw;
+    toplevel = window->xw;
     for(;;) {
 	Window root, w, *c;
 	int n;
@@ -484,13 +492,13 @@ create_window(skin_t *skin)
     XChangeProperty(xd, toplevel, prop, xa_atom, 32,
 		    PropModeReplace, (unsigned char *) &xdndversion, 1);
 
-    skin->bgc = XCreateGC (xd, skin->xw, 0, NULL);
-    XSetBackground(xd, skin->bgc, 0x00000000);
-    XSetForeground(xd, skin->bgc, 0xFFFFFFFF);
+    window->bgc = XCreateGC (xd, window->xw, 0, NULL);
+    XSetBackground(xd, window->bgc, 0x00000000);
+    XSetForeground(xd, window->bgc, 0xFFFFFFFF);
 
-    skin->wgc = XCreateGC (xd, skin->xw, 0, NULL);
-    XSetBackground(xd, skin->bgc, 0xFFFFFFFF);
-    XSetForeground(xd, skin->bgc, 0x00000000);
+    window->wgc = XCreateGC (xd, window->xw, 0, NULL);
+    XSetBackground(xd, window->bgc, 0xFFFFFFFF);
+    XSetForeground(xd, window->bgc, 0x00000000);
 
     classhints = XAllocClassHint ();
     classhints->res_name = "TCVP";
@@ -498,13 +506,13 @@ create_window(skin_t *skin)
 
     sizehints = XAllocSizeHints ();
     sizehints->flags = PSize | PMinSize | PMaxSize;
-    sizehints->min_width = skin->width;
-    sizehints->min_height = skin->height;
-    sizehints->max_width = skin->width;
-    sizehints->max_height = skin->height;
+    sizehints->min_width = window->width;
+    sizehints->min_height = window->height;
+    sizehints->max_width = window->width;
+    sizehints->max_height = window->height;
 
     XStringListToTextProperty (&title, 1, &windowName);
-    XSetWMProperties (xd, skin->xw, &windowName, NULL, NULL,
+    XSetWMProperties (xd, window->xw, &windowName, NULL, NULL,
 		      0, sizehints, NULL, classhints);
 
     XFree(sizehints);
@@ -512,24 +520,52 @@ create_window(skin_t *skin)
 
     XSync(xd, False);
 
+    window->widgets = list_new(TC_LOCK_SLOPPY);
+
+    list_push(window_list, window);
+
+    window->enabled = 1;
+
+    return window;
+}
+
+
+extern int
+show_window(window_t *window)
+{
+    XMapWindow (xd, window->xw);
+    XMapSubwindows(xd, window->xw);
+    window->mapped = 1;
+
+    return 0;
+}
+
+
+extern int
+hide_window(window_t *window)
+{
+    XUnmapWindow (xd, window->xw);
+    XUnmapSubwindows(xd, window->xw);
+    window->mapped = 0;
+
     return 0;
 }
 
 
 extern int 
-destroy_window(skin_t *skin)
+destroy_window(window_t *window)
 {
     tcwidget_t *w;
 
-    list_delete(skin_list, skin, widget_cmp, NULL);
+    window->enabled = 0;
+    list_delete(window_list, window, widget_cmp, NULL);
 
-    while((w = list_pop(skin->widgets))!=NULL) {
+    while((w = list_pop(window->widgets))!=NULL) {
 	destroy_widget(w);
     }
 
-    list_destroy(skin->widgets, NULL);
-    free(skin->path);
-    free(skin);
+    list_destroy(window->widgets, NULL);
+    free(window);
 
     return 0;
 }

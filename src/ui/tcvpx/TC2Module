@@ -2,7 +2,7 @@ module		tcvpx
 name		"TCVP/ui/tcvpx"
 version		0.1.0
 tc2version	0.4.0
-sources		background.c button.c dynamic.c label.c seek_bar.c skin.c state.c tcvpctl.c tcvpx.c widget.c window.c
+sources		dynamic.c skin.c tcvpctl.c tcvpx.c
 postinit	tcvpx_init
 shutdown	tcvpx_shdn
 import		"Eventq"	"new"
@@ -13,6 +13,29 @@ import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 import		"tcvp"		"new"
 import		"image/png"	"read"
+
+import		"xtk"		"update_root"
+import		"xtk"		"create_background"
+import		"xtk"		"create_button"
+import		"xtk"		"change_label"
+import		"xtk"		"create_label"
+import		"xtk"		"change_seek_bar"
+import		"xtk"		"create_seek_bar"
+import		"xtk"		"enable_seek_bar"
+import		"xtk"		"disable_seek_bar"
+import		"xtk"		"create_state"
+import		"xtk"		"change_state"
+import		"xtk"		"init_graphics"
+import		"xtk"		"create_window"
+import		"xtk"		"destroy_window"
+import		"xtk"		"show_window"
+import		"xtk"		"hide_window"
+import		"xtk"		"set_sticky"
+import		"xtk"		"set_always_on_top"
+import		"xtk"		"widget_cmp"
+import		"xtk"		"draw_widgets"
+import		"xtk"		"repaint_widgets"
+
 option		skin%s
 option		always_on_top%d=0
 option		sticky%d=0

@@ -19,15 +19,15 @@
 #ifndef _TCVPCTL_H
 #define _TCVPCTL_H
 
-#include "widgets.h"
+#include "tcvpx.h"
 
 int tcvp_quit();
-int tcvp_previous(tcwidget_t *w, void *p);
-int tcvp_next(tcwidget_t *w, void *p);
-int tcvp_play(tcwidget_t *w, void *p);
-int tcvp_stop(tcwidget_t *w, void *p);
-int tcvp_pause(tcwidget_t *w, void *p);
-int tcvp_seek(tcwidget_t *w, void *p);
+int tcvp_previous(xtk_widget_t *w, void *p);
+int tcvp_next(xtk_widget_t *w, void *p);
+int tcvp_play(xtk_widget_t *w, void *p);
+int tcvp_stop(xtk_widget_t *w, void *p);
+int tcvp_pause(xtk_widget_t *w, void *p);
+int tcvp_seek(xtk_widget_t *w, void *p);
 
 int tcvp_add_file(char *file);
 

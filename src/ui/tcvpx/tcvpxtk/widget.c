@@ -16,33 +16,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
-#include "tcvpx.h"
+#include "widgets.h"
 #include <unistd.h>
 
-list *widget_list, *click_list, *sl_list, *drag_list, *skin_list;
-
-
-extern image_info_t*
-load_image(char *skinpath, char *file)
-{
-    FILE *f;
-    char fn[1024];
-    image_info_t *img;
-
-    snprintf(fn, 1023, "%s/%s", skinpath, file);
-    f = fopen(fn,"r");
-
-    img = malloc(sizeof(image_info_t));
-
-    img->flags = IMAGE_COLOR_TYPE | IMAGE_SWAP_ORDER;
-    img->color_type = IMAGE_COLOR_TYPE_RGB_ALPHA;
-    img->iodata = f;
-    img->iofn = (vfs_fread_t)fread;
-    image_png_read(img);
-    fclose(f);
-
-    return img;
-}
+list *widget_list, *click_list, *sl_list, *drag_list, *window_list;
 
 
 extern int
@@ -82,8 +59,8 @@ alpha_render(unsigned char *src, unsigned char *dest,
 extern int
 draw_widget(tcwidget_t *w)
 {
-    if(mapped==1){
-	XCopyArea(xd, w->common.pixmap, w->common.win, w->common.skin->bgc,
+    if(w->common.window->mapped==1){
+	XCopyArea(xd, w->common.pixmap, w->common.win, w->common.window->bgc,
 		  0, 0, w->common.width, w->common.height, 0, 0);
     }
     return 0;
@@ -93,14 +70,20 @@ draw_widget(tcwidget_t *w)
 extern int
 draw_widgets()
 {
-    list_item *current=NULL;
+    list_item *currentwin=NULL;
     tcwidget_t *w;
+    window_t *win;
 
-    if(mapped==1){
-	while((w = list_next(widget_list, &current))!=NULL) {
-	    draw_widget(w);
+    while((win = list_next(window_list, &currentwin))!=NULL) {
+	if(win->mapped==1){
+	    list_item *current=NULL;
+	    while((w = list_next(win->widgets, &current))!=NULL) {
+		draw_widget(w);
+	    }
 	}
     }
+
+    XSync(xd, False);
 
     return 0;
 }
@@ -109,12 +92,16 @@ draw_widgets()
 extern int
 repaint_widgets()
 {
-    list_item *current=NULL;
+    list_item *currentwin=NULL;
     tcwidget_t *w;
+    window_t *win;
 
-    if(mapped==1){
-	while((w = list_next(widget_list, &current))!=NULL) {
-	    if(w->common.repaint) w->common.repaint(w);
+    while((win = list_next(window_list, &currentwin))!=NULL) {
+	if(win->mapped==1){
+	    list_item *current=NULL;
+	    while((w = list_next(win->widgets, &current))!=NULL) {
+		if(w->common.repaint) w->common.repaint(w);
+	    }
 	}
     }
 
@@ -123,7 +110,7 @@ repaint_widgets()
 
 
 extern int
-widget_onclick(tcwidget_t *p, XEvent *xe)
+widget_onclick(tcwidget_t *p, void *xe)
 {
     if(p->common.enabled && p->common.action){
 	return p->common.action(p, NULL);

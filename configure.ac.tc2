@@ -42,6 +42,7 @@ AC_CONFIG_FILES([Makefile
 		 src/ui/tcvpshell/Makefile
 		 src/ui/tcvpx/Makefile
 		 src/ui/tcvpx/skin/Makefile
+		 src/ui/tcvpx/tcvpxtk/Makefile
 		 src/wm/Makefile
 		 src/wm/wm/Makefile
 		 src/wm/x11/Makefile])
@@ -56,7 +57,7 @@ echo Demuxer modules........: $DEMUXER_MODULES
 echo Output modules.........: $OUTPUT_MODULES
 echo Driver modules.........: $DRIVERS_MODULES
 echo User interface modules.: $UI_MODULES
-echo Other modules..........: $SRC_MODULES
+echo Other modules..........: $SRC_MODULES $TCVPX_MODULES
 echo
 echo TCVP will be installed under $prefix
 echo

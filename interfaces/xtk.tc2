@@ -1,0 +1,65 @@
+symbol	"update_root"		int (*%s)(window_t *window)
+
+symbol	"create_background"	tcbackground_t *(*%s)(window_t *window, image_info_t *image)
+
+symbol	"create_button"		tcimage_button_t *(*%s)(window_t *window, int x, int y, image_info_t *imagefile, image_info_t *over_image, image_info_t *down_image, action_cb_t action, void *data)
+
+symbol	"change_label"		int (*%s)(tclabel_t *txt, char *text)
+symbol	"create_label"		tclabel_t *(*%s)(window_t *window, int x, int y, int width, int height, int xoff, int yoff, char *text, char *font, char *color, short alpha, int scroll, action_cb_t action, void *data)
+
+symbol	"change_seek_bar"	int (*%s)(tcseek_bar_t *sb, double position)
+symbol	"create_seek_bar"	tcseek_bar_t *(*%s)(window_t *window, int x, int y, int sp_x, int sp_y, int ep_x, int ep_y, image_info_t *bg, image_info_t *indicator, double position, action_cb_t action, void *data)
+symbol	"enable_seek_bar"	int (*%s)(tcseek_bar_t *sb);
+symbol	"disable_seek_bar"	int (*%s)(tcseek_bar_t *sb);
+
+symbol	"create_state"		tcstate_t *(*%s)(window_t *window, int x, int y, int num_states, image_info_t **imagefiles, char **states, char *state, action_cb_t action, void *data)
+symbol	"change_state"		int (*%s)(tcstate_t* st, char *state)
+
+symbol	"init_graphics"		int (*%s)()
+
+symbol	"create_window"		window_t *(*%s)(char *title, int width, int height)
+symbol	"destroy_window"	int (*%s)(window_t *window)
+symbol	"show_window"		int (*%s)(window_t *window)
+symbol	"hide_window"		int (*%s)(window_t *window)
+symbol	"set_always_on_top"	int (*%s)(window_t *window, int enabled)
+symbol	"set_sticky"		int (*%s)(window_t *window, int enabled)
+
+symbol	"widget_cmp"		int (*%s)(const void *, const void *);
+
+symbol	"draw_widgets"		int (*%s)()
+symbol	"repaint_widgets"	int (*%s)()
+
+include
+#include <X11/Xlib.h>
+
+#define TCIMAGEBUTTON 0
+#define TCLABEL       1
+#define TCBACKGROUND  2
+#define TCSEEKBAR     3
+#define TCSTATE       4
+
+typedef struct _tcbackground_t		tcbackground_t;
+typedef struct _tcseek_bar_t		tcseek_bar_t;
+typedef struct _tcimage_button_t	tcimage_button_t;
+typedef struct _tcstate_t		tcstate_t;
+typedef struct _tclabel_t		tclabel_t;
+typedef struct _tcwidget_common_t	tcwidget_common_t;
+typedef union _tcwidget_t		tcwidget_t;
+
+typedef struct _window_t		window_t;
+
+typedef struct _xtk_widget_t		xtk_widget_t;
+
+typedef int(*action_cb_t)(xtk_widget_t *, void *);
+typedef int(*widget_cb_t)(xtk_widget_t *);
+
+#define WIDGET_COMMON				\
+    int type;					\
+    void *data;					\
+    action_cb_t action;				\
+    widget_cb_t ondestroy;			\
+    window_t *window
+
+struct _xtk_widget_t {
+    WIDGET_COMMON;
+};

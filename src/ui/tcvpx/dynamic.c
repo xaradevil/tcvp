@@ -17,19 +17,55 @@
 **/
 
 #include "tcvpx.h"
-#include "widgets.h"
+#include <string.h>
 
-hash_table *text_hash;
+hash_table *variable_hash;
 hash_table *widget_hash;
 
-static char *
-lookup_text(char *key)
+static void*
+lookup_variable(char *key)
 {
-    char *text = NULL;
+    void *var = NULL;
 
-    hash_find(text_hash, key, &text);
+    hash_find(variable_hash, key, &var);
 
-    return text;
+    return var;
+}
+
+extern int
+change_variable(char *key, void *data)
+{
+    list_item *current = NULL;
+    list *lst = NULL;
+    char buf[1024];
+    void *tmp = NULL;
+
+    hash_delete(variable_hash, key, &tmp);
+    if(tmp) free(tmp);
+
+    hash_search(variable_hash, key, data, NULL);
+
+    sprintf(buf, "var:%s", key);
+    hash_find(widget_hash, buf, &lst);
+
+    if(lst) {
+	xtk_widget_t *w;
+
+	while((w = list_next(lst, &current))!=NULL) {
+	    action_data_t *ad = w->data;
+	    parse_variable(ad->data, &tmp);
+	    switch(w->type) {
+	    case TCSEEKBAR:
+	    {
+		double pos = (tmp)?*((double *)tmp):0;
+		xtk_change_seek_bar((tcseek_bar_t*)w, pos);
+		break;
+	    }
+	    }
+	}
+    }
+
+    return 0;
 }
 
 extern int
@@ -40,26 +76,26 @@ change_text(char *key, char *text)
     char buf[1024];
     void *tmp = NULL;
 
-    hash_delete(text_hash, key, &tmp);
+    hash_delete(variable_hash, key, &tmp);
     if(tmp) free(tmp);
 
-    hash_search(text_hash, key, strdup(text), NULL);
+    hash_search(variable_hash, key, strdup(text), NULL);
 
     sprintf(buf, "text:%s", key);
     hash_find(widget_hash, buf, &lst);
 
     if(lst) {
-	tcwidget_t *w;
+	xtk_widget_t *w;
 
 	while((w = list_next(lst, &current))!=NULL) {
-	    action_data_t *ad = ((tclabel_t*)w)->data;
+	    action_data_t *ad = w->data;
 	    parse_text(ad->data, buf);
-	    switch(w->common.type) {
+	    switch(w->type) {
 	    case TCLABEL:
-		change_label((tclabel_t*)w, buf);
+		xtk_change_label((tclabel_t*)w, buf);
 		break;
 	    case TCSTATE:
-		change_state((tcstate_t*)w, buf);
+		xtk_change_state((tcstate_t*)w, buf);
 		break;
 	    }
 	}
@@ -68,8 +104,48 @@ change_text(char *key, char *text)
     return 0;
 }
 
+
 static int
-register_key(char *key, tcwidget_t *w)
+get_keys(char *text, char ***keysp)
+{
+    char **keys = NULL;
+    char *foo, *src;
+    int n = 0;
+
+    foo = src = strdup(text);
+    
+    for(;;) {
+	char *tmp;
+	char *key;
+
+	tmp = strstr(src, "${");
+	if(!tmp) break;
+
+	src = key = tmp+2;
+
+	tmp = strchr(src, '}');
+	tmp[0]=0;
+	src = tmp+1;
+
+	tmp = strchr(key, ':');
+	if(tmp) {
+	    tmp[0] = 0;
+	}
+
+	keys = realloc(keys, (n+1)*sizeof(*keys));
+	keys[n] = strdup(key);
+	n++;
+    }
+
+    free(foo);
+
+    *keysp = keys;
+    return n;
+}
+
+
+static int
+register_key(char *key, xtk_widget_t *w)
 {
     list *lst = NULL;
     hash_find(widget_hash, key, &lst);
@@ -84,100 +160,120 @@ register_key(char *key, tcwidget_t *w)
     return 0;
 }
 
-extern int
-register_textwidget(tcwidget_t *w, char *text)
-{
-    char *foo, *src;
-
-    foo = src = strdup(text);
-    
-    for(;;) {
-	char *tmp;
-	char *key;
-	char *default_text = NULL;
-	char buf[1024];
-
-	tmp = strchr(src, '%');
-	if(!tmp) break;
-
-	src = key = tmp+1;
-
-	tmp = strchr(key, '=');
-	if(tmp) {
-	    tmp[0] = 0;
-	    tmp++;
-	    default_text = strchr(tmp, '\'') + 1;
-	    tmp = strchr(default_text, '\'');
-	    tmp[0] = 0;
-	    src = tmp+1;
-	}
-
-	tmp = strchr(src, '%');
-	tmp[0]=0;
-	src = tmp+1;
-
-	sprintf(buf, "text:%s", key);
-	register_key(buf, w);
-    }
-
-    free(foo);
-
-    return 0;
-}
-
 static int
-unregister_key(char *key, tcwidget_t *w)
+unregister_key(char *key, xtk_widget_t *w)
 {
     list *lst = NULL;
     hash_find(widget_hash, key, &lst);
 
     if(lst) {
-	list_delete(lst, w, widget_cmp, NULL);
+	list_delete(lst, w, xtk_widget_cmp, NULL);
     }
+
+    return 0;
+}
+
+
+extern int
+register_textwidget(xtk_widget_t *w, char *text)
+{
+    char **keys;
+    int n, i;
+
+    n = get_keys(text, &keys);
+    for(i=0; i<n; i++) {
+	char buf[1024];
+	sprintf(buf, "text:%s", keys[i]);
+	register_key(buf, w);
+	free(keys[i]);
+    }
+
+    free(keys);
 
     return 0;
 }
 
 extern int
-unregister_textwidget(tcwidget_t *w, char *text)
+unregister_textwidget(xtk_widget_t *w, char *text)
 {
-    char *foo, *src;
+    char **keys;
+    int n, i;
 
-    foo = src = strdup(text);
-    
-    for(;;) {
-	char *tmp;
-	char *key;
-	char *default_text = NULL;
+    n = get_keys(text, &keys);
+    for(i=0; i<n; i++) {
 	char buf[1024];
-
-	tmp = strchr(src, '%');
-	if(!tmp) break;
-
-	src = key = tmp+1;
-
-	tmp = strchr(key, '=');
-	if(tmp) {
-	    tmp[0] = 0;
-	    tmp++;
-	    default_text = strchr(tmp, '\'') + 1;
-	    tmp = strchr(default_text, '\'');
-	    tmp[0] = 0;
-	    src = tmp+1;
-	}
-
-	tmp = strchr(src, '%');
-	tmp[0]=0;
-	src = tmp+1;
-
-	sprintf(buf, "text:%s", key);
+	sprintf(buf, "text:%s", keys[i]);
 	unregister_key(buf, w);
+	free(keys[i]);
     }
 
-    free(foo);
+    free(keys);
 
     return 0;
 }
+
+
+extern int
+register_varwidget(xtk_widget_t *w, char *text)
+{
+    char **keys;
+    int n, i;
+
+    n = get_keys(text, &keys);
+    for(i=0; i<n; i++) {
+	char buf[1024];
+	sprintf(buf, "var:%s", keys[i]);
+	register_key(buf, w);
+	free(keys[i]);
+    }
+
+    free(keys);
+
+    return 0;
+}
+
+extern int
+unregister_varwidget(xtk_widget_t *w, char *text)
+{
+    char **keys;
+    int n, i;
+
+    n = get_keys(text, &keys);
+    for(i=0; i<n; i++) {
+	char buf[1024];
+	sprintf(buf, "var:%s", keys[i]);
+	unregister_key(buf, w);
+	free(keys[i]);
+    }
+
+    free(keys);
+
+    return 0;
+}
+
+
+extern int
+parse_variable(char *text, void **result)
+{
+    char **keys;
+    int n, i;
+
+    n = get_keys(text, &keys);
+
+    if(n>1) {
+	for(i=0; i<n; i++) {
+	    free(keys[i]);
+	}
+	free(keys);
+    } else if(n == 1) {
+	*result = lookup_variable(keys[0]);
+	free(keys[0]);
+	free(keys);
+    }
+
+    return 0;
+}
+
 
 extern int
 parse_text(char *text, char *result)
@@ -197,29 +293,26 @@ parse_text(char *text, char *result)
 	char *key;
 	char *default_text = NULL;
 
-	tmp = strchr(src, '%');
+	tmp = strstr(src, "${");
 	if(!tmp) break;
 
 	memcpy(dst, src, tmp-src);
 	dst += tmp-src;
 
-	src = key = tmp+1;
+	src = key = tmp+2;
 
-	tmp = strchr(key, '=');
-	if(tmp) {
-	    tmp[0] = 0;
-	    tmp++;
-	    default_text = strchr(tmp, '\'') + 1;
-	    tmp = strchr(default_text, '\'');
-	    tmp[0] = 0;
-	    src = tmp+1;
-	}
-
-	tmp = strchr(src, '%');
+	tmp = strchr(src, '}');
 	tmp[0]=0;
 	src = tmp+1;
 
-	tmp = lookup_text(key);
+	tmp = strchr(key, ':');
+	if(tmp) {
+	    tmp[0] = 0;
+	    tmp += 2;
+	    default_text = tmp;
+	}
+
+	tmp = lookup_variable(key);
 
 	if(tmp) {
 	    memcpy(dst, tmp, strlen(tmp));
@@ -241,7 +334,7 @@ parse_text(char *text, char *result)
 extern int
 init_dynamic()
 {
-    text_hash = hash_new(10, 0);
+    variable_hash = hash_new(10, 0);
     widget_hash = hash_new(10, 0);
 
     return 0;

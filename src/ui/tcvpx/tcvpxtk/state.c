@@ -16,21 +16,21 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
-#include "tcvpx.h"
+#include "widgets.h"
 #include <string.h>
 
 static int
 repaint_state(tcwidget_t *w)
 {
-    if(mapped==1 && w->state.skin->enabled == 1){
+    if(w->state.window->mapped==1 && w->state.window->enabled == 1){
 	XImage *img;
-	img = XGetImage(xd, w->state.skin->background->pixmap,
+	img = XGetImage(xd, w->state.window->background->pixmap,
 			w->state.x, w->state.y,
 			w->state.width, w->state.height,
 			AllPlanes, ZPixmap);
 	alpha_render(*w->state.images[w->state.active_state]->data,
 		     img->data, img->width, img->height, depth);
-	XPutImage(xd, w->state.pixmap, w->background.skin->bgc, img,
+	XPutImage(xd, w->state.pixmap, w->background.window->bgc, img,
 		  0, 0, 0, 0, w->state.width, w->state.height);
 	XSync(xd, False);
 	XDestroyImage(img);
@@ -67,7 +67,7 @@ change_state(tcstate_t *st, char *state)
 	}
     }
 
-    if(mapped==1){
+    if(st->window->mapped==1){
 	st->repaint((tcwidget_t *) st);
 	draw_widget((tcwidget_t *) st);
 	XSync(xd, False);
@@ -78,8 +78,9 @@ change_state(tcstate_t *st, char *state)
 
 
 extern tcstate_t*
-create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
-	     char **states, char *state, action_cb_t action, void *data)
+create_state(window_t *window, int x, int y, int num_states,
+	     image_info_t **images, char **states, char *state,
+	     action_cb_t action, void *data)
 {
     int i;
     tcstate_t *st = calloc(sizeof(tcstate_t), 1);
@@ -90,7 +91,7 @@ create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
     st->y = y;
     st->repaint = repaint_state;
     st->destroy = destroy_state;
-    st->skin = skin;
+    st->window = window;
     st->num_states = num_states;
     st->states = malloc(num_states * sizeof(*st->states));
     st->images = malloc(num_states * sizeof(*st->images));
@@ -99,18 +100,18 @@ create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
     for(i=0; i<num_states; i++) {
 /* 	fprintf(stderr, "%s -> %s\n", states[i], imagefiles[i]); */
 	st->states[i] = states[i];
-	st->images[i] = load_image(skin->path, imagefiles[i]);
+	st->images[i] = images[i];
     }
 
     st->width = st->images[0]->width;
     st->height = st->images[0]->height;
     st->enabled = 1;
 
-    st->win = XCreateWindow(xd, skin->xw, st->x, st->y,
+    st->win = XCreateWindow(xd, window->xw, st->x, st->y,
 			    st->width, st->height,
 			    0, CopyFromParent, InputOutput,
 			    CopyFromParent, 0, 0);
-    st->pixmap = XCreatePixmap(xd, skin->xw, st->width,
+    st->pixmap = XCreatePixmap(xd, window->xw, st->width,
 			       st->height, depth);
 
     change_state(st, state);
@@ -125,6 +126,8 @@ create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
     }
 
     XSelectInput(xd, st->win, emask);
+
+    list_push(window->widgets, st);
 
     return st;
 }
