@@ -30,8 +30,6 @@
 #include <tcalloc.h>
 #include <tcvp_event_tc2.h>
 
-#undef DEBUG
-
 typedef struct tcvp_event_type {
     char *name;
     int num;
@@ -82,9 +80,8 @@ new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
     event_tab[e->num] = e;
     tchash_replace(event_types, name, e);
 
-#ifdef DEBUG
-    fprintf(stderr, "EVENT: registered %s as %i\n", name, e->num);
-#endif
+    tc2_print("EVENT", TC2_PRINT_DEBUG,
+	      "registered %s as %i\n", name, e->num);
 
     return e;
 }
@@ -159,7 +156,7 @@ new_event(int type, ...)
     if(type <= event_num && event_tab[type]){
 	te = event_tab[type]->alloc(type, args);
     } else {
-	fprintf(stderr, "TCVP: unknown event type %i\n", type);
+	tc2_print("EVENT", TC2_PRINT_WARNING, "unknown event #%i\n", type);
     }
 
     va_end(args);
@@ -182,16 +179,15 @@ send_event(eventq_t q, int type, ...)
     } else if(type <= event_num && event_tab[type] && event_tab[type]->alloc){
 	te = event_tab[type]->alloc(type, args);
     } else {
-	fprintf(stderr, "TCVP: unknown event type %i\n", type);
+	tc2_print("EVENT", TC2_PRINT_WARNING, "unknown event #%i\n", type);
     }
 
     va_end(args);
 
     if(te){
-#ifdef DEBUG
 	if(type >= 0)
-	    fprintf(stderr, "EVENT: sending %s\n", event_tab[type]->name);
-#endif
+	    tc2_print("EVENT", TC2_PRINT_DEBUG,
+		      "sending %s\n", event_tab[type]->name);
 	ret = eventq_send(q, te);
 	tcfree(te);
     }
@@ -211,7 +207,7 @@ serialize_event(void *event, int *size)
 	return NULL;
 
     if(!event_tab[te->type]->serialize){
-	fprintf(stderr, "EVENT: no serializer for %s\n",
+	tc2_print("EVENT", TC2_PRINT_WARNING, "no serializer for %s\n",
 		event_tab[te->type]->name);
 	return NULL;
     }
