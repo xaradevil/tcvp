@@ -98,7 +98,7 @@ static int aac_sample_rates[16] = {
 };
 
 static int ac3_sample_rates[4] = {
-    48000, 44100, 32, 0
+    48000, 44100, 32000, 0
 };
 
 static int ac3_frame_sizes[64][3] = {
