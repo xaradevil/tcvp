@@ -287,7 +287,7 @@ track_open(char *url, char *mode)
     u->private = cdt;
     u->size = cdt->data_length + cdt->header_length;
 
-    if(tcvp_input_cdda_conf_freedb)
+    if(tcvp_input_cdda_conf_cddb)
 	cdda_freedb(u, track);
 
     return u;

@@ -9,7 +9,16 @@ implement	"URL/cdda"	"seek"	cd_seek
 implement	"URL/cdda"	"close"	cd_close
 import		"URL/http"	"open"
 option		device%s="/dev/cdroms/cdrom0"
+Default CD device.
 option		buffer%i=4
+Buffer size in CD sectors (1/75 second).
 option		paranoia%i=0
+Use paranoia mode error correction.
 option		paranoia_stats%i=0
-option		freedb%i=0
+Print error counts after each track.
+option		cddb%i=0
+Fetch title information from a CDDB server.
+option		cddb_server%s="freedb.freedb.org"
+CDDB server to use.
+option		cddb_client name%s="TCVP" version%s="0.1"
+Client identification sent to CDDB server.

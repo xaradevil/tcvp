@@ -33,12 +33,16 @@ cddb_cmd(char *cmd)
 	p++;
     }
 
-    snprintf(url, sizeof(url), "http://freedb.freedb.org/~cddb/cddb.cgi?"
-	     "cmd=%s&hello=%s+%s+%s+%i.%i.%i&proto=1",
-	     cmd, getenv("USER"), hname, MODULE_INFO.name,
-	     MODULE_INFO.version >> 16,
-	     (MODULE_INFO.version >> 8) & 0xff,
-	     MODULE_INFO.version & 0xff);
+    snprintf(url, sizeof(url), "http://%s/~cddb/cddb.cgi?"
+	     "cmd=%s&hello=%s+%s+%s+%s&proto=1",
+	     tcvp_input_cdda_conf_cddb_server,
+	     cmd, getenv("USER"), hname,
+	     tcvp_input_cdda_conf_cddb_client.name,
+	     tcvp_input_cdda_conf_cddb_client.version);
+
+    for(p = url; *p; p++)
+	if(*p == ' ')
+	    *p = '+';
 
     free(cmd);
 /*     fprintf(stderr, "CDDA: %s\n", url); */
@@ -108,7 +112,7 @@ cdda_freedb(url_t *u, int track)
 	int status = strtol(rep, &rp, 0);
 
 	switch(status){
-	case 201:
+	case 211:
 	    if(!(rp = strchr(rp, '\n')))
 		break;
 	case 200:
@@ -118,10 +122,13 @@ cdda_freedb(url_t *u, int track)
 
 	if(cat){
 	    char *c = strchr(cat, ' ');
+
+	    if(c)
+		c = strchr(c + 1, ' ');
 	    if(c)
 		*c = 0;
 
-	    snprintf(qry, 40, "cddb read %s %08x", cat, id);
+	    snprintf(qry, 40, "cddb read %s", cat);
 	    free(rep);
 	    if((rep = cddb_cmd(qry))){
 		char *l, *tmp = rep;
