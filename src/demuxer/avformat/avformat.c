@@ -99,6 +99,7 @@ avf_free_packet(packet_t *p)
 {
     AVPacket *ap = p->private;
     av_free_packet(ap);
+    free(p->sizes);
     free(p);
 }
 
@@ -122,14 +123,15 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 	s = av_read_packet(afc, apk);
 	pthread_mutex_unlock(&as->mtx);
 
-	if(s != 0){
+	if(s < 0){
 	    pk = NULL;
 	    break;
 	}
 
 	pk = malloc(sizeof(*pk));
 	pk->data = &apk->data;
-	pk->sizes = &apk->size;
+	pk->sizes = malloc(sizeof(size_t));
+	pk->sizes[0] = apk->size;
 	pk->planes = 1;
 	pk->pts = apk->pts;
 	pk->free = avf_free_packet;

@@ -7,4 +7,3 @@ implement	"video"	"open"		v_open
 implement	"video"	"close"		v_close
 implement	"video"	"next_packet"	v_next_packet
 implement	"video" "play"		v_play
-import		"Eventq" "send"

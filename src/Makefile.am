@@ -1,1 +1,1 @@
-SUBDIRS = demuxer
+SUBDIRS = codec demuxer output tcvp

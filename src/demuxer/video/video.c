@@ -72,6 +72,8 @@ play_stream(void *p)
     int stream = vt->stream;
     packet_t *pk;
 
+    fprintf(stderr, "playing stream %i\n", vt->stream);
+
     while(vp->state != STOP){
 	pthread_mutex_lock(&vp->mtx);
 	while(vp->state == PAUSE){
@@ -79,9 +81,13 @@ play_stream(void *p)
 	}
 	pthread_mutex_unlock(&vp->mtx);
 
-	pk = ms->next_packet(ms, stream);
+	if(!(pk = ms->next_packet(ms, stream)))
+	    break;
+
 	vp->pipes[stream]->input(vp->pipes[stream], pk);
     }
+
+    fprintf(stderr, "done playing stream %i\n", vt->stream);
 
     free(vt);
     return NULL;
