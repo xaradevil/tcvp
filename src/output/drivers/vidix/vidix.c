@@ -101,9 +101,15 @@ static int
 vx_close(video_driver_t *vd)
 {
     vx_window_t *vxw = vd->private;
+    int i;
 
     vdlPlaybackOff(vxw->driver);
     vdlClose(vxw->driver);
+    for(i = 0; i < VID_PLAY_MAXFRAMES; i++){
+	if(vxw->dmabufs[i]){
+	    free(vxw->dmabufs[i]);
+	}
+    }
     free(vxw);
     free(vd);
 
