@@ -180,7 +180,8 @@ ebml_element(url_t *u, uint64_t *id, uint64_t *size, uint64_t *psize)
 
     if(psize && *size > *psize){
 	tc2_print("EBML", TC2_PRINT_WARNING,
-		  "element %llx size exceeds parent size\n", id);
+		  "element %llx size %lli exceeds parent size @%lli\n",
+		  *id, *size, u->tell(u));
 	return -1;
     }
 
