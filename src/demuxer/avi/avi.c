@@ -693,7 +693,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 		    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08llx\n",
 		    tag[0], tag[1], tag[2], tag[3],
 		    strtag(tag, stag), pos);
-	if(!tried_index && af->idxok > 256){
+	if(!tried_index && af->idxok > 256 && af->idxlen > af->pkt){
 	    uint64_t p = af->index[af->pkt]->offset;
 	    fprintf(stderr, "AVI: Index => %16llx\n", p);
 	    af->file->seek(af->file, p, SEEK_SET);
@@ -704,7 +704,8 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    af->file->seek(af->file, -backup - 4, SEEK_CUR);
 	    tried_bkup++;
 	    goto again;
-	} else if(skipped < max_skip && af->idxok > 256){
+	} else if(skipped < max_skip && af->idxok > 256 &&
+		  af->idxlen > af->pkt){
 	    if(!skipped)
 		fprintf(stderr, "AVI: Skipping chunk.\n");
 	    af->file->seek(af->file, af->index[af->pkt]->offset, SEEK_SET);
@@ -774,7 +775,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    af->idxok++;
 	    flags = af->index[af->pkt]->flags;
 	    if(flags & AVI_FLAG_KEYFRAME)
-		flags |= TCVP_PKT_FLAG_KEY;
+		pflags |= TCVP_PKT_FLAG_KEY;
 	    pts = af->index[af->pkt]->pts;
 	    pflags |= TCVP_PKT_FLAG_PTS;
 	} else {
@@ -824,10 +825,8 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	}
     }
 
-    if(pos == -1){
-	pthread_mutex_unlock(&af->mx);
+    if(pos == -1)
 	return -1LL;
-    }
 
     for(i = 0; i < af->idxlen; i++){
 	if(af->index[i]->offset >= pos){
@@ -857,22 +856,20 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 
 	s = pk->pk.stream;
 
-	if(ms->used_streams[s]){
-	    if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO)
-		mask = AVI_FLAG_KEYFRAME;
+/* 	if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO) */
+/* 	    mask = AVI_FLAG_KEYFRAME; */
 
-	    if(time <= pk->pk.pts && (pk->flags & mask) == mask){
-		if(!fi[s]){
-		    fi[s] = 1;
-		    cfi--;
-		}
+	if(time <= pk->pk.pts /* && (pk->flags & mask) == mask */){
+	    if(!fi[s]){
+		fi[s] = 1;
+		cfi--;
 	    }
+	}
 
-	    if(fi[s]){
-		list_unshift(af->packets, pk);
-	    } else {
-		avi_free_packet(&pk->pk);
-	    }
+	if(fi[s]){
+	    list_push(af->packets, pk);
+	} else {
+	    avi_free_packet(&pk->pk);
 	}
     }
 

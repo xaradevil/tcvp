@@ -415,7 +415,7 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     tsm->out = out;
     tsm->outbuf = malloc(outbuf_size);
     tsm->bsize = outbuf_size;
-    tsm->bitrate = 10000000;
+    tsm->bitrate = 12500000;
     pthread_mutex_init(&tsm->lock, NULL);
     pthread_cond_init(&tsm->cnd, NULL);
     tsm->nextpid = FIRST_PID;

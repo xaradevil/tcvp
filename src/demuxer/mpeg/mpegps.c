@@ -261,6 +261,7 @@ mpegps_open(char *name)
 		    tcfree(ms);
 		    return NULL;
 		}
+		break;
 	    }
 
 	    if((pk->stream_id & 0xe0) == 0xc0 ||
