@@ -95,9 +95,13 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 			(uint64_t) mpd->info->display_picture->tag2 << 32;
 		}
 
-		pic->pk.flags = TCVP_PKT_FLAG_PTS;
-		pic->pk.pts = mpd->pts;
-		mpd->pts += mpd->info->sequence->frame_period;
+		if(mpd->pts != -1LL){
+		    tc2_print("MPEG2", TC2_PRINT_DEBUG, "pts %llu\n",
+			      mpd->pts / 27);
+		    pic->pk.flags = TCVP_PKT_FLAG_PTS;
+		    pic->pk.pts = mpd->pts;
+		    mpd->pts += mpd->info->sequence->frame_period;
+		}
 		pic->pk.private = pic;
 		p->next->input(p->next, &pic->pk);
 	    }
@@ -175,6 +179,7 @@ mpeg_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     mpd = tcallocdz(sizeof(*mpd), NULL, mpeg_free);
     mpd->mpeg2 = mpeg2_init();
+    mpd->pts = -1LL;
 
     p->format.common.codec = "video/raw-i420";
     p->private = mpd;
