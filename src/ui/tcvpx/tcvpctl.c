@@ -29,7 +29,6 @@ tcvp_event(void *p)
 {
     skin_t *skin = p;
     muxed_stream_t *st = NULL;
-    char *title;
 
     while(!quit){
 	tcvp_event_t *te = eventq_recv(qr);
@@ -70,26 +69,25 @@ tcvp_event(void *p)
 	    st = te->load.stream;
 	    tcref(st);
 
-/* 	    printf("%s %s %s\n", st->title, st->performer, st->file); */
 	    if(st->title){
-		if(st->performer){
-		    title = malloc(strlen(st->title)+strlen(st->performer)+4);
-		    sprintf(title, "%s - %s", st->performer, st->title);
-		} else {
-		    title = malloc(strlen(st->title)+1);
-		    strcpy(title, st->title);
-		}
+		change_text("title", st->title);
 	    } else {
+		char *title;
 		char *ext;
+
 		title = strrchr(st->file, '/');
 		title = strdup(title? title + 1: te->load.stream->file);
 		ext = strrchr(title, '.');
 		if(ext)
 		    *ext = 0;
+
+		change_text("title", title);
+		free(title);
 	    }
 
-	    update_title(title);
-	    free(title);
+	    if(st->performer){
+		change_text("performer", st->performer);
+	    }
 
 	    /* fall through */
 

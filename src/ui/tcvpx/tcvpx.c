@@ -44,11 +44,6 @@ int p_state = STOPPED;
 
 static pthread_t xth, eth, sth;
 
-list *files;
-list_item *flist_curr;
-char *current_file;
-
-
 extern int
 toggle_time(tcwidget_t *w, void *p)
 {
@@ -64,27 +59,12 @@ toggle_time(tcwidget_t *w, void *p)
 extern int
 update_state(char *state)
 {
-    list_item *current=NULL;
+    list_item *current = NULL;
     skin_t *skin;
 
     while((skin = list_next(skin_list, &current))!=NULL) {
 	if(skin->state) {
 	    change_state(skin->state, state);
-	}
-    }
-
-    return 0;
-}
-
-extern int
-update_title(char *title)
-{
-    list_item *current=NULL;
-    skin_t *skin;
-
-    while((skin = list_next(skin_list, &current))!=NULL) {
-	if(skin->title) {
-	    change_label(skin->title, title);
 	}
     }
 
@@ -109,34 +89,30 @@ update_time()
 	}
     }
 
-    list_item *current=NULL;
+    list_item *current = NULL;
     skin_t *skin;
 
     while((skin = list_next(skin_list, &current))!=NULL) {
-	if(skin->title) {
-	    if(skin->seek_bar) {
-		if(s_length > 0){
-		    change_seek_bar(skin->seek_bar, (double)s_time/s_length);
-		} else {
-		    change_seek_bar(skin->seek_bar, 0);
-		}
+	if(skin->seek_bar) {
+	    if(s_length > 0){
+		change_seek_bar(skin->seek_bar, (double)s_time/s_length);
+	    } else {
+		change_seek_bar(skin->seek_bar, 0);
 	    }
+	}
 
-	    if(skin->time){
-		char *spaces;
-		int m = t/60;
-		if(m < 10){
-		    spaces = "  ";
-		} else if(m >= 10 && m < 100){
-		    spaces = " ";
-		} else {
-		    spaces = "";
-		}
+	char *spaces;
+	int m = t/60;
+	if(m < 10){
+	    spaces = "  ";
+	} else if(m >= 10 && m < 100){
+	    spaces = " ";
+	} else {
+	    spaces = "";
+	}
 
-		snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
-		change_label(skin->time, text);
-	    }
-    	}
+	snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
+	change_text("time", text);
     }
 
     return 0;
@@ -149,20 +125,8 @@ tcvpx_init(char *p)
     char *qname, *qn;
     skin_t *skin;
 
-    files = list_new(TC_LOCK_NONE);
-    flist_curr = NULL;
-
     if(p){
-	char *f;
-	qname = p;
-	
-	f = qname + strlen(qname) + 1;
-	while(strlen(f)>0) {
-	    list_push(files, f);
-	    f += strlen(f)+1;
-	}
-	current_file = list_next(files, &flist_curr);
-	
+        qname = p;
     } else {
 	conf_section *cs = conf_new(NULL);
 	pl = tcvp_new(cs);
@@ -180,6 +144,7 @@ tcvpx_init(char *p)
     sprintf(qn, "%s/timer", qname);
     eventq_attach(qr, qn, EVENTQ_RECV);
 
+    init_dynamic();
     init_graphics();
 
     if((skin=load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){
@@ -209,12 +174,9 @@ tcvpx_init(char *p)
 	wm_set_always_on_top(skin, 1);
     }
 
-
-    update_time(skin);
-    
     repaint_widgets();
     draw_widgets();
-
+    
     XSync(xd, False);
 
     pthread_create(&xth, NULL, x11_event, skin);

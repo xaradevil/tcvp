@@ -20,6 +20,7 @@
 #define _TCVPX_H
 
 #include "skin.h"
+#include <tchash.h>
 
 #define STOPPED 0
 #define PLAYING 1
@@ -34,8 +35,14 @@ int create_window(skin_t *);
 int destroy_window(skin_t *);
 int wm_set_sticky(skin_t *, int);
 int wm_set_always_on_top(skin_t *, int);
+
+int init_dynamic();
+int parse_text(char *text, char *result);
+int change_text(char *key, char *text);
+int unregister_textwidget(tcwidget_t *w, char *text);
+int register_textwidget(tcwidget_t *w, char *text);
+
 int update_time();
-int update_title(char *title);
 int update_state(char *state);
 
 void *x11_event(void *p);
@@ -56,11 +63,9 @@ extern player_t *pl;
 extern eventq_t qs;
 extern eventq_t qr;
 
-extern list *files;
-extern list_item *flist_curr;
-extern char *current_file;
 extern int s_time;
 extern int s_length;
+hash_table *text_hash;
 
 
 #endif /* _TCVPX_H */

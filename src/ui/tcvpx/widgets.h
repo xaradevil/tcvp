@@ -57,6 +57,7 @@ typedef struct _skin_t skin_t;
     action_cb_t action;				\
     widget_cb_t repaint;			\
     widget_cb_t destroy;			\
+    widget_cb_t ondestroy;			\
     void *data;					\
     skin_t *skin;				\
     int x,y;					\

@@ -156,9 +156,13 @@ destroy_widget(tcwidget_t *w)
     if(w->common.win) {
 	XSelectInput(xd, w->common.win, 0);
     }
+
+    if(w->common.ondestroy) {
+	w->common.ondestroy(w);
+    }
+
     XDestroyWindow(xd, w->common.win);
     XFreePixmap(xd, w->common.pixmap);
-
 
     if(w->common.destroy) {
 	w->common.destroy(w);

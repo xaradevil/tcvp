@@ -37,7 +37,8 @@ saction_t actions[] = {
     {"previous", tcvp_previous},
     {"next", tcvp_next},
     {"playlist", tcvp_playlist},
-    {"close", tcvp_close}, 
+    {"close", tcvp_close},
+    {"toggle_time", toggle_time},
     {NULL, NULL}
 };
 
@@ -48,10 +49,14 @@ lookup_action(char *name)
 {
     int i;
 
-    for(i = 0; actions[i].name != NULL; i++) {
-	if(strcmp(name, actions[i].name) == 0) {
-	    return actions[i].action;
+    if(name != NULL) {
+	for(i = 0; actions[i].name != NULL; i++) {
+	    if(strcmp(name, actions[i].name) == 0) {
+		return actions[i].action;
+	    }
 	}
+
+	/* FIXME: runtime creation of new actions */
     }
 
     return NULL;
@@ -137,9 +142,16 @@ create_skinned_button(skin_t *skin, conf_section *sec)
 }
 
 
+static int
+destroy_skinned_label(tcwidget_t *w)
+{
+    char *text = ((char **)w->common.data)[1];
+    unregister_textwidget(w, text);
+    return 0;
+}
+
 static tclabel_t*
-create_skinned_label(skin_t *skin, conf_section *sec, char *text,
-		     action_cb_t acb)
+create_skinned_label(skin_t *skin, conf_section *sec)
 {
     int x, y;
     int w, h;
@@ -149,9 +161,13 @@ create_skinned_label(skin_t *skin, conf_section *sec, char *text,
     int alpha;
     int stype;
     int i=0, j;
+    action_cb_t acb;
+    char *action, *text, *default_text, **data;
+    tclabel_t *l;
 
     i += conf_getvalue(sec, "position", "%d %d", &x, &y);
     i += conf_getvalue(sec, "size", "%d %d", &w, &h);
+    i += conf_getvalue(sec, "text", "%s", &text);
     i += conf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
     i += conf_getvalue(sec, "font", "%s", &font);
     if((j = conf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
@@ -165,12 +181,26 @@ create_skinned_label(skin_t *skin, conf_section *sec, char *text,
     }
     i += j;
 
-    if(i != 10){
+    if(i != 11){
 	return NULL;
     }
 
-    return(create_label(skin, x, y, w, h, xoff, yoff, text, font,
-			color, alpha, stype, acb, NULL));
+    conf_getvalue(sec, "action", "%s", &action);
+    acb = lookup_action(action);
+
+    default_text = malloc(1024);
+    parse_text(text, default_text);
+
+    data = malloc(sizeof(*data) * 2);
+    data[0] = action;
+    data[1] = text;
+    l = create_label(skin, x, y, w, h, xoff, yoff, default_text, font,
+		     color, alpha, stype, acb, data);
+
+    register_textwidget((tcwidget_t *)l, text);
+    l->ondestroy = destroy_skinned_label;
+
+    return l;
 }
 
 
@@ -286,22 +316,13 @@ create_ui(skin_t *skin)
 	if(w){
 	    list_push(skin->widgets, w);
 	}
-
     }
 
-    sec = conf_getsection(skin->config, "time");
-    if(sec){
-	w = skin->time =
-	    create_skinned_label(skin, sec, "   0:00", toggle_time);
-	if(w) {
-	    list_push(skin->widgets, w);
-	}
-    }
+    for(s=NULL, sec = conf_nextsection(skin->config, "label", &s);
+	sec != NULL; sec = conf_nextsection(skin->config, "label", &s)) {
 
-    sec = conf_getsection(skin->config, "title");
-    if(sec){
-	w = skin->title = create_skinned_label(skin, sec, "", NULL);
-	if(w) {
+	w = create_skinned_label(skin, sec);
+	if(w){
 	    list_push(skin->widgets, w);
 	}
     }

@@ -24,7 +24,6 @@
 #include <tclist.h>
 
 struct _skin_t {
-    tclabel_t *time, *title;
     tcbackground_t *background;
     tcseek_bar_t *seek_bar;
     tcstate_t *state;
