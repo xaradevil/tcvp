@@ -160,19 +160,22 @@ xiph_int(url_t *u, int *vs)
 }
 
 static int
-xiph_int_mem(u_char *p, int *vs)
+xiph_int_mem(u_char *p, int size, int *vs)
 {
     int val = 0, v;
 
     if(vs)
 	*vs = 0;
 
-    do {
+    while(size > 0){
 	v = *p++;
 	val += v;
 	if(vs)
 	    (*vs)++;
-    } while(v == 255);
+	if(v != 255)
+	    break;
+	size--;
+    }
 
     return val;
 }
@@ -516,6 +519,9 @@ msk_setup_stream(matroska_t *msk, matroska_track_t *mt, stream_t *st)
 	st->video.frame_rate.num = 1000000;
 	st->video.frame_rate.den = mt->defaultduration / 1000;
 	tcreduce(&st->video.frame_rate);
+	st->video.aspect.num = mt->video.displaywidth;
+	st->video.aspect.den = mt->video.displayheight;
+	tcreduce(&st->video.aspect);
     } else if(mt->type == MATROSKA_TRACK_TYPE_AUDIO){
 	st->stream_type = STREAM_TYPE_AUDIO;
 	st->audio.sample_rate = mt->audio.samplingfrequency;
@@ -855,6 +861,9 @@ msk_codec_vorbis(matroska_track_t *mt, stream_t *st)
     int nf, ss, s[3], cds;
     int i;
 
+    if(cps < 3)
+	return -1;
+
     nf = *p++;
     cps--;
 
@@ -862,7 +871,7 @@ msk_codec_vorbis(matroska_track_t *mt, stream_t *st)
 	return -1;
 
     for(i = 0; i < 2; i++){
-	s[i] = xiph_int_mem(p, &ss);
+	s[i] = xiph_int_mem(p, cps, &ss);
 	p += ss;
 	cps -= ss;
     }
@@ -907,11 +916,69 @@ msk_codec_pcm(matroska_track_t *mt, stream_t *st)
 static int
 msk_codec_msfcc(matroska_track_t *mt, stream_t *st)
 {
-    u_char fcc[5];
+    if(mt->codecprivate_size < 20)
+	return -1;
 
-    memcpy(fcc, mt->codecprivate + 16, 4);
-    fcc[4] = 0;
-    st->common.codec = video_x_msvideo_vcodec(fcc);
+    st->common.codec = video_x_msvideo_vcodec(mt->codecprivate + 16);
+
+    return 0;
+}
+
+static int
+msk_codec_aac(matroska_track_t *mt, stream_t *st)
+{
+    static const char *profiles[] =
+	{ "MAIN", "LC", "SSR", "LTP", "LC/SBR", NULL };
+
+    static const int sampling_freqs[] = {
+	92017,
+	75132,
+	55426,
+	46009,
+	37566,
+	27713,
+	23004,
+	18783,
+	13856,
+	11502,
+	9391,
+	0
+    };
+
+    char *profile = mt->codecid + 12;
+    int size = 5;
+    u_char *d = malloc(size);
+    int mpeg4 = mt->codecid[10] == '4';
+    int pridx, sfidx;
+
+    st->common.codec_data = d;
+    st->common.codec_data_size = size;
+
+    for(pridx = 0; profiles[pridx]; pridx++)
+	if(!strcmp(profile, profiles[pridx]))
+	    break;
+
+    if(!profiles[pridx])
+	return -1;
+
+    pridx++;
+
+    for(sfidx = 0; mt->audio.samplingfrequency < sampling_freqs[sfidx];
+	sfidx++);
+
+    if(!sampling_freqs[sfidx])
+	return -1;
+
+    *d++ = (pridx << 3) | (sfidx >> 1);
+    *d = (sfidx << 7) | (mt->audio.channels << 3);
+
+    if(pridx == 5){
+	mt->audio.samplingfrequency *= 2;
+	for(sfidx = 0; mt->audio.samplingfrequency < sampling_freqs[sfidx];
+	    sfidx++);
+	*d++ |= sfidx >> 1;
+	*d++ = (sfidx << 7) | pridx;
+    }
 
     return 0;
 }
@@ -947,7 +1014,8 @@ static matroska_codec_t msk_codecs[] = {
     { .codecid = "A_MPEG/L1",
       .codec   = "audio/mp1" },
     { .codecid = "A_AAC/MPEG[24]/*",
-      .codec   = "audio/aac" },
+      .codec   = "audio/aac",
+      .setup   = msk_codec_aac },
     { .codecid = "A_PCM/*/*",
       .setup   = msk_codec_pcm },
     { .codecid = "A_AC3",
