@@ -166,7 +166,7 @@ pl_get(playlist_t *pl, char **d, int s, int n)
 
     pthread_mutex_lock(&tpl->lock);
 
-    ng = min(tpl->nf - s,  (unsigned) n);
+    ng = min(tpl->nf - s, (unsigned) n);
 
     for(i = 0; i < ng; i++)
 	d[i] = strdup(tpl->files[s + i]);
@@ -243,12 +243,11 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 	    tpl->state = STOPPED;
 	    tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
 	}
-	goto out;
+	c = c < 0? 0: tpl->nf;
     }
 
     tpl->cur = c;
 
-out:
     pthread_mutex_unlock(&tpl->lock);
 
     if(tpl->state == PLAYING){
