@@ -308,6 +308,7 @@ END_TCCONF
     } elsif($tag eq 'layout'){			  # layout
 	my $id = "$container.$attr{id}";
 	$lc = \$layouts{$id}{content};
+	$layouts{$id}{id} = $id;
 	$layouts{$id}{groups} = [];
 	$lg = $layouts{$id}{groups};
 	$group = $layouts{$id};
@@ -412,10 +413,10 @@ END_TCCONF
 	$$lc .= <<END_TCCONF;
 slider [
 	position $x $y
-	background '$id.png'
+	background '$$group{id}.$id.png'
 	indicator '$thumb.png'
 END_TCCONF
-	make_rect $w, $h, 0, 0, 0, 0, 0, "$id.png";
+	make_rect $w, $h, 0, 0, 0, 0, 0, "$$group{id}.$id.png";
 	write_image $thumb;
 	if($ht){
 	    $$lc .= "\tmouse_over '$ht.png'\n";
