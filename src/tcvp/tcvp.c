@@ -29,7 +29,7 @@ typedef struct tcvp_player {
     tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;
     muxed_stream_t *stream;
     timer__t *timer;
-    pthread_t th_ticker, th_event, th_wait;
+    pthread_t th_ticker, th_event;
     pthread_mutex_t tmx;
     pthread_cond_t tcd;
     int state;
@@ -92,13 +92,7 @@ t_close(player_t *pl)
     pthread_mutex_lock(&tp->tmx);
 
     if(tp->demux){
-	tp->demux->flush(tp->demux, 1);
-	pthread_mutex_unlock(&tp->tmx);
-	pthread_join(tp->th_wait, NULL);
-
-	pthread_mutex_lock(&tp->tmx);
-	if(tp->demux)
-	    tp->demux->free(tp->demux);
+	tp->demux->free(tp->demux);
 	tp->demux = NULL;
     }
 
@@ -195,26 +189,6 @@ print_info(muxed_stream_t *stream)
 	    break;
 	}
     }
-}
-
-static void *
-t_wait(void *p)
-{
-    tcvp_player_t *tp = p;
-
-    tp->demux->flush(tp->demux, 0);
-    pthread_mutex_lock(&tp->tmx);
-    tp->state = TCVP_STATE_END;
-    if(tp->timer)
-	tp->timer->interrupt(tp->timer);
-    pthread_mutex_unlock(&tp->tmx);
-
-    tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE);
-    te->state = TCVP_STATE_END;
-    eventq_send(tp->qs, te);
-    tcfree(te);
-
-    return NULL;
 }
 
 static void *
@@ -410,7 +384,7 @@ t_open(player_t *pl, char *name)
 	}
     }
 
-    demux = stream_play(stream, codecs);
+    demux = stream_play(stream, codecs, tp->conf);
 
     tp->state = TCVP_STATE_STOPPED;
     tp->demux = demux;
@@ -427,7 +401,6 @@ t_open(player_t *pl, char *name)
     }
 
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
-    pthread_create(&tp->th_wait, NULL, t_wait, tp);
 
     demux->start(demux);
     if(tp->video && tp->video->buffer)

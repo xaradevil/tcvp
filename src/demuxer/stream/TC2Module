@@ -8,3 +8,7 @@ implement	"stream"	"next_packet"	s_next_packet
 implement	"stream" 	"play"		s_play
 implement	"stream" 	"probe"		s_probe
 implement	"stream" 	"validate"	s_validate
+import		"Eventq"	"new"
+import		"Eventq"	"delete"
+import		"Eventq"	"send"
+import		"Eventq"	"attach"

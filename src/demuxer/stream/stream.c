@@ -23,8 +23,8 @@
 #include <pthread.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
+#include <tcvp_event.h>
 #include <stream_tc2.h>
-
 
 extern muxed_stream_t *
 s_open(char *name, conf_section *cs)
@@ -85,6 +85,7 @@ typedef struct s_play {
     int flushing;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
+    eventq_t sq;
 } s_play_t;
 
 typedef struct vp_thread {
@@ -120,6 +121,12 @@ play_stream(void *p)
 
     pthread_mutex_lock(&vp->mtx);
     vp->streams--;
+    if(vp->streams == 0){
+	tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE);
+	te->state = TCVP_STATE_END;
+	eventq_send(vp->sq, te);
+	tcfree(te);
+    }
     pthread_cond_broadcast(&vp->cnd);
     pthread_mutex_unlock(&vp->mtx);
 
@@ -209,6 +216,7 @@ s_free(tcvp_pipe_t *p)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
 
+    eventq_delete(vp->sq);
     free(vp->pipes);
     free(vp->threads);
     free(vp);
@@ -218,11 +226,12 @@ s_free(tcvp_pipe_t *p)
 }
 
 extern tcvp_pipe_t *
-s_play(muxed_stream_t *ms, tcvp_pipe_t **out)
+s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
 {
     tcvp_pipe_t *p;
     s_play_t *vp;
     int i, j;
+    char *qname, *qn;
 
     vp = calloc(1, sizeof(*vp));
     vp->stream = ms;
@@ -231,6 +240,12 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out)
     vp->state = PAUSE;
     pthread_mutex_init(&vp->mtx, NULL);
     pthread_cond_init(&vp->cnd, NULL);
+
+    conf_getvalue(cs, "qname", "%s", &qname);
+    qn = alloca(strlen(qname) + 9);
+    sprintf(qn, "%s/status", qname);
+    vp->sq = eventq_new(NULL);
+    eventq_attach(vp->sq, qn, EVENTQ_SEND);
 
     for(i = 0, j = 0; i < ms->n_streams; i++){
 	if(ms->used_streams[i]){
