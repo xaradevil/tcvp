@@ -29,34 +29,30 @@ static player_t *player;
 static char *last_dir=NULL;
 static pthread_t gui_thread;
 
-static int
-tcvp_pause(char *p)
+static void
+tcvp_pause(GtkWidget *widget, gpointer callback_data)
 {
     static int paused = 0;
 
     if(!player)
-	return -1;
+	return;
 
     (paused ^= 1)? player->stop(player): player->start(player);
-
-    return 0;
 }
 
-static int
-tcvp_stop(char *p)
+static void
+tcvp_stop(GtkWidget *widget, gpointer callback_data)
 {
     if(player){
 	player->close(player);
 	player = NULL;
     }
-
-    return 0;
 }
 
 static int
 tcvp_play(char *file)
 {
-    tcvp_stop(NULL);
+    tcvp_stop(NULL, NULL);
 
     if(!(player = tcvp_open(file)))
 	return -1;
@@ -66,15 +62,11 @@ tcvp_play(char *file)
     return 0;
 }
 
-void stop_file(GtkWidget *widget, gpointer callback_data)
-{
-    tcvp_stop("");
-}
-
-void file_ok_sel(GtkWidget *w, GtkFileSelection *fs )
+void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
 {
     char *p;
-    if(last_dir!=NULL) free(last_dir);
+    if(last_dir!=NULL)
+	free(last_dir);
     last_dir=strdup((char *)gtk_file_selection_get_filename(GTK_FILE_SELECTION(fs)));
     p=strrchr(last_dir, '/');
     p[1]=0;
@@ -102,19 +94,19 @@ void open_file(GtkWidget *widget, gpointer callback_data)
 
 void gui_quit(GtkWidget *widget, gpointer callback_data)
 {
-    char *c = strdup("TCVP/gtkui");
-    tc2_request(TC2_UNLOAD_MODULE, 0, c);
+    tc2_request(TC2_UNLOAD_MODULE, 0, "TCVP/gtkui");
 }
 
 void gui_init()
 {
     GtkWidget *window;
-    GtkWidget *sbt, *pbt;
+    GtkWidget *sbt, *pbt, *psb;
     GtkWidget *box1;
 
     gtk_init(0, NULL);
 
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(window), "TCVP");
     gtk_signal_connect(GTK_OBJECT(window), "delete_event",
 		       GTK_SIGNAL_FUNC (gui_quit), NULL);
 
@@ -122,21 +114,26 @@ void gui_init()
 
     box1 = gtk_hbox_new (FALSE, 0);
 
-    sbt=gtk_button_new_with_label("Stop");
-    pbt=gtk_button_new_with_label("Play");
+    sbt = gtk_button_new_with_label("Stop");
+    pbt = gtk_button_new_with_label("Play");
+    psb = gtk_button_new_with_label("Pause");
 
-    g_signal_connect (G_OBJECT(sbt), "clicked",
-                      G_CALLBACK(stop_file), player);
-    g_signal_connect (G_OBJECT(pbt), "clicked",
-                      G_CALLBACK(open_file), NULL);
+    g_signal_connect(G_OBJECT(sbt), "clicked",
+		     G_CALLBACK(tcvp_stop), NULL);
+    g_signal_connect(G_OBJECT(pbt), "clicked",
+		     G_CALLBACK(open_file), NULL);
+    g_signal_connect(G_OBJECT(psb), "clicked",
+		     G_CALLBACK(tcvp_pause), NULL);
 
     gtk_container_add(GTK_CONTAINER(window), box1);
 
     gtk_box_pack_start(GTK_BOX(box1), pbt, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(box1), psb, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(box1), sbt, TRUE, TRUE, 0);
 
     gtk_widget_show(sbt);
     gtk_widget_show(pbt);
+    gtk_widget_show(psb);
 
     gtk_widget_show(box1);
 
@@ -162,7 +159,7 @@ tcvpgtk_init(char *p)
 extern int
 tcvpgtk_shdn(void)
 {
-    tcvp_stop(NULL);
+    tcvp_stop(NULL, NULL);
 
     gtk_main_quit();
 
