@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
@@ -45,6 +46,23 @@ typedef struct x4_packet {
     u_char *data, *buf;
     int size;
 } x4_packet_t;
+
+static void
+x4_log(void *p, int level, const char *fmt, va_list args)
+{
+    static const int level_map[] = {
+	[X264_LOG_ERROR]   = TC2_PRINT_ERROR,
+	[X264_LOG_WARNING] = TC2_PRINT_WARNING,
+	[X264_LOG_INFO]    = TC2_PRINT_INFO,
+	[X264_LOG_DEBUG]   = TC2_PRINT_DEBUG + 1
+    };
+
+    if(level < 0 || level > X264_LOG_DEBUG)
+	return;
+
+    tc2_printv("X264", level_map[level], fmt, args);
+}
+
 
 static void
 x4_free_pk(void *p)
@@ -173,6 +191,7 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     x4 = tcallocdz(sizeof(*x4), NULL, x4_free);
     x264_param_default(&x4->params);
+    x4->params.pf_log = x4_log;
 
     tcconf_getvalue(cs, "cabac", "%i", &x4->params.b_cabac);
     tcconf_getvalue(cs, "qp", "%i", &x4->params.i_qp_constant);
