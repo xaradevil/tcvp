@@ -76,8 +76,10 @@ pl_add(tcvp_playlist_t *tpl, char **files, int n, int p)
     if(p < tpl->nf)
 	memmove(tpl->files + p + n, tpl->files + p, n * sizeof(*tpl->files));
 
-    for(i = 0; i < n; i++)
+    for(i = 0; i < n; i++){
+	tc2_print("PLAYLIST", TC2_PRINT_DEBUG, "adding file %s\n", files[i]);
 	tpl->files[p + i] = strdup(files[i]);
+    }
 
     if(tpl->shuffle){
 	struct timeval tv;
@@ -113,6 +115,8 @@ pl_addlist(tcvp_playlist_t *tpl, char *file, int pos)
     char buf[1024], *line = alloca(1024), **lp = &line;
     char *d, *l;
     int n = 0;
+
+    tc2_print("PLAYLIST", TC2_PRINT_DEBUG, "adding list %s\n", file);
 
     if(!plf)
 	return -1;
