@@ -122,10 +122,11 @@ print_info(muxed_stream_t *stream)
 	printf("Stream %i, ", i);
 	switch(stream->streams[i].stream_type){
 	case STREAM_TYPE_AUDIO:
-	    printf("%s, %i Hz, %i channels\n",
+	    printf("%s, %i Hz, %i channels, %i kb/s\n",
 		   stream->streams[i].audio.codec,
 		   stream->streams[i].audio.sample_rate,
-		   stream->streams[i].audio.channels);
+		   stream->streams[i].audio.channels,
+		   stream->streams[i].audio.bit_rate / 1000);
 	    break;
 
 	case STREAM_TYPE_VIDEO:
@@ -200,7 +201,7 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     if((stream = stream_open(name, cs)) == NULL)
 	return NULL;
 
-    codecs = alloca(stream->n_streams * sizeof(*codecs));
+    codecs = calloc(stream->n_streams, sizeof(*codecs));
 
     if(cs){
 	if(conf_getvalue(cs, "video/stream", "%i", &vc) > 0){
@@ -256,13 +257,6 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 
     stream_probe(stream, codecs);
 
-    if(conf_getvalue(cs, "start_time", "%i", &start) == 1){
-	uint64_t spts = (uint64_t) start * 1000000LL;
-	if(stream->seek){
-	    stream->seek(stream, spts);
-	}
-    }
-
     print_info(stream);
 
     if(as){
@@ -288,6 +282,18 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
 	    codecs[vc] = NULL;
 	    vcodec->free(vcodec);
 	    vcodec = NULL;
+	}
+    }
+
+    if(conf_getvalue(cs, "start_time", "%i", &start) == 1){
+	uint64_t spts = (uint64_t) start * 1000000LL;
+	if(stream->seek){
+	    stream->seek(stream, spts);
+	    for(i = 0; i < stream->n_streams; i++){
+		if(codecs[i]){
+		    codecs[i]->flush(codecs[i], 1);
+		}
+	    }
 	}
     }
 
@@ -323,5 +329,6 @@ t_open(char *name, tcvp_status_cb_t stcb, void *cbdata, conf_section *cs)
     if(tp->sound && tp->sound->buffer)
 	tp->sound->buffer(tp->sound, 0.9);
 
+    free(codecs);
     return pl;
 }

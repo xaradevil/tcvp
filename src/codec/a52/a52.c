@@ -267,6 +267,13 @@ a52_free_codec(tcvp_pipe_t *p)
 static int
 a52_flush(tcvp_pipe_t *p, int drop)
 {
+    a52_decode_t *ad = p->private;
+
+    if(drop && ad->in){
+	ad->in->free(ad->in);
+	ad->in = NULL;
+    }
+
     return p->next->flush(p->next, drop);
 }
 

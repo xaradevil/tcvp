@@ -97,6 +97,7 @@ alsa_flush(tcvp_pipe_t *p, int drop)
 	snd_pcm_drain(ao->pcm);
 
     ao->timer->interrupt(ao->timer);
+    snd_pcm_prepare(ao->pcm);
 
     return 0;
 }

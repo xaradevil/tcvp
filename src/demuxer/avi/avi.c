@@ -77,11 +77,6 @@ typedef struct avi_index {
     uint32_t size;
 } avi_index_t;
 
-typedef struct avi_pts_index {
-    uint64_t pts;
-    avi_index_t *idx;
-} avi_pts_index_t;
-
 typedef struct avi_file {
     FILE *file;
     list **packets;
@@ -93,6 +88,13 @@ typedef struct avi_file {
     int idxok;
     uint64_t *pts;
 } avi_file_t;
+
+typedef struct avi_packet {
+    packet_t pk;
+    uint32_t flags;
+    int size;
+    u_char *data;
+} avi_packet_t;
 
 static char xval[] = {
     [' '] = 0x0,
@@ -419,8 +421,8 @@ avi_header(FILE *f)
 static void
 avi_free_packet(packet_t *p)
 {
-    free(p->sizes);
-    free(p->private);
+    avi_packet_t *ap = (avi_packet_t *) p;
+    free(ap->data);
     free(p);
 }
 
@@ -442,13 +444,14 @@ avi_packet(muxed_stream_t *ms, int stream)
     int32_t size;
     avi_file_t *af = ms->private;
     int str;
-    packet_t *pk = NULL;
+    avi_packet_t *pk = NULL;
 
     pthread_mutex_lock(&af->mx);
 
     if((stream < 0 || !(pk = list_shift(af->packets[stream]))) && !af->eof){
 	do {
 	    int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
+	    uint32_t flags = 0;
 	    char *buf;
 	    size_t pos;
 
@@ -533,16 +536,6 @@ avi_packet(muxed_stream_t *ms, int stream)
 		}
 	    }
 
-	    if(af->index && af->pkt < af->idxlen){
-		if(af->index[af->pkt].offset == pos){
-		    af->idxok++;
-		} else {
-		    af->idxok = 0;
-		}
-	    }
-
-	    af->pkt++;
-
 	    str = tag2str(tag);
 	    if(str < 0 || str >= ms->n_streams){
 		fprintf(stderr, "AVI: Bad stream number %i @ %08lx\n",
@@ -556,19 +549,31 @@ avi_packet(muxed_stream_t *ms, int stream)
 		continue;
 	    }
 
+	    if(af->index && af->pkt < af->idxlen){
+		if(af->index[af->pkt].offset == pos){
+		    af->idxok++;
+		    flags = af->index[af->pkt].flags;
+		} else {
+		    af->idxok = 0;
+		}
+	    }
+
 	    buf = malloc(size);
 	    fread(buf, 1, size, af->file);
 	    if(size & 1)
 		fgetc(af->file);
 
 	    pk = malloc(sizeof(*pk));
-	    pk->private = buf;
-	    pk->data = (u_char **) &pk->private;
-	    pk->sizes = malloc(sizeof(*pk->sizes));
-	    pk->sizes[0] = size;
-	    pk->planes = 1;
-	    pk->pts = af->pts? af->pts[af->pkt]: 0;
-	    pk->free = avi_free_packet;
+	    pk->data = buf;
+	    pk->pk.data = (u_char **) &pk->data;
+	    pk->pk.sizes = &pk->size;
+	    pk->pk.sizes[0] = size;
+	    pk->pk.planes = 1;
+	    pk->pk.pts = af->pts? af->pts[af->pkt]: 0;
+	    pk->pk.free = avi_free_packet;
+	    pk->flags = flags;
+
+	    af->pkt++;
 
 	    if(stream < 0){
 		break;
@@ -581,16 +586,16 @@ avi_packet(muxed_stream_t *ms, int stream)
 
     pthread_mutex_unlock(&af->mx);
 
-    return pk;
+    return (packet_t *) pk;
 }
 
 static int
 avi_seek(muxed_stream_t *ms, uint64_t time)
 {
     avi_file_t *af = ms->private;
-    packet_t *pk;
     off_t pos = 0;
-    int i, vs = -1;
+    int i;
+    char st[5];
 
     if(!af->index)
 	return -1;
@@ -598,6 +603,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     pthread_mutex_lock(&af->mx);
 
     for(i = 0; i < ms->n_streams; i++){
+	packet_t *pk;
 	while((pk = list_shift(af->packets[i]))){
 	    pk->free(pk);
 	}
@@ -606,19 +612,21 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     for(i = 0; i < af->idxlen; i++){
 	if(af->pts[i] >= time){
 	    int s = tag2str(af->index[i].tag);
-	    if(s >= ms->n_streams || !ms->used_streams[s])
+	    if(s >= ms->n_streams)
 		continue;
 
-	    if(!pos){
+	    if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO){
+		if(af->index[i].flags & AVI_FLAG_KEYFRAME){
+		    time = af->pts[i];
+		    if(!pos){
+			af->pkt = i;
+			pos = af->index[i].offset;
+		    }
+		    break;
+		}
+	    } else if(!pos){
 		af->pkt = i;
 		pos = af->index[i].offset;
-	    }
-
-	    if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO &&
-	       af->index[i].flags & AVI_FLAG_KEYFRAME){
-		vs = s;
-		time = af->pts[i];
-		break;
 	    }
 	}
     }
@@ -630,10 +638,19 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     pthread_mutex_unlock(&af->mx);
 
     for(i = 0; i < ms->n_streams; i++){
-	if(ms->used_streams[i] && i != vs){
+	if(ms->used_streams[i]){
+	    avi_packet_t *pk = NULL;
+	    uint32_t mask = 0;
+	    if(ms->streams[i].stream_type == STREAM_TYPE_VIDEO)
+		mask = AVI_FLAG_KEYFRAME;
 	    do {
-		pk = avi_packet(ms, i);
-	    } while(pk && pk->pts < time);
+		if(pk)
+		    avi_free_packet((packet_t *) pk);
+		pk = (avi_packet_t *) avi_packet(ms, i);
+	    } while(pk && (pk->pk.pts < time || (pk->flags & mask) != mask));
+	    if(pk){
+		list_unshift(af->packets[i], pk);
+	    }
 	}
     }
 

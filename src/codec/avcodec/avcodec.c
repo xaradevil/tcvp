@@ -35,27 +35,23 @@ avc_init(char *arg)
 }
 
 
-typedef struct avc_audio_codec {
+typedef struct avc_codec {
     AVCodecContext *ctx;
-    char *buf;
-    int have_params;
-    packet_t *in;		/* remaining data from probe */
-    char *inbuf;
-    size_t insize;
-    packet_t *out;		/* pending output from probe */
-} avc_audio_codec_t;
 
-typedef struct avc_video_codec {
-    AVCodecContext *ctx;
+    /* audio */
+    char *buf;
+
+    /* video */
     uint64_t pts;
     uint64_t ptsn, ptsd;
     AVFrame *frame;
+
     int have_params;
     packet_t *in;		/* remaining data from probe */
     char *inbuf;
     size_t insize;
     packet_t *out;		/* pending output from probe */
-} avc_video_codec_t;
+} avc_codec_t;
 
 static void
 avc_free_packet(packet_t *p)
@@ -68,7 +64,7 @@ static int
 avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
 {
     packet_t *out;
-    avc_audio_codec_t *ac = p->private;
+    avc_codec_t *ac = p->private;
     char *inbuf;
     int insize;
 
@@ -139,7 +135,7 @@ static int
 avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 {
     packet_t *out;
-    avc_video_codec_t *vc = p->private;
+    avc_codec_t *vc = p->private;
     char *inbuf;
     int insize;
 
@@ -225,7 +221,7 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 static int
 avc_free_adpipe(tcvp_pipe_t *p)
 {
-    avc_audio_codec_t *ac = p->private;
+    avc_codec_t *ac = p->private;
 
     avcodec_close(ac->ctx);
     if(ac->buf)
@@ -239,7 +235,7 @@ avc_free_adpipe(tcvp_pipe_t *p)
 static int
 avc_free_vdpipe(tcvp_pipe_t *p)
 {
-    avc_video_codec_t *vc = p->private;
+    avc_codec_t *vc = p->private;
 
     avcodec_close(vc->ctx);
     free(vc->frame);
@@ -252,7 +248,7 @@ avc_free_vdpipe(tcvp_pipe_t *p)
 extern int
 avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    avc_audio_codec_t *ac = p->private;
+    avc_codec_t *ac = p->private;
     int ret;
 
     if(avc_decaudio(p, pk) < 0)
@@ -292,7 +288,7 @@ static int pixel_fmts[] = {
 extern int
 avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    avc_video_codec_t *vc = p->private;
+    avc_codec_t *vc = p->private;
     int ret;
 
     if(avc_decvideo(p, pk) < 0)
@@ -317,6 +313,22 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 static int
 avc_flush(tcvp_pipe_t *p, int drop)
 {
+    avc_codec_t *ac = p->private;
+
+    if(drop){
+	if(ac->in)
+	    ac->in->free(ac->in);
+	if(ac->out)
+	    ac->out->free(ac->out);
+
+	ac->in = NULL;
+	ac->out = NULL;
+	ac->inbuf = NULL;
+	ac->insize = 0;
+
+	avcodec_flush_buffers(ac->ctx);
+    }
+
     return p->next->flush(p->next, drop);
 }
 
@@ -324,8 +336,7 @@ extern tcvp_pipe_t *
 avc_new(stream_t *s, int mode)
 {
     tcvp_pipe_t *p = NULL;
-    avc_audio_codec_t *ac;
-    avc_video_codec_t *vc;
+    avc_codec_t *ac, *vc;
     AVCodec *avc = NULL;
     AVCodecContext *avctx;
     enum CodecID id;
