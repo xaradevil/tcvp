@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include <tcvp_types.h>
 #include <mp3_tc2.h>
+#include "id3.h"
 
 typedef struct mp3_write {
     url_t *u;
@@ -81,6 +82,8 @@ mp3w_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     if(!(u = url_open(url, "w")))
 	return NULL;
+
+    id3v2_write_tag(u, ms);
 
     mw = calloc(1, sizeof(*mw));
     mw->u = u;
