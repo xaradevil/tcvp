@@ -31,6 +31,7 @@ typedef struct dvd {
     int bpos;
     int still;
     int dvdnav;
+    int vts;
     int end;
 } dvd_t;
 
@@ -118,8 +119,6 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		    dvdnav_wait_skip(d->dvd);
 		    break;
 		case DVDNAV_STOP:
-		    fprintf(stderr, "DVD: stop\n");
-		    break;
 		    d->end = 1;
 		    return -1;
 		case DVDNAV_NAV_PACKET: {
@@ -135,12 +134,20 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		    fprintf(stderr, "DVD: hop_channel\n");
 		    flush(d, 1);
 		    break;
-		case DVDNAV_VTS_CHANGE:
-		    fprintf(stderr, "DVD: vts change\n");
+		case DVDNAV_VTS_CHANGE: {
+		    dvdnav_vts_change_event_t *vce =
+			(dvdnav_vts_change_event_t *) d->buf;
+		    fprintf(stderr, "DVD: vts change %i\n", vce->new_vtsN);
+		    if(!tcvp_input_dvdnav_conf_enable_menus && d->vts){
+			d->end = 1;
+			return -1;
+		    }
+		    d->vts = vce->new_vtsN;
 /* 		    flush(d, 0); */
 /* 		    set_ptsoffset(d, 0); */
 /* 		    d->pts = 0; */
 		    break;
+		}
 		case DVDNAV_AUDIO_STREAM_CHANGE: {
 		    dvdnav_audio_stream_change_event_t *asc =
 			(dvdnav_audio_stream_change_event_t *) d->buf;
