@@ -1,0 +1,1 @@
+TC2_CHECK_LIBS(faad2, faad, faacDecOpen, -lm)
