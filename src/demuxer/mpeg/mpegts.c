@@ -512,6 +512,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     while(n){
 	int pi_len, prg, ip, pcrpid;
+	uint32_t crc, ccrc;
 
 	do {
 	    if(mpegts_read_packet(s, &mp) < 0)
@@ -523,10 +524,14 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 	dp = mp.data + mp.data[0] + 1;
 	seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
-	if(mpeg_crc32(dp, seclen + 3)){
-	    tc2_print("MPEGTS", TC2_PRINT_WARNING, "Bad CRC in PMT.\n");
+	crc = htob_32(unaligned32(dp + seclen - 1));
+
+	if(crc && (ccrc = mpeg_crc32(dp, seclen + 3)) != 0){
+	    tc2_print("MPEGTS", TC2_PRINT_WARNING,
+		      "Bad CRC in PMT, got %x, expected %x\n", ccrc, crc);
 	    continue;
 	}
+
 	prg = htob_16(unaligned16(dp + 3));
 	pcrpid = htob_16(unaligned16(dp + 8)) & 0x1fff;
 	pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
