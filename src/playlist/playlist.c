@@ -265,15 +265,14 @@ pl_next(tcvp_playlist_t *tpl, int dir)
     c = tpl->cur + dir;
 
     if(c >= tpl->nf || c < 0){
-	int s = tpl->state;
-	if(s == PLAYING){
-	    if(tpl->flags & TCVP_PL_FLAG_LREPEAT){
-		c = c < 0? tpl->nf - 1: 0;
-	    } else {
-		tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
-		c = c < 0? 0: tpl->nf;
-		tpl->state = END;
-	    }
+	if(tpl->flags & TCVP_PL_FLAG_LREPEAT){
+	    c = c < 0? tpl->nf - 1: 0;
+	} else {
+	    c = c < 0? 0: tpl->nf;
+	}
+	if(tpl->state == PLAYING && !(tpl->flags & TCVP_PL_FLAG_LREPEAT)){
+	    tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
+	    tpl->state = END;
 	}
     }
 
