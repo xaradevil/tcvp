@@ -37,9 +37,10 @@ static int prl;
 static char **aonames;
 static int nadd;
 static tcvp_addon_t **addons;
+static char **commands;
+static int ncmds;
 
 static int TCVP_STATE;
-static int TCVP_LOAD;
 static int TCVP_PL_START;
 static int TCVP_PL_NEXT;
 static int TCVP_PL_ADD;
@@ -73,7 +74,19 @@ show_help(void)
 	   "   -f      --fullscreen          Fill entire screen\n"
 	   "           --aspect=a[/b]        Force video aspect ratio\n"
 	   "           --skin=file           Select skin\n"
+	   "           --play\n"
+	   "           --pause\n"
+	   "           --stop\n"
+	   "           --next\n"
+	   "           --prev\n"
 	);
+}
+
+static void
+add_cmd(char *cmd)
+{
+    commands = realloc(commands, (ncmds + 1) * sizeof(*commands));
+    commands[ncmds++] = cmd;
 }
 
 static void
@@ -102,10 +115,6 @@ tcl_event(void *p)
 		tc2_request(TC2_UNLOAD_ALL, 0);
 		break;
 	    }
-	} else if(te->type == TCVP_LOAD){
-	    printf("Loaded \"%s\"\n",
-		   (char *)(tcattr_get(te->load.stream, "title")?:
-			    tcattr_get(te->load.stream, "file")));
 	} else if(te->type == -1){
 	    r = 0;
 	}
@@ -172,10 +181,17 @@ extern int
 tcl_init(char *p)
 {
     char *qname = NULL, *qn;
+    struct sigaction sa;
     int i;
 
     if(validate){
 	pthread_create(&check_thr, NULL, tcl_check, NULL);
+	return 0;
+    }
+
+    if(!ncmds && !nfiles && !npl && !sel_ui){
+	show_help();
+	tc2_request(TC2_UNLOAD_ALL, 0);
 	return 0;
     }
 
@@ -219,7 +235,6 @@ tcl_init(char *p)
 	    addons[i]->init(addons[i]);
 
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
-    TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
     TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
     TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
     TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
@@ -241,9 +256,23 @@ tcl_init(char *p)
 	    tcvp_event_send(qs, TCVP_PL_ADD, files, nfiles, -1);
 	for(i = 0; i < npl; i++)
 	    tcvp_event_send(qs, TCVP_PL_ADDLIST, playlist[i], -1);
-	nfiles += npl;
 	if(shuffle)
 	    tcvp_event_send(qs, TCVP_PL_SHUFFLE, 0, -1);
+    } else {
+	tcvp_event_send(qs, TCVP_OPEN_MULTI, nfiles, files);
+    }
+
+    qr = eventq_new(tcref);
+    sprintf(qn, "%s/status", qname);
+    eventq_attach(qr, qn, EVENTQ_RECV);
+    pthread_create(&evt_thr, NULL, tcl_event, NULL);
+
+    if(!ncmds && tcvp_ui_cmdline_conf_autoplay){
+	if(prl){
+	    tcvp_event_send(qs, TCVP_START);
+	} else {
+	    tcvp_event_send(qs, TCVP_PL_START);
+	}
     }
 
     if(sel_ui){
@@ -257,32 +286,21 @@ tcl_init(char *p)
 	tc2_request(TC2_LOAD_MODULE, 1, ui, op);
 	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
 	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
-    } else if(nfiles) {
-	struct sigaction sa;
-
-	qr = eventq_new(tcref);
-	sprintf(qn, "%s/status", qname);
-	eventq_attach(qr, qn, EVENTQ_RECV);
-	pthread_create(&evt_thr, NULL, tcl_event, NULL);
-
-	if(prl){
-	    tcvp_event_send(qs, TCVP_OPEN_MULTI, nfiles, files);
-	    tcvp_event_send(qs, TCVP_START);
-	} else {
-	    tcvp_event_send(qs, TCVP_PL_START);
-	}
-
-	sem_init(&psm, 0, 0);
-	sa.sa_handler = sigint;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	sigaction(SIGINT, &sa, NULL);
-	intr = 1;
-	pthread_create(&intr_thr, NULL, tcl_intr, NULL);
-    } else {
-	show_help();
-	tc2_request(TC2_UNLOAD_ALL, 0);
     }
+
+    for(i = 0; i < ncmds; i++)
+	tcvp_event_send(qs, tcvp_event_get(commands[i]));
+
+    sem_init(&psm, 0, 0);
+    sa.sa_handler = sigint;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sigaction(SIGINT, &sa, NULL);
+    intr = 1;
+    pthread_create(&intr_thr, NULL, tcl_intr, NULL);
+
+    if(ncmds && !sel_ui)
+	tc2_request(TC2_UNLOAD_ALL, 0);
 
     free(qname);
     return 0;
@@ -303,12 +321,14 @@ tcl_stop(void)
     if(qr){
 	tcvp_event_send(qr, -1);
 	pthread_join(evt_thr, NULL);
+	eventq_delete(qr);
+    }
 
+    if(intr){
 	intr = 0;
 	sem_post(&psm);
 	pthread_join(intr_thr, NULL);
 	signal(SIGINT, SIG_DFL);
-	eventq_delete(qr);
 	sem_destroy(&psm);
     }
 
@@ -324,6 +344,9 @@ tcl_stop(void)
 	free(aonames);
     }
 
+    if(commands)
+	free(commands);
+
     return 0;
 }
 
@@ -333,6 +356,11 @@ tcl_stop(void)
 #define OPT_TRACE_MALLOC 130
 #define OPT_ASPECT 131
 #define OPT_SKIN 132
+#define OPT_NEXT 133
+#define OPT_PREV 134
+#define OPT_PLAY 135
+#define OPT_PAUSE 136
+#define OPT_STOP 137
 
 static int
 parse_options(int argc, char **argv)
@@ -358,6 +386,11 @@ parse_options(int argc, char **argv)
 	{"skin", required_argument, 0, OPT_SKIN},
 	{"parallel", no_argument, 0, 'p'},
 	{"addon", required_argument, 0, 'x'},
+	{"next", no_argument, 0, OPT_NEXT},
+	{"prev", no_argument, 0, OPT_PREV},
+	{"play", no_argument, 0, OPT_PLAY},
+	{"pause", no_argument, 0, OPT_PAUSE},
+	{"stop", no_argument, 0, OPT_STOP},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
@@ -458,6 +491,27 @@ parse_options(int argc, char **argv)
 	case 'x':
 	    aonames = realloc(aonames, (nadd + 1) * sizeof(*aonames));
 	    aonames[nadd++] = optarg;
+	    break;
+
+	case OPT_NEXT:
+	    add_cmd("TCVP_PL_NEXT");
+	    break;
+
+	case OPT_PREV:
+	    add_cmd("TCVP_PL_PREV");
+	    break;
+
+	case OPT_PLAY:
+	    add_cmd("TCVP_PL_START");
+	    break;
+
+	case OPT_PAUSE:
+	    add_cmd("TCVP_PAUSE");
+	    break;
+
+	case OPT_STOP:
+	    add_cmd("TCVP_PL_STOP");
+	    add_cmd("TCVP_CLOSE");
 	    break;
 
 	case OPT_TC2_DEBUG:
