@@ -2,7 +2,8 @@ module		ogg
 name		"TCVP/demux/ogg"
 version		0.1.0
 tc2version	0.4.0
-sources		ogg.c
+sources		ogg.c oggwrite.c
 implement	"audio/x-ogg"	"open"	ogg_open
-#implement	"mux/ogg"	"new"	ow_new
+implement	"mux/ogg"	"new"	ow_new
+import		"URL"		"open"
 option		seek_fuzziness%i=1000
