@@ -50,8 +50,10 @@ tcvp_event(void *p)
 		s_time = 0;
 		s_length = 0;
 		update_time(skin);
-		tcfree(st);
-		st = NULL;
+		if(st){
+		    tcfree(st);
+		    st = NULL;
+		}
 		if(p_state == PLAYING) {
 		    tcvp_next((tcwidget_t *)skin->background, NULL);
 		}
