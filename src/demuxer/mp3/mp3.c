@@ -241,7 +241,7 @@ static char *
 id3v1_strdup(char *p, int s)
 {
     char *e = p + s - 1, *r;
-    while(!(*e & ~0x20))
+    while(!(*e & ~0x20) && e > p)
 	e--;
     s = e - p + 1;
     r = malloc(s + 1);
