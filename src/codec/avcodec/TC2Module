@@ -5,28 +5,28 @@ tc2version	0.4.0
 sources		avcodec.c
 postinit	avc_init
 
-implement	"codec/audio/mpeg"	"new"	avc_new
-implement	"codec/audio/mp2"	"new"	avc_new
-implement	"codec/audio/mp3"	"new"	avc_new
-implement	"codec/audio/wmav2"	"new"	avc_new
-implement	"codec/audio/wmav1"	"new"	avc_new
-implement	"codec/audio/adpcm-ms"	"new"	avc_new
+implement	"decoder/audio/mpeg"	"new"	avc_new
+implement	"decoder/audio/mp2"	"new"	avc_new
+implement	"decoder/audio/mp3"	"new"	avc_new
+implement	"decoder/audio/wmav2"	"new"	avc_new
+implement	"decoder/audio/wmav1"	"new"	avc_new
+implement	"decoder/audio/adpcm-ms"	"new"	avc_new
 
-implement	"codec/video/mpeg"	"new"	avc_new
-implement	"codec/video/h263"	"new"	avc_new
-implement	"codec/video/h263p"	"new"	avc_new
-implement	"codec/video/h263i"	"new"	avc_new
-implement	"codec/video/h264"	"new"	avc_new
-implement	"codec/video/rv10"	"new"	avc_new
-implement	"codec/video/mjpeg"	"new"	avc_new
-implement	"codec/video/mjpegb"	"new"	avc_new
-implement	"codec/video/mpeg4"	"new"	avc_new
-implement	"codec/video/msmpeg4v1"	"new"	avc_new
-implement	"codec/video/msmpeg4v2"	"new"	avc_new
-implement	"codec/video/msmpeg4v3"	"new"	avc_new
-implement	"codec/video/wmv1"	"new"	avc_new
-implement	"codec/video/wmv2"	"new"	avc_new
-implement	"codec/video/vp3"	"new"	avc_new
-implement	"codec/video/svq1"	"new"	avc_new
-implement	"codec/video/svq3"	"new"	avc_new
-implement	"codec/video/indeo3"	"new"	avc_new
+implement	"decoder/video/mpeg"	"new"	avc_new
+implement	"decoder/video/h263"	"new"	avc_new
+implement	"decoder/video/h263p"	"new"	avc_new
+implement	"decoder/video/h263i"	"new"	avc_new
+implement	"decoder/video/h264"	"new"	avc_new
+implement	"decoder/video/rv10"	"new"	avc_new
+implement	"decoder/video/mjpeg"	"new"	avc_new
+implement	"decoder/video/mjpegb"	"new"	avc_new
+implement	"decoder/video/mpeg4"	"new"	avc_new
+implement	"decoder/video/msmpeg4v1"	"new"	avc_new
+implement	"decoder/video/msmpeg4v2"	"new"	avc_new
+implement	"decoder/video/msmpeg4v3"	"new"	avc_new
+implement	"decoder/video/wmv1"	"new"	avc_new
+implement	"decoder/video/wmv2"	"new"	avc_new
+implement	"decoder/video/vp3"	"new"	avc_new
+implement	"decoder/video/svq1"	"new"	avc_new
+implement	"decoder/video/svq3"	"new"	avc_new
+implement	"decoder/video/indeo3"	"new"	avc_new

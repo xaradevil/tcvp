@@ -293,13 +293,10 @@ a52_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern tcvp_pipe_t *
-a52_new(stream_t *s, int mode)
+a52_new(stream_t *s, conf_section *cs, timer__t *t)
 {
     a52_decode_t *ad;
     tcvp_pipe_t *p;
-
-    if(mode != CODEC_MODE_DECODE)
-	return NULL;
 
     ad = calloc(1, sizeof(*ad));
     ad->state = a52_init(0);

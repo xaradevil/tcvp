@@ -1,6 +1,0 @@
-symbol	"new"	tcvp_pipe_t *(*%s)(stream_t *, int mode)
-include
-#include <tcvp_types.h>
-
-#define CODEC_MODE_ENCODE 1
-#define CODEC_MODE_DECODE 2

@@ -1,0 +1,4 @@
+symbol	"new"	tcvp_pipe_t *(*%s)(stream_t *, conf_section *, timer__t **)
+require "timer"
+include
+#include <tcvp_types.h>

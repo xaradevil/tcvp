@@ -161,13 +161,10 @@ mpeg_free(tcvp_pipe_t *p)
 }
 
 extern tcvp_pipe_t *
-mpeg_new(stream_t *s, int mode)
+mpeg_new(stream_t *s, conf_section *cs, timer__t **t)
 {
     mpeg_dec_t *mpd;
     tcvp_pipe_t *p;
-
-    if(mode != CODEC_MODE_DECODE)
-	return NULL;
 
     mpd = calloc(1, sizeof(*mpd));
     mpd->mpeg2 = mpeg2_init();

@@ -160,13 +160,10 @@ vorbis_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern tcvp_pipe_t *
-vorbis_new(stream_t *s, int mode)
+vorbis_new(stream_t *s, conf_section *cs, timer__t **t)
 {
     tcvp_pipe_t *p = NULL;
     VorbisContext_t *vc;
-
-    if(mode != CODEC_MODE_DECODE)
-	return NULL;
 
     vc = calloc(sizeof(VorbisContext_t),1);
 
@@ -176,8 +173,7 @@ vorbis_new(stream_t *s, int mode)
     vc->buf=malloc(131072);
 
     p = malloc(sizeof(*p));
-    if(mode == CODEC_MODE_DECODE)
-	p->input = vorbis_decode;
+    p->input = vorbis_decode;
     p->start = NULL;
     p->stop = NULL;
     p->free = vorbis_free_pipe;

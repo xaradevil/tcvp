@@ -108,11 +108,16 @@ alsa_free(tcvp_pipe_t *p)
     pthread_mutex_unlock(&ao->mx);
     pthread_join(ao->pth, NULL);
 
-    snd_pcm_drop(ao->pcm);
-    snd_pcm_close(ao->pcm);
-    snd_pcm_hw_params_free(ao->hwp);
-    tm_stop(ao->timer);
-    free(ao->buf);
+    if(ao->pcm){
+	snd_pcm_drop(ao->pcm);
+	snd_pcm_close(ao->pcm);
+    }
+    if(ao->hwp)
+	snd_pcm_hw_params_free(ao->hwp);
+    if(ao->timer)
+	tm_stop(ao->timer);
+    if(ao->buf)
+	free(ao->buf);
     free(ao);
     free(p);
 

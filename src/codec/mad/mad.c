@@ -377,13 +377,10 @@ mad_free(tcvp_pipe_t *p)
 }
 
 extern tcvp_pipe_t *
-mad_new(stream_t *s, int mode)
+mad_new(stream_t *s, conf_section *cs, timer__t **t)
 {
     mad_dec_t *md;
     tcvp_pipe_t *p;
-
-    if(mode != CODEC_MODE_DECODE)
-	return NULL;
 
     md = calloc(1, sizeof(*md));
     mad_stream_init(&md->stream);

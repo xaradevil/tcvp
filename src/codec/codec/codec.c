@@ -24,32 +24,21 @@
 #include <codec_tc2.h>
 
 extern tcvp_pipe_t *
-c_new(stream_t *s, int mode)
+dec_new(stream_t *s, conf_section *cs, timer__t **t)
 {
     char *codec = NULL;
-    codec_new_t cnew;
+    decoder_new_t cnew;
     char *buf;
 
-    switch(s->stream_type){
-    case STREAM_TYPE_AUDIO:
-	codec = s->audio.codec;
-	break;
-
-    case STREAM_TYPE_VIDEO:
-	codec = s->video.codec;
-	break;
-
-    default:
-	return NULL;
-    }
+    codec = s->common.codec;
 
     if(!codec)
 	return NULL;
 
-    buf = alloca(strlen(codec) + 8);
-    sprintf(buf, "codec/%s", codec);
+    buf = alloca(strlen(codec) + 9);
+    sprintf(buf, "decoder/%s", codec);
     if(!(cnew = tc2_get_symbol(buf, "new")))
 	return NULL;
 
-    return cnew(s, mode);
+    return cnew(s, cs, t);
 }

@@ -351,7 +351,7 @@ avc_flush(tcvp_pipe_t *p, int drop)
 }
 
 extern tcvp_pipe_t *
-avc_new(stream_t *s, int mode)
+avc_new(stream_t *s, conf_section *cs, timer__t **t)
 {
     tcvp_pipe_t *p = NULL;
     avc_codec_t *ac, *vc;
@@ -360,8 +360,7 @@ avc_new(stream_t *s, int mode)
     enum CodecID id;
 
     id = avc_codec_id(s);
-    if(mode == CODEC_MODE_DECODE)
-	avc = avcodec_find_decoder(id);
+    avc = avcodec_find_decoder(id);
 
     if(avc == NULL){
 	fprintf(stderr, "AVC: Can't find codec for '%s' => %i\n",
@@ -386,8 +385,7 @@ avc_new(stream_t *s, int mode)
 	ac->buf = malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE);
 
 	p = calloc(1, sizeof(*p));
-	if(mode == CODEC_MODE_DECODE)
-	    p->input = avc_decaudio;
+	p->input = avc_decaudio;
 	p->start = NULL;
 	p->stop = NULL;
 	p->free = avc_free_adpipe;
@@ -412,8 +410,7 @@ avc_new(stream_t *s, int mode)
 	vc->frame = avcodec_alloc_frame();
 
 	p = calloc(1, sizeof(*p));
-	if(mode == CODEC_MODE_DECODE)
-	    p->input = avc_decvideo;
+	p->input = avc_decvideo;
 	p->start = NULL;
 	p->stop = NULL;
 	p->free = avc_free_vdpipe;

@@ -3,4 +3,4 @@ name		"TCVP/codec/mpeg2"
 version		0.1.0
 tc2version	0.4.0
 sources		mpeg2.c
-implement	"codec/video/mpeg"	"new"	mpeg_new
+implement	"decoder/video/mpeg"	"new"	mpeg_new

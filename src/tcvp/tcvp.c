@@ -26,7 +26,7 @@
 #include <tcvp_core_tc2.h>
 
 typedef struct tcvp_player {
-    tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;
+    tcvp_pipe_t *demux, *audio, *video, *aend, *vend;
     muxed_stream_t *stream;
     timer__t *timer;
     pthread_t th_ticker, th_event;
@@ -43,11 +43,11 @@ t_start(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
 
-    if(tp->video)
-	tp->video->start(tp->video);
+    if(tp->vend)
+	tp->vend->start(tp->vend);
 
-    if(tp->sound)
-	tp->sound->start(tp->sound);
+    if(tp->aend)
+	tp->aend->start(tp->aend);
 
     if(tp->timer)
 	tp->timer->start(tp->timer);
@@ -68,11 +68,11 @@ t_stop(player_t *pl)
     if(tp->timer)
 	tp->timer->stop(tp->timer);
 
-    if(tp->sound)
-	tp->sound->stop(tp->sound);
+    if(tp->aend)
+	tp->aend->stop(tp->aend);
 
-    if(tp->video)
-	tp->video->stop(tp->video);
+    if(tp->vend)
+	tp->vend->stop(tp->vend);
 
     tp->state = TCVP_STATE_STOPPED;
     tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_STOPPED);
@@ -80,6 +80,16 @@ t_stop(player_t *pl)
     tcfree(te);
 
     return 0;
+}
+
+static void
+close_pipe(tcvp_pipe_t *p)
+{
+    while(p){
+	tcvp_pipe_t *np = p->next;
+	p->free(p);
+	p = np;
+    }
 }
 
 static int
@@ -94,24 +104,16 @@ t_close(player_t *pl)
 	tp->demux = NULL;
     }
 
-    if(tp->acodec){
-	tp->acodec->free(tp->acodec);
-	tp->acodec = NULL;
-    }
-
-    if(tp->vcodec){
-	tp->vcodec->free(tp->vcodec);
-	tp->vcodec = NULL;
+    if(tp->audio){
+	close_pipe(tp->audio);
+	tp->audio = NULL;
+	tp->aend = NULL;
     }
 
     if(tp->video){
-	tp->video->free(tp->video);
+	close_pipe(tp->video);
 	tp->video = NULL;
-    }
-
-    if(tp->sound){
-	tp->sound->free(tp->sound);
-	tp->sound = NULL;
+	tp->vend = NULL;
     }
 
     if(tp->stream){
@@ -260,6 +262,52 @@ t_seek(player_t *pl, int64_t time, int how)
     return 0;    
 }
 
+static tcvp_pipe_t *
+new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
+{
+    tcvp_pipe_t *pipe = NULL, *pp = NULL, *pn = NULL;
+    conf_section *f;
+    void *cs = NULL;
+
+    while((f = conf_nextsection(p, "filter", &cs))){
+	char *type;
+	filter_new_t fn;
+
+	pn = NULL;
+
+	if(conf_getvalue(f, "type", "%s", &type) < 1)
+	    continue;
+
+	if(!(fn = tc2_get_symbol(type, "new")))
+	    break;
+
+	if(!(pn = fn(s, tp->conf, &tp->timer)))
+	    break;
+
+	if(!pipe)
+	    pipe = pn;
+
+	if(pp)
+	    pp->next = pn;
+	pp = pn;
+    }
+
+    if(!pn){
+	close_pipe(pipe);
+	pipe = NULL;
+    }
+
+    return pipe;
+}
+
+static tcvp_pipe_t *
+pipe_end(tcvp_pipe_t *p)
+{
+    while(p->next)
+	p = p->next;
+    return p;
+}
+
 static int
 t_open(player_t *pl, char *name)
 {
@@ -267,16 +315,16 @@ t_open(player_t *pl, char *name)
     stream_t *as = NULL, *vs = NULL;
     tcvp_pipe_t **codecs;
     tcvp_pipe_t *demux = NULL;
-    tcvp_pipe_t *vcodec = NULL, *acodec = NULL;
-    tcvp_pipe_t *sound = NULL, *video = NULL;
+    tcvp_pipe_t *video = NULL, *audio = NULL;
     muxed_stream_t *stream = NULL;
-    timer__t *timer = NULL;
     tcvp_player_t *tp = pl->private;
     tcvp_load_event_t *te;
     int ac = -1, vc = -1;
     int start;
+    char *profile = tcvp_conf_default_profile, prname[256];
+    conf_section *prsec;
 
-    if((stream = stream_open(name, tp->conf)) == NULL){
+    if(!(stream = stream_open(name, tp->conf))){
 	return -1;
     }
 
@@ -299,15 +347,25 @@ t_open(player_t *pl, char *name)
 		ac = -2;
 	    }
 	}
+	conf_getvalue(tp->conf, "profile", "%i", &profile);
+    }
+
+    snprintf(prname, 256, "TCVP/profiles/%s", profile);
+    if(!(prsec = tc2_get_conf(prname))){
+	fprintf(stderr, "TCVP: No profile '%s'\n", profile);
+	return -1;
     }
 
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
+	conf_section *pc;
+
 	if(stream->streams[i].stream_type == STREAM_TYPE_VIDEO &&
 	   (!vs || i == vc) && vc > -2){
-	    if((vcodec = codec_new(st, CODEC_MODE_DECODE))){
+	    if((pc = conf_getsection(prsec, "video")) &&
+	       (video = new_pipe(tp, st, pc))){
 		vs = st;
-		codecs[i] = vcodec;
+		codecs[i] = video;
 		stream->used_streams[i] = 1;
 		vc = i;
 	    } else if(vs){
@@ -316,9 +374,10 @@ t_open(player_t *pl, char *name)
 	    }
 	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO &&
 		  (!as || i == ac) && ac > -2){
-	    if((acodec = codec_new(st, CODEC_MODE_DECODE))){
+	    if((pc = conf_getsection(prsec, "audio")) &&
+	       (audio = new_pipe(tp, st, pc))){
 		as = &stream->streams[i];
-		codecs[i] = acodec;
+		codecs[i] = audio;
 		stream->used_streams[i] = 1;
 		ac = i;
 	    } else if(as){
@@ -362,30 +421,8 @@ t_open(player_t *pl, char *name)
 	}
     }
 
-    if(as){
-	if((sound = output_audio_open(&as->audio, tp->conf, &timer))){
-	    acodec->next = sound;
-	} else {
-	    stream->used_streams[ac] = 0;
-	    codecs[ac] = NULL;
-	    acodec->free(acodec);
-	    acodec = NULL;
-	}
-    }
-
-    if(!timer){
-	timer = timer_new(10000);
-    }
-
-    if(vs){
-	if((video = output_video_open(&vs->video, tp->conf, timer))){
-	    vcodec->next = video;
-	} else {
-	    stream->used_streams[vc] = 0;
-	    codecs[vc] = NULL;
-	    vcodec->free(vcodec);
-	    vcodec = NULL;
-	}
+    if(!tp->timer){
+	tp->timer = timer_new(10000);
     }
 
     demux = stream_play(stream, codecs, tp->conf);
@@ -393,12 +430,11 @@ t_open(player_t *pl, char *name)
 
     tp->state = TCVP_STATE_STOPPED;
     tp->demux = demux;
-    tp->vcodec = vcodec;
-    tp->acodec = acodec;
-    tp->sound = sound;
     tp->video = video;
+    tp->vend = pipe_end(video);
+    tp->audio = audio;
+    tp->aend = pipe_end(audio);
     tp->stream = stream;
-    tp->timer = timer;
 
     if(conf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
 	uint64_t spts = (uint64_t) start * 1000000LL;
@@ -408,10 +444,10 @@ t_open(player_t *pl, char *name)
     pthread_create(&tp->th_ticker, NULL, st_ticker, tp);
 
     demux->start(demux);
-    if(tp->video && tp->video->buffer)
-	tp->video->buffer(tp->video, 0.9);
-    if(tp->sound && tp->sound->buffer)
-	tp->sound->buffer(tp->sound, 0.9);
+    if(tp->vend && tp->vend->buffer)
+	tp->vend->buffer(tp->vend, 0.9);
+    if(tp->aend && tp->aend->buffer)
+	tp->aend->buffer(tp->aend, 0.9);
 
     free(codecs);
 
