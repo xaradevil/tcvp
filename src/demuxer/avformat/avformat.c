@@ -156,12 +156,14 @@ avf_free(void *p)
 
 
 extern muxed_stream_t *
-avf_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
+avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     AVFormatContext *afc;
     muxed_stream_t *ms;
     avf_stream_t *as;
     int i;
+
+    u->close(u);
 
     if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0){
 	fprintf(stderr, "Error opening %s\n", name);

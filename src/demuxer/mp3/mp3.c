@@ -485,15 +485,11 @@ mp3_free(void *p)
 }
 
 extern muxed_stream_t *
-mp3_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
+mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mp3_file_t *mf;
     char *qname, *qn;
-    url_t *f;
-
-    if(!(f = url_open(name, "r")))
-	return NULL;
 
     ms = tcallocd(sizeof(*ms), NULL, mp3_free);
     memset(ms, 0, sizeof(*ms));

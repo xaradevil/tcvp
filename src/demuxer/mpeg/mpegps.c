@@ -254,7 +254,7 @@ mpegps_free(void *p)
 }
 
 extern muxed_stream_t *
-mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
+mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegps_stream_t *s;
@@ -264,10 +264,6 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
     u_char *pm;
     int l, ns, pc = 0;
     stream_t *sp;
-    url_t *u;
-
-    if(!(u = url_open(name, "r")))
-	return NULL;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegps_free);
     ms->next_packet = mpegps_packet;

@@ -3,10 +3,14 @@ name		"TCVP/demux/avi"
 version		0.1.0
 tc2version	0.4.0
 sources		avi.c
-implement	"video/x-avi"	"open"		avi_open
-import		"URL"		"open"
-import		"URL"		"getc"
+implement	"video/x-avi"		"open"	avi_open
+implement	"video/x-msvideo"	"open"	avi_open
+import		"URL"			"getc"
 option		max_skip%i=16
+Maximum number of chunks to skip in damaged files.
 option		max_scan%i=2048
+Maximum number of bytes to search for a valid chunk.
 option		backup%i=64
+Number of bytes to back up before searching for a chunk.
 option		noninterleaved%i=0
+Use alternate method for badly interleaved files.

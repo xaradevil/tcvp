@@ -282,7 +282,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    } else if(ccd != 1){
 		fprintf(stderr, "MPEGTS: lost packet, PID %x: %i %i\n",
 			mp.pid, tb->cc, mp.cont_counter);
-		tb->start = 0;
+/* 		tb->start = 0; */
 	    }
 	}
 	tb->cc = mp.cont_counter;
@@ -424,7 +424,7 @@ mpegts_free(void *p)
 }
 
 extern muxed_stream_t *
-mpegts_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
+mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegts_stream_t *s;
@@ -434,7 +434,6 @@ mpegts_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
     int *pat;
     int i, n, ns, np;
     stream_t *sp;
-    url_t *u;
 
     int ispmt(int pid){
 	int i;
@@ -447,9 +446,6 @@ mpegts_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
 	}
 	return 0;
     }
-
-    if(!(u = url_open(name, "r")))
-	return NULL;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
     ms->next_packet = mpegts_packet;

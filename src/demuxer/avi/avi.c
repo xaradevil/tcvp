@@ -964,13 +964,9 @@ avi_free(void *p)
 }
 
 extern muxed_stream_t *
-avi_open(char *file, tcconf_section_t *cs, tcvp_timer_t *tm)
+avi_open(char *file, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
-    url_t *f;
     muxed_stream_t *ms;
-
-    if(!(f = url_open(file, "r")))
-	return NULL;
 
     if(!(ms = avi_header(f)))
 	return NULL;

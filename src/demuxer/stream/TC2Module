@@ -12,8 +12,10 @@ import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
 import		"Eventq"	"attach"
-import		"tcvp/event"		"send"
-import		"tcvp/event"		"get"
+import		"tcvp/event"	"send"
+import		"tcvp/event"	"get"
+import		"URL"		"open"
+require		"demux"
 
 option		buffer%i=64
 Number of packets to read ahead for each stream.

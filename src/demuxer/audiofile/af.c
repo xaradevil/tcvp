@@ -147,16 +147,12 @@ af_free(void *p)
 }
 
 extern muxed_stream_t *
-af_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
+af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
-    url_t *f;
     muxed_stream_t *ms;
     AFfilehandle aff;
     AFvirtualfile *vf;
     int sampleFormat, sampleWidth, byteOrder, fn=0;
-
-    if(!(f = url_open(name, "r")))
-	return NULL;
 
     vf = af_virtual_file_new();
     vf->closure = f;

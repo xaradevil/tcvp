@@ -34,16 +34,18 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 {
     char *m = NULL;
     char *ext;
+    url_t *u;
+    demux_open_t sopen;
 
     ext = strrchr(name, '.');
 
     if(ext++){
 	if(!strcmp(ext, "ogg")) {
-	    m = "audio/ogg";
+	    m = "audio/x-ogg";
 	} else if(!strcmp(ext, "avi")){
 	    m = "video/x-avi";
 	} else if(!strcmp(ext, "mp3")){
-	    m = "audio/mp3";
+	    m = "audio/mpeg";
 	} else if(!strcmp(ext, "wav")){
 	    m = "audio/x-wav";
 	}
@@ -53,8 +55,13 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	m = "video/mpeg";
     }
 
-    stream_open_t sopen = tc2_get_symbol(m, "open");
-    return sopen(name, cs, t);
+    if(!(u = url_open(name, "r")))
+	return NULL;
+
+    if(!(sopen = tc2_get_symbol(m, "open")))
+	return NULL;
+    
+    return sopen(name, u, cs, t);
 }
 
 extern packet_t *

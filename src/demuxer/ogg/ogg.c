@@ -22,11 +22,9 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tclist.h>
 #include <tcalloc.h>
 #include <tcbyteswap.h>
 #include <ctype.h>
-#include <pthread.h>
 #include <ogg/ogg.h>
 #include <ogg_tc2.h>
 
@@ -272,17 +270,13 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
 }
 
 extern muxed_stream_t *
-ogg_open(char *name, tcconf_section_t *cs, tcvp_timer_t *tm)
+ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     ogg_stream_t *ost;
     ogg_page og;
     char *buf;
     int l;
     muxed_stream_t *ms;
-    url_t *f;
-
-    if(!(f = url_open(name, "r")))
-	return NULL;
 
     ost=malloc(sizeof(ogg_stream_t));
 
