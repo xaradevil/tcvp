@@ -8,4 +8,6 @@ implement	"URL/cdda"	"read"	cd_read
 implement	"URL/cdda"	"seek"	cd_seek
 implement	"URL/cdda"	"close"	cd_close
 option		device%s="/dev/cdroms/cdrom0"
-option		buffer%i=8192
+option		buffer%i=4
+option		paranoia%i=0
+option		paranoia_stats%i=0

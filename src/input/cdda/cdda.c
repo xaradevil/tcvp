@@ -20,15 +20,19 @@
 #include <stdio.h>
 #include <cdda_tc2.h>
 #include <cdda_interface.h>
+#include <cdda_paranoia.h>
 #include <tcstring.h>
 
 #define buffer_size tcvp_input_cdda_conf_buffer
 #define device tcvp_input_cdda_conf_device
+#define paranoia tcvp_input_cdda_conf_paranoia
+#define max_retries 64
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
 typedef struct {
     cdrom_drive *drive;
+    cdrom_paranoia *cdprn;
     void *header;
     int header_length;
     int64_t pos;
@@ -40,26 +44,74 @@ typedef struct {
     char *buffer;
     int bufsize;
     int buffer_pos;
+    int prn_stats[13];
 } cd_data_t;
+
+static char *stat_names[] = {
+    "read",
+    "verify",
+    "fixup_edge",
+    "fixup_atom",
+    "scratch",
+    "repair",
+    "skip",
+    "drift",
+    "backoff",
+    "overlap",
+    "fixup_dropped",
+    "fixup_duped",
+    "readerr"
+};
+
+static int
+print_paranoia_stats(cd_data_t *cdt)
+{
+    int i;
+
+    for(i = 0; i < 13; i++)
+	fprintf(stderr, "%5i %s\n", cdt->prn_stats[i], stat_names[i]);
+
+    return 0;
+}
 
 static int
 fill_buffer(cd_data_t *cdt)
 {
     int nsect, bpos = 0;
-    int err;
 
     nsect = cdt->bufsize / CD_FRAMESIZE_RAW;
     while(nsect){
-	err = cdda_read(cdt->drive, cdt->buffer + bpos,
-			cdt->current_sector, 1);
-	if(err < TR_EREAD){
-	    nsect--;
-	    cdt->current_sector++;
-	    bpos += CD_FRAMESIZE_RAW;
+	if(cdt->cdprn){
+	    void cdp_cb(long foo, int stat){
+		if(stat >= 0 && stat < sizeof(cdt->prn_stats))
+		    cdt->prn_stats[stat]++;
+	    }
+	    int16_t *sect = paranoia_read_limited(cdt->cdprn, cdp_cb,
+						  max_retries);
+	    char *err = cdda_errors(cdt->drive);
+	    if(err){
+		fprintf(stderr, "CDDA: error reading sector %i: %s\n",
+			cdt->current_sector, err);
+		return -1;
+	    } else {
+		memcpy(cdt->buffer + bpos, sect, CD_FRAMESIZE_RAW);
+		nsect--;
+		cdt->current_sector++;
+		bpos += CD_FRAMESIZE_RAW;
+	    }
 	} else {
-	    fprintf(stderr, "CDDA: read error %i: %s\n",
-		    err, strerror_tr[err]);
-	    return -1;
+	    int s = cdda_read(cdt->drive, cdt->buffer + bpos,
+			      cdt->current_sector, nsect);
+	    char *err = cdda_errors(cdt->drive);
+	    if(s < 0 || err){
+		fprintf(stderr, "CDDA: error reading sector %i: %s\n",
+			cdt->current_sector, err);
+		return -1;
+	    } else {
+		nsect -= s;
+		cdt->current_sector += s;
+		bpos += s * CD_FRAMESIZE_RAW;
+	    }
 	}
     }
 
@@ -142,6 +194,9 @@ cd_seek(url_t *u, int64_t offset, int how)
 	cdt->pos = pos;
 	cdt->current_sector = cdt->first_sector +
 	    (cdt->pos - cdt->header_length) / CD_FRAMESIZE_RAW;
+	if(cdt->cdprn){
+	    paranoia_seek(cdt->cdprn, cdt->current_sector, SEEK_SET);
+	}
     }
 
     return 0;
@@ -152,6 +207,11 @@ cd_close(url_t *u)
 {
     cd_data_t *cdt = u->private;
 
+    if(cdt->cdprn){
+	paranoia_free(cdt->cdprn);
+	if(tcvp_input_cdda_conf_paranoia_stats)
+	    print_paranoia_stats(cdt);
+    }
     cdda_close(cdt->drive);
     free(cdt->buffer);
     free(cdt->header);
@@ -193,7 +253,7 @@ track_open(char *url, char *mode)
 
     cdt->track = track;
     cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
-    cdda_verbose_set(cdt->drive, CDDA_MESSAGE_PRINTIT, CDDA_MESSAGE_FORGETIT);
+    cdda_verbose_set(cdt->drive, CDDA_MESSAGE_LOGIT, CDDA_MESSAGE_FORGETIT);
 
     if(cdda_open(cdt->drive) != 0) {
 	free(cdt);
@@ -214,6 +274,13 @@ track_open(char *url, char *mode)
 
     cdt->first_sector = cdda_track_firstsector(cdt->drive, cdt->track);
     cdt->last_sector = cdda_track_lastsector(cdt->drive, cdt->track);
+
+    if(paranoia){
+	cdt->cdprn = paranoia_init(cdt->drive);
+	paranoia_modeset(cdt->cdprn,
+			 PARANOIA_MODE_FULL - PARANOIA_MODE_NEVERSKIP);
+	paranoia_seek(cdt->cdprn, cdt->first_sector, SEEK_SET);
+    }
 
     cdt->header = malloc(44);
     cdt->header_length = 44;

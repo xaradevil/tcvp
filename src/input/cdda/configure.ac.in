@@ -1,1 +1,2 @@
-TC2_CHECK_LIBS(cdparanoia, cdda_interface, cdda_identify, -lcdda_paranoia)
+TC2_CHECK_LIBS(cdparanoia, cdda_interface, cdda_identify,,
+	       cdparanoia, cdda_paranoia, paranoia_init)
