@@ -31,6 +31,7 @@ extern void *
 tcvp_event(void *p)
 {
     muxed_stream_t *st = NULL;
+    int quit = 0;
 
     while(!quit){
 	tcvp_event_t *te = eventq_recv(qr);
@@ -126,6 +127,10 @@ tcvp_event(void *p)
 
 	    update_time();
 
+	    break;
+
+	case -1:
+	    quit = 1;
 	    break;
 	}
 	tcfree(te);
@@ -234,8 +239,6 @@ tcvp_seek_rel(xtk_widget_t *w, void *p)
 extern int
 tcvp_quit()
 {
-    quit = 1;
-
     tcvp_stop(NULL, NULL);
 
     tc2_request(TC2_UNLOAD_ALL, 0);

@@ -31,8 +31,6 @@
 #include "tcvpctl.h"
 #include <tcvp_event.h>
 
-int quit = 0;
-
 player_t *pl;
 eventq_t qs;
 eventq_t qr;
@@ -112,7 +110,6 @@ tcvpx_shdn(void)
 {
     tcvp_event_t *te;
 
-    quit = 1;
     tcvp_stop(NULL, NULL);
     te = tcvp_alloc_event(-1);
     eventq_send(qr, te);
