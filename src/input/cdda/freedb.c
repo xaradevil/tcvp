@@ -87,7 +87,7 @@ cddb_cmd(char *cmd)
 }
 
 extern int
-cdda_freedb(url_t *u, cd_data_t *cdt, int track)
+cdda_freedb(url_t *u, cd_data_t *cdt, int track, char *options)
 {
     cdrom_drive *d = cdt->drive;
     int tracks = cdda_tracks(d);
@@ -98,7 +98,8 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track)
     char *rep, *cat = NULL;
     char *artist = NULL, *album = NULL, *title = NULL,
 	*genre = NULL, *year = NULL;
-
+    char *tmp;
+    int entry = 1;
 
     qry = malloc(40 + tracks * 10);
     p = qry;
@@ -127,16 +128,54 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track)
     sprintf(qry + 11, "%08x", id);
     qry[19] = ' ';
 
+    if(options) {
+	options = strdup(options);
+
+	tmp = options;
+
+	while((p = strsep(&tmp, "&"))){
+	    if(!*p)
+		continue;
+	    if(!strncmp(p, "cddb_entry=", 11)){
+		entry = strtol(p + 11, NULL, 0);
+		if(entry<1) {
+		    tc2_print("CDDA", TC2_PRINT_ERROR, "no such entry\n");
+		    entry = 1;
+		}
+	    }
+	}
+
+	free(options);
+    }
+
     if((rep = cddb_cmd(qry))){
 	char *rp;
 	int status = strtol(rep, &rp, 0);
+	char *first;
 
 	switch(status){
 	case 210:
 	case 211:
-	    if(!(rp = strchr(rp, '\n')))
+	    first = strchr(rp, '\n');
+	    while(rp && entry > 0 && *(rp+1) != '.') {
+		rp = strchr(rp+1, '\n');
+		entry--;
+	    }
+
+	    if(entry != 0 || rp == NULL || (rp && *(rp+1) == '.')) {
+		tc2_print("CDDA", TC2_PRINT_ERROR, "no such entry\n");
+		rp = first;
+	    }
+
+	    if(!rp)
 		break;
+
+	    cat = rp +1;
+	    break;
+
 	case 200:
+	    if(entry != 1) tc2_print("CDDA", TC2_PRINT_ERROR,
+				     "no such entry\n");
 	    cat = rp + 1;
 	    break;
 	}

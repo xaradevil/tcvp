@@ -210,7 +210,7 @@ cdda_free(void *p)
 }
 
 static url_t *
-track_open(char *url, char *mode)
+track_open(char *url, char *mode, char *options)
 {
     stream_t s;
     char *trk;
@@ -296,7 +296,7 @@ track_open(char *url, char *mode)
     vu = url_vheader_new(u, cdt->header, cdt->header_length);
 
     if(tcvp_input_cdda_conf_cddb)
-	cdda_freedb(vu, cdt, track);
+	cdda_freedb(vu, cdt, track, options);
 
     snprintf(cdt->track, sizeof(cdt->track), "%i", track);
     tcattr_set(vu, "track", cdt->track, NULL, NULL);
@@ -305,13 +305,14 @@ track_open(char *url, char *mode)
 }
 
 static url_t *
-list_open(char *url, char *mode)
+list_open(char *url, char *mode, char *options)
 {
     cd_data_t *cdt;
     int tracks;
     url_t *u;
     u_char *p;
     int i;
+    int optlen = 0;
 
     u = tcallocz(sizeof(*u));
     u->close = cd_close;
@@ -332,12 +333,19 @@ list_open(char *url, char *mode)
 
     tracks = cdda_tracks(cdt->drive);
 
-    cdt->header = malloc(tracks * 16);
+    if(options) {
+	optlen = strlen(options) + 1;
+    }
+
+    cdt->header = malloc(tracks * (16 + optlen));
     p = cdt->header;
 
     for(i = 1; i <= tracks; i++) {
 	if(cdda_track_audiop(cdt->drive, i)) {
-	    p += sprintf(p, "cdda:/%d.wav\n", i);
+	    if(!options)
+		p += sprintf(p, "cdda:/%d.wav\n", i);
+	    else 
+		p += sprintf(p, "cdda:/%d.wav?%s\n", i, options);
 	}
     }
 
@@ -353,15 +361,23 @@ list_open(char *url, char *mode)
 extern url_t *
 cd_open(char *url, char *mode)
 {
-    char *s = strrchr(url, '.');
+    char *url_tmp = strdup(url);
+
+    char *s = strrchr(url_tmp, '.');
+
+    char *o = strrchr(url_tmp, '?');
+    if(o)
+	*o++ = '\0';
 
     if(s){
 	if(!strcmp(s, ".wav")){
-	    return track_open(url, mode);
+	    return track_open(url_tmp, mode, o);
 	} else if(!strcmp(s, ".m3u")){
-	    return list_open(url, mode);
+	    return list_open(url_tmp, mode, o);
 	}
     }
+
+    free(url_tmp);
 
     tc2_print("CDDA", TC2_PRINT_ERROR, "unsupported URL: %s\n", url);
     return NULL;

@@ -42,6 +42,6 @@ typedef struct {
     char track[4];
 } cd_data_t;
 
-extern int cdda_freedb(url_t *u, cd_data_t *, int track);
+extern int cdda_freedb(url_t *u, cd_data_t *, int track, char *options);
 
 #endif
