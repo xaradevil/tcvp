@@ -265,7 +265,10 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ptime = 10000;
     snd_pcm_hw_params_set_period_time_near(pcm, hwp, &ptime, &tmp);
 
-    snd_pcm_hw_params(pcm, hwp);
+    if(snd_pcm_hw_params(pcm, hwp) < 0){
+	fprintf(stderr, "ALSA: snd_pcm_hw_parameters failed for %s\n", device);
+	return NULL;
+    }
 
     if(timer)
 	*timer = open_timer(pcm);
