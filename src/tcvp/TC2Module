@@ -5,6 +5,7 @@ tc2version	0.4.0
 sources		tcvp.c
 postinit	tcvp_init
 shutdown	tcvp_shdn
+#implement	"tcvp"		"open"	t_open
 import		"stream"	"open"
 import		"stream"	"play"
 import		"output/audio"	"open"
@@ -15,3 +16,4 @@ import		"Shell" "register_prompt"
 import		"Shell" "unregister_prompt"
 require		"codec"
 require		"timer"
+require		"tcvp"

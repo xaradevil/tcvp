@@ -20,17 +20,83 @@
 #include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
-#include <tcvp.h>
+#include <tcvp_types.h>
 #include <tcvp_tc2.h>
 
-static tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;
-static muxed_stream_t *stream;
-timer__t *timer;
-
-static int tcvp_stop(char *p);
+typedef struct tcvp_player {
+    tcvp_pipe_t *demux, *vcodec, *acodec, *sound, *video;
+    muxed_stream_t *stream;
+    timer__t *timer;
+} tcvp_player_t;
 
 static int
-tcvp_play(char *arg)
+t_start(player_t *pl)
+{
+    tcvp_player_t *tp = pl->private;
+
+    if(tp->video)
+	tp->video->start(tp->video);
+
+    if(tp->sound)
+	tp->sound->start(tp->sound);
+
+    if(tp->timer)
+	tp->timer->start(tp->timer);
+
+    return 0;
+}
+
+static int
+t_stop(player_t *pl)
+{
+    tcvp_player_t *tp = pl->private;
+
+    if(tp->timer)
+	tp->timer->stop(tp->timer);
+
+    if(tp->sound)
+	tp->sound->stop(tp->sound);
+
+    if(tp->video)
+	tp->video->stop(tp->video);
+
+    return 0;
+}
+
+static int
+t_close(player_t *pl)
+{
+    tcvp_player_t *tp = pl->private;
+
+    if(tp->demux)
+	tp->demux->free(tp->demux);
+
+    if(tp->acodec)
+	tp->acodec->free(tp->acodec);
+
+    if(tp->vcodec)
+	tp->vcodec->free(tp->vcodec);
+
+    if(tp->video)
+	tp->video->free(tp->video);
+
+    if(tp->sound)
+	tp->sound->free(tp->sound);
+
+    if(tp->stream)
+	tp->stream->close(tp->stream);
+
+    if(tp->timer)
+	tp->timer->free(tp->timer);
+
+    free(tp);
+    free(pl);
+
+    return 0;
+}
+
+extern player_t *
+t_open(char *name)
 {
     int i, j;
     char buf[64];
@@ -39,11 +105,16 @@ tcvp_play(char *arg)
     stream_t *as = NULL, *vs = NULL;
     tcvp_pipe_t *codecs[2];
     int aci, vci;
+    tcvp_pipe_t *demux = NULL;
+    tcvp_pipe_t *vcodec = NULL, *acodec = NULL;
+    tcvp_pipe_t *sound = NULL, *video = NULL;
+    muxed_stream_t *stream = NULL;
+    timer__t *timer = NULL;
+    tcvp_player_t *tp;
+    player_t *pl;
 
-    tcvp_stop(NULL);
-
-    if((stream = stream_open(arg)) == NULL)
-	return -1;
+    if((stream = stream_open(name)) == NULL)
+	return NULL;
 
     for(i = 0; i < stream->n_streams; i++){
 	printf("Stream %i, ", i);
@@ -91,7 +162,7 @@ tcvp_play(char *arg)
     }
 
     if(!as && !vs)
-	return -1;
+	return NULL;
 
     if(as){
 	sound = output_audio_open((audio_stream_t *) as, NULL, &timer);
@@ -111,32 +182,40 @@ tcvp_play(char *arg)
 
     demux = stream_play(stream, codecs);
 
-    demux->start(demux);
-    if(timer)
-	timer->start(timer);
+    tp = malloc(sizeof(*tp));
+    tp->demux = demux;
+    tp->vcodec = vcodec;
+    tp->acodec = acodec;
+    tp->sound = sound;
+    tp->video = video;
+    tp->stream = stream;
+    tp->timer = timer;
 
-    return 0;
+    pl = malloc(sizeof(*pl));
+    pl->start = t_start;
+    pl->stop = t_stop;
+    pl->seek = NULL;
+    pl->close = t_close;
+    pl->private = tp;
+
+    demux->start(demux);
+
+    return pl;
 }
+
+/* Shell stuff below.  To be moved. */
+
+static player_t *player;
 
 static int
 tcvp_pause(char *p)
 {
     static int paused = 0;
 
-    if(!sound && !timer)
+    if(!player)
 	return -1;
 
-    if(paused ^= 1){
-	if(sound)
-	    sound->stop(sound);
-	if(timer)
-	    timer->stop(timer);
-    } else {
-	if(sound)
-	    sound->start(sound);
-	if(timer)
-	    timer->start(timer);
-    }
+    (paused ^= 1)? player->stop(player): player->start(player);
 
     return 0;
 }
@@ -144,40 +223,23 @@ tcvp_pause(char *p)
 static int
 tcvp_stop(char *p)
 {
-    if(demux){
-	demux->free(demux);
-	demux = NULL;
+    if(player){
+	player->close(player);
+	player = NULL;
     }
 
-    if(acodec){
-	acodec->free(acodec);
-	acodec = NULL;
-    }
+    return 0;
+}
 
-    if(vcodec){
-	vcodec->free(vcodec);
-	vcodec = NULL;
-    }
+static int
+tcvp_play(char *file)
+{
+    tcvp_stop(NULL);
 
-    if(video){
-	video->free(video);
-	video = NULL;
-    }
+    if(!(player = t_open(file)))
+	return -1;
 
-    if(sound){
-	sound->free(sound);
-	sound = NULL;
-    }
-
-    if(stream){
-	stream->close(stream);
-	stream = NULL;
-    }
-
-    if(timer){
-	timer->free(timer);
-	timer = NULL;
-    }
+    player->start(player);
 
     return 0;
 }
