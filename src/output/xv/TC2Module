@@ -1,0 +1,6 @@
+module		xv
+name		"TCVP/output/Xv"
+version		0.1.0
+tc2version	0.4.0
+sources		xv.c
+implement	"output/video"	"open"	xv_open

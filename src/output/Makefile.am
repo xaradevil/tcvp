@@ -1,1 +1,1 @@
-SUBDIRS = alsa
+SUBDIRS = alsa xv
