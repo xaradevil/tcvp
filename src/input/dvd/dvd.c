@@ -304,7 +304,7 @@ dvd_open(char *url, char *mode)
 	} else if(!strncmp(p, "angle=", 6)){
 	    angle = strtol(p + 6, NULL, 0);
 	} else if(!strncmp(p, "chapter=", 8)){
-	    angle = strtol(p + 8, NULL, 0);
+	    chapter = strtol(p + 8, NULL, 0);
 	}
     }
 
@@ -346,7 +346,7 @@ dvd_open(char *url, char *mode)
     }
 
     if(angle < 0 || angle >= ttsrpt->title[title].nr_of_angles){
-	fprintf(stderr, "DVD: invalid chapter %i\n", angle);
+	fprintf(stderr, "DVD: invalid angle %i\n", angle);
 	ifoClose(ifo);
 	DVDClose(dvd);
 	return NULL;
@@ -385,6 +385,7 @@ dvd_open(char *url, char *mode)
     d->start_cell = d->next_cell = start_cell;
     d->pgc = pgc;
     d->start_sector = pgc->cell_playback[start_cell].first_sector;
+    d->angle = angle;
     d->state = CELL_START;
 
     d->bufsize = url_dvd_conf_buffer * DVD_VIDEO_LB_LEN;
