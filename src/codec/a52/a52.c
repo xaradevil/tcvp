@@ -248,6 +248,8 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(!size)
 	return PROBE_AGAIN;
 
+    s->common.bit_rate = bitrate;
+
     p->format = *s;
     p->format.stream_type = STREAM_TYPE_AUDIO;
     p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
