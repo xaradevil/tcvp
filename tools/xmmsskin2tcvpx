@@ -84,6 +84,7 @@ my $skinconf = <<END_TCCONF;
 name "XMMS skin"
 size 275 116
 background "bg.png"
+doubleclick_action "replace_ui(shade.conf)"
 END_TCCONF
 
 my $shadeconf = <<END_TCCONF;
@@ -91,6 +92,7 @@ my $shadeconf = <<END_TCCONF;
 name "XMMS skin"
 size 275 14
 background "shade_bg.png"
+doubleclick_action "replace_ui(skin.conf)"
 END_TCCONF
 
 # generic image helpers
@@ -309,7 +311,7 @@ text_font [
 	characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=\$#\xc5\xd6\xc4?"
 ]
 label [
-	position 112 26
+	position 112 27
 	size 153 8
 	bitmap : ../text_font [ ]
 	color 'rgb:ff/ff/ff' 255
