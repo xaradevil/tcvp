@@ -36,7 +36,7 @@
 #define TS_PACKET_BUF 7
 #define TS_PACKET_SIZE 188
 
-#define MAX_PACKET_SIZE 0x8000
+#define MAX_PACKET_SIZE 0x10000
 
 typedef struct mpegts_packet {
     int transport_error;
@@ -364,7 +364,10 @@ mpegts_mkpacket(mpegts_stream_t *s, int sx)
 	pk->pk.pts = tb->pts * 300;
     if(tb->flags & TCVP_PKT_FLAG_DTS)
 	pk->pk.dts = tb->dts * 300;
-    tb->buf = malloc(0x10000);
+
+    memset(pk->data + pk->size, 0, 8);
+
+    tb->buf = malloc(2 * MAX_PACKET_SIZE);
 
     return (tcvp_packet_t *) pk;
 }
@@ -787,7 +790,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     s->streams = calloc(ms->n_streams, sizeof(*s->streams));
     for(i = 0; i < ms->n_streams; i++){
-	s->streams[i].buf = malloc(0x10000);
+	s->streams[i].buf = malloc(2 * MAX_PACKET_SIZE);
 	s->streams[i].cc = -1;
     }
 
