@@ -60,12 +60,6 @@ alsa_read(void *buf, size_t size, size_t count, url_t *u)
     return count;
 }
 
-extern int
-alsa_seek(url_t *u, int64_t offset, int how)
-{
-    return 0;
-}
-
 extern uint64_t
 alsa_tell(url_t *u)
 {
@@ -153,7 +147,6 @@ alsa_open(char *name, char *mode)
 
     u = tcallocdz(sizeof(*u), NULL, alsa_free);
     u->read = alsa_read;
-    u->seek = alsa_seek;
     u->tell = alsa_tell;
     u->close = alsa_close;
     u->private = ai;
