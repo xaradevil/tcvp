@@ -190,7 +190,7 @@ open_timer(int res, snd_pcm_t *pcm)
 }
 
 extern timer_driver_t *
-alsa_timer_new(int res)
+alsa_timer_new(tcconf_section_t *cf, int res)
 {
     return open_timer(res, NULL);
 }

@@ -103,7 +103,7 @@ timer_run(void *p)
 }
 
 extern timer_driver_t *
-st_new(int res)
+st_new(tcconf_section_t *cf, int res)
 {
     timer_driver_t *tm;
     sw_timer_t *st;

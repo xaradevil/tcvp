@@ -600,9 +600,27 @@ t_open(player_t *pl, int nn, char **names)
 
     if(!tp->timer->have_driver){
 	int tres = 10;
-	tcconf_getvalue(prsec, "timer/resolution", "%i", &tres);
+	char *tdrv = NULL;
+	timer_driver_t *td;
+	driver_timer_new_t dtn;
+	tcconf_section_t *tcf, *mtc = NULL;
+
+	tcf = tcconf_getsection(prsec, "timer");
+	if(tcf)
+	    mtc = tcconf_merge(NULL, tcf);
+	mtc = tcconf_merge(mtc, tp->conf);
+
+	tcconf_getvalue(mtc, "resolution", "%i", &tres);
+	tcconf_getvalue(mtc, "driver", "%s", &tdrv);
+	if(tdrv && (dtn = tc2_get_symbol(tdrv, "new")))
+	    td = dtn(mtc, tres);
+	else
+	    td = driver_timer_new(mtc, tres);
 	tres *= 27000;
-	tp->timer->set_driver(tp->timer, driver_timer_new(tres));
+	tp->timer->set_driver(tp->timer, td);
+	if(tcf)
+	    tcfree(tcf);
+	tcfree(mtc);
     }
 
     tcfree(prsec);

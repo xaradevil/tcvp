@@ -5,4 +5,5 @@ tc2version	0.4.0
 sources		alsa.c timer.c alsamod.h
 implement	"driver/audio/alsa"	"new"	alsa_new
 implement	"driver/timer"		"new"	alsa_timer_new
+implement	"driver/timer/alsa"	"new"	alsa_timer_new
 option		device%s="default"
