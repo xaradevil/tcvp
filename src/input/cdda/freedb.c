@@ -96,7 +96,9 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track)
     char *qry, *p;
     uint32_t id;
     char *rep, *cat = NULL;
-    char *artist = NULL, *album = NULL, *title = NULL;
+    char *artist = NULL, *album = NULL, *title = NULL,
+	*genre = NULL, *year = NULL;
+
 
     qry = malloc(40 + tracks * 10);
     p = qry;
@@ -169,6 +171,10 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track)
 			    album = strdup(t + 3);
 			}
 			artist = strdup(l + 7);
+		    } else if(!strncmp(l, "DYEAR=", 6)) {
+			year = strdup(l+6);
+		    } else if(!strncmp(l, "DGENRE=", 7)) {
+			genre = strdup(l+7);
 		    } else if(!strncmp(l, ttitle, ttl)){
 			char *t = strstr(l, " / ");
 			if(t)
@@ -187,6 +193,10 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track)
 	tcattr_set(u, "album", album, NULL, free);
     if(title)
 	tcattr_set(u, "title", title, NULL, free);
+    if(year)
+	tcattr_set(u, "year", year, NULL, free);
+    if(genre)
+	tcattr_set(u, "genre", genre, NULL, free);
 
     free(qry);
     return 0;
