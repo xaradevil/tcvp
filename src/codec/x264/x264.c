@@ -72,7 +72,11 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
 	x4->pic.i_pts = pk->pts;
 	x4->pts_valid = 1;
     }
-    x4->pic.i_type = X264_TYPE_AUTO;
+
+    if(pk->flags & TCVP_PKT_FLAG_DISCONT)
+	x4->pic.i_type = X264_TYPE_I;
+    else
+	x4->pic.i_type = X264_TYPE_AUTO;
 
     if(x264_encoder_encode(x4->enc, &nal, &nnal, &x4->pic))
 	return -1;

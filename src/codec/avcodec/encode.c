@@ -66,6 +66,10 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 
     if(pk->flags & TCVP_PKT_FLAG_PTS)
 	f->pts = pk->pts;
+    if(pk->flags & TCVP_PKT_FLAG_DISCONT)
+	f->pict_type = FF_I_TYPE;
+    else
+	f->pict_type = 0;
 
     if((size = avcodec_encode_video(enc->ctx, enc->buf, ENCBUFSIZE, f)) > 0){
 /* 	fprintf(stderr, "%lli %lli\n", pk->pts, enc->ctx->coded_frame->pts); */
