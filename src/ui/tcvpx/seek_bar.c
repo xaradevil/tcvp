@@ -35,9 +35,13 @@ repaint_seek_bar(tcwidget_t *w)
 
 	if(w->seek_bar.enabled == 1){
 	    xp=w->seek_bar.start_x +
-		(w->seek_bar.position * (w->seek_bar.end_x - w->seek_bar.start_x));
+		(w->seek_bar.position *
+		 (w->seek_bar.end_x - w->seek_bar.start_x)) - 
+		w->seek_bar.indicator->width/2;
 	    yp=w->seek_bar.start_y +
-		(w->seek_bar.position * (w->seek_bar.end_y - w->seek_bar.start_y));
+		(w->seek_bar.position *
+		 (w->seek_bar.end_y - w->seek_bar.start_y)) -
+		w->seek_bar.indicator->height/2;
 
 	    alpha_render_part(*w->seek_bar.indicator->data, img->data,
 			      0, 0, xp, yp,
@@ -95,6 +99,28 @@ change_seek_bar(tcseek_bar_t *w, double position)
 extern int
 seek_bar_onclick(tcwidget_t *w, XEvent *xe)
 {
+    int xc = xe->xbutton.x;
+    int yc = xe->xbutton.y;
+    int xl = w->seek_bar.end_x - w->seek_bar.start_x;
+    int yl = w->seek_bar.end_y - w->seek_bar.start_y;
+    int xs = w->seek_bar.start_x;
+    int ys = w->seek_bar.start_y;
+    double pos;
+    int x=0, y=0;
+
+    if(xl>0) {
+	x = xc-xs;
+	x = (x<0)?0:(x<=xl)?x:xl;
+	pos = (double)x/xl;
+    } else if(yl>0) {
+	y = yc-ys;	
+	y = (y<0)?0:(y<=yl)?y:yl;
+	pos = (double)y/yl;
+    }
+
+/*     fprintf(stderr, "seek bar clicked (%d,%d)->%f\n", x, y, pos); */
+
+    w->seek_bar.action(w, &pos);
     return 0;
 }
 

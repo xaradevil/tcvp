@@ -204,9 +204,9 @@ tcvp_seek(tcwidget_t *w, void *p)
     double pos = *((double*)p);
 
     tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK);
-    se->time = 0;
+    se->time = s_length * pos * 1000000;
     se->how = TCVP_SEEK_ABS;
-    eventq_send(qr, se);
+    eventq_send(qs, se);
     tcfree(se);
     return 0;
 }
