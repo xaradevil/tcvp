@@ -53,20 +53,21 @@ vorbis_free_packet(void *p)
 
 static inline int
 conv(int samples, float **pcm, char *buf, int channels) {
-    int i, j, val ;
-    ogg_int16_t *ptr, *data = (ogg_int16_t*)buf ;
-    float *mono ;
+    int i, j, val;
+    int16_t *ptr, *data = (int16_t *) buf;
+    float *mono;
  
     for(i = 0; i < channels; i++){
-	ptr = &data[i];
-	mono = pcm[i] ;
+	ptr = data + i;
+	mono = pcm[i];
 	
-	for(j = 0; j < samples; j++) {
+	for(j = 0; j < samples; j++){
+	    val = mono[j] * 32768 + 0.5;
 	    
-	    val = mono[j] * 32767.f;
-	    
-	    if(val > 32767) val = 32767;
-	    if(val < -32768) val = -32768;
+	    if(val > 32767)
+		val = 32767;
+	    if(val < -32768)
+		val = -32768;
 	   	    
 	    *ptr = val;
 	    ptr += channels;
@@ -96,8 +97,10 @@ vorbis_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
     ret = vorbis_synthesis(&vc->vb, &vc->op);
 
-    if(ret < 0)
+    if(ret < 0){
+	tc2_print("VORBIS", TC2_PRINT_ERROR, "decoder error %i\n", ret);
 	return -1;
+    }
 
     if(ret == 0)
 	vorbis_synthesis_blockin(&vc->vd, &vc->vb);
