@@ -224,8 +224,7 @@ audio_play(void *p)
 		    dt = tm > t? tm - t: t - tm;
 		    if(dt > tcvp_output_audio_conf_pts_threshold){
 			ao->timer->reset(ao->timer, t);
-/* 			fprintf(stderr, "AUDIO: pts = %llu, t = %llu, dt = %5lli\n", */
-/* 				ao->ptsq[ao->pqt].pts, t, t - tm); */
+/* 			fprintf(stderr, "AUDIO: df = %i, pts = %llu, t = %llu, dt = %5lli\n", df, ao->ptsq[ao->pqt].pts / 27, t / 27, (int64_t)(t - tm) / 27); */
 		    }
 		    while(ao->ptsq[ao->pqt].bp < ao->tail && ao->pqc){
 			if(++ao->pqt == ptsqsize)
