@@ -47,7 +47,7 @@ typedef struct {
 typedef struct {
     tcvp_data_packet_t pk;
     u_char *data;
-    int size[2];
+    int size;
 } ogg_data_packet_t;
 
 /* Get the length of this stream, must be seekable */
@@ -152,9 +152,9 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     memcpy(pk->data, op.packet, op.bytes);
 
     pk->pk.planes = 1;
-    pk->pk.sizes = pk->size;
-    pk->size[0] = op.bytes;
-    pk->size[1] = op.granulepos - ost->lgp;
+    pk->pk.sizes = &pk->size;
+    pk->pk.samples = op.granulepos - ost->lgp;
+    pk->size = op.bytes;
 
     ost->lgp = op.granulepos;
 

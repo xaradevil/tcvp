@@ -64,7 +64,7 @@ ow_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     if(pk->data){
 	ow->op.packet = pk->data[0];
 	ow->op.bytes = pk->sizes[0];
-	ow->op.granulepos += pk->sizes[1];
+	ow->op.granulepos += pk->samples;
 	ow_write_packet(ow, &ow->op);
     } else {
 	ow->os.e_o_s = 1;
