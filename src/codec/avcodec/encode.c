@@ -144,7 +144,10 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 /*     if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED) */
 /* 	ctx->flags |= CODEC_FLAG_INTERLACED_DCT; */
-    avcodec_open(ctx, enc->avc);
+    if(avcodec_open(ctx, enc->avc) < 0){
+	ctx->codec = NULL;
+	return PROBE_FAIL;
+    }
 
     return PROBE_OK;
 }
@@ -183,7 +186,8 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     cid = avc_codec_id(codec);
     avc = avcodec_find_encoder(cid);
     if(!avc){
-	tc2_print("AVCODEC", TC2_PRINT_ERROR, "Can't find encoder for '%s'.\n", codec);
+	tc2_print("AVCODEC", TC2_PRINT_ERROR,
+		  "Can't find encoder for '%s'.\n", codec);
 	return -1;
     }
 
@@ -242,6 +246,7 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     ctx_conf(global_quality, i);
     ctx_conf(coder_type, i);
     ctx_conf(mb_decision, i);
+    ctx_conf(scenechange_threshold, i);
 #if LIBAVCODEC_BUILD >= 4684
     ctx_conf(lmin, i);
     ctx_conf(lmax, i);
@@ -259,6 +264,8 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
 
 #define ctx_flag(c, f) if(!tcconf_getvalue(cf, #c, ""))	\
     ctx->flags |= CODEC_FLAG_##f
+#define ctx_flag2(c, f) if(!tcconf_getvalue(cf, #c, ""))	\
+    ctx->flags2 |= CODEC_FLAG2_##f
 
     ctx_flag(qscale, QSCALE);
     ctx_flag(4mv, 4MV);
@@ -288,6 +295,10 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
 #endif
 #if LIBAVCODEC_BUILD >= 4700
     ctx_flag(closed_gop, CLOSED_GOP);
+#endif
+
+#ifdef CODEC_FLAG2_32_PULLDOWN
+    ctx_flag2(pulldown, 32_PULLDOWN);
 #endif
 
     enc = tcallocdz(sizeof(*enc), NULL, avc_free_encvid);
