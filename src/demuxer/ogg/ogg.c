@@ -33,6 +33,7 @@ typedef struct {
     ogg_sync_state oy;
     ogg_stream_state os;    
     FILE *f;
+    uint64_t end;
 } ogg_stream_t;
 
 
@@ -43,17 +44,16 @@ ogg_get_length(muxed_stream_t *ms)
     ogg_stream_t *ost = ms->private;
     ogg_page og;
     FILE *f = ost->f;
-    long more, end, pos;
+    uint64_t more, pos;
     int l;
     uint64_t length;
     char *buf;
 
-    
 
     fseek(f, 0, SEEK_END);
-    end=ftell(f);
+    ost->end=ftell(f);
 
-    pos=end-BUFFER_SIZE;
+    pos=ost->end-BUFFER_SIZE;
     fseek(f, pos, SEEK_SET);
 
     ogg_sync_reset(&ost->oy);
@@ -68,7 +68,7 @@ ogg_get_length(muxed_stream_t *ms)
 	    /* Skipping to start of page */
 	    pos-=more;
 	} else {
-	    if(more+pos<end){
+	    if(more+pos<ost->end){
 		pos+=more;
 	    } else {
 		/* Found last page */
@@ -84,7 +84,6 @@ ogg_get_length(muxed_stream_t *ms)
 
     return length;
 }
-
 
 static void
 ogg_free_packet(packet_t *p)
@@ -138,6 +137,61 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     return pk;
 }
 
+static uint64_t
+ogg_seek(muxed_stream_t *ms, uint64_t time)
+{
+    ogg_page og;
+    uint64_t more;
+    int l;
+    char *buf;
+
+    uint64_t pos = time * ms->streams[0].audio.sample_rate / 1000000;
+
+    ogg_stream_t *ost = ms->private;
+    FILE *f = ost->f;
+
+    uint64_t start = 0;
+    uint64_t end = ost->end;
+    uint64_t ppos=0;
+    uint64_t mid;
+
+    while(end>start) {
+	mid = (start + end) / 2;
+
+	fseek(f, mid, SEEK_SET);
+
+	ogg_sync_reset(&ost->oy);
+
+	buf=ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+	l=fread(buf, 1, BUFFER_SIZE, f);
+	ogg_sync_wrote(&ost->oy, l);
+
+	while(ogg_sync_pageout(&ost->oy, &og) != 1)
+	{
+	    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+	    l = fread(buf, 1, BUFFER_SIZE, f);
+	    ogg_sync_wrote(&ost->oy, l);
+	}
+
+	ppos=ogg_page_granulepos(&og);
+	if(pos>ppos) {
+	    start = mid+1;
+	} else {
+	    end = mid-1;
+	}
+/* 	fprintf(stderr, "filepos:%Ld streampos:%Ld %Ld\n", mid, ppos, pos); */
+    }
+
+    fseek(f, mid, SEEK_SET);
+    ogg_sync_reset(&ost->oy);
+
+    buf=ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+    l=fread(buf, 1, BUFFER_SIZE, f);
+    ogg_sync_wrote(&ost->oy, l);
+    ogg_sync_pageseek(&ost->oy, &og);
+
+    return (1000000*ppos)/ms->streams[0].audio.sample_rate;
+}
 
 extern int
 ogg_close(muxed_stream_t *ms)
@@ -145,6 +199,7 @@ ogg_close(muxed_stream_t *ms)
     tcfree(ms);
     return 0;
 }
+
 
 static void
 ogg_free(void *p)
@@ -244,6 +299,7 @@ ogg_open(char *name, conf_section *cs)
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = ogg_next_packet;
     ms->close = ogg_close;
+    ms->seek = ogg_seek;
     ms->private = ost;
 
     ms->streams[0].audio.samples = ogg_get_length(ms);
