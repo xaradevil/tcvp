@@ -1,0 +1,6 @@
+module		dvdnav
+name		"TCVP/input/dvdnav"
+version		0.1.0
+tc2version	0.4.0
+sources		dvdnav.c
+implement	"URL/dvd"	"open"	dvd_open

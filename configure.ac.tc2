@@ -42,6 +42,7 @@ AC_CONFIG_FILES([Makefile
 		 src/input/Makefile
 		 src/input/cdda/Makefile
 		 src/input/dvd/Makefile
+		 src/input/dvdnav/Makefile
 		 src/output/Makefile
 		 src/output/audio/Makefile
 		 src/output/drivers/Makefile
