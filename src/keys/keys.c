@@ -215,7 +215,8 @@ keys_free(void *p)
     tcvp_keys_t *tk = p;
     eventq_delete(tk->control);
     tcfree(tk->conf);
-    tchash_destroy(tk->bindings, tcfree);
+    if(tk->bindings)
+	tchash_destroy(tk->bindings, tcfree);
     tcfree(tk->ns);
 }
 
