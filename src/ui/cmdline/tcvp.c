@@ -136,6 +136,7 @@ parse_options(int argc, char **argv)
 	switch(c){
 	case 'h':
 	    show_help();
+	    exit(0);
 	    break;
 
 	case 'A':
