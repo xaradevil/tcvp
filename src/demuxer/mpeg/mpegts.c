@@ -183,11 +183,11 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
     goto next;					\
 } while(0);
 
-#define check_length(l, start, len, m) do {		\
-    if(l > start + len - s->tsp || l < 0){		\
-	tc2_print("MPEGTS", TC2_PRINT_WARNING, m, l);	\
-	do_error();					\
-    }							\
+#define check_length(l, start, len, m) do {			\
+    if(l > start + len - s->tsp || l < 0){			\
+	tc2_print("MPEGTS", TC2_PRINT_WARNING, "PID %x:" m, l);	\
+	do_error();						\
+    }								\
 } while(0);
 
     do {
@@ -204,8 +204,10 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 	pkstart = s->tsp;
 
 	if(*s->tsp != MPEGTS_SYNC){
-	    tc2_print("MPEGTS", TC2_PRINT_WARNING, "bad sync byte %02x\n",
-		      *s->tsp);
+	    tc2_print("MPEGTS", TC2_PRINT_WARNING,
+		      "bad sync byte %02x @%ti, buf %i, %llx\n",
+		      *s->tsp, s->tsp - s->tsbuf, s->tsnbuf,
+		      s->stream->tell(s->stream));
 	    if(resync(s))
 		return -1;
 	    skip++;
@@ -276,36 +278,38 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 		}
 
 		stuffing = al - (s->tsp - afstart);
-		tc2_print("MPEGTS", TC2_PRINT_DEBUG, "stuffing = %i\n",
-			  stuffing);
+		tc2_print("MPEGTS", TC2_PRINT_DEBUG+1,
+			  "PID %x, stuffing = %i\n", mp->pid, stuffing);
 
 		check_length(stuffing, pkstart, TS_PACKET_SIZE,
 			     "BUG: stuffing = %i\n");
 		while(stuffing--){
 		    if(*s->tsp++ != 0xff){
 			tc2_print("MPEGTS", TC2_PRINT_WARNING,
-				  "stuffing != 0xff: %x\n", *(s->tsp-1));
+				  "PID %x, stuffing != 0xff: %x\n",
+				  mp->pid, *(s->tsp-1));
 			do_error();
 		    }
 		}
 	    }
 	}
 
-	if(!error){
-	    if(mp->adaptation & 1){
-		ptrdiff_t hl = s->tsp - pkstart;
-		mp->data_length = TS_PACKET_SIZE - hl;
-		check_length(mp->data_length, pkstart, TS_PACKET_SIZE,
-			     "BUG: data_length = %i\n");
-		mp->data = s->tsp;
-	    } else {
-		mp->data_length = 0;
-	    }
+	if(mp->adaptation & 1){
+	    ptrdiff_t hl = s->tsp - pkstart;
+	    mp->data_length = TS_PACKET_SIZE - hl;
+	    check_length(mp->data_length, pkstart, TS_PACKET_SIZE,
+			 "BUG: data_length = %i\n");
+	    mp->data = s->tsp;
+	} else {
+	    mp->data_length = 0;
 	}
+
+	s->tsp += mp->data_length;
+	s->tsnbuf--;
+
     next: ;
     } while(error && skip < tcvp_demux_mpeg_conf_ts_max_skip);
 
-    skip_packet(s);
     return error;
 #undef do_error
 #undef check_length
@@ -342,12 +346,13 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    ccd = (mp.cont_counter - tb->cc + 0x10) & 0xf;
 	    if(ccd == 0){
 		tc2_print("MPEGTS", TC2_PRINT_VERBOSE,
-			  "duplicate packet, PID %x\n", mp.pid);
+			  "PID %x, duplicate packet, cc = %x\n", mp.pid,
+			  mp.cont_counter);
 		continue;
 	    } else if(ccd != 1){
 		tc2_print("MPEGTS", TC2_PRINT_WARNING,
-			  "lost %i packets, PID %x: %i %i\n",
-			  ccd - 1, mp.pid, tb->cc, mp.cont_counter);
+			  "PID %x, lost %i packets: %i %i\n",
+			  mp.pid, ccd - 1, tb->cc, mp.cont_counter);
 /* 		tb->start = 0; */
 	    }
 	}
@@ -604,7 +609,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    goto err;
 
 	seclen -= 13 + pi_len;
-	for(i = 0; i < seclen - 5;){
+	for(i = 0; i < seclen - 4;){
 	    int stype, epid, esil, sti;
 	    int j;
 
