@@ -66,3 +66,13 @@ typedef struct tcvp_load_event {
     int type;
     muxed_stream_t *stream;
 } tcvp_load_event_t;
+
+typedef struct tcvp_button_event {
+    int type;
+    int button;
+    int action;
+    int x, y;
+} tcvp_button_event_t;
+
+#define TCVP_BUTTON_PRESS   0
+#define TCVP_BUTTON_RELEASE 1

@@ -333,6 +333,18 @@ load_deser(int type, u_char *event, int size)
     return te;
 }
 
+static void *
+button_alloc(int type, va_list args)
+{
+    tcvp_button_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
+    te->button = va_arg(args, int);
+    te->action = va_arg(args, int);
+    te->x = va_arg(args, int);
+    te->y = va_arg(args, int);
+
+    return te;
+}
+
 static struct {
     char *name;
     tcvp_alloc_event_t alloc;
@@ -352,6 +364,7 @@ static struct {
     { "TCVP_LOAD",        load_alloc,       load_ser,  load_deser  },
     { "TCVP_STREAM_INFO", NULL,             NULL,      NULL        },
     { "TCVP_QUERY",       NULL,             NULL,      NULL        },
+    { "TCVP_BUTTON",      button_alloc,     NULL,      NULL        },
 };
 
 extern int
