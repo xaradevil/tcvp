@@ -16,6 +16,15 @@
 #include <mp3_tc2.h>
 #include "id3.h"
 
+typedef struct mp3_frame {
+    int version;
+    int layer;
+    int bitrate;
+    int sample_rate;
+    int size;
+    int samples;
+} mp3_frame_t;
+
 typedef struct mp3_file {
     url_t* file;
     stream_t stream;
@@ -26,17 +35,13 @@ typedef struct mp3_file {
     uint64_t sbr;
     size_t bytes;
     uint64_t samples;
+    int header_size;
+    u_char head[8];
+    int hb;
     int fsize;
     char fh;
+    int (*parse_header)(u_char *, mp3_frame_t *);
 } mp3_file_t;
-
-typedef struct mp3_frame {
-    int version;
-    int layer;
-    int bitrate;
-    int sample_rate;
-    int size;
-} mp3_frame_t;
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
@@ -67,15 +72,22 @@ static int sample_rates[3][4] = {
     { 8000, 0, 16000, 32000}
 };
 
-static char *codecs[3] = {
+static int aac_sample_rates[16] = {
+    96000, 88200, 64000, 48000, 44100, 32000,
+    24000, 22050, 16000, 12000, 11025, 8000
+};
+    
+static char *codecs[4] = {
     "audio/mp1",
     "audio/mp2",
-    "audio/mp3"
+    "audio/mp3",
+    "audio/aac"
 };
 
 static int
-mp3_header(int c, int d, mp3_frame_t *mf)
+mp3_header(u_char *head, mp3_frame_t *mf)
 {
+    int c = head[0], d = head[1];
     int bx, br, sr, pad;
 
     if((c & 0xe0) != 0xe0 ||
@@ -103,6 +115,7 @@ mp3_header(int c, int d, mp3_frame_t *mf)
     mf->bitrate = bitrates[br][bx] * 1000;
     mf->sample_rate = sample_rates[sr][mf->version];
     mf->size = 144 * mf->bitrate / mf->sample_rate + pad;
+    mf->samples = 1152;
 
 #ifdef DEBUG
     fprintf(stderr, "MP3: layer %i, version %i, rate %i\n",
@@ -113,27 +126,50 @@ mp3_header(int c, int d, mp3_frame_t *mf)
 }
 
 static int
+aac_header(u_char *head, mp3_frame_t *mf)
+{
+    int profile;
+
+    if((head[0] & 0xf6) != 0xf0)
+	return -1;
+
+    if(!mf)
+	return 0;
+
+    profile = head[1] >> 6;
+    mf->sample_rate = aac_sample_rates[(head[1] >> 2) & 0xf];
+    mf->size = ((int) (head[2] & 0x3) << 11) +
+	((int) head[3] << 3) +
+	((int) (head[4] & 0xe0) >> 5);
+    mf->samples = 1024;
+    mf->bitrate = mf->size * 8 * mf->sample_rate / mf->samples;
+    mf->layer = 3;
+
+    return 0;
+}
+
+static int
 mp3_getparams(muxed_stream_t *ms)
 {
     mp3_file_t *mf = ms->private;
     url_t *f = mf->file;
     mp3_frame_t fr;
-    int c = -1, d = -1, i;
+    int i;
     int hdrok = 0;
     off_t pos = 0;
 
     for(i = 0; i < 8065; i++){
 	if(url_getc(f) == 0xff){
-	    c = url_getc(f);
-	    d = url_getc(f);
-	    if(mp3_header(c, d, &fr))
+	    char head[mf->header_size];
+	    f->read(head, 1, mf->header_size, f);
+	    if(mf->parse_header(head, &fr))
 		continue;
 	    if(++hdrok == 2){
-		f->seek(f, pos - 3, SEEK_SET);
+		f->seek(f, pos - mf->header_size - 1, SEEK_SET);
 		break;
 	    }
 	    pos = f->tell(f);
-	    f->seek(f, fr.size - 3, SEEK_CUR);
+	    f->seek(f, fr.size - mf->header_size - 1, SEEK_CUR);
 	} else {
 	    hdrok = 0;
 	}
@@ -145,7 +181,7 @@ mp3_getparams(muxed_stream_t *ms)
     mf->stream.audio.bit_rate = fr.bitrate;
     mf->stream.audio.codec = codecs[fr.layer];
     mf->stream.audio.sample_rate = fr.sample_rate;
-    if(fr.bitrate)
+    if(fr.bitrate && !ms->time)
 	ms->time = 27 * 8000000LL * mf->size / fr.bitrate;
 
     return 0;
@@ -233,17 +269,11 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp->pk.pts = mf->samples * 27000000 / mf->stream.audio.sample_rate;
 
     f = mp->data + mf->fsize;
-    while(f - mp->data < size - 2){
-	u_char fh1;
-
-	if(f - mp->data < -1)
-	    fh1 = mf->fh;
-	else
-	    fh1 = f[1];
-
-	if(!mp3_header(fh1, f[2], &fr)){
+    while(f - mp->data < size - mf->header_size){
+	memcpy(mf->head + mf->hb, f + 1 + mf->hb, mf->header_size - mf->hb);
+	if(!mf->parse_header(mf->head, &fr)){
 	    u_int br;
-	    mf->samples += 1152;
+	    mf->samples += fr.samples;
 	    mf->sbr += (uint64_t) fr.size * fr.bitrate;
 	    mf->bytes += fr.size;
 	    br = mf->sbr / mf->bytes;
@@ -262,27 +292,18 @@ mp3_packet(muxed_stream_t *ms, int str)
 	} else {
 	    if(!bh++)
 		fprintf(stderr, "MP3: bad header %02x%02x @ %llx\n",
-			fh1, f[2],
-			mf->file->tell(mf->file) + (uint64_t) (f - mp->data));
+			mf->head[0], mf->head[1],
+			mf->file->tell(mf->file) - size
+			+ (uint64_t) (f - mp->data));
 	    f++;
 	}
     }
 
     mf->fsize = f - mp->data - size;
-    if(mf->fsize < 0)
-	mf->fh = mp->data[size - 1];
-
-    return &mp->pk;
-}
-
-static packet_t *
-aac_packet(muxed_stream_t *ms, int str)
-{
-    mp3_file_t *mf = ms->private;
-    mp3_packet_t *mp;
-
-    if(!(mp = read_packet(mf)))
-	return NULL;
+    if(mf->fsize < 0){
+	mf->hb = -mf->fsize - 1;
+	memcpy(mf->head, f + 1, mf->hb);
+    }
 
     return &mp->pk;
 }
@@ -332,15 +353,20 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     f->seek(f, -4, SEEK_CUR);
     if(head[0] == 0xff &&
        (head[1] & 0xf6) == 0xf0){
-	ms->next_packet = aac_packet;
-	mf->stream.common.codec = "audio/aac";
-    } else if(!mp3_getparams(ms)){
-	ms->next_packet = mp3_packet;
-	ms->seek = mp3_seek;
+	mf->header_size = 5;
+	mf->parse_header = aac_header;
     } else {
+	mf->header_size = 2;
+	mf->parse_header = mp3_header;
+    }
+
+    if(mp3_getparams(ms)){
 	tcfree(ms);
 	return NULL;
     }
+
+    ms->next_packet = mp3_packet;
+    ms->seek = mp3_seek;
 
     tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 8);
