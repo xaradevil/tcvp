@@ -541,12 +541,19 @@ dvd_open(char *url, char *mode)
 	for(i = 0; i < vtsi->nr_of_vts_subp_streams; i++){
 	    subp_attr_t *sst = vtsi->vts_subp_attr + i;
 	    stream_t *st = df->streams + df->n_streams;
+	    uint32_t spuc = pgc->subp_control[i];
 
-	    if(!(pgc->subp_control[i] & 0x80000000))
+	    if(!(spuc & 0x80000000))
 		continue;
 
+	    tc2_print("DVD", TC2_PRINT_DEBUG,
+		      "SPU %2i [%08x] 4:3 %x, wide %x, letterbox %x, "
+		      "panscan %x\n", i, spuc,
+		      spuc >> 24 & 0x1f, spuc >> 16 & 0x1f,
+		      spuc >> 8 & 0x1f, spuc & 0x1f);
+
 	    st->stream_type = STREAM_TYPE_SUBTITLE;
-	    st->common.index = 0x20 + (pgc->subp_control[i]>>spushift & 0x1f);
+	    st->common.index = 0x20 + (spuc >> spushift & 0x1f);
 	    st->common.codec = "subtitle/dvd";
 	    st->common.codec_data = df->spu_palette;
 	    st->common.codec_data_size = sizeof(df->spu_palette);
