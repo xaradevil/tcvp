@@ -40,6 +40,7 @@ module src/input/dvdnav
 module src/input/oss
 module src/input/vheader
 module src/input/video
+module src/keys
 module src/output/audio
 module src/output/drivers/alsa
 module src/output/drivers/oss

@@ -1,0 +1,23 @@
+module		keys
+name		"TCVP/keys"
+version		0.2.0
+tc2version	0.6.0
+sources		keys.c
+
+postinit	keys_init_bindings
+shutdown	keys_free_bindings
+
+import		"tcvp/event"	"alloc"
+import		"tcvp/event"	"new"
+import		"tcvp/event"	"sendv"
+
+TCVP {
+	module "tcvp/keys" {
+		new keys_new
+		init keys_init
+		event control TCVP_KEY key_event
+	}
+	event TCVP_KEY key_alloc NULL NULL
+}
+
+option *bind key%s origin%s action%s

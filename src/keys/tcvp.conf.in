@@ -1,0 +1,5 @@
+# -*- tcconf -*-
+bind 'q'	'*'	'quit'
+bind 'Up'	'video'	'send(TCVP_SEEK, 60000, 1)'
+bind 'Down'	'video'	'send(TCVP_SEEK, -60000, 1)'
+bind 'space'	'video'	'send(TCVP_PAUSE)'
