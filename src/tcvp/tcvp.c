@@ -48,7 +48,7 @@ tcvp_init(char *arg)
 		   stream->streams[i].audio.channels);
 	    break;
 	case STREAM_TYPE_VIDEO:
-	    printf("%s, %ix%i, %i fps\n",
+	    printf("%s, %ix%i, %f fps\n",
 		   stream->streams[i].video.codec,
 		   stream->streams[i].video.width,
 		   stream->streams[i].video.height,
@@ -74,18 +74,11 @@ tcvp_init(char *arg)
 	return 0;
     }
 
-/*     fprintf(stderr, "%s:%i\n", __FILE__, __LINE__); */
     sound = output_audio_open((audio_stream_t *)&stream->streams[i], NULL);
-/*     fprintf(stderr, "%s:%i\n", __FILE__, __LINE__); */
     codec = cnew(sound);
-/*     fprintf(stderr, "%s:%i\n", __FILE__, __LINE__); */
     demux = video_play(stream, &codec);
-/*     fprintf(stderr, "%s:%i\n", __FILE__, __LINE__); */
 
     demux->start(demux);
-/*     fprintf(stderr, "%s:%i\n", __FILE__, __LINE__); */
-/*     sound->start(sound); */
-/*     fprintf(stderr, "%s:%i\n", __FILE__, __LINE__); */
 
     return 0;
 }
