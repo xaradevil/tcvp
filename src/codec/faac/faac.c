@@ -18,6 +18,8 @@ typedef struct faac_enc {
     int bpos;
     int encbufsize;
     int samples;
+    int ssize;
+    uint64_t pts;
 } faac_enc_t;
 
 typedef struct faac_packet {
@@ -43,7 +45,7 @@ encode(tcvp_pipe_t *p, packet_t *pk)
     u_char *buf = malloc(ae->encbufsize);
 
     if(size < ae->bufsize)
-	memset(ae->buf + ae->bufsize, 0, ae->bufsize - size);
+	memset(ae->buf + ae->bpos, 0, ae->bufsize - size);
     esize = faacEncEncode(ae->fe, (int32_t *) ae->buf, ae->samples,
 			  buf, ae->encbufsize);
     if(esize > 0){
@@ -54,6 +56,11 @@ encode(tcvp_pipe_t *p, packet_t *pk)
 	opk->pk.planes = 1;
 	opk->data = buf;
 	opk->size = esize;
+	if(ae->pts != -1){
+	    opk->pk.flags |= TCVP_PKT_FLAG_PTS;
+	    opk->pk.pts = ae->pts;
+	    ae->pts = -1;
+	}
 	p->next->input(p->next, &opk->pk);
     }
 
@@ -75,6 +82,10 @@ faac_input(tcvp_pipe_t *p, packet_t *pk)
 	p->next->input(p->next, pk);
 	return 0;
     }
+
+    if(pk->flags & TCVP_PKT_FLAG_PTS)
+	ae->pts = pk->pts -
+	    ae->bpos * 27000000 / ae->ssize / p->format.audio.sample_rate;
 
     data = pk->data[0];
     size = pk->sizes[0];
@@ -112,7 +123,6 @@ faac_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     faac_enc_t *ae = p->private;
     faacEncConfiguration *fec;
     u_long insamples, bufsize;
-    int ssize;
 
     ae->fe = faacEncOpen(s->audio.sample_rate, s->audio.channels,
 			 &insamples, &bufsize);
@@ -122,13 +132,13 @@ faac_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     fec = faacEncGetCurrentConfiguration(ae->fe);
     if(!strcmp(s->common.codec, "audio/pcm-s16" TCVP_ENDIAN)){
 	fec->inputFormat = FAAC_INPUT_16BIT;
-	ssize = 2;
+	ae->ssize = 2;
     } else if(!strcmp(s->common.codec, "audio/pcm-s24" TCVP_ENDIAN)){
 	fec->inputFormat = FAAC_INPUT_24BIT;
-	ssize = 3;
+	ae->ssize = 3;
     } else if(!strcmp(s->common.codec, "audio/pcm-s32" TCVP_ENDIAN)){
 	fec->inputFormat = FAAC_INPUT_32BIT;
-	ssize = 4;
+	ae->ssize = 4;
     } else {
 	fprintf(stderr, "FAAC: unsupported sample format %s\n",
 		s->common.codec);
@@ -141,7 +151,7 @@ faac_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(!faacEncSetConfiguration(ae->fe, fec))
 	return PROBE_FAIL;
 
-    ae->bufsize = insamples * ssize;
+    ae->bufsize = insamples * ae->ssize;
     ae->buf = malloc(ae->bufsize);
     ae->samples = insamples;
     ae->encbufsize = bufsize;
@@ -173,6 +183,7 @@ faac_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     faac_enc_t *ae;
 
     ae = calloc(1, sizeof(*ae));
+    ae->pts = -1;
 
     p = tcallocdz(sizeof(*p), NULL, faac_free);
     p->format.common.codec = "audio/aac";
