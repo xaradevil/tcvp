@@ -44,18 +44,23 @@ pcmw_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     pcm_write_t *pcm;
     char *file;
     url_t *u;
+    int ret = -1;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &file) <= 0)
-	return -1;
+	goto out;
 
     if(!(u = url_open(file, "w")))
-	return -1;
+	goto out;
 
     pcm = tcallocdz(sizeof(*pcm), NULL, pcmw_free);
     pcm->u = u;
     p->private = pcm;
 
-    return 0;
+    ret = 0;
+
+  out:
+    free(file);
+    return ret;
 }
 
 extern int
@@ -63,10 +68,9 @@ pcmw_packet(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     pcm_write_t *pcm = p->private;
 
-    if(!pk->data)
-	return 0;
+    if(pk->data)
+	pcm->u->write(pk->data[0], 1, pk->sizes[0], pcm->u);
 
-    pcm->u->write(pk->data[0], 1, pk->sizes[0], pcm->u);
-
+    tcfree(pk);
     return 0;
 }
