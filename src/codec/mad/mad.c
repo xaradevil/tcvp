@@ -45,7 +45,8 @@ typedef struct mad_dec {
     pthread_mutex_t lock;
     int flush;
     mad_packet_t *out;
-    int bs, pfs;
+    int channels;
+    int bs;
     int bufsize;
     u_char *buf;
     uint64_t npts;
@@ -182,7 +183,7 @@ output(tcvp_pipe_t *tp, struct mad_header const *header, struct mad_pcm *pcm)
     right = pcm->samples[1];
 
     if(!md->out)
-	md->out = mad_alloc(channels);
+	md->out = mad_alloc(md->channels);
 
     while(samples--){
 	int sample;
@@ -195,10 +196,10 @@ output(tcvp_pipe_t *tp, struct mad_header const *header, struct mad_pcm *pcm)
 	    *md->out->dp++ = sample;
 	}
 
-	if(md->out->dp - md->out->data == OUT_PACKET_SIZE(channels)){
-	    md->out->size = OUT_PACKET_SIZE(channels) * 2;
+	if(md->out->dp - md->out->data == OUT_PACKET_SIZE(md->channels)){
+	    md->out->size = OUT_PACKET_SIZE(md->channels) * 2;
 	    tp->next->input(tp->next, &md->out->pk);
-	    md->out = mad_alloc(channels);
+	    md->out = mad_alloc(md->channels);
 	}
     }
 
@@ -332,6 +333,7 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     s->audio.sample_rate = mf.sample_rate;
     s->audio.channels = mf.channels;
     s->audio.bit_rate = mf.bitrate;
+    md->channels = mf.channels;
 
     tcfree(pk);
 
@@ -350,7 +352,6 @@ mad_flush(tcvp_pipe_t *p, int drop)
 	    mad_free_pk(&md->out->pk);
 	md->out = NULL;
 	md->bs = 0;
-	md->pfs = 0;
 	pthread_mutex_unlock(&md->lock);
     }
 
@@ -371,7 +372,7 @@ mad_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
+mad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 {
     mad_dec_t *md;
     tcvp_pipe_t *p;
