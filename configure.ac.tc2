@@ -16,6 +16,7 @@ AC_CONFIG_FILES([Makefile
 		 src/demuxer/avformat/Makefile
 		 src/demuxer/avi/Makefile
 		 src/demuxer/mp3/Makefile
+		 src/demuxer/mpeg/Makefile
 		 src/demuxer/ogg/Makefile
 		 src/demuxer/stream/Makefile
 		 src/codec/Makefile
