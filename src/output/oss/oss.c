@@ -34,6 +34,7 @@ typedef struct oss_out {
     int state;
     pthread_mutex_t mx;
     pthread_cond_t cd;
+    char *device;
 } oss_out_t;
 
 #define RUN   1
@@ -49,7 +50,6 @@ oss_start(tcvp_pipe_t *p)
     ao->state = RUN;
     pthread_cond_broadcast(&ao->cd);
     pthread_mutex_unlock(&ao->mx);
-    
 
     return 0;
 }
@@ -71,8 +71,9 @@ oss_free(void *p)
     oss_out_t *ao = tp->private;
 
     close(ao->fd);
+    if(ao->device)
+	free(ao->device);
     free(ao);
-    free(p);
 }
 
 static int
@@ -116,44 +117,42 @@ oss_play(tcvp_pipe_t *p, packet_t *pk)
     return 0;
 }
 
-extern tcvp_pipe_t *
-oss_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
+static int
+oss_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
+    oss_out_t *ao = p->private;
     audio_stream_t *as = &s->audio;
-    tcvp_pipe_t *tp;
-    oss_out_t *ao;
     int dsp;
     u_int rate = as->sample_rate, channels = as->channels;
     u_int format = AFMT_S16_LE;
-    char *device = NULL;
+    char *device = ao->device;
 
-    if(cs)
-	tcconf_getvalue(cs, "audio/device", "%s", &device);
+    p->format = *s;
 
     if(!device)
-	device = strdup("/dev/dsp");
+	device = "/dev/dsp";
 
     if((dsp = open(device, O_WRONLY)) < 0){
 	perror(device);
-	return NULL;
+	return PROBE_FAIL;
     }
 
     if(ioctl(dsp, SNDCTL_DSP_SETFMT, &format) == -1){
 	perror("ioctl");
 	close(dsp);
-	return NULL;
+	return PROBE_FAIL;
     }
 
     if(ioctl(dsp, SNDCTL_DSP_CHANNELS, &channels) == -1){
 	perror("ioctl");
 	close(dsp);
-	return NULL;
+	return PROBE_FAIL;
     }
 
     if(ioctl(dsp, SNDCTL_DSP_SPEED, &rate) == -1){
 	perror("ioctl");
 	close(dsp);
-	return NULL;
+	return PROBE_FAIL;
     }
 
     if(channels != as->channels){
@@ -165,8 +164,18 @@ oss_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
 		as->sample_rate);
     }
 
-    ao = malloc(sizeof(*ao));
     ao->fd = dsp;
+
+    return PROBE_OK;
+}
+
+extern tcvp_pipe_t *
+oss_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
+{
+    tcvp_pipe_t *tp;
+    oss_out_t *ao;
+
+    ao = calloc(1, sizeof(*ao));
     ao->state = PAUSE;
     pthread_mutex_init(&ao->mx, NULL);
     pthread_cond_init(&ao->cd, NULL);
@@ -176,9 +185,11 @@ oss_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **timer)
     tp->start = oss_start;
     tp->stop = oss_stop;
     tp->flush = oss_flush;
+    tp->probe = oss_probe;
     tp->private = ao;
 
-    free(device);
+    if(cs)
+	tcconf_getvalue(cs, "audio/device", "%s", &ao->device);
 
     return tp;
 }
