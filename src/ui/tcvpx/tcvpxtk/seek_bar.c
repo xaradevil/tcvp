@@ -90,7 +90,7 @@ change_seek_bar(xtk_widget_t *xw, double position)
 {
     tcseek_bar_t *w = (tcseek_bar_t *) xw;
 
-    if(w->enabled && (w->state & LABEL_DRAG) == 0) {
+    if(w->enabled && (w->state & LABEL_DRAG) == 0 && position >=0 && position <=1) {
 	w->position = position;
 	w->repaint((xtk_widget_t *) w);
 	draw_widget((tcwidget_t *) w);
