@@ -49,7 +49,7 @@ static int intr;
 static tcconf_section_t *cf;
 static int validate;
 static eventq_t qr, qs;
-static int have_ui;
+static int have_ui, have_local;
 static int shuffle;
 static int prl;
 static char **modnames, **nmodnames;
@@ -270,7 +270,7 @@ tcl_init(char *p)
 {
     char *qname = NULL, *qn;
     struct sigaction sa;
-    tcconf_section_t *tcvp_conf, *prconf = NULL;
+    tcconf_section_t *tcvp_conf, *prconf = NULL, *localf;
     char *profile = NULL;
     int i;
 
@@ -331,6 +331,11 @@ tcl_init(char *p)
     }
 
     have_ui = !tcconf_getvalue(cf, "features/local/ui", "");
+    localf = tcconf_getsection(cf, "features/local");
+    if(localf){
+	have_local = 1;
+	tcfree(localf);
+    }
 
     if(!have_cmds && !nfiles && !npl && !have_ui && !isdaemon && !shuffle){
 	show_help();
@@ -388,7 +393,7 @@ tcl_init(char *p)
     for(i = 0; i < ncmds; i++)
 	tcvp_event_send(qs, tcvp_event_get(commands[i]));
 
-    if(!have_cmds && (have_ui || !strstr(qname, "remote"))){
+    if(!have_cmds && have_local){
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
