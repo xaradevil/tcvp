@@ -352,6 +352,7 @@ create_label(skin_t *skin, int x, int y, int width, int height,
 	     int xoff, int yoff, char *text, char *font,
 	     char *color, short alpha, int scroll, action_cb_t action)
 {
+    long emask;
     XColor xc;
     XParseColor(xd, DefaultColormap(xd, xs), color, &xc);
 
@@ -410,12 +411,13 @@ create_label(skin_t *skin, int x, int y, int width, int height,
 
     change_label(txt, text);
 
+    emask = ExposureMask;
     list_push(widget_list, txt);
     if(action){
 	txt->onclick = widget_onclick;
 	txt->action = action;
 	list_push(click_list, txt);
-	XSelectInput(xd, txt->win, ButtonPressMask);
+	emask |= ButtonPressMask;
     }
     if((txt->scroll & TCLABELSTANDARD)==0) {
 	list_push(sl_list, txt);
@@ -423,13 +425,10 @@ create_label(skin_t *skin, int x, int y, int width, int height,
 	txt->ondrag = label_ondrag;
 	txt->drag_begin = label_drag_begin;
 	txt->drag_end = label_drag_end;
-	XSelectInput(xd, txt->win, ButtonPressMask | PointerMotionMask |
-		     ButtonReleaseMask | ExposureMask);
-    } else if(action){
-	XSelectInput(xd, txt->win, ButtonPressMask | ExposureMask);
-    } else {
-	XSelectInput(xd, txt->win, ExposureMask);
-    }	
+	emask |= ButtonPressMask | PointerMotionMask | ButtonReleaseMask;
+    }
+
+    XSelectInput(xd, txt->win, emask);
 
     return txt;
 }

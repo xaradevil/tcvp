@@ -47,7 +47,7 @@ Pixmap root;
 int root_width;
 int root_height;
 int depth;
-tcwidget_t *drag;
+tcwidget_t *drag, *pbt;
 
 extern void *
 x11_event(void *p)
@@ -80,6 +80,11 @@ x11_event(void *p)
 		    drag = NULL;
 		}
 	    }
+	    if(pbt) {
+		if(pbt->common.release){
+		    pbt->common.release(pbt, &xe);
+		}
+	    }
 	    break;
 	}
 
@@ -103,6 +108,10 @@ x11_event(void *p)
 		    if(w->common.onclick){
 			w->common.onclick(w, &xe);
 		    }
+		    if(w->common.press){
+			w->common.press(w, &xe);
+			pbt = w;
+		    }
 		}
 	    }
 
@@ -113,6 +122,38 @@ x11_event(void *p)
 			if(w->common.drag_begin){
 			    w->common.drag_begin(w, &xe);
 			}
+		    }
+		}
+	    }
+
+	    break;
+	}
+
+ 	case EnterNotify:
+	{
+	    list_item *current=NULL;
+	    tcwidget_t *w;
+
+	    while((w = list_next(click_list, &current))!=NULL) {
+		if(xe.xbutton.window == w->common.win){
+		    if(w->common.enter){
+			w->common.enter(w, &xe);
+		    }
+		}
+	    }
+
+	    break;
+	}
+
+	case LeaveNotify:
+	{
+	    list_item *current=NULL;
+	    tcwidget_t *w;
+
+	    while((w = list_next(click_list, &current))!=NULL) {
+		if(xe.xbutton.window == w->common.win){
+		    if(w->common.exit){
+			w->common.exit(w, &xe);
 		    }
 		}
 	    }

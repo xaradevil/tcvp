@@ -83,6 +83,7 @@ create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
 {
     int i;
     tcstate_t *st = calloc(sizeof(tcstate_t), 1);
+    long emask;
 
     st->type = TCSTATE;
     st->x = x;
@@ -113,15 +114,16 @@ create_state(skin_t *skin, int x, int y, int num_states, char **imagefiles,
 
     change_state(st, state);
 
+    emask = ExposureMask;
     list_push(widget_list, st);
     if(action){
 	st->action = action;
 	st->onclick = widget_onclick;
 	list_push(click_list, st);
-	XSelectInput(xd, st->win, ButtonPressMask | ExposureMask);
-    } else {
-	XSelectInput(xd, st->win, ExposureMask);
+	emask |= ButtonPressMask;
     }
+
+    XSelectInput(xd, st->win, emask);
 
     return st;
 }

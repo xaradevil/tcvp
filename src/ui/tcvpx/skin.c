@@ -85,7 +85,7 @@ create_skinned_background(skin_t *skin, conf_section *sec)
 static tcimage_button_t*
 create_skinned_button(skin_t *skin, conf_section *sec, action_cb_t acb)
 {
-    char *file;
+    char *file, *of = NULL, *df = NULL;
     int x, y;
     int i=0;
 
@@ -96,7 +96,10 @@ create_skinned_button(skin_t *skin, conf_section *sec, action_cb_t acb)
 	return NULL;
     }
 
-    return(create_button(skin, x, y, file, acb));
+    conf_getvalue(sec, "mouse_over", "%s", &of);
+    conf_getvalue(sec, "pressed", "%s", &df);
+
+    return(create_button(skin, x, y, file, of, df, acb));
 }
 
 

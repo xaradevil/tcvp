@@ -49,11 +49,52 @@ destroy_button(tcwidget_t *w)
 }
 
 
+static int
+press_button(tcwidget_t *w, XEvent *xe)
+{
+    w->button.img = w->button.down_img;
+    repaint_button(w);
+    draw_widget(w);
+    return 0;
+}
+
+
+static int
+release_button(tcwidget_t *w, XEvent *xe)
+{
+    w->button.img = w->button.bgimg;
+    repaint_button(w);
+    draw_widget(w);
+    return 0;
+}
+
+
+static int
+enter_button(tcwidget_t *w, XEvent *xe)
+{
+    w->button.img = w->button.over_img;
+    repaint_button(w);
+    draw_widget(w);
+    return 0;
+}
+
+
+static int
+exit_button(tcwidget_t *w, XEvent *xe)
+{
+    w->button.img = w->button.bgimg;
+    repaint_button(w);
+    draw_widget(w);
+    return 0;
+}
+
+
 extern tcimage_button_t*
-create_button(skin_t *skin, int x, int y, char *imagefile,
-	      action_cb_t action)
+create_button(skin_t *skin, int x, int y, char *imagefile, char *over_image,
+	      char *down_image, action_cb_t action)
 {
     tcimage_button_t *btn = calloc(sizeof(tcimage_button_t), 1);
+    long emask = 0;
 
     btn->type = TCIMAGEBUTTON;
     btn->x = x;
@@ -61,10 +102,23 @@ create_button(skin_t *skin, int x, int y, char *imagefile,
     btn->repaint = repaint_button;
     btn->destroy = destroy_button;
     btn->skin = skin;
-    btn->img = load_image(skin->path, imagefile);
+    btn->img = btn->bgimg = load_image(skin->path, imagefile);
     btn->width = btn->img->width;
     btn->height = btn->img->height;
     btn->enabled = 1;
+
+    if(over_image != NULL) {
+	btn->over_img = load_image(skin->path, over_image);
+	emask |= EnterWindowMask | LeaveWindowMask;
+	btn->enter = enter_button;
+	btn->exit = exit_button;
+    }
+    if(down_image != NULL) {
+	btn->down_img = load_image(skin->path, down_image);
+	emask |= ButtonPressMask | ButtonReleaseMask;
+	btn->press = press_button;
+	btn->release = release_button;
+    }
 
     btn->win = XCreateWindow(xd, skin->xw, btn->x, btn->y,
 			     btn->width, btn->height,
@@ -74,14 +128,16 @@ create_button(skin_t *skin, int x, int y, char *imagefile,
 				btn->height, depth);
 
     list_push(widget_list, btn);
+    emask |= ExposureMask;
+
     if(action){
 	btn->action = action;
 	btn->onclick = widget_onclick;
 	list_push(click_list, btn);
-	XSelectInput(xd, btn->win, ButtonPressMask | ExposureMask);
-    } else {
-	XSelectInput(xd, btn->win, ExposureMask);
+	emask |= ButtonPressMask;
     }
+
+    XSelectInput(xd, btn->win, emask);
 
     return btn;
 }

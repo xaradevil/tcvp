@@ -50,6 +50,10 @@ typedef struct _skin_t skin_t;
     on_xevent_cb_t drag_begin;			\
     on_xevent_cb_t ondrag;			\
     on_xevent_cb_t drag_end;			\
+    on_xevent_cb_t enter;			\
+    on_xevent_cb_t exit;			\
+    on_xevent_cb_t press;			\
+    on_xevent_cb_t release;			\
     action_cb_t action;				\
     widget_cb_t repaint;			\
     widget_cb_t destroy;			\
@@ -77,6 +81,9 @@ typedef struct {
 typedef struct {
     WIDGET_COMMON;
     image_info_t *img;
+    image_info_t *bgimg;
+    image_info_t *over_img;
+    image_info_t *down_img;
 } tcimage_button_t;
 
 typedef struct {
@@ -146,7 +153,8 @@ int update_root(skin_t *skin);
 tcbackground_t* create_background(skin_t *skin, char *imagefile);
 
 tcimage_button_t* create_button(skin_t *skin, int x, int y,
- 			       char *imagefile, action_cb_t action);
+				char *imagefile, char *over_image,
+				char *down_image, action_cb_t action);
 
 int change_label(tclabel_t *txt, char *text);
 tclabel_t* create_label(skin_t *skin, int x, int y, int width, int height,

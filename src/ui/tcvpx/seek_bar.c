@@ -150,6 +150,7 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 		double position, action_cb_t action)
 {
     tcseek_bar_t *sb = calloc(sizeof(tcseek_bar_t), 1);
+    long emask;
 
     sb->type = TCSEEKBAR;
     sb->x = x;
@@ -175,15 +176,16 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
     sb->pixmap = XCreatePixmap(xd, skin->xw, sb->width,
 				sb->height, depth);
 
+    emask = ExposureMask;
     list_push(widget_list, sb);
     if(action){
 	sb->onclick = seek_bar_onclick;
 	sb->action = action;
 	list_push(click_list, sb);
-	XSelectInput(xd, sb->win, ButtonPressMask | ExposureMask);
-    } else {
-	XSelectInput(xd, sb->win, ExposureMask);
+	emask |= ButtonPressMask;
     }
+
+    XSelectInput(xd, sb->win, emask);
 
     return sb;
 }
