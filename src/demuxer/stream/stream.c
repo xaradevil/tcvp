@@ -99,8 +99,8 @@ typedef struct s_play {
 	list *pq;
 	sem_t ps;
 	uint64_t pts;
+	int eof;
     } *streams;
-    int eof;
 } s_play_t;
 
 typedef struct vp_thread {
@@ -147,7 +147,9 @@ wstream(s_play_t *vp)
     uint64_t pts = -1;
 
     for(i = 0; i < vp->stream->n_streams; i++){
-	if(vp->streams[i].pts < pts &&
+	if(vp->stream->used_streams[i] &&
+	   !vp->streams[i].eof &&
+	   vp->streams[i].pts < pts &&
 	   list_items(vp->streams[i].pq) < min_buffer){
 	    s = i;
 	    pts = vp->streams[i].pts;
@@ -171,12 +173,8 @@ read_stream(void *p)
 	while((s = wstream(vp)) >= 0 && vp->state != STOP){
 	    packet_t *p = vp->stream->next_packet(vp->stream, s);
 	    if(!p){
-		pthread_mutex_lock(&vp->mtx);
-		vp->eof = 1;
-		pthread_cond_broadcast(&vp->cnd);
-		pthread_mutex_unlock(&vp->mtx);
-		for(s = 0; s < vp->stream->n_streams; s++)
-		    sem_post(&vp->streams[s].ps);
+		vp->streams[s].eof = 1;
+		sem_post(&vp->streams[s].ps);
 		break;
 	    }
 	    if(p->flags & TCVP_PKT_FLAG_PTS)
@@ -199,7 +197,7 @@ get_packet(s_play_t *vp, int s)
 	sem_wait(&vp->streams[s].ps);
     }
     p = list_shift(vp->streams[s].pq);
-    if(list_items(vp->streams[s].pq) < min_buffer && !vp->eof)
+    if(list_items(vp->streams[s].pq) < min_buffer && !vp->streams[s].eof)
 	sem_post(&vp->rsm);
     return p;
 }
@@ -287,9 +285,8 @@ s_flush(tcvp_pipe_t *p, int drop)
 		while(!sem_trywait(&vp->streams[i].ps));
 	    }
 	}
+	vp->streams[i].eof = 0;
     }
-
-    vp->eof = 0;
 
     pthread_mutex_lock(&vp->mtx);
     if(--vp->flushing == 0)
@@ -388,6 +385,7 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
     conf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 9);
     sprintf(qn, "%s/status", qname);
+    free(qname);
     vp->sq = eventq_new(NULL);
     eventq_attach(vp->sq, qn, EVENTQ_SEND);
 
