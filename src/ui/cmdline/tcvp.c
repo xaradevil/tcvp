@@ -356,7 +356,7 @@ parse_options(int argc, char **argv)
 	}
 
 	case 'o':
-	    tcconf_setvalue(cf, "mux/url", "%s", optarg);
+	    tcconf_setvalue(cf, "outname", "%s", optarg);
 	    break;
 
 	case 'P':

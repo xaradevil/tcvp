@@ -37,6 +37,7 @@ typedef struct tcvp_player {
     tcconf_section_t *conf;
     int open;
     hash_table *filters;
+    char *outfile;
 } tcvp_player_t;
 
 typedef union tcvp_core_event {
@@ -158,6 +159,11 @@ t_close(player_t *pl)
     if(tp->timer){
 	tcfree(tp->timer);
 	tp->timer = NULL;
+    }
+
+    if(tp->outfile){
+	free(tp->outfile);
+	tp->outfile = NULL;
     }
 
     tp->open = 0;
@@ -324,6 +330,8 @@ new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p)
 
 	    mcf = tcconf_merge(NULL, f);
 	    tcconf_merge(mcf, tp->conf);
+	    if(tp->outfile)
+		tcconf_setvalue(mcf, "mux/url", "%s", tp->outfile);
 
 	    if(!(pn = fn(pp? &pp->format: s, mcf, tp->timer)))
 		break;
@@ -364,6 +372,21 @@ pipe_end(tcvp_pipe_t *p)
     return p;
 }
 
+static char *
+exp_stream(char *n, void *p)
+{
+    muxed_stream_t *ms = p;
+
+    if(!strcmp(n, "title"))
+	return ms->title;
+    else if(!strcmp(n, "performer") || !strcmp(n, "artist"))
+	return ms->performer;
+    else if(!strcmp(n, "file"))
+	return ms->file;
+
+    return NULL;
+}
+
 static int
 t_open(player_t *pl, char *name)
 {
@@ -379,6 +402,7 @@ t_open(player_t *pl, char *name)
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
     tcconf_section_t *prsec, *dc;
     uint64_t start_time = -1;
+    char *outfile;
 
     if(tp->conf)
 	tcconf_getvalue(tp->conf, "profile", "%s", &profile);
@@ -407,6 +431,13 @@ t_open(player_t *pl, char *name)
 
     if(!stream){
 	return -1;
+    }
+
+    if(tcconf_getvalue(tp->conf, "outname", "%s", &outfile) > 0 ||
+       tcconf_getvalue(prsec, "outname", "%s", &outfile) > 0){
+	tp->outfile = tcstrexp(outfile, "{", "}", ':', exp_stream, stream,
+			       TCSTREXP_ESCAPE);
+	free(outfile);
     }
 
     if(tp->conf){
