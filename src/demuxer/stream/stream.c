@@ -82,7 +82,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
     if(mg){
 	int e;
 	m = strdup(mg);
-	e = strcspn(m, " ;");
+	e = strcspn(m, " \t;");
 	m[e] = 0;
 	if(strncmp(m, "audio/", 6) && strncmp(m, "video/", 6)){
 	    free(m);
