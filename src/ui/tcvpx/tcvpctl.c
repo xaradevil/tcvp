@@ -136,7 +136,9 @@ tcvp_stop(tcwidget_t *w, void *p)
 extern int
 tcvp_play(tcwidget_t *w, void *p)
 {
-    if(current_file != NULL && p_state == STOPPED) {
+    if(p_state == PLAYING) {
+	tcvp_stop(NULL, NULL);
+    } if(current_file != NULL) {
 	tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
 	te->file = current_file;
 	eventq_send(qs, te);
