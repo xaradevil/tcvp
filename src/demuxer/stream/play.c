@@ -288,13 +288,15 @@ del_stream(stream_player_t *sp, int s)
 	sh->vs = -1;
     else if(ss == sh->as)
 	sh->as = -1;
+
     close_pipe(str->pipe);
+    str->pipe = NULL;
+
     if(str->packets){
 	tclist_destroy(str->packets, tcfree);
 	str->packets = NULL;
     }
 
-    memset(sp->streams + s, 0, sizeof(*sp->streams));
     sp->ms->used_streams[s] = 0;
 
     pthread_mutex_lock(&sp->lock);
@@ -555,7 +557,6 @@ s_free(void *p)
     for(i = 0; i < sp->nstreams; i++){
 	if(sp->streams[i].th)
 	    pthread_join(sp->streams[i].th, NULL);
-	del_stream(sp, i);
     }
 
     tcfree(sp->ms);
@@ -602,7 +603,7 @@ free_shared(void *p)
     tcfree(sh->profile);
     tcfree(sh->conf);
     tcfree(sh->timer);
-    tchash_destroy(sh->filters, NULL);
+    tchash_destroy(sh->filters, tcfree);
     if(sh->outfile)
 	free(sh->outfile);
 }
