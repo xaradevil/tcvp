@@ -120,7 +120,7 @@ extern u_char *
 wav_header(stream_t *s, int *size)
 {
     u_char *head, *p;
-    int bits;
+    int bits, ssize, dsize;
 
     if(s->stream_type != STREAM_TYPE_AUDIO)
 	return NULL;
@@ -133,10 +133,13 @@ wav_header(stream_t *s, int *size)
 	return NULL;
     }
 
+    ssize = bits * s->audio.channels / 8;
+    dsize = s->audio.samples * ssize;
+
     p = head = malloc(WAV_HEADER_SIZE);
 
     store(TAG('R','I','F','F'), p, 32);
-    store(0, p, 32);
+    store(dsize + WAV_HEADER_SIZE - 8, p, 32);
     store(TAG('W','A','V','E'), p, 32);
 
     store(TAG('f','m','t',' '), p, 32);
@@ -145,11 +148,11 @@ wav_header(stream_t *s, int *size)
     store(s->audio.channels, p, 16);
     store(s->audio.sample_rate, p, 32);
     store(s->audio.bit_rate / 8, p, 32);
-    store(bits * s->audio.channels / 8, p, 16);	/* block align */
+    store(ssize, p, 16);	/* block align */
     store(bits, p, 16);
 
     store(TAG('d','a','t','a'), p, 32);
-    store(0, p, 32);
+    store(dsize, p, 32);
 
     *size = p - head;
     return head;

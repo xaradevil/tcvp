@@ -1,1 +1,5 @@
 inherit "mux"
+symbol "header" u_char *(*%s)(stream_t *, int *)
+include
+#include <tctypes.h>
+#include <tcvp_types.h>
