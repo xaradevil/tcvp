@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2004-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -127,6 +127,7 @@ pid_free(void *p)
     stream_shared_t *sh = tcattr_get(p, "stream-shared");
     tc2_print("STREAM", TC2_PRINT_DEBUG, "removing %s from hash\n", p);
     tchash_delete(sh->filters, p, -1, NULL);
+    tcfree(p);
 }
 
 extern tcvp_pipe_t *
@@ -136,6 +137,7 @@ new_pipe(stream_shared_t *sh, muxed_stream_t *ms, stream_t *s)
     tcconf_section_t *f, *mcf;
     tcconf_section_t *pr = NULL;
     void *cs = NULL;
+    int skip = 0;
 
     switch(s->stream_type){
     case STREAM_TYPE_VIDEO:
@@ -155,6 +157,11 @@ new_pipe(stream_shared_t *sh, muxed_stream_t *ms, stream_t *s)
     while((f = tcconf_nextsection(pr, "filter", &cs))){
 	char *type, *id = NULL;
 	filter_new_t fn;
+
+	if(skip){
+	    tcfree(f);
+	    continue;
+	}
 
 	pn = NULL;
 
@@ -211,7 +218,7 @@ new_pipe(stream_shared_t *sh, muxed_stream_t *ms, stream_t *s)
 	if(pp->next){
 	    while((pp = pp->next))
 		tcref(pp);
-	    break;
+	    skip = 1;
 	}
     }
 
