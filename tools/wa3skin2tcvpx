@@ -1,7 +1,7 @@
-#! /usr/bin/perl
+#! /usr/bin/env perl
 # -*- mmm-classes: here-doc -*-
 
-# Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+# Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -24,6 +24,11 @@
 
 use strict;
 
+# the xml parser has a bad habit of hanging without this
+$ENV{LC_ALL} = 'C';
+
+use locale;
+use utf8;
 use File::Temp qw/tempdir/;
 use POSIX qw/floor/;
 use File::Basename;
@@ -63,7 +68,7 @@ my $xml = new XML::Parser(Handlers => {Start => \&tag_start,
 my $space;
 
 my(%images, %groups, %layouts, $lc, $lg, $group, %imagefiles, $container);
-my(%fonts);
+my(%fonts, $grplvl);
 my $xmldir = $sd;
 
 sub max {
@@ -114,8 +119,12 @@ sub write_image {
 	return;
     }
     my $im = $images{$id};
-    if($h and ($w != $$im{width} or $h != $$im{height})){
-	gimp_image_scale($$im{img}, $w, $h);
+    if($h and $w and ($w != $$im{width} or $h != $$im{height})){
+	if($w <= 0 or $h <= 0){
+	    print STDERR "invalid size ${w}x$h requested for image $id\n";
+	} else {
+	    gimp_image_scale($$im{img}, $w, $h);
+	}
     }
     save_image $images{$id}{img}, "$id.png";
 }
@@ -206,15 +215,24 @@ sub get_font {
     return undef unless exists $fonts{$f}{file};
     my $fnt = $fonts{$f};
     my $img = load_image $$fnt{file};
-    my($color, $tt, $tb) = text_properties $img, $$fnt{charheight};
-    my $th = $tb - $tt + 1;
-    my $pxs = floor($th * 1.4);
-    my $asp = $$fnt{charwidth} / ($$fnt{charheight} / 1.3);
-    $$fnt{face} = "arial:pixelsize=$pxs:aspect=$asp:weight=bold";
-    $$fnt{color} = sprintf "rgb:%02x/%02x/%02x", @$color;
-    $$fnt{top} = $tt;
-    $$fnt{bottom} = $tb;
-    $$fnt{height} = $th;
+
+    my $w = gimp_image_width($img);
+    my $h = gimp_image_height($img);
+    save_rect $img, 0, 0, 31 * $$fnt{charwidth}, 3 * $$fnt{charheight},
+      $$fnt{name};
+    write_image $$fnt{name};
+
+    my $chars = q|ABCDEFGHIJKLMNOPQRSTUVWXYZ\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=$#ÅÖÄ?|;
+
+    $$fnt{text} = <<END_TCCONF;
+bitmap [
+	file '$$fnt{name}.png'
+	columns 31
+	rows 3
+	characters "$chars"
+]
+END_TCCONF
+    $$fnt{color} = "rgb:ff/ff/ff";
 
     return $fnt;
 }
@@ -237,14 +255,14 @@ my %actions = (prev => 'previous',
 my %display = (songname =>
 	       { text => q/'${title:u} - ${performer:u}'/,
 		 align => q/left/,
-		 scroll_style => 2 },
+		 scroll_style => q/'scroll'/ },
 	       time =>
-	       { text => q/'${time} '/,
+	       { text => q/'${time}'/,
 		 align => q/right/,
 		 action => q/'toggle_time'/},
 	       songinfo =>
-	       { text => q/'${audio_bitrate} kbps  ${audio_samplerate} kHz'/,
-		 scroll_style => 2 });
+	       { text => q/'${audio_bitrate} KBPS  ${audio_samplerate} KHZ'/,
+		 scroll_style => q/'scroll'/ });
 
 my %sliders = (seek =>
 	       { action => q/'seek'/,
@@ -278,22 +296,25 @@ sub tag_start {
     my(undef, $tag, %attr) = @_;
     return if $tag eq 'foo';
     $tag = lc $tag;
-    print qq/$space$tag @{[map "$_=\"$attr{$_}\"", keys %attr]}\n/;
-    $space .= '    ';
+    #print qq/$space$tag @{[map "$_=\"$attr{$_}\"", keys %attr]}\n/;
+    #$space .= '    ';
     map $attr{lc $_} = $attr{$_}, keys %attr;
     my($x, $y, $w, $h, $id) = @attr{'x', 'y', 'w', 'h', 'id'};
     my %wdg = (x => $x, 'y' => $y, width => $w, height => $h,
 	       rx => $attr{relatx}, ry => $attr{relaty},
-	       rw => $attr{relatw}, rh => $attr{relath});
+	       rw => $attr{relatw}, rh => $attr{relath}, id => $id);
 
     if($tag eq 'include'){			  # include
 	my $xd = $xmldir;
 	my $file = lc $attr{file};
+	print "$space$file\n";
+	$space .= '    ';
 	$xmldir = "$xmldir/" . dirname $file;
 	open F, "$xmldir/" . basename $file;
 	$xml->parse(join('', '<foo>', <F>, '</foo>'));
 	close F;
 	$xmldir = $xd;
+	$space = substr $space, 0, -4;
     } elsif($tag eq 'groupdef'){		  # groupdef
 	my $n = tag_name $id;
 	$groups{$id}{id} = $id;
@@ -306,6 +327,7 @@ sub tag_start {
 	$$group{height} = $h;
 	$$group{text} = "$n [\n";
 	$$group{name} = $n;
+	$grplvl++;
     } elsif($tag =~ /(toggle)?button/){		  # button
 	my $img = $attr{image};
 	return unless exists $images{$img};
@@ -316,6 +338,7 @@ sub tag_start {
 button [
 	action '$action'
 	image '$img.png'
+	shaped 1
 END_TCCONF
 	write_image $img;
 	if($attr{hoverimage}){
@@ -360,6 +383,8 @@ END_TCCONF
 	$$group{width} = $w;
 	$$group{height} = $h;
 	$$group{text} = $tx;
+	print STDERR "WARNING: grplvl=$grplvl\n" if $grplvl > 0;
+	$grplvl = 1;
     } elsif($tag eq 'group'){			  # group
 	my $gn = tag_name $attr{id};
 	$wdg{x} = 0 unless defined $x;
@@ -385,6 +410,7 @@ END_TCCONF
     } elsif($tag eq 'container'){		  # container
 	$container = $attr{id};
     } elsif($tag eq 'bitmapfont'){		  # bitmapfont
+	$fonts{$attr{id}}{name} = $attr{id};
 	$fonts{$attr{id}}{file} = "$sd/" . lc $attr{file};
 	$fonts{$attr{id}}{charwidth} = $attr{charwidth};
 	$fonts{$attr{id}}{charheight} = $attr{charheight};
@@ -393,20 +419,18 @@ END_TCCONF
 	  print "*** font $attr{font} not found\n" and return;
 	my $d = $display{lc $attr{display}} or
 	  print "*** display $attr{display} not found\n" and return;
-	my $dh = $h - $$font{charheight} + $$font{top};
-	$h = $$font{height};
-	$y = $y + floor($dh / 2);
-	$wdg{'y'} = $y;
-	$wdg{height} = $h;
+	my $fl = '../' x $grplvl;
 	$wdg{text} = <<END_TCCONF;
 label [
-	font '$$font{face}'
 	color '$$font{color}'
 END_TCCONF
 	my $a;
 	$wdg{text} .= "\talign '$a'\n" if $a = $attr{align} || $$d{align};
 	map { $wdg{text} .= "\t$_ $$d{$_}\n" if exists $$d{$_} }
 	  'text', 'action', 'scroll_style';
+	my $ft = $$font{text};
+	$ft =~ s/^/\t/mg;
+	$wdg{text} .= $ft;
 	update_size $group, $x, $y, $w, $h;
 	push @$lc, \%wdg;
     } elsif($tag eq 'status'){			  # status
@@ -481,13 +505,16 @@ sub tag_end {
     my(undef, $tag) = @_;
     return if $tag eq 'foo';
     $tag = lc $tag;
-    $space = substr $space, 0, -4;
+    #$space = substr $space, 0, -4;
     if($tag eq 'groupdef'){
 	undef $lc;
 	undef $group;
+	$grplvl--;
     } elsif($tag eq 'layout'){
 	undef $lc;
 	undef $group;
+	print STDERR "WARNING: grplvl=$grplvl\n" if $grplvl > 1;
+	$grplvl = 0;
     }	
 }
 
@@ -526,12 +553,11 @@ Gimp::on_net {
     $xml->parsefile("$sd/skin.xml");
 
     for(keys %layouts){
-	open S, ">$dir/$_.conf" or die;
+	open S, ">:encoding(iso-8859-1)", "$dir/$_.conf" or die;
 	print S "# -*- tcconf -*-\n";
 	print_group \*S, $layouts{$_};
 	close S;
     }
 };
 
-#Gimp::set_trace(TRACE_ALL);
 exit main;
