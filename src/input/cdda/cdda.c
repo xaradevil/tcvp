@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -363,13 +363,16 @@ cd_open(char *url, char *mode)
 {
     char *url_tmp = strdup(url);
     url_t *u = NULL;
+    char *s, *o;
 
-    char *o = strrchr(url_tmp, '?');
+    if(!url_tmp)
+	return NULL;
+
+    o = strrchr(url_tmp, '?');
     if(o)
-	*o++ = '\0';
+	*o++ = 0;
 
-    char *s = strrchr(url_tmp, '.');
-
+    s = strrchr(url_tmp, '.');
     if(s){
 	if(!strcmp(s, ".wav")){
 	    u = track_open(url_tmp, mode, o);
