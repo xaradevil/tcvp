@@ -146,6 +146,8 @@ l_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     lame_set(ratio, compression_ratio, f);
     lame_set(preset, preset, i);
 
+    p->format = *s;
+    p->format.common.codec = "audio/mp3";
     p->input = l_input;
     p->flush = l_flush;
     p->probe = l_probe;
