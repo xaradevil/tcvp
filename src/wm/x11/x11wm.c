@@ -49,10 +49,6 @@ x11_event(void *p)
     x11_wm_t *xwm = p;
     int run = 1;
 
-    XSelectInput(xwm->dpy, xwm->win, StructureNotifyMask | KeyPressMask);
-    XMapWindow(xwm->dpy, xwm->win);
-    XMapSubwindows(xwm->dpy, xwm->win);
-
     while(run){
 	XEvent xe;
 
@@ -177,6 +173,29 @@ x11_hidecursor(x11_wm_t *xwm)
     XFreePixmap(xwm->dpy, pm);
 }
 
+static void
+x11_fullscreen(x11_wm_t *xwm)
+{
+    XEvent xev;
+    Atom xa_wm_state, xa_fs;
+
+    xa_fs = XInternAtom(xwm->dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    xa_wm_state = XInternAtom(xwm->dpy, "_NET_WM_STATE", False);
+
+    memset(&xev, 0, sizeof(xev));
+    xev.type = ClientMessage;
+    xev.xclient.window = xwm->win;
+    xev.xclient.message_type = xa_wm_state;
+    xev.xclient.format = 32;
+    xev.xclient.data.l[0] = 1;
+    xev.xclient.data.l[1] = xa_fs;
+    xev.xclient.data.l[2] = 0;
+
+    XSendEvent(xwm->dpy, RootWindow(xwm->dpy, DefaultScreen(xwm->dpy)), False,
+	       SubstructureNotifyMask, &xev);
+}
+
+
 extern window_manager_t *
 x11_open(int width, int height, wm_update_t upd, void *cbd,
 	 conf_section *cs, int flags)
@@ -187,9 +206,12 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     Window win;
     char *display = NULL;
     char *qname, *qn;
+    int fs = 0;
 
-    if(cs)
+    if(cs){
 	conf_getvalue(cs, "video/device", "%s", &display);
+	conf_getvalue(cs, "video/fullscreen", "%i", &fs);
+    }
 
     XInitThreads();
 
@@ -213,6 +235,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     conf_getvalue(cs, "video/color_key", "%i", &xwm->color_key);
 
     x11_hidecursor(xwm);
+
     xwm->swin = XCreateWindow(dpy, win, 0, 0, width, height, 0, CopyFromParent,
 			      InputOutput, CopyFromParent, 0, NULL);
     XSetWindowBackground(dpy, xwm->swin, xwm->color_key);
@@ -226,6 +249,13 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     wm = malloc(sizeof(*wm));
     wm->close = x11_close;
     wm->private = xwm;
+
+    XSelectInput(xwm->dpy, xwm->win, StructureNotifyMask | KeyPressMask);
+    XMapWindow(xwm->dpy, xwm->win);
+    XMapSubwindows(xwm->dpy, xwm->win);
+
+    if(fs)
+	x11_fullscreen(xwm);
 
     pthread_create(&xwm->eth, NULL, x11_event, xwm);
 

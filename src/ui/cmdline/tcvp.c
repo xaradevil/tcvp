@@ -61,6 +61,7 @@ show_help(void)
 	   "   -u name --user-interface=name Select user interface\n"
 	   "   -z      --shuffle             Shuffle files\n"
 	   "   -@ file --playlist=file       Load playlist from file\n"
+	   "   -f      --fullscreen          Fill entire screen\n"
 	);
 }
 
@@ -255,6 +256,7 @@ parse_options(int argc, char **argv)
 	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
 	{"shuffle", no_argument, 0, 'z'},
 	{"playlist", required_argument, 0, '@'},
+	{"fullscreen", required_argument, 0, 'f'},
 	{0, 0, 0, 0}
     };
 
@@ -262,7 +264,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:f",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -314,6 +316,10 @@ parse_options(int argc, char **argv)
 
 	case '@':
 	    playlist = optarg;
+	    break;
+
+	case 'f':
+	    conf_setvalue(cf, "video/fullscreen", "%i", 1);
 	    break;
 
 	case OPT_TC2_DEBUG:
