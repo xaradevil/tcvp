@@ -42,7 +42,7 @@ typedef struct x4_enc {
 
 typedef struct x4_packet {
     packet_t pk;
-    u_char *data;
+    u_char *data, *buf;
     int size;
 } x4_packet_t;
 
@@ -50,7 +50,7 @@ static void
 x4_free_pk(void *p)
 {
     x4_packet_t *xp = p;
-    free(xp->data);
+    free(xp->buf);
 }
 
 static int
@@ -122,6 +122,7 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     if(x4->pic.i_type == X264_TYPE_I || x4->pic.i_type == X264_TYPE_IDR)
 	ep->pk.flags |= TCVP_PKT_FLAG_KEY;
     ep->data = buf;
+    ep->buf = buf;
     ep->size = bufsize;
     p->next->input(p->next, &ep->pk);
 
@@ -138,7 +139,7 @@ x4_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     p->format.common.codec = "video/h264";
-    p->format.common.bit_rate = x4->params.i_bitrate;
+    p->format.common.bit_rate = x4->params.i_bitrate * 1000;
 
     x4->params.i_width = s->video.width;
     x4->params.i_height = s->video.height;
