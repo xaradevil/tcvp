@@ -179,7 +179,7 @@ x11_event(void *p)
 	    unsigned long ret_item;
 	    unsigned long remain_byte;
 	    unsigned char *foo;
-	    char *buf;
+	    char *buf, *tmp;
 
 	    XEvent xevent;
 	    Window selowner = XGetSelectionOwner(xd, XdndSelection);
@@ -188,15 +188,13 @@ x11_event(void *p)
 			       tcvpxa, 0, 65536, True, XdndType,
 			       &ret_type, &ret_format,
 			       &ret_item, &remain_byte,
-			       (unsigned char **)&foo);
+			       &foo);
 
-	    if(foo == NULL)
+	    if(!foo)
 		break;
 
 	    buf = strdup(foo);
-	    
 	    XFree(foo);
-
 	    foo = buf;
 
 	    memset (&xevent, 0, sizeof(xevent));
@@ -208,33 +206,25 @@ x11_event(void *p)
 	    xevent.xclient.data.l[0] = xe.xselection.requestor;
 	    XSendEvent(xd, selowner, 0, 0, &xevent);
 
-	    for(;;) {
-		char *tmp = strchr(buf, '\n');
-		if(tmp != NULL) {
-		    *tmp=0;
-		}
-
+	    do {
+		if((tmp = strchr(buf, '\n')))
+		   *tmp++ = 0;
 		tcvp_add_file(buf);
-
-		if(tmp == NULL) {
-		    break;
-		}
-		buf = tmp+1;
-	    }
+		buf = tmp;
+	    } while(tmp);
 
 	    free(foo);
-
 	    break;
 	}
 
 	case ClientMessage:
 	    if(xe.xclient.message_type == XdndEnter) {
-/* 		fprintf(stderr, "enter\n"); */
+		fprintf(stderr, "enter\n");
 
 	    } else if(xe.xclient.message_type == XdndPosition) {
 		XEvent xevent;
 
-/* 		fprintf(stderr, "position\n"); */
+		fprintf(stderr, "position\n");
 
 		memset (&xevent, 0, sizeof(xevent));
 		xevent.xany.type = ClientMessage;
@@ -246,17 +236,17 @@ x11_event(void *p)
 		xevent.xclient.data.l[1] = 1;
 		xevent.xclient.data.l[2] = (skin->x << 16) | skin->y;
 		xevent.xclient.data.l[3] = (skin->width << 16) | skin->height;
-		xevent.xclient.data.l[4] = xe.xclient.data.l[4]
+		xevent.xclient.data.l[4] = xe.xclient.data.l[4];
 		XSendEvent(xd, xe.xclient.window, 0, 0, &xevent);
 
 	    } else if(xe.xclient.message_type == XdndDrop) {
-/* 		fprintf(stderr, "drop\n"); */
+		fprintf(stderr, "drop\n");
 
 		XConvertSelection(xd, XdndSelection, XdndType, tcvpxa,
 				  xe.xclient.window, CurrentTime);
 
 	    } else if(xe.xclient.message_type == XdndLeave) {
-/* 		fprintf(stderr, "leave\n"); */
+		fprintf(stderr, "leave\n");
 	    }
 	    break;
 	}
