@@ -41,8 +41,12 @@ typedef struct vidix_window {
     vidix_capability_t *caps;
     vidix_playback_t *pbc;
     int frames;
+    int vframes;
     int use_dma;
     char *dmabufs[VID_PLAY_MAXFRAMES];
+    int vfmap[VID_PLAY_MAXFRAMES];
+    int vframe;
+    sem_t hsm, tsm;
     vidix_dma_t *dma;
     window_manager_t *wm;
 } vx_window_t;
@@ -53,13 +57,32 @@ vx_show(video_driver_t *vd, int frame)
     vx_window_t *vxw = vd->private;
 
     if(vxw->use_dma){
-	vxw->dma->src = vxw->dmabufs[frame];
-	vxw->dma->dest_offset = vxw->pbc->offsets[frame];
-	vxw->dma->idx = frame;
-	vdlPlaybackCopyFrame(vxw->driver, vxw->dma);
+	sem_wait(&vxw->tsm);
+	vdlPlaybackFrameSelect(vxw->driver, vxw->vfmap[frame]);
+	sem_post(&vxw->hsm);
     } else {
 	vdlPlaybackFrameSelect(vxw->driver, frame);
     }
+
+    return 0;
+}
+
+static int
+vx_put(video_driver_t *vd, int frame)
+{
+    vx_window_t *vxw = vd->private;
+
+    sem_wait(&vxw->hsm);
+    vxw->dma->src = vxw->dmabufs[frame];
+    vxw->dma->dest_offset = vxw->pbc->offsets[vxw->vframe];
+    vxw->dma->idx = frame;
+    vdlPlaybackCopyFrame(vxw->driver, vxw->dma);
+    vxw->vfmap[frame] = vxw->vframe;
+
+    if(++vxw->vframe == vxw->vframes)
+	vxw->vframe = 0;
+
+    sem_post(&vxw->tsm);
 
     return 0;
 }
@@ -221,7 +244,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
     vxw->pbc->dest.y = 0;
     vxw->pbc->dest.w = vs->width;
     vxw->pbc->dest.h = vs->height;
-    vxw->pbc->num_frames = vxw->caps->flags & FLAG_DMA? 1: frames;
+    vxw->pbc->num_frames = frames;
 
     if(conf_getvalue(cs, "video/color_key", "%i", &ckey) > 0){
 	ck.ckey.red = (ckey >> 16) & 0xff;
@@ -248,6 +271,10 @@ vx_open(video_stream_t *vs, conf_section *cs)
     if(vxw->caps->flags & FLAG_DMA){
 	vxw->dma = vdlAllocDmaS();
 	vxw->frames = frames;
+	vxw->vframes = vxw->pbc->num_frames;
+	vxw->vframe = 0;
+	sem_init(&vxw->hsm, 0, vxw->vframes - 2);
+	sem_init(&vxw->tsm, 0, 0);
 	for(i = 0; i < frames; i++){
 	    vxw->dmabufs[i] = valloc(vxw->pbc->frame_size);
 	}
@@ -262,13 +289,15 @@ vx_open(video_stream_t *vs, conf_section *cs)
     fprintf(stderr, "VIDIX: %i frames, %i onboard\n",
 	    frames, vxw->pbc->num_frames);
 
-    vd = malloc(sizeof(*vd));
+    vd = calloc(1, sizeof(*vd));
     vd->frames = vxw->frames;
     vd->pixel_format = pxf;
     vd->get_frame = vx_get;
     vd->show_frame = vx_show;
     vd->close = vx_close;
     vd->private = vxw;
+    if(vxw->use_dma)
+	vd->put_frame = vx_put;
 
     return vd;
 }
