@@ -79,8 +79,8 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
 	vorbis_synthesis_headerin(&vc->vi, &vc->vc, op);
     } else {
 	if(op->packetno == 3) {
-	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels,
-		    vc->vi.rate);
+/* 	    fprintf(stderr, "Channels: %d Rate:%dHz\n", vc->vi.channels, */
+/* 		    vc->vi.rate); */
 	    vorbis_synthesis_init(&vc->vd, &vc->vi) ;
 	    vorbis_block_init(&vc->vd, &vc->vb); 
 	}
