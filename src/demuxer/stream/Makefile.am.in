@@ -1,7 +1,2 @@
 AM_CFLAGS = -DDATADIR=\"$(pkgdatadir)\"
-pkgdata_DATA = magic magic.mgc
-EXTRA_DIST += magic
-CLEANFILES += magic.mgc
-
-magic.mgc: magic
-	file -C -m $^
+dist_pkgdata_DATA = magic
