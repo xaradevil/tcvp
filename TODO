@@ -1,4 +1,3 @@
-- convert UIs to tcvp/module.
 - proper key handling
 - playlist save/restore
 - key binding to restore video window size
