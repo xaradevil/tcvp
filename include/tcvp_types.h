@@ -80,6 +80,7 @@ typedef union tcvp_packet {
 #define STREAM_TYPE_VIDEO     1
 #define STREAM_TYPE_AUDIO     2
 #define STREAM_TYPE_MULTIPLEX 3
+#define STREAM_TYPE_SUBTITLE  4
 
 #define TCVP_STREAM_FLAG_INTERLACED 0x1
 
