@@ -32,6 +32,7 @@ typedef struct pcm {
     url_t *u;
     uint64_t start;
     uint64_t pts;
+    uint64_t bytes;
     stream_t s;
     int used;
     int tstamp;
@@ -81,8 +82,9 @@ pcm_packet(muxed_stream_t *ms, int str)
     ep->data = buf;
     ep->size = size;
 
-    pcm->pts +=
-	size/pcm->s.audio.block_align * 27000000LL / pcm->s.audio.sample_rate;
+    pcm->bytes += size;
+    pcm->pts = pcm->bytes / pcm->s.audio.block_align * 27000000LL /
+	pcm->s.audio.sample_rate;
 
     return &ep->pk;
 }
@@ -96,6 +98,7 @@ pcm_seek(muxed_stream_t *ms, uint64_t time)
     if(pcm->u->seek(pcm->u, pos, SEEK_SET))
 	return -1;
     pcm->pts = time;
+    pcm->bytes = pos - pcm->start;
     return time;
 }
 
