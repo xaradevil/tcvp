@@ -308,6 +308,8 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     char *pf;
     int i;
 
+    tcfree(pk);
+
     if(s->stream_type != STREAM_TYPE_VIDEO)
 	return PROBE_FAIL;
 

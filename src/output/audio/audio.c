@@ -305,6 +305,8 @@ audio_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     char *sf;
     int i, j;
 
+    tcfree(pk);
+
     if(s->stream_type != STREAM_TYPE_AUDIO)
 	return PROBE_FAIL;
 
