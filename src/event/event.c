@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -36,6 +36,7 @@ typedef struct tcvp_event_type {
     tcvp_alloc_event_t *alloc;
     tcvp_serialize_event_t *serialize;
     tcvp_deserialize_event_t *deserialize;
+    char *format;
 } tcvp_event_type_t;
 
 static tchash_table_t *event_types;
@@ -80,7 +81,7 @@ evt_deserialize(int type, u_char *event, int size)
 
 static tcvp_event_type_t *
 new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
-	 tcvp_deserialize_event_t df)
+	 tcvp_deserialize_event_t df, char *fmt)
 {
     tcvp_event_type_t *e;
 
@@ -90,6 +91,7 @@ new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
     e->alloc = af;
     e->serialize = sf;
     e->deserialize = df;
+    e->format = fmt;
 
     event_tab = realloc(event_tab, (event_num + 1) * sizeof(*event_tab));
     event_tab[e->num] = e;
@@ -103,7 +105,7 @@ new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
 
 extern int
 reg_event(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
-	  tcvp_deserialize_event_t df)
+	  tcvp_deserialize_event_t df, char *fmt)
 {
     tcvp_event_type_t *e;
 
@@ -121,10 +123,11 @@ reg_event(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
 	e->alloc = af;
 	e->serialize = sf;
 	e->deserialize = df;
+	e->format = fmt;
 	return e->num;
     }
 
-    e = new_type(name, af, sf, df);
+    e = new_type(name, af, sf, df, fmt);
 
     return e->num;
 }
@@ -135,7 +138,7 @@ get_event(char *name)
     tcvp_event_type_t *e;
 
     if(tchash_find(event_types, name, -1, &e))
-	e = new_type(name, NULL, NULL, NULL);
+	e = new_type(name, NULL, NULL, NULL, NULL);
     if(!e->alloc){
 	char *m = malloc(strlen(name) + sizeof("tcvp/events/") + 1);
 	sprintf(m, "tcvp/events/%s", name);
@@ -144,6 +147,14 @@ get_event(char *name)
     }
 
     return e->num;
+}
+
+extern char *
+get_format(int type)
+{
+    if(type <= event_num && event_tab[type])
+	return event_tab[type]->format;
+    return NULL;
 }
 
 static void

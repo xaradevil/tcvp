@@ -1,4 +1,4 @@
-# Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+# Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -74,6 +74,7 @@ sub tc2module {
 	TC2::tc2_import('Eventq', 'delete');
 	TC2::tc2_import('tcvp/event', 'get');
 	TC2::tc2_import('tcvp/event', 'send');
+	TC2::tc2_import('tcvp/event', 'format');
 	TC2::tc2_import('tcvp/event', 'get_qname');
 	TC2::tc2_require("tcvp/events/$2");
     } elsif (not $module and /event\s+(\w+)(?:\s+(\w+)\s+(\w+)\s+(\w+))?/) {
@@ -81,6 +82,7 @@ sub tc2module {
 			ser => $3,
 			deser => $4 };
 	TC2::tc2_import('tcvp/event', $2? 'register': 'get');
+	TC2::tc2_import('tcvp/event', 'format');
 	if ($2) {
 	    TC2::tc2_export("tcvp/events/$1", "alloc",
 			    $2 eq 'NULL'? '@tcvp/events:alloc': $2);
@@ -93,6 +95,45 @@ sub tc2module {
 	}
     } elsif (/^}/) {
 	undef $module;
+    } else {
+	return 0;
+    }
+
+    return 1;
+}
+
+my %etypes = (i => 'int32_t',
+	      I => 'int64_t',
+	      u => 'uint32_t',
+	      U => 'uint64_t',
+	      f => 'double',
+	      's' => 'char *',
+	      p => 'void *');
+
+sub interface {
+    my $int = shift;
+    $_ = shift;
+
+    if(/event\s+(\w+)\s*((\w+%([IiUufsp](\[(.*?)\])?)\s*)*)/){
+	my($n, $d) = ($1, $2);
+	my $et = lc $n . '_event';
+	if ($d) {
+	    my $fmt;
+	    push @{$$int{include}}, "typedef struct $et \{\n";
+	    push @{$$int{include}}, "    int type;\n";
+	    while ($d =~ /(\w+)%([IiUufsp](\[(.*?)\])?)/g) {
+		my($f, $t, $t1) = ($1, $2, $4);
+		my $type = $t1 || $etypes{$t};
+		push @{$$int{include}}, "    $type $f;\n";
+		$fmt .= substr $t, 0, 1;
+	    }
+	    push @{$$int{include}}, "} ${et}_t;\n";
+	    $events{$n}{format} = $fmt;
+	} else {
+	    push @{$$int{include}}, "typedef tcvp_event_t ${et}_t;\n";
+	    $events{$n}{format} = '';
+	}
+	unshift @{$$int{inherit}}, 'tcvp/events';
     } else {
 	return 0;
     }
@@ -348,7 +389,8 @@ sub postinit {
 	if (not defined $$e{alloc}) {
 	    print $fh qq/    $name = tcvp_event_get("$name");\n/;
 	} else {
-	    print $fh qq/    $name = tcvp_event_register("$name", $$e{alloc}, $$e{ser}, $$e{deser});\n/;
+	    my $fmt = defined $$e{format}? qq/"$$e{format}"/: '""';
+	    print $fh qq/    $name = tcvp_event_register("$name", $$e{alloc}, $$e{ser}, $$e{deser}, $fmt);\n/;
 	}
     }
 }
