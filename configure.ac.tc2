@@ -7,7 +7,6 @@ CFLAGS=${CFLAGS--O2 -Wall -g}
 TC2_INIT
 
 AC_SUBST([CPPFLAGS], [-I\$\(top_srcdir\)/include])
-AC_SUBST([LDFLAGS], [-L\$\(top_builddir\)/lib])
 AC_CONFIG_FILES([Makefile
 		 interfaces/Makefile
 		 src/Makefile
@@ -53,7 +52,8 @@ AC_CONFIG_FILES([Makefile
 		 src/ui/tcvpx/tcvpxtk/Makefile
 		 src/wm/Makefile
 		 src/wm/wm/Makefile
-		 src/wm/x11/Makefile])
+		 src/wm/x11/Makefile
+		 tools/Makefile])
 AC_OUTPUT
 
 echo
