@@ -219,7 +219,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 
     conf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname)+8);
-    sprintf(qn, "%s/status", qname);
+    sprintf(qn, "%s/control", qname);
     xwm->qs = eventq_new(NULL);
     eventq_attach(xwm->qs, qn, EVENTQ_SEND);
 
