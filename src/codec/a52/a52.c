@@ -25,7 +25,7 @@
 #include <a52_tc2.h>
 
 typedef struct a52_decode {
-    a52_state_t state;
+    a52_state_t *state;
     sample_t *out;
     packet_t *in;
     sample_t level, bias;
@@ -195,7 +195,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    continue;
 	}
 
-	a52_frame(&ad->state, ad->buf, &ad->flags, &ad->level, ad->bias);
+	a52_frame(ad->state, ad->buf, &ad->flags, &ad->level, ad->bias);
 	ad->flags &= ~A52_ADJUST_LEVEL;
 
 	for(i = 0; i < 6; i++){
@@ -203,7 +203,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    packet_t *out;
 	    int16_t *outbuf = malloc(6*256*sizeof(*outbuf));
 
-	    a52_block(&ad->state, ad->out);
+	    a52_block(ad->state);
 	    s = float_to_int(ad->out, outbuf, ad->flags);
 
 	    out = malloc(sizeof(*out));
@@ -252,16 +252,20 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 static int
-a52_free(tcvp_pipe_t *p)
+a52_free_codec(tcvp_pipe_t *p)
 {
-    free(p->private);
+    a52_decode_t *ad = p->private;
+
+    a52_free(ad->state);
+    free(ad);
     free(p);
+    return 0;
 }
 
 static int
 a52_flush(tcvp_pipe_t *p, int drop)
 {
-    p->next->flush(p->next, drop);
+    return p->next->flush(p->next, drop);
 }
 
 extern tcvp_pipe_t *
@@ -274,14 +278,15 @@ a52_new(stream_t *s, int mode)
 	return NULL;
 
     ad = calloc(1, sizeof(*ad));
-    ad->out = a52_init(0);
+    ad->state = a52_init(0);
+    ad->out = a52_samples(ad->state);
     ad->level = 1;
     ad->bias = 384;
     ad->flags = A52_STEREO | A52_ADJUST_LEVEL;
 
     p = calloc(1, sizeof(*p));
     p->input = a52_decode;
-    p->free = a52_free;
+    p->free = a52_free_codec;
     p->probe = a52_probe;
     p->flush = a52_flush;
     p->private = ad;
