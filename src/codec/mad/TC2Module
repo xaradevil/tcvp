@@ -3,9 +3,6 @@ name		"TCVP/codec/mad"
 version		0.1.2
 tc2version	0.6.0
 sources		mad.c
-option		output_buffer%i=4800
-option		input_buffer%i=512
-option		probe_max%i=8192
 
 TCVP {
 	filter "decoder/audio/mpeg" {

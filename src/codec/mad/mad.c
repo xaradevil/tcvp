@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -32,7 +32,7 @@
 #include <mad.h>
 #include <mad_tc2.h>
 
-#define BUFFER_SIZE (tcvp_codec_mad_conf_input_buffer)
+#define MAX_FRAME_SIZE 8065
 
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
@@ -40,7 +40,6 @@
 typedef struct mad_packet {
     packet_t pk;
     int16_t *data;
-    int16_t *dp;
     int size;
 } mad_packet_t;
 
@@ -48,16 +47,10 @@ typedef struct mad_dec {
     struct mad_stream stream;
     struct mad_frame frame;
     struct mad_synth synth;
-    pthread_mutex_t lock;
-    int flush;
-    mad_packet_t *out;
-    int channels;
     int bs;
     int bufsize;
     u_char *buf;
     uint64_t npts;
-    int ptsc;
-    int pc;
 } mad_dec_t;
 
 typedef struct mp3_frame {
@@ -136,10 +129,7 @@ mp3_header(u_char *buf, mp3_frame_t *mf, int size)
     mf->size = 144 * mf->bitrate / mf->sample_rate + pad;
     mf->channels = ((e >> 6) & 3) > 2? 1: 2;
 
-/*     fprintf(stderr, "MP3: layer %i, version %i, rate %i, channels %i\n", */
-/* 	    mf->layer, mf->version, mf->bitrate, mf->channels); */
-
-    if(size > mf->size)
+    if(size >= mf->size + 4)
 	return mp3_header(buf + mf->size, NULL, size - mf->size);
     return 0;
 }
@@ -164,17 +154,15 @@ mad_free_pk(void *p)
     free(mp->data);
 }
 
-#define OUT_PACKET_SIZE(c) (tcvp_codec_mad_conf_output_buffer * (c))
-
 static mad_packet_t *
-mad_alloc(int c, int s)
+mad_alloc(int ch, int samples, int str)
 {
     mad_packet_t *mp;
 
     mp = tcallocdz(sizeof(*mp), NULL, mad_free_pk);
-    mp->data = malloc(OUT_PACKET_SIZE(c) * 2);
-    mp->dp = mp->data;
-    mp->pk.stream = s;
+    mp->size = samples * ch * 2;
+    mp->data = malloc(mp->size);
+    mp->pk.stream = str;
     mp->pk.data = (u_char **) &mp->data;
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;
@@ -188,68 +176,56 @@ output(tcvp_pipe_t *tp, struct mad_pcm *pcm, int stream)
     mad_dec_t *md = tp->private;
     unsigned int channels, samples;
     const mad_fixed_t *left, *right;
+    mad_packet_t *mp;
+    int16_t *dp;
 
     channels = pcm->channels;
     samples = pcm->length;
     left = pcm->samples[0];
     right = pcm->samples[1];
 
-    if(!md->out)
-	md->out = mad_alloc(md->channels, stream);
+    mp = mad_alloc(channels, samples, stream);
+    if(md->npts != -1LL){
+	mp->pk.flags |= TCVP_PKT_FLAG_PTS;
+	mp->pk.pts = md->npts;
+	md->npts = -1LL;
+    }
+
+    dp = mp->data;
 
     while(samples--){
 	int sample;
 
 	sample = scale(*left++);
-	*md->out->dp++ = sample;
+	*dp++ = sample;
 
 	if(channels == 2){
 	    sample = scale(*right++);
-	    *md->out->dp++ = sample;
-	}
-
-	if(md->out->dp - md->out->data == OUT_PACKET_SIZE(md->channels)){
-	    md->out->size = OUT_PACKET_SIZE(md->channels) * 2;
-	    tp->next->input(tp->next, &md->out->pk);
-	    md->out = mad_alloc(md->channels, stream);
+	    *dp++ = sample;
 	}
     }
+
+    tp->next->input(tp->next, &mp->pk);
 
     return 0;
 }
 
 static int
-do_decode(tcvp_pipe_t *p, packet_t *pk)
+decode_frame(tcvp_pipe_t *p, u_char *data, int size)
 {
     mad_dec_t *md = p->private;
 
-    mad_stream_buffer(&md->stream, md->buf, md->bs);
+    mad_stream_buffer(&md->stream, data, size);
 
-    while(!md->flush){
-	if(mad_frame_decode(&md->frame, &md->stream) < 0){
-	    if(MAD_RECOVERABLE(md->stream.error)){
-		continue;
-	    } else {
-		break;
-	    }
-	}
+    if(!mad_frame_decode(&md->frame, &md->stream)){
 	mad_synth_frame(&md->synth, &md->frame);
-	if(md->ptsc > 0){
-	    md->ptsc -= md->stream.next_frame - md->stream.this_frame;
-	    if(md->ptsc <= 0 && md->out){
-		uint64_t dp =
-		    ((md->out->dp - md->out->data) / md->synth.pcm.channels) *
-		    27000000 / md->frame.header.samplerate;
-		md->out->pk.pts = md->npts;
-		if(dp < md->npts)
-		    md->out->pk.pts -= dp;
-		md->out->pk.flags |= TCVP_PKT_FLAG_PTS;
-	    }
-	}
-	output(p, &md->synth.pcm, pk->stream);
+	output(p, &md->synth.pcm, p->format.common.index);
+    } else if(md->stream.error != MAD_ERROR_BUFLEN){
+	tc2_print("MAD", TC2_PRINT_VERBOSE, "%s\n",
+		  mad_stream_errorstr(&md->stream));
     }
 
-    return md->stream.error;
+    return md->stream.next_frame - data;
 }
 
 extern int
@@ -259,72 +235,51 @@ mad_decode(tcvp_pipe_t *p, packet_t *pk)
     u_char *d;
     int size;
 
-    md->flush = 0;
-
-    pthread_mutex_lock(&md->lock);
-
     if(!pk->data){
-	if(md->bs)
-	    do_decode(p, pk);
-
-	if(md->out && md->out->dp != md->out->data){
-	    md->out->size = (md->out->dp - md->out->data) * 2;
-	    p->next->input(p->next, &md->out->pk);
-	    md->out = NULL;
-	}
 	p->next->input(p->next, pk);
-	pk = NULL;
-	goto out;
+	return 0;
     }
 
     d = pk->data[0];
     size = pk->sizes[0];
 
-    if((pk->flags & TCVP_PKT_FLAG_PTS) && md->ptsc <= 0){
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
 	md->npts = pk->pts;
-	md->ptsc = md->bs;
+	if(md->bs)
+	    md->npts -= 1152 * 27000000LL / p->format.audio.sample_rate;
     }
 
-    while(size > 0 && !md->flush){
-	int bs = min(size, md->bufsize - md->bs);
-	int nd = 0;
+    while(size > 0){
+	u_char *fd;
+	int bs, fs;
 
+	bs = min(size, md->bufsize - md->bs);
 	memcpy(md->buf + md->bs, d, bs);
-	md->bs += bs;
-	size -= bs;
 	d += bs;
+	size -= bs;
+	md->bs += bs;
 
-	if(md->bs == md->bufsize){
-	    if(do_decode(p, pk)){
-		int rs = md->bs - (md->stream.this_frame - md->buf);
-		if(rs == md->bs){
-		    md->buf = realloc(md->buf, md->bufsize *= 2);
-		    if(++nd == 8){
-			tc2_print("MAD", TC2_PRINT_WARNING, "nothing decoded, bad file?\n");
-			goto out;
-		    }
-		} else {
-		    memmove(md->buf, md->stream.this_frame, rs);
-		}
-		md->bs = rs;
-	    } else {
-		md->bs = 0;
-	    }
+	fd = md->buf;
+	fs = md->bs;
+
+	while((bs = decode_frame(p, fd, fs)) > 0){
+	    fd += bs;
+	    fs -= bs;
+	}
+
+	if(fs > 0){
+	    memmove(md->buf, fd, fs);
+	    md->bs = fs;
 	}
     }
 
-out:
-    pthread_mutex_unlock(&md->lock);
-    if(pk)
-	tcfree(pk);
-
+    tcfree(pk);
     return 0;
 }
 
 extern int
 mad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    mad_dec_t *md = p->private;
     mp3_frame_t mf;
     u_char *d = pk->data[0];
     int ds = pk->sizes[0];
@@ -332,15 +287,13 @@ mad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     while(ds > 3 && mp3_header(d, &mf, ds)){
 	d++;
 	ds--;
-	md->pc++;
     }
 
     if(ds <= 4){
 	tcfree(pk);
-	return md->pc > tcvp_codec_mad_conf_probe_max? PROBE_FAIL: PROBE_AGAIN;
+	return PROBE_AGAIN;
     }
 
-    p->format = *s;
     p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->format.audio.sample_rate = mf.sample_rate;
     p->format.audio.channels = mf.channels;
@@ -349,7 +302,6 @@ mad_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     s->audio.sample_rate = mf.sample_rate;
     s->audio.channels = mf.channels;
     s->audio.bit_rate = mf.bitrate;
-    md->channels = mf.channels;
 
     tcfree(pk);
 
@@ -362,16 +314,10 @@ mad_flush(tcvp_pipe_t *p, int drop)
     mad_dec_t *md = p->private;
 
     if(drop){
-	md->flush = 1;
-	pthread_mutex_lock(&md->lock);
-	if(md->out)
-	    mad_free_pk(&md->out->pk);
-	md->out = NULL;
 	md->bs = 0;
-	pthread_mutex_unlock(&md->lock);
     }
 
-    return p->next->flush(p->next, drop);
+    return 0;
 }
 
 static void
@@ -395,8 +341,9 @@ mad_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     mad_stream_init(&md->stream);
     mad_frame_init(&md->frame);
     mad_synth_init(&md->synth);
-    md->bufsize = BUFFER_SIZE;
-    md->buf = malloc(BUFFER_SIZE);
+    md->bufsize = 2 * MAX_FRAME_SIZE;
+    md->buf = malloc(md->bufsize);
+    md->npts = -1LL;
 
     p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->private = md;
