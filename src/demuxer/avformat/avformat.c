@@ -68,7 +68,7 @@ static char *codec_names[] = {
     [CODEC_ID_MACE3] = "audio/mace3",
     [CODEC_ID_MACE6] = "audio/mace6",
     [CODEC_ID_HUFFYUV] = "video/huffyuv",
-/*     [CODEC_ID_CYUV] = "video/cyuv", */
+    [CODEC_ID_CYUV] = "video/cyuv",
 
     /* various pcm "codecs" */
     [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
