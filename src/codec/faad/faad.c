@@ -16,6 +16,8 @@ typedef struct faad_dec {
     u_char *buf;
     int bufsize;
     int bpos;
+    uint64_t pts;
+    int ptsp;
 } faad_dec_t;
 
 typedef struct faad_packet {
@@ -33,8 +35,19 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     faacDecFrameInfo aacframe;
     u_char *samples;
     int size = ad->bpos;
+    int flags= 0;
+    uint64_t pts = 0;
 
     samples = faacDecDecode(ad->fd, &aacframe, ad->buf, size);
+    size -= aacframe.bytesconsumed;
+    if(size > 0)
+	memmove(ad->buf, ad->buf + aacframe.bytesconsumed, size);
+    ad->ptsp -= aacframe.bytesconsumed;
+    if(ad->ptsp < 0 && -ad->ptsp <= aacframe.bytesconsumed){
+	flags = TCVP_PKT_FLAG_PTS;
+	pts = ad->pts;
+    }
+    ad->bpos = size;
 
     if(samples){
 	faad_packet_t *opk = tcallocz(sizeof(*opk));
@@ -42,17 +55,14 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 	opk->pk.data = &opk->data;
 	opk->pk.sizes = &opk->size;
 	opk->pk.planes = 1;
+	opk->pk.flags = flags;
+	opk->pk.pts = pts;
 	opk->data = samples;
 	opk->size = aacframe.samples * 2;
 	p->next->input(p->next, &opk->pk);
     }
 
-    size -= aacframe.bytesconsumed;
-    if(size > 0)
-	memmove(ad->buf, ad->buf + aacframe.bytesconsumed, size);
-    ad->bpos = size;
-
-    return 0;
+    return aacframe.bytesconsumed? 0: -1;
 }
 
 static int
@@ -69,6 +79,11 @@ faad_input(tcvp_pipe_t *p, packet_t *pk)
 	return 0;
     }
 
+    if(pk->flags & TCVP_PKT_FLAG_PTS && ad->ptsp < 0){
+	ad->pts = pk->pts;
+	ad->ptsp = ad->bpos;
+    }
+
     data = pk->data[0];
     size = pk->sizes[0];
 
@@ -79,7 +94,8 @@ faad_input(tcvp_pipe_t *p, packet_t *pk)
 	data += s;
 	size -= s;
 	if(ad->bpos == ad->bufsize){
-	    decode(p, pk);
+	    if(decode(p, pk) < 0)
+		break;
 	}
     }
 
@@ -150,6 +166,8 @@ faad_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     ad->fd = faacDecOpen();
 
     p = tcallocdz(sizeof(*p), NULL, faad_free);
+    p->format = *s;
+    p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->input = faad_input;
     p->flush = faad_flush;
     p->probe = faad_probe;
