@@ -35,6 +35,7 @@ typedef struct mpeg_dec {
 
 typedef struct mpeg_packet {
     packet_t pk;
+    u_char *data[3];
     int sizes[3];
 } mpeg_packet_t;
 
@@ -75,10 +76,14 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 
 	    if(mpd->info->display_fbuf){
 		mpeg_packet_t *pic = tcalloc(sizeof(*pic));
+		int i;
+
 		pic->pk.stream = pk->stream;
-		pic->pk.data = mpd->info->display_fbuf->buf;
+		pic->pk.data = pic->data;
 		pic->pk.planes = 3;
 		pic->pk.sizes = pic->sizes;
+		for(i = 0; i < 3; i++)
+		    pic->data[i] = mpd->info->display_fbuf->buf[i];
 		pic->sizes[0] = mpd->info->sequence->picture_width;
 		pic->sizes[1] = pic->sizes[0]/2;
 		pic->sizes[2] = pic->sizes[0]/2;
