@@ -260,6 +260,9 @@ read_packet(mp3_file_t *mf)
     mp3_packet_t *mp;
     uint64_t pos;
 
+    if(!mf->used)
+	return NULL;
+
     pos = mf->file->tell(mf->file);
     size = min(size, mf->size - pos + mf->start);
     size = mf->file->read(data, 1, size, mf->file);
@@ -314,9 +317,9 @@ mp3_packet(muxed_stream_t *ms, int str)
 			tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
 		}
 #ifdef DEBUG
-		tc2_print("MP3", TC2_PRINT_DEBUG,
-			  "%s: bitrate %i [%u] %lli s @%llx\n",
-			  mf->tag, fr.bitrate, br, ms->time / 27000000,
+		tc2_print(mf->tag, TC2_PRINT_DEBUG,
+			  "bitrate %i [%u] %lli s @%llx\n",
+			  fr.bitrate, br, ms->time / 27000000,
 			  mf->file->tell(mf->file) - size + (f - mp->data));
 #endif
 	    }
@@ -324,9 +327,9 @@ mp3_packet(muxed_stream_t *ms, int str)
 	    bh = 0;
 	} else {
 	    if(!bh++)
-		tc2_print("%s", TC2_PRINT_WARNING,
+		tc2_print(mf->tag, TC2_PRINT_WARNING,
 			  "bad header %02x%02x @ %llx\n",
-			  mf->tag, mf->head[0], mf->head[1],
+			  mf->head[0], mf->head[1],
 			  mf->file->tell(mf->file) - size +
 			  (uint64_t) (f - mp->data));
 	    f++;
