@@ -243,7 +243,7 @@ mpeg_descriptor(stream_t *s, u_char *d)
 	break;
     }
 
-    return len;
+    return len + 2;
 }
 
 extern int

@@ -552,8 +552,8 @@ mpegts_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 
 		for(j = 0; j < esil;){
 		    int tl = mpeg_descriptor(sp, dp);
-		    dp += tl + 2;
-		    j += tl + 2;
+		    dp += tl;
+		    j += tl;
 		}
 
 		s->imap[epid] = ms->n_streams++;
