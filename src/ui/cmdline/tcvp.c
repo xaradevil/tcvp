@@ -1,19 +1,7 @@
 /**
     Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    Licensed under the Open Software License version 2.0
 **/
 
 #include <stdlib.h>
@@ -32,9 +20,9 @@
 
 static pthread_t check_thr, evt_thr, intr_thr;
 
-static int nfiles;
+static int nfiles, npl;
 static char **files;
-static char *playlist;
+static char **playlist;
 static sem_t psm;
 static int intr;
 static tcconf_section_t *cf;
@@ -168,6 +156,8 @@ extern int
 tcl_init(char *p)
 {
     char *qname;
+    int i;
+
     pl = tcvp_new(cf);
     tcconf_getvalue(cf, "qname", "%s", &qname);
 
@@ -186,8 +176,8 @@ tcl_init(char *p)
 
     pll = playlist_new(cf);
     pll->add(pll, files, nfiles, 0);
-    if(playlist)
-	nfiles += pll->addlist(pll, playlist, nfiles);
+    for(i = 0; i < npl; i++)
+	nfiles += pll->addlist(pll, playlist[i], nfiles);
     if(shuffle)
 	pll->shuffle(pll, 0, nfiles);
 
@@ -345,7 +335,8 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case '@':
-	    playlist = optarg;
+	    playlist = realloc(playlist, (npl+1) * sizeof(*playlist));
+	    playlist[npl++] = optarg;
 	    break;
 
 	case 'f':
@@ -410,6 +401,8 @@ main(int argc, char **argv)
     tc2_free();
 
     tcfree(cf);
+    if(playlist)
+	free(playlist);
 
     return 0;
 }
