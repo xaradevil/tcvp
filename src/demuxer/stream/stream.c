@@ -200,8 +200,8 @@ typedef struct s_play {
 	list *pq;
 	sem_t ps;
 	uint64_t pts;
-	int eof;
     } *streams;
+    int eof;
     uint64_t start_time, end_time;
 } s_play_t;
 
@@ -250,7 +250,7 @@ wstream(s_play_t *vp)
 
     for(i = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i] &&
-	   !vp->streams[i].eof &&
+	   !vp->eof &&
 	   vp->streams[i].pts < pts &&
 	   list_items(vp->streams[i].pq) < min_buffer){
 	    s = i;
@@ -277,7 +277,7 @@ read_stream(void *p)
 	    int str;
 
 	    if(!p){
-		vp->streams[s].eof = 1;
+		vp->eof = 1;
 		sem_post(&vp->streams[s].ps);
 		break;
 	    }
@@ -298,12 +298,12 @@ get_packet(s_play_t *vp, int s)
 {
     packet_t *p;
 
-    if(!vp->streams[s].eof && sem_trywait(&vp->streams[s].ps)){
+    if(!vp->eof && sem_trywait(&vp->streams[s].ps)){
 	sem_post(&vp->rsm);
 	sem_wait(&vp->streams[s].ps);
     }
     p = list_shift(vp->streams[s].pq);
-    if(list_items(vp->streams[s].pq) < min_buffer && !vp->streams[s].eof)
+    if(list_items(vp->streams[s].pq) < min_buffer && !vp->eof)
 	sem_post(&vp->rsm);
     return p;
 }
@@ -326,7 +326,7 @@ play_stream(void *p)
 	vp->pipes[str]->input(vp->pipes[str], pk);
     }
 
-    pk = tcalloc(sizeof(*pk));
+    pk = tcallocz(sizeof(*pk));
     pk->stream = str;
     pk->data = NULL;
     vp->pipes[str]->input(vp->pipes[str], pk);
@@ -392,7 +392,7 @@ s_flush(tcvp_pipe_t *p, int drop)
 		while(!sem_trywait(&vp->streams[i].ps));
 	    }
 	}
-	vp->streams[i].eof = 0;
+	vp->eof = 0;
     }
 
     pthread_mutex_lock(&vp->mtx);
