@@ -264,6 +264,12 @@ static int bitrates[16][4] = {
     {  0,   0,   0,   0}
 };
 
+static int sample_rates[3][4] = {
+    {11025, 0, 22050, 44100},
+    {12000, 0, 24000, 48000},
+    { 8000, 0, 16000, 32000}
+};
+
 static char *codecs[3] = {
     "audio/mp1",
     "audio/mp2",
@@ -274,36 +280,57 @@ static int
 mp3_getparams(muxed_stream_t *ms)
 {
     mp3_file_t *mf = ms->private;
-    off_t pos;
-    int c = -1, i, bx;
-    int layer, version, brate;
+    int c = -1, d = -1, i, bx;
+    int layer = 0, version = 0, br, pad, sr;
+    int brate = 0, srate, fsize;
+    int hdrok = 0;
+    off_t pos = 0;
 
     for(i = 0; i < 8065; i++){
 	if(getc(mf->file) == 0xff){
 	    c = getc(mf->file);
-	    if((c & 0xe0) == 0xe0){
+	    if((c & 0xe0) != 0xe0 ||
+	       ((c & 0x18) == 0x08 ||
+		(c & 0x06) == 0)){
+		hdrok = 0;
+		continue;
+	    }
+	    d = getc(mf->file);
+	    if((d & 0xf0) == 0xf0 ||
+	       (d & 0x0c) == 0x0c){
+		hdrok = 0;
+		continue;
+	    }
+	    if(++hdrok == 2){
+		fseek(mf->file, pos - 3, SEEK_SET);
 		break;
 	    }
+	    pos = ftell(mf->file);
+
+	    version = (c >> 3) & 0x3;
+	    layer = 3 - ((c >> 1) & 0x3);
+	    bx = layer + (layer == 2? ~version & 1: 0);
+	    br = d >> 4;
+	    sr = (d >> 2) & 3;
+	    pad = (d >> 1) & 1;
+	    brate = bitrates[br][bx] * 1000;
+	    srate = sample_rates[sr][version];
+	    fsize = 144 * brate / srate + pad;
+	    fseek(mf->file, fsize - 3, SEEK_CUR);
+	} else {
+	    hdrok = 0;
 	}
     }
 
-    if(c == -1)
+    if(hdrok < 2)
 	return -1;
 
-    pos = ftell(mf->file) - 2;
 
-    version = !((c >> 3) & 1);
-    layer = 3 - ((c >> 1) & 0x3);
-    bx = layer + (layer == 2? version: 0);
-    c = getc(mf->file);
-    brate = c >> 4;
-
-    mf->stream.audio.bit_rate = bitrates[brate][bx] * 1000;
+    mf->stream.audio.bit_rate = brate;
     mf->stream.audio.codec = codecs[layer];
-    if(mf->stream.audio.bit_rate)
-	ms->time = 8000000LL * mf->size / mf->stream.audio.bit_rate;
+    if(brate)
+	ms->time = 8000000LL * mf->size / brate;
 
-    fseek(mf->file, pos, SEEK_SET);
     return 0;
 }
 
@@ -322,8 +349,9 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
 	return -1LL;
 
     fseek(mf->file, mf->start + pos, SEEK_SET);
-    mp3_getparams(ms);
-    time = pos * 8000000LL / mf->stream.audio.bit_rate;
+    if(!mp3_getparams(ms))
+	if(mf->stream.audio.bit_rate)
+	    time = pos * 8000000LL / mf->stream.audio.bit_rate;
 
     return time;
 }
