@@ -77,9 +77,6 @@ tcl_event(void *p)
 	switch(te->type){
 	case TCVP_STATE:
 	    switch(te->state.state){
-	    case TCVP_STATE_PLAYING:
-		printf("Playing...\n");
-		break;
 	    case TCVP_STATE_ERROR:
 		printf("Error opening file.\n");
 	    case TCVP_STATE_END:
