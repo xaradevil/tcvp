@@ -26,6 +26,8 @@
 #include <stdint.h>
 #include <avi_tc2.h>
 
+#undef DEBUG
+
 static char *vtag2codec(char *tag);
 static char *aid2codec(int id);
 
@@ -106,6 +108,11 @@ avi_header(FILE *f)
 	size = getu32(f);
 	size += size & 1;
 
+#ifdef DEBUG
+	*(uint32_t *)st = tag;
+	fprintf(stderr, "%s:\n", st);
+#endif
+
 	if(next && tag != next){
 	    printf("AVI: error unexpected tag\n");
 	    return NULL;
@@ -165,7 +172,7 @@ avi_header(FILE *f)
 		frn = getu32(f);
 		if(frn && frd){
 		    ms->streams[sidx].video.frame_rate = (double) frn / frd;
-		    af->ptsn = frd * 1000000;
+		    af->ptsn = (uint64_t) frd * 1000000;
 		    af->ptsd = frn;
 		} else {
 		    ms->streams[sidx].video.frame_rate = 1000000.0L / ftime;
@@ -173,7 +180,7 @@ avi_header(FILE *f)
 		    af->ptsd = 1;
 		}
 
-		getjunk(f, 32);
+		getval(f, "start", 32);
 
 		ms->streams[sidx].video.frames = getu32(f);
 
@@ -191,6 +198,10 @@ avi_header(FILE *f)
 		}
 	    } else if(stype == TAG('a','u','d','s')){
 		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
+		getval(f, "scale", 32);
+		getval(f, "rate", 32);
+		getval(f, "start", 32);
+		getval(f, "length", 32);
 	    }
 
 	    fseek(f, fp + size, SEEK_SET);
