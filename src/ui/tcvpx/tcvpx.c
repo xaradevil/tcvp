@@ -131,12 +131,9 @@ tcvpx_init(char *p)
 extern int
 tcvpx_shdn(void)
 {
-/*     tcvp_event_t *te; */
-
     tcvp_stop(NULL, NULL);
-/*     te = tcvp_alloc_event(-1); */
-/*     eventq_send(qr, te); */
-/*     tcfree(te); */
+
+    tcvp_send_event(qr, -1);
 
     xtk_shutdown_graphics();
 
