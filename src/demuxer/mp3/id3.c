@@ -29,7 +29,8 @@
 #include <tclist.h>
 #include <tcalloc.h>
 #include <tcendian.h>
-#include <pthread.h>
+#include <iconv.h>
+#include <errno.h>
 #include <tcvp_types.h>
 #include <mp3_tc2.h>
 
@@ -109,22 +110,64 @@ id3v2_getframe(url_t *f, int *fsize, int fflags)
     return buf;
 }
 
-static char *
-id3v2_gettext(char *buf, int size)
-{
-    char *text;
+static char *encodings[256] = {
+    [0] = "ISO-8859-1",
+    [1] = "UTF-16",
+    [2] = "UTF-16BE",
+    [3] = "UTF-8"
+};
 
-    if(*buf){
+static char *
+conv_str(char *s, size_t size, char *fset, char *tset)
+{
+    char *text, *ct;
+    iconv_t ic;
+    size_t ib, ob;
+
+    ic = iconv_open(tset, fset);
+    if(ic == (iconv_t) -1){
+	tc2_print("ID3", TC2_PRINT_ERROR, "iconv_open: %s\n", strerror(errno));
+	return NULL;
+    }
+
+    ib = size;
+    size *= 2;
+    ob = size;
+    text = malloc(ob);
+    ct = text;
+
+    iconv(ic, NULL, NULL, &ct, &ob);
+
+    while(ib > 0){
+	if(iconv(ic, &s, &ib, &ct, &ob) == -1){
+	    if(errno == E2BIG){
+		int s = ct - text;
+		text = realloc(text, size *= 2);
+		ob = size - s;
+		ct = text + s;
+	    } else {
+		tc2_print("ID3", TC2_PRINT_ERROR,
+			  "iconv: %s\n", strerror(errno));
+		break;
+	    }
+	}
+    }
+
+    *ct = 0;
+    iconv_close(ic);
+    return text;
+}
+
+static char *
+id3v2_gettext(u_char *buf, int size)
+{
+    if(!encodings[*buf]){
 	tc2_print("ID3", TC2_PRINT_WARNING,
 		  "Unknown ID3v2 encoding %i\n", *buf);
 	return NULL;
     }
 
-    text = malloc(size--);
-    strncpy(text, buf+1, size);
-    text[size] = 0;
-
-    return text;
+    return conv_str(buf + 1, size - 1, encodings[*buf], "UTF-8");
 }
 
 extern int
@@ -175,7 +218,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	uint32_t tag = getu32(f);
 	uint32_t fsize, dsize;
 	int fflags, dlen = 0;
-	char *data = NULL;
+	u_char *data = NULL;
 	off_t pos;
 
 	if(!tag)
@@ -244,7 +287,7 @@ id3v2_text_frame(char *tag, char *id, char *text)
     tag += 4;
     *tag++ = 0;
     *tag++ = 0;
-    *tag++ = 0;
+    *tag++ = 3;
     strcpy(tag, text);
 
     return size + 11;
@@ -301,14 +344,11 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
 static char *
 id3v1_strdup(char *p, int s)
 {
-    char *e = p + s - 1, *r;
+    char *e = p + s - 1;
     while(!(*e & ~0x20) && e > p)
 	e--;
     s = e - p + 1;
-    r = malloc(s + 1);
-    strncpy(r, p, s);
-    r[s] = 0;
-    return r;
+    return conv_str(p, s, encodings[0], "UTF-8");
 }
 
 extern int
