@@ -396,15 +396,13 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
 	ck.ckey.red = (ckey >> 16) & 0xff;
 	ck.ckey.green = (ckey >> 8) & 0xff;
 	ck.ckey.blue = ckey & 0xff;
-	ck.ckey.op = CKEY_TRUE;
-	ck.key_op = KEYS_PUT;
-	vdlSetGrKeys(vxdrv, &ck);
     } else {
 	vdlGetGrKeys(vxdrv, &ck);
 	ckey = (ck.ckey.red << 16) | (ck.ckey.green << 8) | ck.ckey.blue;
 	tcconf_setvalue(cs, "video/color_key", "%i", ckey);
     }
 
+    tc2_print("VIDIX", TC2_PRINT_VERBOSE, "using color key %x\n", ckey);
     ck.ckey.op = CKEY_TRUE;
     ck.key_op = KEYS_PUT;
     vdlSetGrKeys(vxdrv, &ck);
@@ -448,8 +446,8 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
 	vxw->frames = vxw->pbc->num_frames;
     }
 
-    fprintf(stderr, "VIDIX: %i frames, %i onboard\n",
-	    frames, vxw->pbc->num_frames);
+    tc2_print("VIDIX", TC2_PRINT_VERBOSE, "%i frames, %i onboard\n",
+	      vxw->frames, vxw->pbc->num_frames);
 
     vd = calloc(1, sizeof(*vd));
     vd->frames = vxw->frames;
