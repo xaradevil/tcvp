@@ -229,7 +229,7 @@ x11_event(void *p)
 		memset (&xevent, 0, sizeof(xevent));
 		xevent.xany.type = ClientMessage;
 		xevent.xany.display = xd;
-		xevent.xclient.window = xe.xclient.window;
+		xevent.xclient.window = xe.xclient.data.l[0];
 		xevent.xclient.message_type = XdndStatus;
 		xevent.xclient.format = 32;
 		xevent.xclient.data.l[0] = skin->xw;
@@ -237,7 +237,7 @@ x11_event(void *p)
 		xevent.xclient.data.l[2] = (skin->x << 16) | skin->y;
 		xevent.xclient.data.l[3] = (skin->width << 16) | skin->height;
 		xevent.xclient.data.l[4] = XdndActionPrivate;
-		XSendEvent(xd, xe.xclient.window, 0, 0, &xevent);
+		XSendEvent(xd, xe.xclient.data.l[0], 0, 0, &xevent);
 
 	    } else if(xe.xclient.message_type == XdndDrop) {
 /* 		fprintf(stderr, "drop\n"); */
@@ -247,6 +247,8 @@ x11_event(void *p)
 
 	    } else if(xe.xclient.message_type == XdndLeave) {
 /* 		fprintf(stderr, "leave\n"); */
+/* 	    } else { */
+/* 		fprintf(stderr, "other %d\n", xe.xclient.message_type); */
 	    }
 	    break;
 	}
