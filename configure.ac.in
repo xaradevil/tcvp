@@ -2,3 +2,19 @@ CFLAGS=${CFLAGS--O2 -Wall -g}
 AC_C_BIGENDIAN([AC_DEFINE([TCVP_ENDIAN], ["be"])],
 	       [AC_DEFINE([TCVP_ENDIAN], ["le"])])
 AC_SUBST([CPPFLAGS], [-I\$\(top_srcdir\)/include])
+
+echo
+echo $PACKAGE_NAME $VERSION
+echo
+echo These TCVP modules will be built:
+echo Codec modules..........: $CODEC_MODULES
+echo Demuxer modules........: $DEMUXER_MODULES
+echo Filter modules.........: $FILTERS_MODULES
+echo Input modules..........: $INPUT_MODULES
+echo Output modules.........: $OUTPUT_MODULES
+echo Driver modules.........: $DRIVERS_MODULES
+echo User interface modules.: $UI_MODULES
+echo Other modules..........: $SRC_MODULES $TCVPX_MODULES
+echo
+echo TCVP will be installed under $prefix
+echo
