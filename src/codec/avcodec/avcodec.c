@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -129,6 +129,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 	ac->ptsd = s->video.frame_rate.num?: 1;
 	ac->pts = 0;
 	ac->frame = avcodec_alloc_frame();
+	memset(ac->ptsq, 0xff, sizeof(ac->ptsq));
 
 	p->format.common.codec = "video/raw-i420";
 	break;

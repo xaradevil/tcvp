@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -22,11 +22,13 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#ifndef _AVC_H
-#define _AVC_H
+#ifndef AVC_H
+#define AVC_H
 
 #include <ffmpeg/avcodec.h>
 #include <tcvp_types.h>
+
+#define PTSQSIZE 32
 
 typedef struct avc_codec {
     AVCodecContext *ctx;
@@ -38,6 +40,8 @@ typedef struct avc_codec {
     uint64_t pts;
     uint64_t ptsn, ptsd;
     AVFrame *frame;
+    uint64_t ptsq[PTSQSIZE];
+    int cpn;
 
     int have_params;
 } avc_codec_t;

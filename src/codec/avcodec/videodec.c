@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -48,9 +48,18 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 	return 0;
     }
 
-    if(pk->flags & TCVP_PKT_FLAG_PTS){
-	vc->pts = pk->pts * vc->ptsd;
+    if(pk->flags & TCVP_PKT_FLAG_PTS && !probe){
+	if(!(vc->ctx->flags & CODEC_FLAG_TRUNCATED)){
+	    int cpn = vc->cpn & (PTSQSIZE - 1);
+	    vc->ptsq[cpn] = pk->pts;
+	    tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "set pts %lli @%i\n",
+		      pk->pts, cpn);
+	} else {
+	    vc->pts = pk->pts * vc->ptsd;
+	}
     }
+
+    vc->cpn++;
 
     while(insize > 0){
 	int l, gp = 0;
@@ -64,14 +73,19 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 	insize -= l;
 
 	if(gp){
+	    int cpn = vc->frame->coded_picture_number & (PTSQSIZE - 1);
 	    int i;
 
 	    if(probe){
 		vc->have_params = 1;
+		vc->cpn += vc->frame->coded_picture_number;
 		break;
 	    }
 
-	    out = tcallocd(sizeof(*out), NULL, avc_free_packet);
+	    tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "coded %i\n",
+		      vc->frame->coded_picture_number);
+
+	    out = tcallocdz(sizeof(*out), NULL, avc_free_packet);
 	    out->type = TCVP_PKT_TYPE_DATA;
 	    out->stream = pk->stream;
 	    out->data = vc->frame->data;
@@ -84,8 +98,16 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 	    out->planes = i;
 
 	    out->flags = TCVP_PKT_FLAG_PTS;
-	    out->pts = vc->pts / vc->ptsd;
-	    vc->pts += vc->ptsn;
+	    if(vc->ptsq[cpn] != -1LL){
+		out->pts = vc->ptsq[cpn];
+		vc->ptsq[cpn] = -1LL;
+		vc->pts = out->pts * vc->ptsd;
+		tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "get pts %lli @%i\n",
+			  out->pts, cpn);
+	    } else {
+		out->pts = vc->pts / vc->ptsd;
+	    }
+	    vc->pts += vc->ptsn + vc->frame->repeat_pict * vc->ptsn / 2;
 
 	    out->private = NULL;
 	    p->next->input(p->next, (tcvp_packet_t *) out);
@@ -169,6 +191,9 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	    p->format.video.frame_rate.den = 1;
 	}
 	tcreduce(&p->format.video.frame_rate);
+	tc2_print("AVCODEC", TC2_PRINT_DEBUG, "frame rate %i/%i\n",
+		  p->format.video.frame_rate.num,
+		  p->format.video.frame_rate.den);
 #if LIBAVCODEC_BUILD >= 4687
 	if(vc->ctx->sample_aspect_ratio.num){
 	    p->format.video.aspect.num =
