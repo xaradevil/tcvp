@@ -296,7 +296,11 @@ load_ser(char *name, void *event, int *ssize)
     /* remember to update these sizes if serialization is modified below */
     for(i = 0; i < te->stream->n_streams; i++){
 	stream_t *st = te->stream->streams + i;
-	size += strlen(st->common.codec) + 1 + 1 + 1 + 4;
+	size += 1 + 1 + 4;
+	if(st->common.codec)
+	    size += strlen(st->common.codec) + 1;
+	else
+	    size += strlen("unknown") + 1;
 	if(st->stream_type == STREAM_TYPE_AUDIO){
 	    size += 12;
 	} else if(st->stream_type == STREAM_TYPE_VIDEO){
@@ -317,7 +321,10 @@ load_ser(char *name, void *event, int *ssize)
 	stream_t *st = te->stream->streams + i;
 	*p++ = te->stream->used_streams[i];
 	*p++ = st->stream_type;
-	p += sprintf(p, "%s", st->common.codec);
+	if(st->common.codec)
+	    p += sprintf(p, "%s", st->common.codec);
+	else
+	    p += sprintf(p, "unknown");
 	p++;
 	st_unaligned32(htob_32(st->common.bit_rate), p);
 	p += 4;
