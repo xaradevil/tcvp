@@ -153,13 +153,16 @@ ow_new(tcvp_pipe_t *tp, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
        muxed_stream_t *ms)
 {
     ogg_write_t *ow;
-    char *url;
+    char *url = NULL;
     url_t *out;
+    int ret = 0;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
 	return -1;
-    if(!(out = url_open(url, "w")))
-	return -1;
+    if(!(out = url_open(url, "w"))){
+	ret = -1;
+	goto out;
+    }
 
     ow = tcallocdz(sizeof(*ow), NULL, ow_free);
     ow->out = out;
@@ -167,5 +170,7 @@ ow_new(tcvp_pipe_t *tp, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     tp->private = ow;
 
-    return 0;
+  out:
+    free(url);
+    return ret;
 }
