@@ -1,0 +1,7 @@
+module		yuv4mpeg
+name		"TCVP/demux/yuv4mpeg"
+version		0.1.0
+tc2version	0.4.0
+sources		y4m.c
+implement	"video/x-yuv4mpeg" "open" y4m_open
+import		"URL" "gets"

@@ -10,6 +10,7 @@ module src/demuxer/mpeg
 module src/demuxer/ogg
 module src/demuxer/pcm
 module src/demuxer/stream
+module src/demuxer/yuv4mpeg
 module src/codec/codec
 module src/codec/a52
 module src/codec/avcodec
