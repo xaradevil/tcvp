@@ -90,14 +90,14 @@ t_stop(player_t *pl)
     if(tp->demux)
 	tp->demux->stop(tp->demux);
 
-    if(tp->timer)
-	tp->timer->stop(tp->timer);
-
     if(tp->aend && tp->aend->stop)
 	tp->aend->stop(tp->aend);
 
     if(tp->vend && tp->vend->stop)
 	tp->vend->stop(tp->vend);
+
+    if(tp->timer)
+	tp->timer->stop(tp->timer);
 
     tp->state = TCVP_STATE_STOPPED;
     tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_STOPPED);
@@ -286,10 +286,10 @@ t_seek(player_t *pl, int64_t time, int how)
 	ntime = tp->stream->seek(tp->stream, ntime);
 	if(ntime != -1LL){
 	    pthread_mutex_lock(&tp->tmx);
+	    tp->demux->flush(tp->demux, 1);
 	    tp->timer->reset(tp->timer, ntime);
 	    tp->timer->interrupt(tp->timer);
 	    pthread_mutex_unlock(&tp->tmx);
-	    tp->demux->flush(tp->demux, 1);
 	}
 	if(s == TCVP_STATE_PLAYING){
 	    t_start(pl);
