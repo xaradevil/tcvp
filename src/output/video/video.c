@@ -151,8 +151,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 
     if(!pk->data){
 	v_qpts(vo, -1LL);
-	tcfree(pk);
-	return 0;
+	goto out;
     }
 
     if(!vo->drop[vo->dropcnt]){
@@ -163,8 +162,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	pthread_mutex_unlock(&vo->smx);
 
 	if(!vo->framecnt || vo->state == STOP){
-	    tcfree(pk);
-	    return 0;
+	    goto out;
 	}
 
 	planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
@@ -188,8 +186,8 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	vo->drop = drops[i];
     }
 
+out:
     tcfree(pk);
-
     return 0;
 }
 
@@ -211,7 +209,11 @@ v_stop(tcvp_pipe_t *p)
 {
     video_out_t *vo = p->private;
 
+    pthread_mutex_lock(&vo->smx);
     vo->state = PAUSE;
+    if(vo->timer)
+	vo->timer->interrupt(vo->timer);
+    pthread_mutex_unlock(&vo->smx);
 
     return 0;
 }
@@ -221,14 +223,13 @@ v_flush(tcvp_pipe_t *p, int drop)
 {
     video_out_t *vo = p->private;
 
+    pthread_mutex_lock(&vo->smx);
+
     if(!drop){
-	pthread_mutex_lock(&vo->smx);
 	while(vo->frames)
 	    pthread_cond_wait(&vo->scd, &vo->smx);
 	vo->framecnt = 0;
-	pthread_mutex_unlock(&vo->smx);
     } else {
-	pthread_mutex_lock(&vo->smx);
 	vo->tail = vo->head = 0;
 	vo->frames = 0;
 	if(vo->driver && vo->driver->flush)
@@ -237,8 +238,9 @@ v_flush(tcvp_pipe_t *p, int drop)
 	if(vo->timer)
 	    vo->timer->interrupt(vo->timer);
 	pthread_cond_broadcast(&vo->scd);
-	pthread_mutex_unlock(&vo->smx);
     }
+
+    pthread_mutex_unlock(&vo->smx);
 
     return 0;
 }
