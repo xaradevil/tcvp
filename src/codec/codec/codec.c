@@ -24,7 +24,7 @@
 #include <codec_tc2.h>
 
 extern tcvp_pipe_t *
-dec_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
+dec_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 {
     char *codec = NULL;
     decoder_new_t cnew;
@@ -40,5 +40,5 @@ dec_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
     if(!(cnew = tc2_get_symbol(buf, "new")))
 	return NULL;
 
-    return cnew(s, cs, t);
+    return cnew(s, cs, t, ms);
 }

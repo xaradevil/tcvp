@@ -411,7 +411,8 @@ mpegts_free(void *p)
     mpegts_stream_t *s = ms->private;
     int i;
 
-    s->stream->close(s->stream);
+    if(s->stream)
+	s->stream->close(s->stream);
     if(s->imap)
 	free(s->imap);
     if(s->streams){
@@ -583,6 +584,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     return ms;
 
 err:
+    s->stream = NULL;
     tcfree(ms);
     return NULL;
 }

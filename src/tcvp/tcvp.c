@@ -309,7 +309,8 @@ t_seek(player_t *pl, int64_t time, int how)
 }
 
 static tcvp_pipe_t *
-new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p)
+new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p,
+	 muxed_stream_t *ms)
 {
     tcvp_pipe_t *pipe = NULL, *pp = NULL, *pn = NULL;
     tcconf_section_t *f, *mcf;
@@ -336,7 +337,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p)
 	    if(tp->outfile)
 		tcconf_setvalue(mcf, "mux/url", "%s", tp->outfile);
 
-	    if(!(pn = fn(pp? &pp->format: s, mcf, tp->timer)))
+	    if(!(pn = fn(pp? &pp->format: s, mcf, tp->timer, ms)))
 		break;
 
 	    if(id)
@@ -471,7 +472,7 @@ t_open(player_t *pl, char *name)
 	if(stream->streams[i].stream_type == STREAM_TYPE_VIDEO &&
 	   (!vs || i == vc) && vc > -2){
 	    if((pc = tcconf_getsection(prsec, "video"))){
-		if((video = new_pipe(tp, st, pc))){
+		if((video = new_pipe(tp, st, pc, stream))){
 		    vs = st;
 		    codecs[i] = video;
 		    stream->used_streams[i] = 1;
@@ -485,7 +486,7 @@ t_open(player_t *pl, char *name)
 	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO &&
 		  (!as || i == ac) && ac > -2){
 	    if((pc = tcconf_getsection(prsec, "audio"))){
-		if((audio = new_pipe(tp, st, pc))){
+		if((audio = new_pipe(tp, st, pc, stream))){
 		    as = &stream->streams[i];
 		    codecs[i] = audio;
 		    stream->used_streams[i] = 1;

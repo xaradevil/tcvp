@@ -170,7 +170,8 @@ oss_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-oss_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
+oss_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
+	 muxed_stream_t *ms)
 {
     tcvp_pipe_t *tp;
     oss_out_t *ao;

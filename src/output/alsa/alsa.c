@@ -342,7 +342,8 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
+alsa_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
+	  muxed_stream_t *ms)
 {
     tcvp_pipe_t *tp;
     alsa_out_t *ao;

@@ -622,7 +622,8 @@ tmx_free(void *p)
 }
 
 extern tcvp_pipe_t *
-mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t)
+mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+	   muxed_stream_t *ms)
 {
     mpegts_mux_t *tsm;
     tcvp_pipe_t *p;

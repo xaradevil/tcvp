@@ -97,7 +97,7 @@ v_play(void *p)
 /* 	lt = tm; */
 /* 	dpt = vo->pts[vo->tail] - tm; */
 
-/* 	fprintf(stderr, "VO: pts = %llu, dt = %lli, t = %llu pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt, tm, dpt, vo->frames); */
+/* 	fprintf(stderr, "VO: pts = %llu, dt = %lli, dpts = %llu pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames); */
 
 	if(vo->timer->wait(vo->timer, vo->pts[vo->tail], &vo->smx) < 0)
 	    continue;
@@ -334,7 +334,8 @@ v_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 }
 
 extern tcvp_pipe_t *
-v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer)
+v_open(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *timer,
+       muxed_stream_t *ms)
 {
     tcvp_pipe_t *pipe;
     video_out_t *vo;
