@@ -281,8 +281,8 @@ read_stream(void *_p)
 		list_push(vp->streams[str].pq, p);
 		sem_post(&vp->streams[str].ps);
 	    } else {
-		sem_post(&vp->streams[s].ps);
 		vp->streams[s].str = NULL;
+		sem_post(&vp->streams[s].ps);
 		if(++vp->eof == vp->nms)
 		    break;
 	    }
@@ -607,8 +607,8 @@ s_init(char *p)
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
 
 #ifdef HAVE_LIBMAGIC
-    file_magic = magic_open(MAGIC_MIME);
-    magic_load(file_magic, NULL);
+    file_magic = magic_open(MAGIC_SYMLINK | MAGIC_DEVICES);
+    magic_load(file_magic, DATADIR "/magic");
 #endif
 
     return 0;
