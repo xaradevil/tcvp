@@ -276,7 +276,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
 {
     video_driver_t *vd;
     vx_window_t *vxw;
-    int i, fmtok = 0, pxf = vs->pixel_format;
+    int i, fmtok = 1, pxf = vs->pixel_format;
     int frames = driver_video_vidix_conf_frames?: FRAMES;
     void *vxdrv;
     char *drvdir;
@@ -312,6 +312,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
     fcc.srcw = vs->width;
     fcc.srch = vs->height;
     if(vdlQueryFourcc(vxdrv, &fcc)){
+	fmtok = 0;
 	for(pxf = 1; pxf < sizeof(fccs)/sizeof(fccs[0]); pxf++){
 	    fcc.fourcc = fccs[pxf];
 	    if(!vdlQueryFourcc(vxdrv, &fcc)){
