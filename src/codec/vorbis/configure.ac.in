@@ -1,2 +1,2 @@
-TC2_CHECK_LIBS(libvorbis, vorbis, vorbis_synthesis,,
-	       libvorbis, vorbisenc, vorbis_encode_setup_vbr)
+TC2_CHECK_LIBS([libvorbis, vorbis, vorbis_synthesis,, vorbis/vorbisfile.h],
+	[libvorbis, vorbisenc, vorbis_encode_setup_vbr,, vorbis/vorbisenc.h])

@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(liba52, a52, a52_frame)
+TC2_CHECK_LIBS([liba52, a52, a52_frame,, a52dec/a52.h])

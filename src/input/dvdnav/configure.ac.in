@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(libdvdnav, dvdnav, dvdnav_open)
+TC2_CHECK_LIBS([libdvdnav, dvdnav, dvdnav_open,, dvdnav/dvdnav.h])

@@ -1,2 +1,2 @@
-TC2_CHECK_LIB(file, magic, magic_open)
+TC2_CHECK_LIB(file, magic, magic_open,, magic.h)
 TC2_ENABLE_MODULE

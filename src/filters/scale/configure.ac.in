@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(ffmpeg, avcodec, img_resample_init)
+TC2_CHECK_LIBS([ffmpeg, avcodec, img_resample_init,, ffmpeg/avcodec.h])

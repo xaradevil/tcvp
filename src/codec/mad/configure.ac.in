@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(libmad, mad, mad_decoder_init)
+TC2_CHECK_LIBS([libmad, mad, mad_decoder_init,, mad.h])

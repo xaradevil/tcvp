@@ -1,4 +1,5 @@
 AC_PATH_XTRA
-TC2_CHECK_LIBS(xv, Xv, XvShmCreateImage,
-	$X_PRE_LIBS $X_LIBS $X_EXTRA_LIBS -lXext -lX11)
 TC2_ADD_INC($X_CFLAGS)
+TC2_CHECK_LIBS([xv, Xv, XvShmCreateImage,
+		$X_PRE_LIBS $X_LIBS $X_EXTRA_LIBS -lXext -lX11,
+		X11/Xlib.h X11/extensions/XShm.h X11/extensions/Xvlib.h])

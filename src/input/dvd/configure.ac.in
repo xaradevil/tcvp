@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(libdvdread, dvdread, DVDOpen)
+TC2_CHECK_LIBS([libdvdread, dvdread, DVDOpen,, dvdread/dvd_reader.h])

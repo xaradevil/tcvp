@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(vidix, vidix, vdlOpen)
+TC2_CHECK_LIBS([vidix, vidix, vdlOpen,, vidix/vidixlib.h])

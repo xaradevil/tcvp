@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(ffmpeg, avformat, av_open_input_file, -lavcodec)
+TC2_CHECK_LIBS([ffmpeg, avformat, av_open_input_file, -lavcodec, ffmpeg/avformat.h])

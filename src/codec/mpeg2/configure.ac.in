@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(libmpeg2, mpeg2, mpeg2_init)
+TC2_CHECK_LIBS([libmpeg2, mpeg2, mpeg2_init,, mpeg2dec/mpeg2.h])

@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS(openssl, ssl, RAND_pseudo_bytes)
+TC2_CHECK_LIBS([openssl, ssl, RAND_pseudo_bytes,, openssl/rand.h])
