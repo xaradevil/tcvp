@@ -1,2 +1,3 @@
 inherit "mux"
 option	outbuf%i=7
+option	bitrate%i=12500000

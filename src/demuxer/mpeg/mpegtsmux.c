@@ -126,6 +126,7 @@ tmx_output(void *p)
 {
     mpegts_mux_t *tsm = p;
     int op = tsm->bsize / 188;
+    uint64_t bytes = 0, pcrb = 0, time;
 
     while(tsm->running){
 	pthread_mutex_lock(&tsm->lock);
@@ -134,7 +135,14 @@ tmx_output(void *p)
 
 	if((tsm->out->flags & URL_FLAG_STREAMED) && tsm->bitrate){
 	    (*tsm->timer)->wait(*tsm->timer, tsm->pcr);
-	    tsm->pcr += 27000000 * tsm->bpos * 8 / tsm->bitrate;
+	    tsm->pcr += (27000000LL * tsm->bpos * 8) / tsm->bitrate;
+	}
+	time = tsm->pcr - pcrb;
+	bytes += tsm->bpos;
+	if(time > 27000000 / 2){
+	    fprintf(stderr, "%.3lf\r", (double) 8 * bytes * 27000 / time);
+	    pcrb = tsm->pcr;
+	    bytes = 0;
 	}
 	if(tsm->out->write(tsm->outbuf, 188, op, tsm->out) != op)
 	    tsm->running = 0;
@@ -282,10 +290,12 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 		if(pk->flags & TCVP_PKT_FLAG_PTS){
 		    pesflags |= PES_FLAG_PTS;
-		    tsm->pcr = pk->pts;
-		    if(tsm->bitrate)
-			tsm->pcr -= 27000000 * tsm->bpos * 8 /
-			    tsm->bitrate;
+		    if(tsm->pcr < pk->pts){
+			tsm->pcr = pk->pts;
+			if(tsm->bitrate)
+			    tsm->pcr -= (27000000LL * tsm->bpos * 8) /
+				tsm->bitrate;
+		    }
 		}
 		peshl = write_pes_header(out, tsm->streams[str].stream_id,
 					 size, pesflags, pts / 300);
@@ -415,7 +425,7 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     tsm->out = out;
     tsm->outbuf = malloc(outbuf_size);
     tsm->bsize = outbuf_size;
-    tsm->bitrate = 12500000;
+    tsm->bitrate = mux_mpeg_ts_conf_bitrate;
     pthread_mutex_init(&tsm->lock, NULL);
     pthread_cond_init(&tsm->cnd, NULL);
     tsm->nextpid = FIRST_PID;
@@ -423,7 +433,7 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     init_pmt(tsm, tsm->nextpid);
     tsm->nextpid++;
     tsm->running = 1;
-    tsm->psifreq = 400;
+    tsm->psifreq = tsm->bitrate / (8 * 188);
     tsm->timer = t;
     pthread_create(&tsm->wth, NULL, tmx_output, tsm);
 
