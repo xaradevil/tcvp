@@ -34,8 +34,8 @@ module src/output/audio
 module src/output/drivers/alsa
 module src/output/drivers/oss
 module src/output/drivers/vidix
+module src/output/drivers/xv
 module src/output/video
-module src/output/xv
 module src/playlist
 module src/remote
 module src/tcvp
