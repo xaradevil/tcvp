@@ -41,8 +41,6 @@
 
 #undef DEBUG
 
-static char *vtag2codec(char *tag);
-static char *aid2codec(int id);
 static int avi_read_indx(muxed_stream_t *ms);
 static void avi_free(void *p);
 
@@ -1031,7 +1029,7 @@ avi_open(char *file, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     return ms;
 }
 
-static char *
+extern char *
 vtag2codec(char *tag)
 {
     int i;
@@ -1045,7 +1043,7 @@ vtag2codec(char *tag)
     return NULL;
 }
 
-static char *
+extern char *
 aid2codec(int id)
 {
     int i;

@@ -1,0 +1,3 @@
+inherit "video"
+symbol	"vcodec"	char *(*%s)(char *)
+symbol  "acodec"	char *(*%s)(int)
