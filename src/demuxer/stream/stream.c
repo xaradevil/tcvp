@@ -176,7 +176,6 @@ read_stream(void *p)
 	if(vp->state == STOP)
 	    break;
 
-	pthread_mutex_lock(&vp->mtx);
 	while((s = wstream(vp)) >= 0 && vp->state == RUN){
 	    packet_t *p = vp->stream->next_packet(vp->stream, s);
 	    int str;
@@ -193,7 +192,6 @@ read_stream(void *p)
 	    list_push(vp->streams[str].pq, p);
 	    sem_post(&vp->streams[str].ps);
 	}
-	pthread_mutex_unlock(&vp->mtx);
     }
 
     return NULL;
@@ -346,48 +344,65 @@ static int
 s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 {
     muxed_stream_t *ms = vp->stream;
+    int pcnt[ms->n_streams];
+    int pstat[ms->n_streams];
+    int stime[ms->n_streams];
+    int spc = 0;
     int i;
 
-    for(i = 0; i < ms->n_streams; i++){
-	if(ms->used_streams[i] && codecs[i]->probe){
-	    list_item *li = NULL;
-	    int p = PROBE_FAIL;
-	    int st = 0;
-	    int c = 0;
+    memset(pcnt, 0, ms->n_streams * sizeof(pcnt[0]));
+    memset(pstat, 0, ms->n_streams * sizeof(pstat[0]));
+    memset(stime, 0, ms->n_streams * sizeof(stime[0]));
 
-	    do {
-		packet_t *pk;
+    for(i = 0; i < ms->n_streams; i++)
+	if(ms->used_streams[i])
+	    spc++;
 
-		if(!li || list_islast(vp->streams[i].pq, li))
-		    sem_post(&vp->rsm);
-		sem_wait(&vp->streams[i].ps);
-		pk = list_next(vp->streams[i].pq, &li);
-		if(!pk || !pk->data){
-		    if(pk)
-			tcfree(pk);
-		    break;
-		}
-		if(!st && pk->flags & TCVP_PKT_FLAG_PTS){
-		    ms->streams[i].common.start_time = pk->pts;
-		    st = 1;
-		}
-		tcref(pk);
-		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
-	    } while(p == PROBE_AGAIN &&
-		    c++ < tcvp_demux_stream_conf_max_probe);
-	    if(li){
-		list_unlock(vp->streams[i].pq, li);
-		li = NULL;
-	    }
-	    if(p != PROBE_OK){
-		pthread_mutex_lock(&vp->mtx);
-		ms->used_streams[i] = 0;
-		freeq(vp, i);
-		list_destroy(vp->streams[i].pq, NULL);
-		pthread_mutex_unlock(&vp->mtx);
-	    }
-	    codecs[i]->flush(codecs[i], 1);
+    while(spc){
+	packet_t *pk = ms->next_packet(ms, -1);
+	int st = pk->stream;
+
+	if(!pk || !pk->data){
+	    if(pk)
+		tcfree(pk);
+	    continue;
 	}
+	
+	if(ms->used_streams[st] && codecs[st]->probe){
+	    int ps;
+
+	    if(!pstat[st] || pstat[st] == PROBE_AGAIN){
+		tcref(pk);
+		ps = codecs[st]->probe(codecs[st], pk, &ms->streams[st]);
+		pcnt[st]++;
+		pstat[st] = ps;
+		if(ps != PROBE_AGAIN ||
+		   pcnt[st] > tcvp_demux_stream_conf_max_probe){
+		    spc--;
+		}
+		if(ps == PROBE_FAIL){
+		    ms->used_streams[st] = 0;
+		} else {
+		    list_push(vp->streams[st].pq, pk);
+		}
+		if(!stime[st] && pk->flags & TCVP_PKT_FLAG_PTS){
+		    ms->streams[st].common.start_time = pk->pts;
+		    stime[st] = 1;
+		}
+	    } else if(pstat[st] == PROBE_OK){
+		list_push(vp->streams[st].pq, pk);
+	    }
+	}
+    }
+
+    for(i = 0; i < ms->n_streams; i++){
+	if(pstat[i] != PROBE_OK){
+	    ms->used_streams[i] = 0;
+	    freeq(vp, i);
+	    list_destroy(vp->streams[i].pq, NULL);
+	}
+	if(codecs[i])
+	    codecs[i]->flush(codecs[i], 1);
     }
 
     return PROBE_OK;
@@ -423,8 +438,8 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
 	sem_init(&vp->streams[i].ps, 0, 0);
     }
 
-    pthread_create(&vp->rth, NULL, read_stream, vp);
     s_probe(vp, out);
+    pthread_create(&vp->rth, NULL, read_stream, vp);
     vp->state = PAUSE;
 
     for(i = 0, j = 0; i < ms->n_streams; i++){
