@@ -503,7 +503,7 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 
     tc2_print("MPEGPS", TC2_PRINT_DEBUG, "searching for streams\n");
 
-    while(pc++ < 4096){
+    while(pc++ < tcvp_demux_mpeg_conf_ps_search_packets){
 	if(!(pk = mpegpes_packet(s, 1))){
 	    break;
 	}

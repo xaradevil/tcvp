@@ -41,3 +41,4 @@ option		ts_start_pid%i=0x100
 option		ts_psi_interval%i=1000
 option		ts_rate_lookahead%i=500
 option		*private_type id%i pesbase%i codec%s
+option		ps_search_packets%i=256
