@@ -12,10 +12,7 @@
 0	beshort&0xfff6		0xfff0		audio/x-aac
 0	string			OggS		audio/x-ogg
 0	string			RIFF
->8	string			WAVE
->>20	leshort			<0x50		audio/x-wav
->>20	leshort			0x0050		audio/mpeg
->>20	leshort			0x0055		audio/mpeg
+>8	string			WAVE		audio/x-wav
 >8	string			AVI		video/x-msvideo
 8	string			AIFF		audio/x-aiff	
 8	string			AIFC		audio/x-aiff	
