@@ -38,12 +38,6 @@ hash_table *action_hash;
 
 typedef struct {
     char *name;
-    tcconf_section_t *conf;
-    list *param;
-} template_t;
-
-typedef struct {
-    char *name;
     char *fmt;
     union {
 	int integer;
@@ -176,11 +170,9 @@ lookup_action(xtk_widget_t *w, void *p)
 extern skin_t*
 load_skin(char *skinconf)
 {
-    void *s;
     char *tmp;
     skin_t *skin = calloc(sizeof(*skin), 1);
     int i=0;
-    tcconf_section_t *sec;
 
     if(!(skin->config = tcconf_load_file (NULL, skinconf))){
 	fprintf(stderr, "Error loading file \"%s\".\n", skinconf);
@@ -208,42 +200,8 @@ load_skin(char *skinconf)
     }
 
     skin->id_hash = hash_new(10, 0);
-    skin->templates = list_new(TC_LOCK_SLOPPY);
-    
-    for(s=NULL, sec = tcconf_nextsection(skin->config, "template", &s);
-	sec != NULL; sec = tcconf_nextsection(skin->config, "template", &s)) {
-
-	void *c = NULL;
-	char *n, *f;
-
-	template_t *t = malloc(sizeof(*t));
-	t->conf = sec;
-	tcconf_getvalue(sec, "name", "%s", &t->name);
-	t->param = list_new(TC_LOCK_SLOPPY);
-
-	for(tcconf_nextvalue(sec, "parameter", &c, "%s %s", &n, &f); c != NULL;
-	    tcconf_nextvalue(sec, "parameter", &c, "%s %s", &n, &f)) {
-
-	    parameter_t *p = malloc(sizeof(*p));
-	    p->name = n;
-	    p->fmt = f;
-	    list_push(t->param, p);
-	}
-
-	list_push(skin->templates, t);
-	tcfree(sec);
-    }
 
     return skin;
-}
-
-static void
-free_template(void *p)
-{
-    template_t *t = p;
-
-    list_destroy(t->param, free);
-    free(t);
 }
 
 static void
@@ -252,34 +210,8 @@ free_skin(skin_t *skin)
     free(skin->path);
     tcfree(skin->config);
     hash_destroy(skin->id_hash, NULL);
-    list_destroy(skin->templates, free_template);
     free(skin);
 }
-
-static int
-template_int(char *value, hash_table *parameters)
-{
-    int ret;
-    char *key;
-
-    if((key = strstr(value, "$(")) != NULL) {
-	parameter_t *p;
-	char *tmp;
-	char *c = strdup(key+2);
-
-	tmp = strchr(c, ')');
-	tmp[0] = 0;
-
-	hash_find(parameters, c, &p);
-	ret = p->value.integer;
-	free(c);
-    } else {
-	ret = strtol(value, NULL, 0);
-    }
-
-    return ret;
-}
-
 
 static xtk_widget_t*
 create_skinned_background(window_t *win, skin_t *skin, tcconf_section_t *sec,
@@ -316,16 +248,7 @@ create_skinned_box(window_t *win, skin_t *skin, tcconf_section_t *sec,
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     int i=0;
 
-    if(tcconf_getvalue(sec, "position", "%d %d", &x, &y) != 2) {
-	char *sx, *sy;
-	if(tcconf_getvalue(sec, "position", "%s %s", &sx, &sy) == 2) {
-	    x = template_int(sx, parameters);
-	    y = template_int(sy, parameters);
-	    i += 2;
-	}
-    } else {
-	i += 2;
-    }
+    i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
     i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
 
     if(i != 4){
@@ -696,37 +619,6 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 }
 
 
-static int
-create_template(window_t *win, skin_t *skin, tcconf_section_t *config,
-		template_t *template)
-{
-    
-    list_item *lc = NULL;
-    parameter_t *p;
-    hash_table *params;
-    tcconf_section_t *ws;
-
-    params = hash_new(10, 0);
-    while((p = list_next(template->param, &lc))!=NULL) {
-	tcconf_getvalue(config, p->name, p->fmt, &p->value);
-/* 	fprintf(stderr, "%s %s ", p->name, p->fmt); */
-/* 	if(strcmp(p->fmt, "%d") == 0) { */
-/* 	    fprintf(stderr, "%d\n", p->value.integer); */
-/* 	} else if(strcmp(p->fmt, "%s") == 0) { */
-/* 	    fprintf(stderr, "%s\n", p->value.string); */
-/* 	} */
-	hash_search(params, p->name, p, NULL);
-    }
-
-    ws = tcconf_getsection(template->conf, "widgets");
-    create_ui(win, skin, ws, params);
-    tcfree(ws);
-
-    hash_destroy(params, NULL);
-
-    return 0;
-}
-
 #define create_skinned_widget(name, fn)					\
 do {									\
     tcconf_section_t *sec;						\
@@ -756,10 +648,7 @@ extern int
 create_ui(window_t *win, skin_t *skin, tcconf_section_t *config,
 	  hash_table *parameters)
 {
-    tcconf_section_t *sec;
-    void *s, *w;
-    list_item *lc;
-    template_t *t;
+    void *w;
 
     w = create_skinned_background(win, skin, config, parameters);
     if(w) xtk_show_widget(w);
@@ -769,15 +658,6 @@ create_ui(window_t *win, skin_t *skin, tcconf_section_t *config,
     create_skinned_widget("label", create_skinned_label);
     create_skinned_widget("state", create_skinned_state);
     create_skinned_widget("slider", create_skinned_seek_bar);
-
-    lc = NULL;
-    while((t = list_next(skin->templates, &lc))!=NULL) {
-	for(s=NULL, sec = tcconf_nextsection(config, t->name, &s);
-	    sec != NULL; sec = tcconf_nextsection(config, t->name, &s)) {
-	    create_template(win, skin, sec, t);
-	    tcfree(sec);
-	}
-    }
 
     return 0;
 }
