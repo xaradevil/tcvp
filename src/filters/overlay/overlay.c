@@ -25,11 +25,13 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <tcalloc.h>
+#include <tclist.h>
 #include <tcvp_types.h>
 #include <overlay_tc2.h>
 
 typedef struct ovl {
-    tcvp_data_packet_t *current, *next;
+    tcvp_data_packet_t *current;
+    tclist_t *next;
     tcvp_data_packet_t **fifo;
     int fifosize, fifopos;
     int width, height;
@@ -46,51 +48,51 @@ ovl_input(tcvp_pipe_t *p, packet_t *pk)
     if(ov->overlays[pk->stream]){
 	pthread_mutex_lock(&ov->lock);
 	if(pk->data){
-	    while(ov->next)
-		pthread_cond_wait(&ov->cond, &ov->lock);
-	    ov->next = pk;
+	    tclist_push(ov->next, pk);
 	} else {
-	    tcfree(ov->next);
-	    ov->next = NULL;
-	    pthread_cond_broadcast(&ov->cond);
 	    tcfree(pk);
 	}
 	pthread_mutex_unlock(&ov->lock);
     } else {
 	do {
+	    int lock = 0;
+	    pthread_mutex_lock(&ov->lock);
+
 	    if(ov->fifo[ov->fifopos]){
 		tcvp_data_packet_t *vp = ov->fifo[ov->fifopos];
+		tcvp_data_packet_t *next, *opk = NULL;
 
-		pthread_mutex_lock(&ov->lock);
-		if(ov->next && ov->next->pts <= vp->pts){
+		next = tclist_head(ov->next);
+		if(next && next->pts <= vp->pts){
 		    tcfree(ov->current);
-		    ov->current = ov->next;
-		    ov->next = NULL;
+		    ov->current = tclist_shift(ov->next);;
 		    tc2_print("OVERLAY", TC2_PRINT_DEBUG,
 			      "new overlay, pts %lli, end %lli\n",
 			      ov->current->pts, ov->current->dts);
 		}
-		pthread_cond_broadcast(&ov->cond);
-		pthread_mutex_unlock(&ov->lock);
-
-		if(ov->current && ov->current->dts < vp->pts){
-		    tcfree(ov->current);
-		    ov->current = NULL;
-		}
-
 		if(ov->current){
-		    tcvp_data_packet_t *opk = ov->current;
+		    if(ov->current->dts < vp->pts){
+			tcfree(ov->current);
+			ov->current = NULL;
+		    } else {
+			opk = tcref(ov->current);
+		    }
+		}
+		pthread_mutex_unlock(&ov->lock);
+		lock = 1;
+
+		if(opk){
 		    uint32_t *ovp = (uint32_t *) opk->data[0];
 		    int x, y;
 
-		    for(y = 0; y < ov->current->h; y++){
+		    for(y = 0; y < opk->h; y++){
 			u_char *yp =
 			    vp->data[0] + vp->sizes[0] * (opk->y + y) + opk->x;
 			u_char *u = vp->data[1] +
 			    vp->sizes[1] * (opk->y + y) / 2 + opk->x / 2;
 			u_char *v = vp->data[2] +
 			    vp->sizes[2] * (opk->y + y) / 2 + opk->x / 2;
-			for(x = 0; x < ov->current->w; x++){
+			for(x = 0; x < opk->w; x++){
 			    int alpha = *ovp >> 24;
 			    if(alpha){
 				*yp = (*ovp >> 16) & 0xff;
@@ -107,18 +109,24 @@ ovl_input(tcvp_pipe_t *p, packet_t *pk)
 			    }
 			}
 		    }
+		    tcfree(opk);
 		}
 
 		p->next->input(p->next, vp);
 	    }
 
+	    if(lock)
+		pthread_mutex_lock(&ov->lock);
 	    ov->fifo[ov->fifopos] = pk->data? pk: NULL;
 	    if(++ov->fifopos == ov->fifosize)
 		ov->fifopos = 0;
-	} while(!pk->data && ov->fifopos);
+	    pthread_mutex_unlock(&ov->lock);
+	} while(!pk->data && ov->fifo[ov->fifopos]);
 
-	if(!pk->data)
+	if(!pk->data){
+	    tc2_print("OVERLAY", TC2_PRINT_DEBUG, "end of video stream\n");
 	    p->next->input(p->next, pk);
+	}
     }
 
     return 0;
@@ -130,12 +138,18 @@ ovl_flush(tcvp_pipe_t *p, int drop)
     ovl_t *ov = p->private;
 
     if(drop){
+	tcvp_data_packet_t *pk;
+	int i;
+
 	pthread_mutex_lock(&ov->lock);
-	tcfree(ov->next);
-	ov->next = NULL;
+	while((pk = tclist_shift(ov->next)))
+	    tcfree(pk);
 	tcfree(ov->current);
 	ov->current = NULL;
-	pthread_cond_broadcast(&ov->cond);
+	for(i = 0; i < ov->fifosize; i++){
+	    tcfree(ov->fifo[i]);
+	    ov->fifo[i] = NULL;
+	}
 	pthread_mutex_unlock(&ov->lock);
     }
 
@@ -174,7 +188,7 @@ ovl_free(void *p)
     for(i = 0; i < ov->fifosize; i++)
 	tcfree(ov->fifo[i]);
     tcfree(ov->current);
-    tcfree(ov->next);
+    tclist_destroy(ov->next, tcfree);
 
     free(ov->overlays);
     free(ov->fifo);
@@ -192,6 +206,7 @@ ovl_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     ov->overlays = calloc(ms->n_streams, sizeof(*ov->overlays));
     ov->fifosize = tcvp_filter_overlay_conf_delay;
     ov->fifo = calloc(ov->fifosize, sizeof(*ov->fifo));
+    ov->next = tclist_new(TC_LOCK_NONE);
     pthread_mutex_init(&ov->lock, NULL);
     pthread_cond_init(&ov->cond, NULL);
 
