@@ -112,16 +112,14 @@ qpk(s_play_t *vp, packet_t *pk, int s)
 
     pthread_mutex_lock(&vp->mtx);
 
-    while(pq->count == QSIZE /* && vp->state != STOP */)
+    while(pq->count == QSIZE)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
 
-/*     if(vp->state != STOP){ */
-	pq->q[pq->head] = pk;
-	if(++pq->head == QSIZE)
-	    pq->head = 0;
-	pq->count++;
-	pthread_cond_broadcast(&vp->cnd);
-/*     } */
+    pq->q[pq->head] = pk;
+    if(++pq->head == QSIZE)
+	pq->head = 0;
+    pq->count++;
+    pthread_cond_broadcast(&vp->cnd);
 
     pthread_mutex_unlock(&vp->mtx);
 }
@@ -163,8 +161,7 @@ wait_pause(s_play_t *vp, int n, int eof)
     int w = 1;
     pthread_mutex_lock(&vp->mtx);
     while((vp->state == PAUSE || (vp->eof && eof)) &&
-	  vp->streams > 0
-	  && vp->waiting >= n){
+	  vp->waiting >= n){
 	if(w){
 	    vp->waiting++;
 	    pthread_cond_broadcast(&vp->cnd);
