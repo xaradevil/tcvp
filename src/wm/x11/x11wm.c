@@ -21,10 +21,12 @@ typedef struct x11_wm {
     Display *dpy;
     Window win, swin;
     int width, height;
+    int vw, vh;
     float aspect;
     wm_update_t update;
     void *cbd;
-    pthread_t eth;
+    int mouse;
+    pthread_t eth, cth;
     int color_key;
     int flags;
     eventq_t qs;
@@ -33,6 +35,8 @@ typedef struct x11_wm {
 static int TCVP_PAUSE;
 static int TCVP_SEEK;
 static int TCVP_CLOSE;
+static int TCVP_BUTTON;
+static int TCVP_KEY;
 
 static void *
 x11_event(void *p)
@@ -76,6 +80,9 @@ x11_event(void *p)
 		ckx = 0;
 	    }
 
+	    xwm->width = w;
+	    xwm->height = h;
+
 	    XMoveResizeWindow(xwm->dpy, xwm->swin, ckx, cky, w, h);
 	    xwm->update(xwm->cbd, WM_MOVE, x, y, w, h);
 	    break;
@@ -106,9 +113,30 @@ x11_event(void *p)
 	    case XK_q:
 		tcvp_event_send(xwm->qs, TCVP_CLOSE);
 		break;
+	    case XK_Escape:
+		tcvp_event_send(xwm->qs, TCVP_KEY, "escape");
+		break;
 	    }
 	    break;
 	}
+	case ButtonPress: {
+	    int bx, by;
+	    Window foo;
+
+	    XTranslateCoordinates(xwm->dpy, xwm->win, xwm->swin,
+				  xe.xbutton.x, xe.xbutton.y,
+				  &bx, &by, &foo);
+	    bx = bx * xwm->vw / xwm->width;
+	    by = by * xwm->vh / xwm->height;
+	    tcvp_event_send(xwm->qs, TCVP_BUTTON, xe.xbutton.button,
+			    TCVP_BUTTON_PRESS, bx, by);
+	    break;
+	}
+	case MotionNotify:
+	    if(!xwm->mouse)
+		XUndefineCursor(xwm->dpy, xwm->win);
+	    xwm->mouse = 1;
+	    break;
 	case DestroyNotify:
 	    run = 0;
 	    break;
@@ -126,34 +154,56 @@ x11_close(window_manager_t *wm)
 
     XDestroyWindow(xwm->dpy, xwm->win);
     XSync(xwm->dpy, False);
+    xwm->mouse = -1;
+    pthread_cancel(xwm->cth);
 
     pthread_join(xwm->eth, NULL);
+    pthread_join(xwm->cth, NULL);
 
     XCloseDisplay(xwm->dpy);
-
     eventq_delete(xwm->qs);
-
     free(xwm);
     free(wm);
 
     return 0;
 }
 
-static void
-x11_hidecursor(x11_wm_t *xwm)
+static void *
+x11_hidecursor(void *p)
 {
+    x11_wm_t *xwm = p;
     Cursor crs;
     Pixmap pm;
     XColor black;
     char data[8] = { [0 ... 7] = 0 };
+    int hidden = 0;
+    struct timespec ts = { tcvp_wm_x11_conf_mouse_delay, 0}, ts1;
 
     XAllocNamedColor(xwm->dpy,
 		     DefaultColormap(xwm->dpy, DefaultScreen(xwm->dpy)),
 		     "black", &black, &black);	
     pm = XCreateBitmapFromData(xwm->dpy, xwm->win, data, 8, 8);    
     crs = XCreatePixmapCursor(xwm->dpy, pm, pm, &black, &black, 0, 0);
-    XDefineCursor(xwm->dpy, xwm->win, crs);
     XFreePixmap(xwm->dpy, pm);
+
+    while(xwm->mouse >= 0){
+	nanosleep(&ts, &ts1);
+	if(!xwm->mouse){
+	    if(!hidden){
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		XDefineCursor(xwm->dpy, xwm->win, crs);
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		hidden = 1;
+	    }
+	} else if(xwm->mouse < 0){
+	    break;
+	} else {
+	    hidden = 0;
+	}
+	xwm->mouse = 0;
+    }
+
+    return NULL;
 }
 
 static void
@@ -216,8 +266,8 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     xwm->cbd = cbd;
     xwm->flags = flags;
     tcconf_getvalue(cs, "video/color_key", "%i", &xwm->color_key);
-
-    x11_hidecursor(xwm);
+    tcconf_getvalue(cs, "video/width", "%i", &xwm->vw);
+    tcconf_getvalue(cs, "video/height", "%i", &xwm->vh);
 
     xwm->swin = XCreateWindow(dpy, win, 0, 0, width, height, 0, CopyFromParent,
 			      InputOutput, CopyFromParent, 0, NULL);
@@ -234,7 +284,9 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     wm->close = x11_close;
     wm->private = xwm;
 
-    XSelectInput(xwm->dpy, xwm->win, StructureNotifyMask | KeyPressMask);
+    XSelectInput(xwm->dpy, xwm->win,
+		 StructureNotifyMask | KeyPressMask |
+		 ButtonPressMask | PointerMotionMask);
     XMapWindow(xwm->dpy, xwm->win);
     XMapSubwindows(xwm->dpy, xwm->win);
 
@@ -242,6 +294,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 	x11_fullscreen(xwm);
 
     pthread_create(&xwm->eth, NULL, x11_event, xwm);
+    pthread_create(&xwm->cth, NULL, x11_hidecursor, xwm);
 
     if(display)
 	free(display);
@@ -264,6 +317,8 @@ x11_init(char *p)
     TCVP_SEEK = tcvp_event_get("TCVP_SEEK");
     TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");
     TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
+    TCVP_BUTTON = tcvp_event_get("TCVP_BUTTON");
+    TCVP_KEY = tcvp_event_get("TCVP_KEY");
 
     return 0;
 }

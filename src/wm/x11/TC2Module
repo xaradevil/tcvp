@@ -14,3 +14,5 @@ import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 import		"tcvp/event"	"send"
 import		"tcvp/event"	"get"
+option		mouse_delay%i=2
+Delay in seconds before hiding mouse pointer
