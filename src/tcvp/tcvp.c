@@ -379,25 +379,8 @@ t_open(player_t *pl, char *name)
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
     tcconf_section_t *prsec, *dc;
 
-    if(tp->conf){
-	if(tcconf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
-	    if(vc >= 0 && vc < stream->n_streams &&
-	       stream->streams[vc].stream_type == STREAM_TYPE_VIDEO){
-		vs = &stream->streams[vc];
-	    } else {
-		vc = -2;
-	    }
-	}
-	if(tcconf_getvalue(tp->conf, "audio/stream", "%i", &ac) > 0){
-	    if(ac >= 0 && ac < stream->n_streams &&
-	       stream->streams[ac].stream_type == STREAM_TYPE_AUDIO){
-		as = &stream->streams[ac];
-	    } else {
-		ac = -2;
-	    }
-	}
+    if(tp->conf)
 	tcconf_getvalue(tp->conf, "profile", "%s", &profile);
-    }
 
     snprintf(prname, 256, "TCVP/profiles/%s", profile);
     if(!(prsec = tc2_get_conf(prname))){
@@ -419,6 +402,25 @@ t_open(player_t *pl, char *name)
 	return -1;
     }
     tcfree(dc);
+
+    if(tp->conf){
+	if(tcconf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
+	    if(vc >= 0 && vc < stream->n_streams &&
+	       stream->streams[vc].stream_type == STREAM_TYPE_VIDEO){
+		vs = &stream->streams[vc];
+	    } else {
+		vc = -2;
+	    }
+	}
+	if(tcconf_getvalue(tp->conf, "audio/stream", "%i", &ac) > 0){
+	    if(ac >= 0 && ac < stream->n_streams &&
+	       stream->streams[ac].stream_type == STREAM_TYPE_AUDIO){
+		as = &stream->streams[ac];
+	    } else {
+		ac = -2;
+	    }
+	}
+    }
 
     codecs = calloc(stream->n_streams, sizeof(*codecs));
 
