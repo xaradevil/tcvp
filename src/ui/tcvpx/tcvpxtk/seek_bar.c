@@ -108,15 +108,6 @@ change_seek_bar(tcseek_bar_t *w, double position)
 
 
 static int
-seek_bar_drag_begin(xtk_widget_t *xw, void *xe)
-{
-    tcwidget_t *w = (tcwidget_t *)xw;
-    w->seek_bar.state |= LABEL_DRAG;
-
-    return 0;
-}
-
-static int
 sb_ondrag(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
@@ -142,6 +133,17 @@ sb_ondrag(xtk_widget_t *xw, void *xe)
     w->seek_bar.repaint((xtk_widget_t *)w);
     draw_widget(w);
     XSync(xd, False);
+
+    return 0;
+}
+
+static int
+seek_bar_drag_begin(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+    w->seek_bar.state |= LABEL_DRAG;
+
+    sb_ondrag(xw, xe);
 
     return 0;
 }
