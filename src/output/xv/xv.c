@@ -129,6 +129,7 @@ xv_open(video_stream_t *vs, char *display)
     int frames = tcvp_driver_video_xv_conf_frames?: FRAMES;
     int color_key;
     XEvent xe;
+    Atom atm;
 
     XInitThreads();
 
@@ -187,14 +188,21 @@ xv_open(video_stream_t *vs, char *display)
     XNextEvent(dpy, &xe);
     XSelectInput(dpy, win, 0);
 
-    XvGetPortAttribute(dpy, xvw->port,
-		       XInternAtom(dpy, "XV_COLORKEY", True), &color_key);
-    XSetForeground(dpy, gc, color_key);
-    XFillRectangle(dpy, win, gc, 0, 0, xvw->width, xvw->height);
-    XvSetPortAttribute(dpy, xvw->port,
-		       XInternAtom(dpy, "XV_AUTOPAINT_COLORKEY", True), 0);
-    XvSetPortAttribute(dpy, xvw->port,
-		       XInternAtom(dpy, "XV_FILTER", True), 0);
+    for(i = 0; i < driver_video_xv_conf_attribute_count; i++){
+	char *name = driver_video_xv_conf_attribute[i].name;
+	int value = driver_video_xv_conf_attribute[i].value;
+	if((atm = XInternAtom(dpy, name, True)) != None){
+	    XvSetPortAttribute(dpy, xvw->port, atm, value);
+	}
+    }
+
+    /* just in case someone turned off auto-paint */
+    if((atm = XInternAtom(dpy, "XV_COLORKEY", True)) != None){
+	XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
+	XSetForeground(dpy, gc, color_key);
+	XFillRectangle(dpy, win, gc, 0, 0, xvw->width, xvw->height);
+    }
+
     XSync(dpy, False);
 
     return vd;
