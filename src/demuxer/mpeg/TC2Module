@@ -29,6 +29,8 @@ TCVP {
 		packet DATA mpegps_input
 		probe mpegps_probe
 	}
+	event TCVP_BUTTON
+	event TCVP_KEY
 }
 
 option		pes_size%i=0xfff2

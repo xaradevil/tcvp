@@ -46,8 +46,6 @@ typedef struct mpegps_stream {
     pthread_t eth;
 } mpegps_stream_t;
 
-static int TCVP_BUTTON, TCVP_KEY;
-
 static mpegpes_packet_t *
 mpegpes_packet(mpegps_stream_t *s, int pedantic)
 {
@@ -678,8 +676,6 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	sprintf(qn, "%s/control", qname);
 	eventq_attach(s->qr, qn, EVENTQ_RECV);
 	free(qname);
-	TCVP_BUTTON = tcvp_event_get("TCVP_BUTTON");
-	TCVP_KEY = tcvp_event_get("TCVP_KEY");
 	pthread_create(&s->eth, NULL, mpegps_event, s);
 	s->dvd_info->enable(u, 1);
     }
