@@ -31,6 +31,7 @@
 typedef struct pcm {
     url_t *u;
     uint64_t start;
+    uint64_t pts;
     stream_t s;
     int used;
 } pcm_t;
@@ -53,7 +54,7 @@ pcm_packet(muxed_stream_t *ms, int str)
 {
     pcm_t *pcm = ms->private;
     pcm_packet_t *ep;
-    int size = tcvp_demux_pcm_conf_packet_size;
+    int size = tcvp_demux_pcm_conf_packet_size * pcm->s.audio.block_align;
     u_char *buf = malloc(size);
 
     size = pcm->u->read(buf, 1, size, pcm->u);
@@ -66,8 +67,13 @@ pcm_packet(muxed_stream_t *ms, int str)
     ep->pk.data = &ep->data;
     ep->pk.sizes = &ep->size;
     ep->pk.planes = 1;
+    ep->pk.flags = TCVP_PKT_FLAG_PTS;
+    ep->pk.pts = pcm->pts;
     ep->data = buf;
     ep->size = size;
+
+    pcm->pts +=
+	size / pcm->s.audio.block_align * 27000000 / pcm->s.audio.sample_rate;
 
     return &ep->pk;
 }
@@ -79,6 +85,7 @@ pcm_seek(muxed_stream_t *ms, uint64_t time)
     uint64_t frame = pcm->s.audio.sample_rate * time / 27000000;
     uint64_t pos = pcm->start + frame * pcm->s.audio.block_align;
     pcm->u->seek(pcm->u, pos, SEEK_SET);
+    pcm->pts = time;
     return time;
 }
 

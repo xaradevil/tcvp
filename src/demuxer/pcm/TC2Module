@@ -9,7 +9,7 @@ implement	"audio/x-wav"	"open"		wav_open
 implement	"mux/wav"	"header"	wav_header
 import		"audio/mpeg"	"open"
 import		"URL"		"open"
-option		packet_size%i=4096
+option		packet_size%i=1920
 
 TCVP {
 	filter "mux/wav" {
