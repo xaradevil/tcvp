@@ -87,33 +87,34 @@ tcvp_event(void *p)
 		s_length = s_time;
 	    update_time();
 
-	} else if(te->type == TCVP_LOAD) {
-	    if(st)
-		tcfree(st);
-	    st = ((tcvp_load_event_t *)te)->stream;
-	    tcref(st);
+	} else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
+	    if(te->type == TCVP_LOAD) {
+		if(st)
+		    tcfree(st);
+		st = ((tcvp_load_event_t *)te)->stream;
+		tcref(st);
 
-	    s_length = 0;
+		s_length = 0;
 
-	    if(st->title){
-		change_text("title", st->title);
-	    } else {
-		char *title;
-		char *ext;
+		if(st->title){
+		    change_text("title", st->title);
+		} else {
+		    char *title;
+		    char *ext;
 
-		title = strrchr(st->file, '/');
-		title = strdup(title? title + 1: st->file);
-		ext = strrchr(title, '.');
-		if(ext)
-		    *ext = 0;
+		    title = strrchr(st->file, '/');
+		    title = strdup(title? title + 1: st->file);
+		    ext = strrchr(title, '.');
+		    if(ext)
+			*ext = 0;
 
-		change_text("title", title);
-		free(title);
+		    change_text("title", title);
+		    free(title);
+		}
+
+		change_text("performer", st->performer);
 	    }
 
-	    change_text("performer", st->performer);
-
-	} else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
 	    if(st) {
 		int i;
 		for(i = 0; i < st->n_streams; i++) {
