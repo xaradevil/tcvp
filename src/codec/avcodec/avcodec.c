@@ -106,7 +106,7 @@ avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
 	if(outsize > 0){
 	    out = malloc(sizeof(*out));
 	    out->data = (u_char **) &out->private;
-	    out->sizes = malloc(sizeof(size_t));
+	    out->sizes = malloc(sizeof(*out->sizes));
 	    out->sizes[0] = outsize;
 	    out->planes = 1;
 	    out->pts = 0;
@@ -263,6 +263,26 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     return ret;
 }
 
+
+static int pixel_fmts[] = {
+    [PIX_FMT_YUV420P] = PIXEL_FORMAT_I420,
+    [PIX_FMT_YUV422] = PIXEL_FORMAT_YUY2,
+    [PIX_FMT_RGB24] = 0,
+    [PIX_FMT_BGR24] = 0,
+    [PIX_FMT_YUV422P] = 0,
+    [PIX_FMT_YUV444P] = 0,
+    [PIX_FMT_RGBA32] = 0,
+    [PIX_FMT_YUV410P] = 0,
+    [PIX_FMT_YUV411P] = 0,
+    [PIX_FMT_RGB565] = 0,
+    [PIX_FMT_RGB555] = 0,
+    [PIX_FMT_GRAY8] = 0,
+    [PIX_FMT_MONOWHITE] = 0,
+    [PIX_FMT_MONOBLACK] = 0,
+    [PIX_FMT_PAL8] = 0,
+    [PIX_FMT_NB] = 0,
+};
+
 extern int
 avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
@@ -278,6 +298,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 		(double) vc->ctx->frame_rate / FRAME_RATE_BASE;
 	s->video.width = vc->ctx->width;
 	s->video.height = vc->ctx->height;
+	s->video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
 	ret = PROBE_OK;
     } else {
 	ret = PROBE_AGAIN;

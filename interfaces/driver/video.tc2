@@ -5,7 +5,8 @@ include
 typedef struct video_driver video_driver_t;
 struct video_driver {
     int frames;
-    int (*put_frame)(video_driver_t *, packet_t *, int);
+    int pixel_format;
+    int (*get_frame)(video_driver_t *, int, u_char **, int *stride);
     int (*show_frame)(video_driver_t *, int);
     int (*close)(video_driver_t *);
     void *private;

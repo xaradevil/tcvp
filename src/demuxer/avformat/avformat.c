@@ -137,7 +137,7 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 
 	    pk = malloc(sizeof(*pk));
 	    pk->data = &apk->data;
-	    pk->sizes = malloc(sizeof(size_t));
+	    pk->sizes = malloc(sizeof(*pk->sizes));
 	    pk->sizes[0] = apk->size;
 	    pk->planes = 1;
 	    pk->pts = apk->pts;

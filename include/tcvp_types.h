@@ -25,7 +25,7 @@
 typedef struct packet packet_t;
 struct packet {
     u_char **data;
-    size_t *sizes;
+    int *sizes;
     int planes;
     uint64_t pts;
     void (*free)(packet_t *);
@@ -35,12 +35,17 @@ struct packet {
 #define STREAM_TYPE_VIDEO 1
 #define STREAM_TYPE_AUDIO 2
 
+#define PIXEL_FORMAT_YV12 1
+#define PIXEL_FORMAT_I420 2
+#define PIXEL_FORMAT_YUY2 3
+
 typedef struct video_stream {
     int stream_type;
     char *codec;
     double frame_rate;
     int width, height;
     u_long frames;
+    int pixel_format;
 } video_stream_t;
 
 typedef struct audio_stream {

@@ -66,28 +66,18 @@ xv_show(video_driver_t *vd, int frame)
 }
 
 static int
-xv_put(video_driver_t *vd, packet_t *pk, int frame)
+xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
 {
     xv_window_t *xvw = vd->private;
-    int i, j;
     XvImage *xi = xvw->images[frame];
-    u_char *tmp;
+    int i;
 
-    tmp = pk->data[1];
-    pk->data[1] = pk->data[2];
-    pk->data[2] = tmp;
-
-    for(i = 0; i < 3; i++){
-	for(j = 0; j < xvw->height / (i? 2: 1); j++){
-	    memcpy(xi->data + xi->offsets[i] + j * xi->pitches[i],
-		   pk->data[i] + j * pk->sizes[i],
-		   xi->pitches[i]);
-	}
+    for(i = 0; i < xi->num_planes; i++){
+	data[i] = xi->data + xi->offsets[i];
+	strides[i] = xi->pitches[i];
     }
 
-    pk->free(pk);
-
-    return 0;
+    return xi->num_planes;
 }
 
 static int
@@ -177,7 +167,8 @@ xv_open(video_stream_t *vs, char *display)
 
     vd = malloc(sizeof(*vd));
     vd->frames = frames;
-    vd->put_frame = xv_put;
+    vd->pixel_format = PIXEL_FORMAT_YV12;
+    vd->get_frame = xv_get;
     vd->show_frame = xv_show;
     vd->close = xv_close;
     vd->private = xvw;

@@ -2,7 +2,7 @@ module		video
 name		"TCVP/output/video"
 version		0.1.0
 tc2version	0.4.0
-sources		video.c
+sources		video.c colors.c
 postinit	v_init
 implement	"output/video"	"open"	v_open
 require		"driver/video"

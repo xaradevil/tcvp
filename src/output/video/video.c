@@ -26,6 +26,7 @@
 #include <semaphore.h>
 #include <tcvp_types.h>
 #include <video_tc2.h>
+#include <vid_priv.h>
 
 #define PLAY  1
 #define PAUSE 2
@@ -35,7 +36,9 @@
 
 typedef struct video_out {
     video_driver_t *driver;
+    video_stream_t *vstream;
     timer__t *timer;
+    color_conv_t cconv;
     uint64_t *pts;
     int state;
     pthread_mutex_t smx;
@@ -105,10 +108,15 @@ static int
 v_put(tcvp_pipe_t *p, packet_t *pk)
 {
     video_out_t *vo = p->private;
+    u_char *data[4];
+    int strides[4];
+    int planes;
 
     sem_wait(&vo->hsem);
 
-    vo->driver->put_frame(vo->driver, pk, vo->head);
+    planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
+    vo->cconv(vo->vstream->height, pk->data, pk->sizes, data, strides);
+
     vo->pts[vo->head] = pk->pts;
 
     sem_post(&vo->tsem);
@@ -116,6 +124,8 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
     if(++vo->head == vo->driver->frames){
 	vo->head = 0;
     }
+
+    pk->free(pk);
 
     return 0;
 }
@@ -186,12 +196,19 @@ v_free(tcvp_pipe_t *p)
     return 0;
 }
 
+static color_conv_t conv_table[4][4] = {
+    [PIXEL_FORMAT_I420][PIXEL_FORMAT_YV12] = i420_yv12,
+    [PIXEL_FORMAT_YV12][PIXEL_FORMAT_I420] = yv12_i420,
+    [PIXEL_FORMAT_I420][PIXEL_FORMAT_YUY2] = i420_yuy2,
+};
+
 extern tcvp_pipe_t *
 v_open(video_stream_t *vs, char *device, timer__t *timer)
 {
     tcvp_pipe_t *pipe;
     video_out_t *vo;
     video_driver_t *vd = NULL;
+    color_conv_t cconv;
     int i;
 
     for(i = 0; i < output_video_conf_driver_count; i++){
@@ -203,7 +220,13 @@ v_open(video_stream_t *vs, char *device, timer__t *timer)
 	    continue;
 
 	if((vd = vdo(vs, device))){
-	    break;
+	    cconv = conv_table[vs->pixel_format][vd->pixel_format];
+	    if(cconv){
+		break;
+	    } else {
+		vd->close(vd);
+		vd = NULL;
+	    }
 	}
     }
 
@@ -212,7 +235,9 @@ v_open(video_stream_t *vs, char *device, timer__t *timer)
 
     vo = malloc(sizeof(*vo));
     vo->driver = vd;
+    vo->vstream = vs;
     vo->timer = timer;
+    vo->cconv = cconv;
     vo->pts = malloc(vd->frames * sizeof(*vo->pts));
     vo->head = 0;
     vo->tail = 0;
