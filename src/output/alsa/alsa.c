@@ -48,21 +48,26 @@ typedef struct alsa_out {
     pthread_mutex_t mx;
     pthread_cond_t cd;
     pthread_t pth;
+    int can_pause;
 } alsa_out_t;
 
 static int
 alsa_start(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
+    int s;
 
     pthread_mutex_lock(&ao->mx);
     ao->state = RUN;
+
+    s = snd_pcm_state(ao->pcm);
+    if(s == SND_PCM_STATE_PAUSED)
+	snd_pcm_pause(ao->pcm, 0);
+    else if(s != SND_PCM_STATE_RUNNING && s != SND_PCM_STATE_PREPARED)
+	snd_pcm_prepare(ao->pcm);
+
     pthread_cond_broadcast(&ao->cd);
     pthread_mutex_unlock(&ao->mx);
-    if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_PAUSED)
-	snd_pcm_pause(ao->pcm, 0);
-    else
-	snd_pcm_prepare(ao->pcm);
 
     return 0;
 }
@@ -72,7 +77,7 @@ alsa_stop(tcvp_pipe_t *p)
 {
     alsa_out_t *ao = p->private;
 
-    if(snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING)
+    if(ao->can_pause && snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING)
 	snd_pcm_pause(ao->pcm, 1);
     ao->state = PAUSE;
 
@@ -187,7 +192,7 @@ alsa_play(void *p)
 	count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->bpf;
 	r = snd_pcm_writei(ao->pcm, ao->tail, count);
 
-	if (r == -EAGAIN || (r >= 0 && r < count)) {
+	if(r == -EAGAIN){
 	    snd_pcm_wait(ao->pcm, 40);
 	} else if(r < 0){
 	    fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
@@ -215,18 +220,18 @@ alsa_play(void *p)
     return NULL;
 }
 
-static snd_pcm_route_ttable_entry_t ttable_6_2[] = {
-    SND_PCM_PLUGIN_ROUTE_FULL/4, SND_PCM_PLUGIN_ROUTE_FULL/4,
-    SND_PCM_PLUGIN_ROUTE_FULL/4, 0,
-    SND_PCM_PLUGIN_ROUTE_FULL/4, SND_PCM_PLUGIN_ROUTE_FULL/4,
-    0, SND_PCM_PLUGIN_ROUTE_FULL/4,
-    SND_PCM_PLUGIN_ROUTE_FULL/4, 0,
-    0, SND_PCM_PLUGIN_ROUTE_FULL/4
-};
+static int
+alsa_buffer(tcvp_pipe_t *p, float r)
+{
+    alsa_out_t *ao = p->private;
 
-static snd_pcm_route_ttable_entry_t *ttables[7][7] = {
-    [2][6] = ttable_6_2
-};
+    pthread_mutex_lock(&ao->mx);
+    while((float) ao->bbytes / ao->bufsize < r)
+	pthread_cond_wait(&ao->cd, &ao->mx);
+    pthread_mutex_unlock(&ao->mx);
+
+    return 0;
+}
 
 extern tcvp_pipe_t *
 alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
@@ -265,32 +270,6 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     if(timer)
 	*timer = open_timer(pcm);
 
-    if(channels != as->channels){
-	snd_pcm_t *rpcm;
-	snd_pcm_hw_params_t *rp;
-
-	if(!ttables[channels][as->channels]){
-	    snd_pcm_close(pcm);
-	    return NULL;
-	}
-
-	snd_pcm_route_open(&rpcm, "default", SND_PCM_FORMAT_S16_LE,
-			   channels, ttables[channels][as->channels],
-			   channels, as->channels, channels, pcm, 1);
-	snd_pcm_hw_params_alloca(&rp);
-	snd_pcm_hw_params_any(rpcm, rp);
-
-	snd_pcm_hw_params_set_access(rpcm, rp,
-				     SND_PCM_ACCESS_RW_INTERLEAVED);
-	snd_pcm_hw_params_set_format(rpcm, rp, SND_PCM_FORMAT_S16_LE);
-	snd_pcm_hw_params_set_rate_near(rpcm, rp, &rate, &tmp);
-	snd_pcm_hw_params_set_channels(rpcm, rp, as->channels);
-
-	snd_pcm_hw_params(rpcm, rp);
-
-	pcm = rpcm;
-    }
-
     ao = calloc(1, sizeof(*ao));
     ao->pcm = pcm;
     ao->hwp = hwp;
@@ -298,6 +277,7 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ao->bufsize = ao->bpf * output_audio_conf_buffer_size;
     ao->buf = malloc(ao->bufsize);
     ao->head = ao->tail = ao->buf;
+    ao->can_pause = snd_pcm_hw_params_can_pause(hwp);
     pthread_mutex_init(&ao->mx, NULL);
     pthread_cond_init(&ao->cd, NULL);
     ao->state = PAUSE;
@@ -311,6 +291,7 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     tp->stop = alsa_stop;
     tp->free = alsa_free;
     tp->flush = alsa_flush;
+    tp->buffer = alsa_buffer;
     tp->private = ao;
 
     return tp;
