@@ -79,7 +79,7 @@ update_time(skin_t *skin)
     }
 
     if(s_length > 0){
-	change_seek_bar(skin->seek_bar, (double)t/s_length);
+	change_seek_bar(skin->seek_bar, (double)s_time/s_length);
     } else {
 	change_seek_bar(skin->seek_bar, 0);
     }
