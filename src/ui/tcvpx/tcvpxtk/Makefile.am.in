@@ -1,2 +1,0 @@
-src_ui_tcvpx_tcvpxtk_tcvpxtk_la_CFLAGS += $(X_CFLAGS) @XUI_CFLAGS@
-tcvpxtk_MODLIBS += $(X_LIBS) $(X_EXTRA_LIBS) $(X_PRE_LIBS) -lX11 -lXext @XUI_LIBS@

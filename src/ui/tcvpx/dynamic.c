@@ -25,6 +25,7 @@
 #include "tcvpx.h"
 #include <tcstring.h>
 #include <ctype.h>
+#include <iconv.h>
 
 tchash_table_t *variable_hash;
 tchash_table_t *widget_hash;
@@ -59,20 +60,18 @@ change_variable(char *key, void *data)
 	xtk_widget_t *w;
 
 	while((w = tclist_next(lst, &current))!=NULL) {
+	    XTK_SLIDER(w, s);
 	    widget_data_t *ad = w->data;
 	    parse_variable(ad->value, &tmp, NULL);
-	    switch(w->type) {
-	    case TCSEEKBAR:
-	    {
+	    if(s) {
 		double pos = (tmp)?*((double *)tmp):0;
 		if(pos < 0) {
-		    xtk_disable_seek_bar(w);
+		    xtk_widget_disable(w);
 		} else {
-		    xtk_enable_seek_bar(w);
+		    xtk_widget_enable(w);
 		}
-		xtk_change_seek_bar(w, pos);
+		xtk_widget_slider_set_position(w, pos);
 		break;
-	    }
 	    }
 	}
     }
@@ -103,15 +102,9 @@ change_text(char *key, char *text)
 
 	while((w = tclist_next(lst, &current))!=NULL) {
 	    widget_data_t *ad = w->data;
-	    parse_text(ad->value, buf);
-	    switch(w->type) {
-	    case TCLABEL:
-		xtk_change_label(w, buf);
-		break;
-	    case TCSTATE:
-		xtk_change_state(w, buf);
-		break;
-	    }
+	    parse_text(ad->value, buf, 1024);
+	    xtk_widget_label_set_text(w, buf);
+/* 		xtk_state_set(w, buf); */
 	}
     }
 
@@ -190,6 +183,12 @@ register_key(char *key, xtk_widget_t *w)
     return 0;
 }
 
+int
+ptr_cmp(const void *p1, const void *p2)
+{
+    return p1-p2;
+}
+
 static int
 unregister_key(char *key, xtk_widget_t *w)
 {
@@ -197,7 +196,7 @@ unregister_key(char *key, xtk_widget_t *w)
     tchash_find(widget_hash, key, &lst);
 
     if(lst) {
-	tclist_delete(lst, w, xtk_widget_cmp, NULL);
+	tclist_delete(lst, w, ptr_cmp, NULL);
     }
 
     return 0;
@@ -317,19 +316,34 @@ parse_variable(char *text, void **result, void **def)
 
 
 extern int
-parse_text(char *text, char *result)
+parse_text(char *text, char *result, int len)
 {
     char *exp;
+    char *outptr = result, *inptr;
+    iconv_t ic;
+    int avail = len, insize;
 
     if(!text) {
 	result[0]=0;
 	return 1;
     }
 
+    tc2_print("tcvpx", 10, "parse_text: text=%s\n", text);
+
     exp = tcstrexp(text, "{", "}", ':', lookup_variable,
 		   NULL, TCSTREXP_ESCAPE);
-    strcpy(result, exp);
+    inptr = exp;
+    insize = strlen(exp);
+
+    ic = iconv_open("UTF-8", "ISO_8859-1");
+    iconv(ic, NULL, NULL, &outptr, &avail);
+    iconv(ic, &inptr, &insize, &outptr, &avail);
+    if(avail >= 1) *outptr = '\0';
+    iconv_close(ic);
+
     free(exp);
+
+    tc2_print("tcvpx", 10, "parse_text: result=%s\n", result);
 
     return 0;
 }

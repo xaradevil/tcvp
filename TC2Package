@@ -45,7 +45,6 @@ module src/timer/backends
 module src/timer/backends/soft
 module src/ui/cmdline
 module src/ui/tcvpx
-module src/ui/tcvpx/tcvpxtk
 module src/watchdog
 module src/wm/wm
 module src/wm/x11

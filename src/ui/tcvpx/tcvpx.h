@@ -43,15 +43,15 @@ typedef struct {
     char *file;
     char *path;
     int width, height;
-    window_t *window;
+    xtk_widget_t *window;
     int state;
     tchash_table_t *id_hash;
     tclist_t *templates;
 } skin_t;
 
 extern skin_t* load_skin(char *skinfile);
-extern int create_ui(window_t *win, skin_t *skin, tcconf_section_t *config, 
-	      tchash_table_t *parameters);
+extern int create_ui(xtk_widget_t *c, skin_t *skin,
+		     tcconf_section_t *config, tchash_table_t *parameters);
 
 extern int init_skins(void);
 extern void cleanup_skins(void);
@@ -61,7 +61,7 @@ extern void free_dynamic(void);
 
 extern int init_events(void);
 
-extern int parse_text(char *text, char *result);
+extern int parse_text(char *text, char *result, int len);
 extern int parse_variable(char *text, void **result, void **def);
 
 extern int change_text(char *key, char *text);
@@ -86,7 +86,7 @@ extern eventq_t qr;
 
 extern int s_time;
 extern int s_length;
-tchash_table_t *text_hash;
+extern tchash_table_t *text_hash;
 
 typedef struct {
     char *action;

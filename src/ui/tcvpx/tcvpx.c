@@ -37,6 +37,8 @@
 
 #define xpos tcvp_ui_tcvpx_conf_xposition
 #define ypos tcvp_ui_tcvpx_conf_yposition
+#define rwidth (*xtk_display_width)
+#define rheight (*xtk_display_height)
 
 eventq_t qs;
 eventq_t qr;
@@ -56,6 +58,7 @@ tcvpx_init(char *p)
 	tcconf_getvalue(cs, "qname", "%s", &qname);
 
     tcconf_getvalue(cs, "skin", "%s", &skinfile);
+
     tcfree(cs);
 
     qs = eventq_new(NULL);
@@ -74,60 +77,54 @@ tcvpx_init(char *p)
     init_skins();
     init_events();
 
-    xtk_init_graphics();
-    xtk_set_dnd_cb(tcvp_add_file);
+/*     xtk_window_set_dnd_cb(tcvp_add_file); */
 
     if((skin = load_skin(skinfile)) == NULL){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 
-    skin->window = xtk_create_window("TCVP", skin->width, skin->height);
+    skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 
-    xtk_update_root(skin->window);
-
-    xtk_show_window(skin->window);
+    xtk_window_show(skin->window);
 
     if(xpos > -2 && ypos > -2) {
 	xtk_position_t pos;
-	xtk_size_t *ss = xtk_get_screen_size();
 
 	if(xpos < 0) {
-	    xpos = ss->w - skin->width;
+	    xpos = rwidth - skin->width;
 	}
 	if(ypos < 0) {
-	    ypos = ss->h - skin->height;
+	    ypos = rheight - skin->height;
 	}
 
 	pos.x = xpos;
 	pos.y = ypos;
-
-	xtk_set_window_position(skin->window, &pos);
-
-	free(ss);
+	xtk_window_set_position(skin->window, &pos);
     }
 
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
-	xtk_set_sticky(skin->window, 1);
+	xtk_window_set_sticky(skin->window, 1);
 	skin->state |= ST_STICKY;
     }
 
     if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
-	xtk_set_always_on_top(skin->window, 1);
+	xtk_window_set_always_on_top(skin->window, 1);
 	skin->state |= ST_ON_TOP;
     }
 
     update_time();
 
-    xtk_repaint_widgets();
-    xtk_draw_widgets();
-
     pthread_create(&eth, NULL, tcvp_event, NULL);
+    xtk_run();
+
+/*     tc2_request(TC2_LOAD_MODULE, 1, "Shell", NULL); */
+
     return 0;
 }
 
@@ -139,8 +136,8 @@ tcvpx_shdn(void)
 
     tcvp_event_send(qr, -1);
 
-    xtk_shutdown_graphics();
-
+    xtk_shutdown();
+    
     pthread_join(eth, NULL);
 
     cleanup_skins();

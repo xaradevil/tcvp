@@ -1,58 +1,80 @@
 module		tcvpx
 name		"TCVP/ui/tcvpx"
-version		0.1.3
+version		0.2.0
 tc2version	0.4.0
 sources		dynamic.c skin.c tcvpctl.c tcvpx.c tcvpx.h tcvpctl.h
 postinit	tcvpx_init
 shutdown	tcvpx_shdn
 
-import		"Eventq"	"new"
-import		"Eventq"	"delete"
-import		"Eventq"	"send"
-import		"Eventq"	"recv"
 import		"Eventq"	"attach"
+import		"Eventq"	"delete"
 import		"Eventq"	"detach"
-
-import		"tcvp/event"	"get"
-import		"tcvp/event"	"alloc"
-import		"tcvp/event"	"send"
+import		"Eventq"	"new"
+import		"Eventq"	"recv"
+import		"Eventq"	"send"
 
 import		"image/png"	"read"
 
-import		"xtk"		"update_root"
-import		"xtk"		"create_background"
-import		"xtk"		"create_button"
-import		"xtk"		"change_label"
-import		"xtk"		"create_label"
-import		"xtk"		"change_seek_bar"
-import		"xtk"		"create_seek_bar"
-import		"xtk"		"enable_seek_bar"
-import		"xtk"		"disable_seek_bar"
-import		"xtk"		"create_state"
-import		"xtk"		"change_state"
-import		"xtk"		"init_graphics"
-import		"xtk"		"shutdown_graphics"
-import		"xtk"		"create_window"
-import		"xtk"		"destroy_window"
-import		"xtk"		"show_window"
-import		"xtk"		"hide_window"
-import		"xtk"		"set_sticky"
-import		"xtk"		"set_always_on_top"
-import		"xtk"		"widget_cmp"
-import		"xtk"		"draw_widgets"
-import		"xtk"		"repaint_widgets"
-import		"xtk"		"set_dnd_cb"
-import		"xtk"		"get_window_position"
-import		"xtk"		"set_window_position"
-import		"xtk"		"create_box"
-import		"xtk"		"box_get_subwindow"
-import		"xtk"		"show_widget"
-import		"xtk"		"hide_widget"
-import		"xtk"		"get_screen_size"
-import		"xtk"		"get_parent"
+import		"tcvp/event"	"alloc"
+import		"tcvp/event"	"get"
+import		"tcvp/event"	"send"
 
-option		skin%s
+import		"xtk"			"run"
+import		"xtk"			"shutdown"
+
+import		"xtk/display"		"height"
+import		"xtk/display"		"width"
+
+import		"xtk/widget"		"disable"
+import		"xtk/widget"		"draw"
+import		"xtk/widget"		"enable"
+import		"xtk/widget"		"hide"
+import		"xtk/widget"		"repaint"
+import		"xtk/widget"		"show"
+
+import		"xtk/widget/button"	"create"
+import		"xtk/widget/button"	"set_action"
+import		"xtk/widget/button"	"set_data"
+import		"xtk/widget/button"	"set_hover_image"
+import		"xtk/widget/button"	"set_image"
+import		"xtk/widget/button"	"set_pressed_image"
+import		"xtk/widget/button"	"set_shape"
+
+import		"xtk/widget/container"	"create"
+import		"xtk/widget/container"	"set_data"
+import		"xtk/widget/container"	"set_shape"
+
+import		"xtk/widget/image"	"create"
+import		"xtk/widget/image"	"set_image"
+
+import		"xtk/widget/label"	"create"
+import		"xtk/widget/label"	"set_action"
+import		"xtk/widget/label"	"set_color"
+import		"xtk/widget/label"	"set_data"
+import		"xtk/widget/label"	"set_font"
+import		"xtk/widget/label"	"set_offset"
+import		"xtk/widget/label"	"set_text"
+
+import		"xtk/widget/slider"	"create"
+import		"xtk/widget/slider"	"set_action"
+import		"xtk/widget/slider"	"set_bounds"
+import		"xtk/widget/slider"	"set_data"
+import		"xtk/widget/slider"	"set_image"
+import		"xtk/widget/slider"	"set_indicator_image"
+import		"xtk/widget/slider"	"set_indicator_image_hover"
+import		"xtk/widget/slider"	"set_indicator_image_pressed"
+import		"xtk/widget/slider"	"set_position"
+
+import		"xtk/window"		"create"
+import		"xtk/window"		"destroy"
+import		"xtk/window"		"get_position"
+import		"xtk/window"		"set_always_on_top"
+import		"xtk/window"		"set_position"
+import		"xtk/window"		"set_sticky"
+import		"xtk/window"		"show"
+
 option		always_on_top%d=0
+option		skin%s
 option		sticky%d=0
 option		xposition%d=-2
 option		yposition%d=-2

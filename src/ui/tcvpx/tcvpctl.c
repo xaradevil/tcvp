@@ -251,7 +251,7 @@ tcvp_seek_rel(xtk_widget_t *w, void *p)
 extern int
 tcvp_quit()
 {
-    tc2_request(TC2_UNLOAD_ALL, 0);
+    tc2_request(TC2_UNLOAD_MODULE, 0, "TCVP/ui/cmdline");
 
     return 0;
 }
