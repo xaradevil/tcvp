@@ -1,0 +1,10 @@
+symbol "open" player_t *(*%s)(char *name)
+include
+typedef struct player player_t;
+struct player {
+    int (*start)(player_t *);
+    int (*stop)(player_t *);
+    int (*seek)(player_t *, int);
+    int (*close)(player_t *);
+    void *private;
+};
