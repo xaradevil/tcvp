@@ -58,11 +58,15 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	    break;
 
 	case TCVP_STATE_END:
+	{
 	    change_text("state", "stop");
+	    s_time = -1;
+	    update_time();
 	    if(st)
 		tcfree(st);
 	    st = NULL;
 	    break;
+	}
 	}
 
     } else if(te->type == TCVP_TIMER) {
@@ -282,13 +286,17 @@ update_time(void)
 	}
     }
 
-    *pos = (s_length>0)?(double)s_time/s_length:-1;
+    *pos = (s_length>0 && s_time>=0)?(double)s_time/s_length:-1;
     change_variable("position", pos);
 
     int m = t/60;
 
-    snprintf(text, 8, "%c%d:%02d", sign, m, t%60);
-    change_text("time", text);
+    if(s_time >= 0) {
+	snprintf(text, 8, "%c%d:%02d", sign, m, t%60);
+	change_text("time", text);
+    } else {
+	change_text("time", "   :  ");
+    }
 
     return 0;
 }
