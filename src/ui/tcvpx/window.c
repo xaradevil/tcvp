@@ -83,6 +83,7 @@ x11_event(void *p)
 
 	case MapNotify:	    
 	    mapped = 1;
+	    repaint_widgets();
 	    break;
 
 	case UnmapNotify:
