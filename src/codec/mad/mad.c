@@ -308,7 +308,7 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     u_char *d = pk->data[0];
     int ds = pk->sizes[0];
 
-    while(mp3_header(d, &mf, ds)){
+    while(ds > 3 && mp3_header(d, &mf, ds)){
 	d++;
 	ds--;
 	md->pc++;
