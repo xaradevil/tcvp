@@ -28,6 +28,7 @@
 #include <ogg_tc2.h>
 
 #define BUFFER_SIZE 8500
+#define seek_fuzziness tcvp_demux_ogg_conf_seek_fuzziness
 
 typedef struct {
     ogg_sync_state oy;
@@ -141,7 +142,6 @@ static uint64_t
 ogg_seek(muxed_stream_t *ms, uint64_t time)
 {
     ogg_page og;
-    uint64_t more;
     int l;
     char *buf;
 
@@ -153,9 +153,9 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
     uint64_t start = 0;
     uint64_t end = ost->end;
     uint64_t ppos=0;
-    uint64_t mid;
+    uint64_t mid=0;
 
-    while(end>start) {
+    while(end-start>seek_fuzziness) {
 	mid = (start + end) / 2;
 
 	fseek(f, mid, SEEK_SET);

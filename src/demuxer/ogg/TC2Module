@@ -6,3 +6,4 @@ sources		ogg.c
 implement	"audio/ogg"	"open"		ogg_open
 implement	"audio/ogg"	"close"		ogg_close
 implement	"audio/ogg"	"next_packet"	ogg_next_packet
+option		seek_fuzziness%i=1000
