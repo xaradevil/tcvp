@@ -48,8 +48,8 @@ echo Codec modules..........: $CODEC_MODULES
 echo Demuxer modules........: $DEMUXER_MODULES
 echo Output modules.........: $OUTPUT_MODULES
 echo Driver modules.........: $DRIVERS_MODULES
-echo Userinterface modules..: $UI_MODULES
+echo User interface modules.: $UI_MODULES
 echo Other modules..........: $SRC_MODULES
 echo
-echo TCVP will be installed in $prefix
+echo TCVP will be installed under $prefix
 echo
