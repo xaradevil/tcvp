@@ -15,20 +15,20 @@ TCVP {
 	module "tcvp/playlist" {
 		new pl_new
 		init pl_init
-		event status TCVP_OPEN
-		event status TCVP_START
-		event status TCVP_CLOSE
-		event status TCVP_LOAD
 		event status TCVP_STATE epl_state
 		event control TCVP_PL_START epl_start
 		event control TCVP_PL_STOP epl_stop
 		event control TCVP_PL_NEXT epl_next
 		event control TCVP_PL_PREV epl_prev
-		event control TCVP_PL_ADD epl_add pl_alloc_add pl_add_ser pl_add_deser
-		event control TCVP_PL_ADDLIST epl_addlist pl_alloc_addlist pl_addlist_ser pl_addlist_deser
-		event control TCVP_PL_REMOVE epl_remove pl_alloc_remove remove_ser remove_deser
-		event control TCVP_PL_SHUFFLE epl_shuffle pl_alloc_shuffle shuffle_ser shuffle_deser
+		event control TCVP_PL_ADD epl_add
+		event control TCVP_PL_ADDLIST epl_addlist
+		event control TCVP_PL_REMOVE epl_remove
+		event control TCVP_PL_SHUFFLE epl_shuffle
 	}
+	event TCVP_OPEN
+	event TCVP_START
+	event TCVP_CLOSE
+	event TCVP_LOAD
 	event TCVP_PL_ADD	pl_alloc_add pl_add_ser pl_add_deser
 	event TCVP_PL_ADDLIST	pl_alloc_addlist pl_addlist_ser pl_addlist_deser
 	event TCVP_PL_REMOVE	pl_alloc_remove remove_ser remove_deser
