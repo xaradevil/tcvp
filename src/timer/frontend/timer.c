@@ -130,7 +130,8 @@ tm_tick(tcvp_timer_t *t, uint64_t ticks)
     atimer_t *at = t->private;
 
     pthread_mutex_lock(&at->mx);
-    at->time += ticks;
+    if(at->state == RUN)
+	at->time += ticks;
     pthread_cond_broadcast(&at->cd);
     pthread_mutex_unlock(&at->mx);
 }
