@@ -494,6 +494,7 @@ read_stream(void *p)
 		tc2_print("STREAM", TC2_PRINT_DEBUG, "probing stream %i\n",
 			  pk->stream);
 		tcref(pk);
+		sp->ms->streams[ps].common.index = pk->stream;
 		str->probe = str->pipe->probe(str->pipe, pk,
 					      sp->ms->streams + ps);
 		if(str->probe == PROBE_FAIL){
