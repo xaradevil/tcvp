@@ -35,6 +35,7 @@ pcm_flush(tcvp_pipe_t *p, int drop)
 static int
 pcm_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
+    p->format = *s;
     return p->next->probe(p->next, NULL, s);
 }
 

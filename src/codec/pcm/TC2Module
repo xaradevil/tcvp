@@ -4,3 +4,4 @@ version		0.1.0
 tc2version	0.4.0
 sources		pcm.c
 implement	"decoder/audio/pcm-s16le"	"new"		pcm_new
+implement	"decoder/audio/pcm-u8"		"new"		pcm_new
