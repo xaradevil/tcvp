@@ -185,9 +185,9 @@ s_open_mux(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 #define min_buffer tcvp_demux_stream_conf_buffer
 
 typedef struct s_play {
-    muxed_stream_t *stream;
+    int nms;
     tcvp_pipe_t **pipes;
-    int nstreams;
+    int nstreams, tstreams;
     pthread_t *threads, rth;
     sem_t rsm;
     int state;
@@ -197,6 +197,8 @@ typedef struct s_play {
     pthread_cond_t cnd;
     eventq_t sq;
     struct sp_stream {
+	muxed_stream_t *str;
+	int soff;
 	list *pq;
 	sem_t ps;
 	uint64_t pts;
@@ -248,9 +250,8 @@ wstream(s_play_t *vp)
     int i, s = -1;
     uint64_t pts = -1;
 
-    for(i = 0; i < vp->stream->n_streams; i++){
-	if(vp->stream->used_streams[i] &&
-	   !vp->eof &&
+    for(i = 0; i < vp->tstreams; i++){
+	if(vp->streams[i].str &&
 	   vp->streams[i].pts < pts &&
 	   list_items(vp->streams[i].pq) < min_buffer){
 	    s = i;
@@ -273,15 +274,18 @@ read_stream(void *p)
 	    break;
 
 	while((s = wstream(vp)) >= 0 && vp->state == RUN){
-	    packet_t *p = vp->stream->next_packet(vp->stream, s);
+	    muxed_stream_t *ms = vp->streams[s].str;
+	    packet_t *p = ms->next_packet(ms, s);
 	    int str;
 
 	    if(!p){
-		vp->eof = 1;
 		sem_post(&vp->streams[s].ps);
-		break;
+		vp->streams[s].str = NULL;
+		if(++vp->eof == vp->nms)
+		    break;
 	    }
 
+	    p->stream += vp->streams[s].soff;
 	    str = p->stream;
 	    if(p->flags & TCVP_PKT_FLAG_PTS)
 		vp->streams[str].pts = p->pts;
@@ -384,8 +388,8 @@ s_flush(tcvp_pipe_t *p, int drop)
 
     while(!sem_trywait(&vp->rsm));
 
-    for(i = 0; i < vp->stream->n_streams; i++){
-	if(vp->stream->used_streams[i]){
+    for(i = 0; i < vp->tstreams; i++){
+	if(vp->streams[i].str){
 	    vp->pipes[i]->flush(vp->pipes[i], drop);
 	    if(drop){
 		freeq(vp, i);
@@ -420,8 +424,8 @@ s_free(void *p)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
 
-    for(i = 0, j = 0; i < vp->stream->n_streams; i++){
-	if(vp->stream->used_streams[i]){
+    for(i = 0, j = 0; i < vp->tstreams; i++){
+	if(vp->streams[i].str){
 	    pthread_join(vp->threads[j], NULL);
 	    freeq(vp, i);
 	    list_destroy(vp->streams[i].pq, NULL);
@@ -442,9 +446,8 @@ s_free(void *p)
 }
 
 static int
-s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
+s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 {
-    muxed_stream_t *ms = vp->stream;
     uint64_t start_time = -1;
     int pcnt[ms->n_streams];
     int pstat[ms->n_streams];
@@ -462,7 +465,7 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 
     while(spc){
 	packet_t *pk = ms->next_packet(ms, -1);
-	int st;
+	int st, ci;
 
 	if(!pk || !pk->data){
 	    if(pk)
@@ -471,13 +474,15 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 	}
 
 	st = pk->stream;
+	pk->stream += msi;
+	ci = st + msi;
 
 	if(ms->used_streams[st] && codecs[st]->probe){
 	    int ps;
 
 	    if(!pstat[st] || pstat[st] == PROBE_AGAIN){
 		tcref(pk);
-		ps = codecs[st]->probe(codecs[st], pk, &ms->streams[st]);
+		ps = codecs[ci]->probe(codecs[ci], pk, &ms->streams[st]);
 		pcnt[st]++;
 		pstat[st] = ps;
 		if(ps != PROBE_AGAIN ||
@@ -487,7 +492,8 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 		if(ps == PROBE_FAIL){
 		    ms->used_streams[st] = 0;
 		} else {
-		    list_push(vp->streams[st].pq, pk);
+		    list_push(vp->streams[ci].pq, pk);
+		    vp->streams[ci].str = ms;
 		}
 		if(!stime[st] && pk->flags & TCVP_PKT_FLAG_PTS){
 		    ms->streams[st].common.start_time = pk->pts;
@@ -501,35 +507,42 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 	}
     }
 
-    vp->start_time = start_time;
+    if(start_time < vp->start_time)
+	vp->start_time = start_time;
 
     for(i = 0; i < ms->n_streams; i++){
+	int ci = msi + i;
 	if(pstat[i] != PROBE_OK){
 	    ms->used_streams[i] = 0;
-	    freeq(vp, i);
-	    list_destroy(vp->streams[i].pq, NULL);
+	    freeq(vp, ci);
+	    list_destroy(vp->streams[ci].pq, NULL);
 	}
-	if(codecs[i])
-	    codecs[i]->flush(codecs[i], 1);
+	if(codecs[ci])
+	    codecs[ci]->flush(codecs[ci], 1);
     }
 
     return PROBE_OK;
 }
 
 extern tcvp_pipe_t *
-s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
+s_play(muxed_stream_t **mss, int ns, tcvp_pipe_t **out, tcconf_section_t *cs)
 {
     tcvp_pipe_t *p;
     s_play_t *vp;
     int i, j;
     char *qname, *qn;
     int time;
+    int np = 0;
+
+    for(i = 0; i < ns; i++)
+	np += mss[i]->n_streams;
 
     vp = calloc(1, sizeof(*vp));
-    vp->stream = ms;
-    vp->pipes = calloc(ms->n_streams, sizeof(*vp->pipes));
-    vp->threads = calloc(ms->n_streams, sizeof(*vp->threads));
-    vp->streams = calloc(ms->n_streams, sizeof(*vp->streams));
+    vp->nms = ns;
+    vp->tstreams = np;
+    vp->pipes = calloc(np, sizeof(*vp->pipes));
+    vp->threads = calloc(np, sizeof(*vp->threads));
+    vp->streams = calloc(np, sizeof(*vp->streams));
     vp->state = RUN;
     pthread_mutex_init(&vp->mtx, NULL);
     pthread_cond_init(&vp->cnd, NULL);
@@ -542,12 +555,19 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
     vp->sq = eventq_new(NULL);
     eventq_attach(vp->sq, qn, EVENTQ_SEND);
 
-    for(i = 0; i < ms->n_streams; i++){
+    for(i = 0; i < np; i++){
 	vp->streams[i].pq = list_new(TC_LOCK_SLOPPY);
 	sem_init(&vp->streams[i].ps, 0, 0);
     }
 
-    s_probe(vp, out);
+    vp->start_time = -1;
+
+    for(i = 0, j = 0; i < ns; i++){
+	vp->streams[i].soff = j;
+	s_probe(vp, mss[i], j, out);
+	j += mss[i]->n_streams;
+    }
+
     pthread_create(&vp->rth, NULL, read_stream, vp);
     vp->state = PAUSE;
 
@@ -560,8 +580,8 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
 	vp->end_time = -1;
     }
 
-    for(i = 0, j = 0; i < ms->n_streams; i++){
-	if(ms->used_streams[i]){
+    for(i = 0, j = 0; i < np; i++){
+	if(vp->streams[i].str){
 	    vp_thread_t *th = malloc(sizeof(*th));
 	    th->stream = i;
 	    th->vp = vp;
