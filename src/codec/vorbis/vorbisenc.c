@@ -47,6 +47,7 @@ typedef struct vorbis_enc {
     int bps;
     int channels;
     uint64_t gpos;
+    u_char *headers;
 } vorbis_enc_t;
 
 static void
@@ -84,11 +85,10 @@ ve_alloc(int s, ogg_packet *op, int samples)
     return vp;
 }
 
-static int
-ve_input(tcvp_pipe_t *p, tcvp_packet_t *tpk)
+extern int
+ve_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     vorbis_enc_t *ve = p->private;
-    tcvp_data_packet_t *pk = &tpk->data;
     ogg_packet op;
     float **buf;
     int samples;
@@ -122,7 +122,7 @@ ve_input(tcvp_pipe_t *p, tcvp_packet_t *tpk)
     return 0;
 }
 
-static int
+extern int
 ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     vorbis_enc_t *ve = p->private;
@@ -149,6 +149,7 @@ ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 
     cds = op[0].bytes + op[1].bytes + op[2].bytes + 6;
     cdp = malloc(cds);
+    ve->headers = cdp;
     p->format.common.codec_data = cdp;
     p->format.common.codec_data_size = cds;
 
@@ -160,20 +161,13 @@ ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     }
 
     tcfree(pk);
-    return p->next->probe(p->next, NULL, &p->format);
-}
-
-static int
-ve_flush(tcvp_pipe_t *p, int drop)
-{
-    return p->next->flush(p->next, drop);
+    return PROBE_OK;
 }
 
 static void
 ve_free(void *p)
 {
-    tcvp_pipe_t *tp = p;
-    vorbis_enc_t *ve = tp->private;
+    vorbis_enc_t *ve = p;
     int i;
 
     vorbis_block_clear(&ve->vb);
@@ -184,9 +178,7 @@ ve_free(void *p)
 	free(ve->vc.user_comments[i]);
     free(ve->vc.user_comments);
     free(ve->vc.comment_lengths);
-    free(ve);
-
-    free(tp->format.common.codec_data);
+    free(ve->headers);
 }
 
 static char *comments[] = {
@@ -195,14 +187,14 @@ static char *comments[] = {
     "album"
 };
 
-extern tcvp_pipe_t *
-ve_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
+extern int
+ve_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+       muxed_stream_t *ms)
 {
-    tcvp_pipe_t *tp;
     vorbis_enc_t *ve;
     int nc, i, c;
 
-    ve = calloc(1, sizeof(*ve));
+    ve = tcallocdz(sizeof(*ve), NULL, ve_free);
     vorbis_info_init(&ve->vi);
     ve->quality = encoder_audio_vorbis_conf_quality;
     tcconf_getvalue(cs, "quality", "%f", &ve->quality);
@@ -224,13 +216,8 @@ ve_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     ve->vc.comments = c;
     ve->vc.vendor = "TCVP";
 
-    tp = tcallocdz(sizeof(*tp), NULL, ve_free);
-    tp->format = *s;
-    tp->format.common.codec = "audio/vorbis";
-    tp->input = ve_input;
-    tp->probe = ve_probe;
-    tp->flush = ve_flush;
-    tp->private = ve;
+    p->format.common.codec = "audio/vorbis";
+    p->private = ve;
 
-    return tp;
+    return 0;
 }

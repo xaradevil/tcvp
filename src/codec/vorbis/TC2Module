@@ -3,12 +3,16 @@ name		"TCVP/codec/vorbis"
 version		0.1.1
 tc2version	0.6.0
 sources		vorbis.c vorbisenc.c
-implement	"encoder/audio/vorbis"	"new"	ve_new
 
 TCVP {
 	filter "decoder/audio/vorbis" {
 		new vorbis_new
 		packet DATA vorbis_decode
 		probe vorbis_probe
+	}
+	filter "encoder/audio/vorbis" {
+		new ve_new
+		packet DATA ve_input
+		probe ve_probe
 	}
 }
