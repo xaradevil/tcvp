@@ -20,7 +20,7 @@
 #include <tcvp_event.h>
 #include "tcvpctl.h"
 #include <string.h>
-
+#include <unistd.h>
 
 extern void *
 tcvp_event(void *p)
@@ -34,6 +34,13 @@ tcvp_event(void *p)
 	tcvp_event_t *te = eventq_recv(qr);
 /* 	printf("%d\n", te->type); */
 	switch(te->type){
+
+	case TCVP_STATE:
+	    switch(te->state.state) {
+	    case TCVP_STATE_PL_END:
+		tcvp_stop(NULL, NULL);
+		break;
+	    }
 
 	case TCVP_TIMER:
 	    s_time = te->timer.time/1000000;
@@ -141,7 +148,6 @@ tcvp_play(tcwidget_t *w, void *p)
 extern int
 tcvp_next(tcwidget_t *w, void *p)
 {
-    fprintf(stderr, "next\n");
     tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_NEXT);
     eventq_send(qs, te);
     tcfree(te);
