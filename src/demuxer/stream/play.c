@@ -53,6 +53,7 @@ struct stream_shared {
     pthread_cond_t cond;
     eventq_t sq;
     char *outfile;
+    int nstreams;
 };
 
 typedef struct stream_play {
@@ -61,8 +62,6 @@ typedef struct stream_play {
 	tcvp_pipe_t *pipe, *end;
 	tclist_t *packets;
 	int probe;
-	pthread_mutex_t mx;
-	pthread_cond_t cd;
 	pthread_t th;
 	struct stream_play *sp;
     } *streams;
@@ -259,8 +258,6 @@ add_stream(stream_player_t *sp, int s)
     sp->streams[s].packets = tclist_new(TC_LOCK_NONE);
     sp->streams[s].probe = PROBE_AGAIN;
     sp->streams[s].sp = sp;
-    pthread_mutex_init(&sp->streams[s].mx, NULL);
-    pthread_cond_init(&sp->streams[s].cd, NULL);
 
     sp->ms->used_streams[s] = 1;
     sp->nbuf++;
@@ -289,8 +286,11 @@ del_stream(stream_player_t *sp, int s)
     else if(ss == sh->as)
 	sh->as = -1;
 
+    pthread_mutex_lock(&sp->lock);
+
     close_pipe(str->pipe);
     str->pipe = NULL;
+    str->end = NULL;
 
     if(str->packets){
 	tclist_destroy(str->packets, tcfree);
@@ -299,9 +299,13 @@ del_stream(stream_player_t *sp, int s)
 
     sp->ms->used_streams[s] = 0;
 
-    pthread_mutex_lock(&sp->lock);
-    if(!--sp->pstreams)
-	tcvp_event_send(sh->sq, TCVP_STATE, TCVP_STATE_END);
+    if(!--sp->pstreams){
+	pthread_mutex_lock(&sh->lock);
+	if(!--sh->nstreams)
+	    tcvp_event_send(sh->sq, TCVP_STATE, TCVP_STATE_END);
+	pthread_mutex_unlock(&sh->lock);
+    }
+
     pthread_cond_broadcast(&sp->cond);
     pthread_mutex_unlock(&sp->lock);
 
@@ -360,13 +364,6 @@ play_stream(void *p)
 	    break;
 	}
 
-	if(pk->flags & TCVP_PKT_FLAG_PTS &&
-	   pk->pts > sh->endtime){
-	    tc2_print("STREAM", TC2_PRINT_DEBUG,
-		      "stream %i end time reached\n", six);
-	    tcfree(pk);
-	    break;
-	}
 	if(str->pipe->input(str->pipe, pk))
 	    break;
     }
@@ -443,6 +440,15 @@ read_stream(void *p)
 	    }
 	    pthread_mutex_unlock(&sh->lock);
 
+	    if(pk->flags & TCVP_PKT_FLAG_PTS &&
+	       pk->pts > sh->endtime){
+		tc2_print("STREAM", TC2_PRINT_DEBUG,
+			  "stream %i end time reached\n", pk->stream);
+		tcfree(pk);
+		pk = NULL;
+		sp->ms->used_streams[ps] = 0;
+	    }
+
 	    switch(str->probe){
 	    case PROBE_AGAIN:
 		tc2_print("STREAM", TC2_PRINT_DEBUG, "probing stream %i\n",
@@ -465,9 +471,11 @@ read_stream(void *p)
 		}
 	    case PROBE_OK:
 		pthread_mutex_lock(&sp->lock);
-		tclist_push(str->packets, pk);
-		if(tclist_items(str->packets) > min_buffer)
-		    sp->nbuf--;
+		if(str->packets){
+		    tclist_push(str->packets, pk);
+		    if(tclist_items(str->packets) > min_buffer)
+			sp->nbuf--;
+		}
 		pthread_cond_broadcast(&sp->cond);
 		pthread_mutex_unlock(&sp->lock);
 		break;
@@ -554,6 +562,8 @@ s_free(void *p)
     pthread_cond_broadcast(&sp->cond);
     pthread_mutex_unlock(&sp->lock);
 
+    pthread_join(sp->rth, NULL);
+
     for(i = 0; i < sp->nstreams; i++){
 	if(sp->streams[i].th)
 	    pthread_join(sp->streams[i].th, NULL);
@@ -583,6 +593,10 @@ s_play(stream_shared_t *sh, muxed_stream_t *ms)
 
     if(!sp->pstreams)
 	return NULL;		/* FIXME: leak */
+
+    pthread_mutex_lock(&sh->lock);
+    sh->nstreams++;
+    pthread_mutex_unlock(&sh->lock);
 
     pthread_create(&sp->rth, NULL, read_stream, sp);
 
