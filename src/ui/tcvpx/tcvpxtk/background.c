@@ -20,6 +20,10 @@
 #include <X11/extensions/shape.h>
 #include <string.h>
 
+#define snapdistace tcvp_ui_tcvpxtk_conf_snap_distance
+#define drag_update tcvp_ui_tcvpxtk_conf_drag_update
+
+static int drag_num;
 
 static Pixmap
 get_root(window_t *window)
@@ -229,6 +233,80 @@ destroy_background(xtk_widget_t *xw)
     return 0;
 }
 
+static int
+bg_ondrag(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+    xtk_position_t p;
+    int rx, ry, wx, wy;
+    unsigned int m;
+    Window rw, cw;
+    window_t *top;
+
+    for(top = w->common.window; w->common.window->parent != NULL; top = top->parent);
+
+    XQueryPointer(xd, w->common.win, &rw, &cw, &rx, &ry, &wx, &wy, &m);
+
+    p.x = w->background.wp->x + (rx - w->background.sx);
+    p.y = w->background.wp->y + (ry - w->background.sy);
+
+    if(p.x - snapdistace < 0 && p.x + snapdistace > 0) {
+	p.x = 0;
+    } else if(p.x - snapdistace < root_width - top->width &&
+       p.x + snapdistace > root_width - top->width) {
+	p.x = root_width - top->width;
+    }
+
+    if(p.y - snapdistace < 0 && p.y + snapdistace > 0) {
+	p.y = 0;
+    } else if(p.y - snapdistace < root_height - top->height &&
+       p.y + snapdistace > root_height - top->height) {
+	p.y = root_height - top->height;
+    }
+
+    set_win_pos(xw->window, &p);
+    XSync(xd, False);
+
+    if(++drag_num == drag_update) {
+	drag_num = 0;
+	repaint_window(w->common.window);
+	draw_window(w->common.window);
+    }
+
+    return 0;
+}
+
+
+static int
+bg_drag_begin(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+
+    int rx, ry, wx, wy;
+    unsigned int m;
+    Window rw, cw;
+
+    XQueryPointer(xd, w->common.win, &rw, &cw, &rx, &ry, &wx, &wy, &m);
+
+    w->background.sx = rx;
+    w->background.sy = ry;
+    w->background.wp = get_win_pos(w->common.window);
+
+    return 0;
+}
+
+
+static int
+bg_drag_end(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+
+    bg_ondrag(xw, xe);
+    free(w->background.wp);
+
+    return 0;
+}
+
 
 extern xtk_widget_t*
 create_background(window_t *window, image_info_t *image)
@@ -291,6 +369,11 @@ create_background(window_t *window, image_info_t *image)
     window->background = bg;
 
     list_push(window->widgets, bg);
+
+    bg->ondrag = bg_ondrag;
+    bg->drag_begin = bg_drag_begin;
+    bg->drag_end = bg_drag_end;
+    list_push(click_list, bg);
 
     return (xtk_widget_t *) bg;
 }

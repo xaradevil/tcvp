@@ -69,6 +69,8 @@ struct _tcbackground_t{
     image_info_t *img;
     int transparent;
     Atom xa_rootpmap;
+    xtk_position_t *wp;
+    int sx, sy;
 };
 
 struct _tcbox_t{
@@ -166,10 +168,16 @@ extern int depth;
 extern int quit;
 
 int widget_onclick(xtk_widget_t *w, void *xe);
+
 int draw_widget(tcwidget_t *w);
 int draw_widgets();
+int draw_window(window_t *win);
+
 int repaint_widgets();
+int repaint_window(window_t *win);
+
 int destroy_widget(tcwidget_t *w);
+
 int show_window(window_t *window);
 int hide_window(window_t *window);
 

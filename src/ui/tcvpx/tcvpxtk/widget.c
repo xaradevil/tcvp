@@ -56,7 +56,7 @@ alpha_render(unsigned char *src, unsigned char *dest,
 }
 
 
-static int 
+extern int 
 draw_window(window_t *win)
 {
     if(win->mapped==1){
@@ -100,7 +100,7 @@ draw_widgets()
 }
 
 
-static int 
+extern int 
 repaint_window(window_t *win)
 {
     if(win->mapped==1){
@@ -160,7 +160,7 @@ destroy_widget(tcwidget_t *w)
 	list_delete(sl_list, w, widget_cmp, NULL);
     }
 
-    if(w->common.action){
+    if(w->common.action || w->common.ondrag){
 	list_delete(click_list, w, widget_cmp, NULL);
     }
 

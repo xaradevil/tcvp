@@ -33,3 +33,6 @@ implement	"xtk"	"create_box"		create_box
 implement	"xtk"	"box_get_subwindow"	box_get_subwindow
 implement	"xtk"	"show_widget"		show_widget
 implement	"xtk"	"hide_widget"		hide_widget
+
+option		snap_distance%i=10
+option		drag_update%i=5

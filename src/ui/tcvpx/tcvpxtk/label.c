@@ -446,7 +446,6 @@ create_label(window_t *window, int x, int y, int width, int height,
     if(action){
 	txt->onclick = widget_onclick;
 	txt->action = action;
-	list_push(click_list, txt);
 	emask |= ButtonPressMask | ButtonReleaseMask | EnterWindowMask |
 	    LeaveWindowMask;
     }
@@ -456,6 +455,9 @@ create_label(window_t *window, int x, int y, int width, int height,
 	txt->drag_begin = label_drag_begin;
 	txt->drag_end = label_drag_end;
 	emask |= ButtonPressMask | PointerMotionMask | ButtonReleaseMask;
+    }
+    if(action || (txt->scroll & TCLABELSTANDARD)==0){
+	list_push(click_list, txt);
     }
 
     XSelectInput(xd, txt->win, emask);

@@ -72,10 +72,12 @@ x11_event(void *p)
 	    window_t *s;
 
 	    while((s = list_next(window_list, &current))!=NULL) {
-		if(xe.xbutton.window == s->xw){
+		if(xe.xconfigure.window == s->xw){
 		    if(s->background->transparent) {
-			repaint_widgets();
-			draw_widgets();
+			if(!drag) {
+			    repaint_window(s);
+			    draw_window(s);
+			}
 		    }
 		    s->x = xe.xconfigure.x;
 		    s->y = xe.xconfigure.y;
@@ -501,7 +503,8 @@ create_window(char *title, int width, int height)
 			     CopyFromParent, 0, 0);
 
     XSelectInput(xd, window->xw, ExposureMask | StructureNotifyMask |
-		 EnterWindowMask | LeaveWindowMask);
+		 EnterWindowMask | LeaveWindowMask | ButtonPressMask |
+	         ButtonReleaseMask | PointerMotionMask);
 
     xa_atom = XInternAtom(xd, "ATOM", False);
 
