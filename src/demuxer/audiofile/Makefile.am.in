@@ -1,2 +1,0 @@
-audiofile_MODLIBS += @AUDIOFILE_LIBS@
-audiofile_MODINC += @AUDIOFILE_CFLAGS@
