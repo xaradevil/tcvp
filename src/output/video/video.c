@@ -37,6 +37,7 @@ typedef struct video_out {
     int dropcnt;
     int framecnt;
     tcconf_section_t *conf;
+    int end;
 } video_out_t;
 
 #define DROPLEN 8
@@ -138,6 +139,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
     int planes;
 
     if(!pk->data){
+	vo->end = 1;
 	v_qpts(vo, -1LL);
 	goto out;
     }
@@ -240,7 +242,7 @@ v_buffer(tcvp_pipe_t *p, float r)
     video_out_t *vo = p->private;
 
     pthread_mutex_lock(&vo->smx);
-    while(bufr(vo) < r)
+    while(bufr(vo) < r && !vo->end)
 	pthread_cond_wait(&vo->scd, &vo->smx);
     pthread_mutex_unlock(&vo->smx);
 
