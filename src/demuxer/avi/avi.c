@@ -1,19 +1,7 @@
 /**
     Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    Licensed under the Open Software License version 2.0
 **/
 
 #include <stdlib.h>
@@ -743,16 +731,20 @@ avi_packet(muxed_stream_t *ms, int stream)
 	fprintf(stderr, "AVI: Resuming @%08llx\n", pos);
 
     size = getu32(af->file);
+    str = tag2str(tag);
 
     if(!(size & ~0x12)){
-	fprintf(stderr, "AVI: chunk size %i @%08llx\n", size, pos);
+	char tag[4];
+	fprintf(stderr, "AVI: [%i] chunk size %i @%08llx\n", str, size, pos);
 	af->file->seek(af->file, 8, SEEK_CUR);
 	if(!get4c(tag, af->file))
 	    return NULL;
-	if(valid_tag(tag, 0) || !memcmp(tag, "rec ", 4))
-	    tried_bkup++;
 	af->file->seek(af->file, -12, SEEK_CUR);
-	goto again;
+	if(valid_tag(tag, 0) || !memcmp(tag, "rec ", 4)){
+	    tried_bkup++;
+	    goto again;
+	}
+	scan++;
     }
 
     if(scan && af->index){
@@ -771,8 +763,6 @@ avi_packet(muxed_stream_t *ms, int stream)
 	}
     }
 
-    str = tag2str(tag);
-
     if(str >= ms->n_streams){
 	fprintf(stderr, "AVI: Bad stream number %i @%08llx\n",
 		str, pos);
@@ -780,7 +770,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	goto again;
     }
 
-    if(!ms->used_streams[str]){
+    if(!size || !ms->used_streams[str]){
 	af->file->seek(af->file, size + (size&1), SEEK_CUR);
 	tried_index = 0;
 	tried_bkup = 0;
