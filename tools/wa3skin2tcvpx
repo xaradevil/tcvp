@@ -12,7 +12,7 @@ use File::Basename;
 use Gimp qw/:auto/;
 use XML::Parser;
 
-die "Usage: wa3skin2tcvps skin dir\n" if $#ARGV != 1;
+die "Usage: wa3skin2tcvpx skin dir\n" if $#ARGV != 1;
 
 my $skin = $ARGV[0];
 my $dir  = $ARGV[1];
