@@ -36,7 +36,7 @@ if(-d $skin){
     $sd = $skin;
 } else {
     $sd = tempdir(CLEANUP => 1) or die "Can't create temp dir.\n";
-    system "unzip -a -LL -qq -d $sd $skin" and die "Error unpacking skin.\n";
+    system "unzip -LL -qq -d $sd $skin" and die "Error unpacking skin.\n";
     system "chmod -R u+w $sd";
 }
 
@@ -59,12 +59,6 @@ sub save_image {
     $f = "$dir/$f";
     $d = gimp_image_active_drawable($img) unless $d;
     gimp_file_save($img, $d, $f, $f);
-}
-
-sub write_image {
-    my ($id) = @_;
-    warn "$id undefined" and return unless exists $images{$id}{img};
-    save_image $images{$id}{img}, "$id.png";
 }
 
 sub load_image {
@@ -93,6 +87,19 @@ sub make_rect {
     }
     save_image($nbg, $name, $bl);
     gimp_image_delete($nbg);
+}
+
+sub write_image {
+    my ($id, $w, $h) = @_;
+    if(not exists $images{$id}{img}){
+	make_rect $w, $h, 0, 0, 0, 0, 0, "$id.png" if $w and $h;
+	return;
+    }
+    my $im = $images{$id};
+    if($h and ($w != $$im{width} or $h != $$im{height})){
+	gimp_image_scale($$im{img}, $w, $h);
+    }
+    save_image $images{$id}{img}, "$id.png";
 }
 
 sub save_rect {
@@ -243,7 +250,7 @@ sub action {
 
 sub update_size {
     my($group, $x, $y, $w, $h) = @_;
-    if($group){
+    unless($$group{noresize}){
 	$$group{width} = max($$group{width}, $x + $w);
 	$$group{height} = max($$group{height}, $y + $h);
     }
@@ -252,9 +259,14 @@ sub update_size {
 sub tag_start {
     my(undef, $tag, %attr) = @_;
     return if $tag eq 'foo';
+    $tag = lc $tag;
     print qq/$space$tag @{[map "$_=\"$attr{$_}\"", keys %attr]}\n/;
     $space .= '    ';
     map $attr{lc $_} = $attr{$_}, keys %attr;
+    my($x, $y, $w, $h, $id) = @attr{'x', 'y', 'w', 'h', 'id'};
+    my %wdg = (x => $x, 'y' => $y, width => $w, height => $h,
+	       rx => $attr{relatx}, ry => $attr{relaty},
+	       rw => $attr{relatw}, rh => $attr{relath});
 
     if($tag eq 'include'){			  # include
 	my $xd = $xmldir;
@@ -265,92 +277,93 @@ sub tag_start {
 	close F;
 	$xmldir = $xd;
     } elsif($tag eq 'groupdef'){		  # groupdef
-	my $n = tag_name $attr{id};
-	$lc = \$groups{$n}{content};
-	$groups{$attr{id}}{groups} = [];
-	$lg = $groups{$attr{id}}{groups};
-	$group = $groups{$attr{id}};
-	$$lc .= "$n \[\n";
+	my $n = tag_name $id;
+	$groups{$id}{id} = $id;
+	$groups{$id}{groups} = [];
+	$groups{$id}{widgets} = [];
+	$lg = $groups{$id}{groups};
+	$lc = $groups{$id}{widgets};
+	$group = $groups{$id};
+	$$group{width} = $w;
+	$$group{height} = $h;
+	$$group{text} = "$n [\n";
+	$$group{name} = $n;
     } elsif($tag =~ /(toggle)?button/){		  # button
 	my $img = $attr{image};
 	return unless exists $images{$img};
-	update_size $group, $attr{x}, $attr{'y'},
-	  $images{$img}{width}, $images{$img}{height};
 	my $action = action $attr{action}, $attr{param};
-	$$lc .= <<END_TCCONF;
+	$wdg{width} = $images{$img}{width};
+	$wdg{height} = $images{$img}{height};
+	$wdg{text} = <<END_TCCONF;
 button [
-	position $attr{x} $attr{y}
 	action '$action'
 	image '$img.png'
 END_TCCONF
 	write_image $img;
 	if($attr{hoverimage}){
-	    $$lc .= "\tmouse_over '$attr{hoverimage}.png'\n";
+	    $wdg{text} .= "\tmouse_over '$attr{hoverimage}.png'\n";
 	    write_image $attr{hoverimage};
 	}
 	if($attr{downimage}){
-	    $$lc .= "\tpressed '$attr{downimage}.png'\n";
+	    $wdg{text} .= "\tpressed '$attr{downimage}.png'\n";
 	    write_image $attr{downimage};
 	}
-	$$lc .= "]\n";
+	push @$lc, \%wdg;
+	update_size $group, $x, $y, $wdg{width}, $wdg{height};
     } elsif($tag eq 'bitmap'){			  # bitmap
-	my $id = $attr{id};
 	my $img = load_image "$sd/" . lc $attr{file};
-	$imagefiles{$attr{file}} = $img;
-	if(exists $attr{x}){
-	    save_rect($img, $attr{x}, $attr{'y'}, $attr{w}, $attr{h},
-		      $attr{id});
+	if(defined $x){
+	    save_rect($img, $x, $y, $w, $h, $id);
 	} else {
 	    $images{$id}{img} = $img;
 	    $images{$id}{width} = gimp_image_width($img);
 	    $images{$id}{height} = gimp_image_height($img);
 	}
     } elsif($tag eq 'layout'){			  # layout
-	my $id = "$container.$attr{id}";
-	$lc = \$layouts{$id}{content};
+	$id = "$container.$id";
 	$layouts{$id}{id} = $id;
 	$layouts{$id}{groups} = [];
+	$layouts{$id}{widgets} = [];
 	$lg = $layouts{$id}{groups};
+	$lc = $layouts{$id}{widgets};
 	$group = $layouts{$id};
+	$$group{background} = $attr{background} || $id;
+	my $tx;
+	$tx .= "background '$$group{background}.png'\n";
 	my $im = $images{$attr{background}};
 	if($im){
-	    $$lc .= "background '$attr{background}.png'\n";
-	    $$lc .= sprintf "size %i %i\n", $$im{width}, $$im{height};
-	    write_image $attr{background};
+	    $w = $$im{width};
+	    $h = $$im{height};
+	    $$group{noresize} = 1;
 	} else {
-	    my $w = $attr{w} || $attr{minimum_w};
-	    my $h = $attr{h} || $attr{minimum_h};
-	    $$lc .= "size $w $h\n";
+	    $w or $w = $attr{minimum_w};
+	    $h or $h = $attr{minimum_h};
 	}
+	$$group{width} = $w;
+	$$group{height} = $h;
+	$$group{text} = $tx;
     } elsif($tag eq 'group'){			  # group
 	my $gn = tag_name $attr{id};
-	my $x = $attr{x} || 0;
-	my $y = $attr{'y'} || 0;
-	push @$lg, $gn;
-	$$lc .= <<END_TCCONF;
-box : $gn [
-	position $x $y
-]
-END_TCCONF
+	$wdg{x} = 0 unless defined $x;
+	$wdg{'y'} = 0 unless defined $y;
+	push @$lg, $id;
+	$wdg{text} = "box : $gn [\n";
+	delete @wdg{'width', 'height'};
+	push @$lc, \%wdg;
     } elsif($tag eq 'layer' and			  # layer
 	    exists $attr{image}){
 	my $im = $images{$attr{image}};
-	my($w, $h) = @$im{'width', 'height'};
-	$w = $attr{w} if exists $attr{w};
-	$h = $attr{h} if exists $attr{h};
-	return if $w <= 0 or $h <= 0;
-	if($w != $$im{width} or $h != $$im{height}){
-	    gimp_image_scale($$im{img}, $w, $h);
-	}
-	write_image $attr{image};
-	update_size $group, 0, 0, $w, $h;
-	$$lc .= <<END_TCCONF;
+	$w or $w = $$im{width};
+	$h or $h = $$im{height};
+	update_size $group, $x, $y, $w, $h;
+	$wdg{width} = $w;
+	$wdg{height} = $h;
+	$wdg{background} = $attr{image};
+	$wdg{text} = <<END_TCCONF;
 box [
-	position $attr{x} $attr{y}
-	size $w $h
 	background '$attr{image}.png'
-]
 END_TCCONF
+	push @$lc, \%wdg;
     } elsif($tag eq 'container'){		  # container
 	$container = $attr{id};
     } elsif($tag eq 'bitmapfont'){		  # bitmapfont
@@ -362,90 +375,96 @@ END_TCCONF
 	  print "*** font $attr{font} not found\n" and return;
 	my $d = $display{lc $attr{display}} or
 	  print "*** display $attr{display} not found\n" and return;
-	my $dh = $attr{h} - $$font{charheight} + $$font{top};
-	my $h = $$font{height};
-	my $y = $attr{'y'} + floor($dh / 2);
-	$$lc .= <<END_TCCONF;
+	my $dh = $h - $$font{charheight} + $$font{top};
+	$h = $$font{height};
+	$y = $y + floor($dh / 2);
+	$wdg{'y'} = $y;
+	$wdg{height} = $h;
+	$wdg{text} = <<END_TCCONF;
 label [
-	size $attr{w} $h
-	position $attr{x} $y
 	font '$$font{face}'
 	color '$$font{color}'
 END_TCCONF
 	my $a;
-	$$lc .= "\talign '$a'\n" if $a = $attr{align} || $$d{align};
-	map { $$lc .= "\t$_ $$d{$_}\n" if exists $$d{$_} }
+	$wdg{text} .= "\talign '$a'\n" if $a = $attr{align} || $$d{align};
+	map { $wdg{text} .= "\t$_ $$d{$_}\n" if exists $$d{$_} }
 	  'text', 'action', 'scroll_style';
-	$$lc .= "]\n";
-	update_size $group, $attr{x}, $y, $attr{w}, $h;
+	update_size $group, $x, $y, $w, $h;
+	push @$lc, \%wdg;
     } elsif($tag eq 'status'){			  # status
-	$$lc .= <<END_TCCONF;
+	my %wdg = (x => $x, 'y' => $y, width => $w, height => $h);
+	$wdg{text} = <<END_TCCONF;
 state [
-	position $attr{x} $attr{y}
 	value '\${state:-stop}'
 END_TCCONF
 	for('stop', 'play', 'pause'){
 	    my $im = $attr{$_ . 'bitmap'};
 	    if($im){
-		$$lc .= "\timage '$_' '$im.png'\n";
+		$wdg{text} .= "\timage '$_' '$im.png'\n";
 		write_image $im;
 	    }
 	}
-	$$lc .= "]\n";
-	update_size $group, $attr{x}, $attr{w}, $attr{'y'}, $attr{h};
+	update_size $group, $x, $y, $w, $h;
+	push @$lc, \%wdg;
     } elsif($tag eq 'slider'){			  # slider
-	my($x, $y, $w, $h, $id) = @attr{'x', 'y', 'w', 'h', 'id'};
+	return if $wdg{rw} or $wdg{rh} or $w <= 0 or $h <= 0;
 	my($thumb, $ht, $dt) = @attr{'thumb', 'hoverthumb', 'downthumb'};
 	my $dir = lc $attr{orientation} || 'horizontal';
 	my($sx, $sy, $ex, $ey);
 	my $th = $images{$thumb};
 	if($dir eq 'horizontal'){
+	    if($$th{height} > $h){
+		$y += floor(($h - $$th{height}) / 2);
+		$h = $$th{height};
+	    }
 	    $sx = floor($$th{width} / 2);
 	    $ex = floor($w - $$th{width} / 2);
 	    $sy = $ey = floor($h / 2);
 	} elsif($dir eq 'vertical'){
+	    if($$th{width} > $w){
+		$x += floor(($w - $$th{width}) / 2);
+		$w = $$th{width};
+	    }
 	    $sx = $ex = floor($w / 2);
 	    $sy = floor($h - $$th{height} / 2);
 	    $ey = floor($$th{height} / 2);
 	} else {
 	    return;
 	}
-	$$lc .= <<END_TCCONF;
+	my %sl = (x => $x, 'y' => $y, width => $w, height => $h);
+	$sl{text} = <<END_TCCONF;
 slider [
-	position $x $y
 	background '$$group{id}.$id.png'
 	indicator '$thumb.png'
 END_TCCONF
 	make_rect $w, $h, 0, 0, 0, 0, 0, "$$group{id}.$id.png";
 	write_image $thumb;
 	if($ht){
-	    $$lc .= "\tmouse_over '$ht.png'\n";
+	    $sl{text} .= "\tmouse_over '$ht.png'\n";
 	    write_image $ht;
 	}
 	if($dt){
-	    $$lc .= "\tpressed '$dt.png'\n";
+	    $sl{text} .= "\tpressed '$dt.png'\n";
 	    write_image $dt;
 	}
-	$$lc .= <<END_TCCONF;
+	$sl{text} .= <<END_TCCONF;
 	start_position $sx $sy
 	end_position $ex $ey
 END_TCCONF
 	my $sl = $sliders{lc $attr{action}};
-	map { $$lc .= "\t$_ $$sl{$_}\n" if exists $$sl{$_} }
+	map { $sl{text} .= "\t$_ $$sl{$_}\n" if exists $$sl{$_} }
 	  'value', 'action' if $sl;
-	$$lc .= "]\n";
 	update_size $group, $x, $y, $w, $h;
+	push @$lc, \%sl;
     }
 }
 
 sub tag_end {
     my(undef, $tag) = @_;
     return if $tag eq 'foo';
+    $tag = lc $tag;
     $space = substr $space, 0, -4;
     if($tag eq 'groupdef'){
-	$$lc =~ s/(?<=\n)/\t/sg;
-	$$lc .= "size $$group{width} $$group{height}\n";
-	$$lc .= "]\n";
 	undef $lc;
 	undef $group;
     } elsif($tag eq 'layout'){
@@ -457,7 +476,32 @@ sub tag_end {
 sub print_group {
     my($fh, $gr) = @_;
     &print_group($fh, $groups{$_}) for(@{$$gr{groups}});
-    print $fh $$gr{content};
+    my $tx = $$gr{text};
+    my $wd;
+    for $wd (@{$$gr{widgets}}){
+	my($x, $y, $w, $h, $rx, $ry, $rw, $rh) = 
+	  @$wd{'x', 'y', 'width', 'height', 'rx', 'ry', 'rw', 'rh'};
+	$x += $$gr{width} if $rx;
+	$y += $$gr{height} if $ry;
+	$w += $$gr{width} - $x if $rw;
+	$h += $$gr{height} - $y if $rh;
+	$w = $$gr{width} - $x if($x + $w > $$gr{width});
+	$h = $$gr{height} - $y if($y + $h > $$gr{height});
+	$tx .= $$wd{text};
+	$tx .= "	position $x $y\n" if defined $x;
+	$tx .= "	size $w $h\n" if defined $w;
+	if($$wd{background}){
+	    write_image $$wd{background}, $w, $h;
+	}
+	$tx .= "]\n";
+    }
+    $tx .= "size $$gr{width} $$gr{height}\n";
+    write_image $$gr{background}, $$gr{width}, $$gr{height};
+    if($$gr{name}){
+	$tx =~ s/(?<=\n)(?=.)/\t/sg;
+	$tx .= "]\n";
+    }
+    print $fh $tx;
 }
 
 Gimp::on_net {
