@@ -383,6 +383,7 @@ extern int
 main(int argc, char **argv)
 {
     int opt_num;
+    char userconf[1024];
 
     cf = tcconf_new(NULL);
 
@@ -391,7 +392,10 @@ main(int argc, char **argv)
     nfiles = argc - opt_num;
     files = argv + opt_num;
 
+    snprintf(userconf, 1024, "%s/.tcvp/tcvp.conf", getenv("HOME"));
+
     tc2_add_config(TCVP_CONF);
+    tc2_add_config(userconf);
     tc2_init();
     tc2_request(TC2_ADD_MODULE, 0, NULL, &MODULE_INFO);
     tc2_request(TC2_LOAD_MODULE, 0, MODULE_INFO.name, NULL);
