@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -35,15 +35,12 @@
 static char *
 cddb_cmd(char *cmd)
 {
-    char hname[128];
     char url[1024];
     char *reply;
     int rsize;
     url_t *u;
     char *p;
     int n;
-
-    gethostname(hname, sizeof(hname));
 
     p = cmd = strdup(cmd);
     while(*p){
@@ -52,9 +49,10 @@ cddb_cmd(char *cmd)
     }
 
     snprintf(url, sizeof(url), "http://%s/~cddb/cddb.cgi?"
-	     "cmd=%s&hello=%s+%s+%s+%s&proto=1",
-	     tcvp_input_cdda_conf_cddb_server,
-	     cmd, getenv("USER"), hname,
+	     "cmd=%s&hello=%s+%s+%s+%s&proto=6",
+	     tcvp_input_cdda_conf_cddb_server, cmd,
+	     tcvp_input_cdda_conf_cddb_user,
+	     tcvp_input_cdda_conf_cddb_hostname,
 	     tcvp_input_cdda_conf_cddb_client.name,
 	     tcvp_input_cdda_conf_cddb_client.version);
 
@@ -129,6 +127,7 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track)
 	int status = strtol(rep, &rp, 0);
 
 	switch(status){
+	case 210:
 	case 211:
 	    if(!(rp = strchr(rp, '\n')))
 		break;

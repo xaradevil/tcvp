@@ -24,3 +24,5 @@ option		cddb_server%s="freedb.freedb.org"
 CDDB server to use.
 option		cddb_client name%s="TCVP" version%s="0.1"
 Client identification sent to CDDB server.
+option		cddb_user%s="anonymous"
+option		cddb_hostname%s="noname"
