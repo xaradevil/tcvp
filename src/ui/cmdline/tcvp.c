@@ -143,6 +143,14 @@ tcl_init(char *p)
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
+    if(!validate && !sel_ui){
+	struct sigaction sa;
+	sa.sa_handler = sigint;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGINT, &sa, NULL);
+    }
+
     if(sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
 	int len = 0;
@@ -286,7 +294,6 @@ parse_options(int argc, char **argv)
 extern int
 main(int argc, char **argv)
 {
-    struct sigaction sa;
     int opt_num;
 
     cf = conf_new(NULL);
@@ -295,13 +302,6 @@ main(int argc, char **argv)
 
     nfiles = argc - opt_num;
     files = argv + opt_num;
-
-    if(!validate && !sel_ui){
-	sa.sa_handler = sigint;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	sigaction(SIGINT, &sa, NULL);
-    }
 
     tc2_add_config(TCVP_CONF);
     tc2_init();
