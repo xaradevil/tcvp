@@ -237,7 +237,7 @@ create_window(skin_t *skin)
 
     XSelectInput(xd, skin->xw, ExposureMask | StructureNotifyMask);
 
-    xa_atom = XInternAtom(xd, "Atom", False);
+    xa_atom = XInternAtom(xd, "ATOM", False);
 
     XdndDrop = XInternAtom(xd, "XdndDrop", False);
     XdndType = XInternAtom(xd, "text/plain", False);
