@@ -25,14 +25,36 @@ extern int
 update_root(skin_t *skin)
 {
     if(skin->background->transparent){
-	XImage *img;
-	img = XGetImage(xd, RootWindow(xd, xs), 0, 0, root_width, 
-			root_height, AllPlanes, ZPixmap);
-	XPutImage(xd, root, skin->bgc, img, 0, 0, 0, 0, root_width,
-		  root_height);
-	XSync(xd, False);
+	Atom bg = XInternAtom(xd, "_XROOTPMAP_ID", True);
+	if(bg != None) {
+	    Atom pmap = XInternAtom(xd, "PIXMAP", True);
+	    Pixmap bgpmap;
+	    Atom aret;
+	    int fret;
+	    unsigned long nitems, remain;
+	    unsigned char *buf;
 
-	XDestroyImage(img);
+	    XGetWindowProperty(xd, RootWindow(xd, xs), bg, 0, 1, False,
+			       pmap, &aret, &fret, &nitems,
+			       &remain, &buf);
+
+	    bgpmap = *((Pixmap*)buf);
+
+	    XCopyArea(xd, bgpmap, root, skin->bgc, 0, 0,
+		      root_width, root_height, 0, 0);
+
+	    XFree(buf);
+	} else {	
+	    XImage *img;
+	    img = XGetImage(xd, RootWindow(xd, xs), 0, 0, root_width, 
+			    root_height, AllPlanes, ZPixmap);
+	    XPutImage(xd, root, skin->bgc, img, 0, 0, 0, 0, root_width,
+		      root_height);
+	    XSync(xd, False);
+
+	    XDestroyImage(img);
+	}
+	XSync(xd, False);
     }
 
     return 0;

@@ -180,9 +180,9 @@ repaint_label(tcwidget_t *txt)
 	if(txt->label.skin->enabled == 1) {
 
 #if 0
-	    XCopyArea(xd, txt->label.s_text, txt->label.pixmap, bgc,
-		      txt->label.s_pos, 0, txt->label.s_width,
-		      txt->label.height, 0, 0);
+	    XCopyArea(xd, txt->label.s_text, txt->label.pixmap,
+		      txt->label.skin->bgc, txt->label.s_pos, 0,
+		      txt->label.s_width, txt->label.height, 0, 0);
 	    XSync(xd, False);
 #else
 	    if(txt->label.scrolling & TCLABELSTANDARD){	    

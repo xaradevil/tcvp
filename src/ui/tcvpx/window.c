@@ -19,6 +19,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/shape.h>
 #include "tcvpx.h"
+#include "tcvpctl.h"
 #include <string.h>
 
 #define MWM_HINTS_DECORATIONS   (1L << 1)
@@ -33,6 +34,8 @@ typedef struct _mwmhints {
 
 
 int mapped=1;
+
+Atom XdndDrop, XdndType, XdndSelection, XdndFinished, tcxa;
 
 Display *xd;
 int xs;
@@ -52,7 +55,8 @@ x11_event(void *p)
         XEvent xe;
 
         XNextEvent(xd, &xe);
-/* 	fprintf(stderr, "%d\n", xe.type); */
+/* 	if(xe.type != 14 && xe.type != 12 && xe.type != 22) */
+/* 	    fprintf(stderr, "%d\n", xe.type); */
         switch(xe.type){
 	case Expose:
 	    draw_widgets();
@@ -121,6 +125,67 @@ x11_event(void *p)
 	case UnmapNotify:
 	    mapped = 0;
 	    break;
+
+	case SelectionNotify: {
+	    Atom ret_type;
+	    int ret_format;
+	    unsigned long ret_item;
+	    unsigned long remain_byte;
+	    unsigned char *foo;
+	    char *buf;
+
+	    XEvent xevent;
+	    Window selowner = XGetSelectionOwner(xd, XdndSelection);
+
+	    XGetWindowProperty(xd, xe.xselection.requestor,
+			       tcxa, 0, 65536, True, XdndType,
+			       &ret_type, &ret_format,
+			       &ret_item, &remain_byte,
+			       (unsigned char **)&foo);
+
+	    if(foo == NULL)
+		break;
+
+	    buf = strdup(foo);
+	    
+	    XFree(foo);
+
+	    foo = buf;
+
+	    memset (&xevent, 0, sizeof(xevent));
+	    xevent.xany.type = ClientMessage;
+	    xevent.xany.display = xd;
+	    xevent.xclient.window = selowner;
+	    xevent.xclient.message_type = XdndFinished;
+	    xevent.xclient.format = 32;
+	    xevent.xclient.data.l[0] = xe.xselection.requestor;
+	    XSendEvent(xd, selowner, 0, 0, &xevent);
+
+	    for(;;) {
+		char *tmp = strchr(buf, '\n');
+		if(tmp != NULL) {
+		    *tmp=0;
+		}
+
+		tcvp_add_file(buf);
+
+		if(tmp == NULL) {
+		    break;
+		}
+		buf = tmp+1;
+	    }
+
+	    free(foo);
+
+	    break;
+	}
+
+	case ClientMessage:
+	    if(xe.xclient.message_type == XdndDrop) {
+		XConvertSelection(xd, XdndSelection, XdndType, tcxa,
+				  xe.xclient.window, CurrentTime);
+	    }
+	    break;
 	}
     }
 
@@ -163,6 +228,7 @@ create_window(skin_t *skin)
     XSizeHints *sizehints;
     XTextProperty windowName;
     char *title = "TCVP";
+    int xdndversion = 1;
 
     skin->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
 			     skin->width, skin->height, 0,
@@ -170,6 +236,13 @@ create_window(skin_t *skin)
 			     CopyFromParent, 0, 0);
 
     XSelectInput(xd, skin->xw, ExposureMask | StructureNotifyMask);
+
+
+    XdndDrop = XInternAtom(xd, "XdndDrop", False);
+    XdndType = XInternAtom(xd, "text/plain", False);
+    XdndFinished = XInternAtom(xd, "XdndFinished", False);
+    XdndSelection = XInternAtom(xd, "XdndSelection", False);
+    tcxa = XInternAtom(xd, "TCVPSEL", False);
 
     memset(&mwmhints, 0, sizeof(MWMHints));
     prop = XInternAtom(xd, "_MOTIF_WM_HINTS", False);
@@ -179,6 +252,10 @@ create_window(skin_t *skin)
     XChangeProperty(xd, skin->xw, prop, prop, 32, PropModeReplace,
 		    (unsigned char *) &mwmhints,
 		    PROP_MWM_HINTS_ELEMENTS);
+
+    prop = XInternAtom(xd, "XdndAware", False);
+    XChangeProperty(xd, skin->xw, prop, prop, 32, PropModeReplace,
+		    (unsigned char *) &xdndversion, 1);
 
     skin->bgc = XCreateGC (xd, skin->xw, 0, NULL);
     XSetBackground(xd, skin->bgc, 0x00000000);

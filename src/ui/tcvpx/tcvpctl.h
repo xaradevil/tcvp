@@ -29,4 +29,6 @@ int tcvp_stop(tcwidget_t *w, void *p);
 int tcvp_pause(tcwidget_t *w, void *p);
 int tcvp_seek(tcwidget_t *w, void *p);
 
+int tcvp_add_file(char *file);
+
 #endif /* _TCVPCTL_H */

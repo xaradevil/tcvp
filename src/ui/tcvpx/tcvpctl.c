@@ -22,6 +22,8 @@
 #include <string.h>
 #include <unistd.h>
 
+static int tcvpstate=-1;
+
 extern void *
 tcvp_event(void *p)
 {
@@ -35,6 +37,7 @@ tcvp_event(void *p)
 	switch(te->type){
 
 	case TCVP_STATE:
+	    tcvpstate = te->state.state;
 	    switch(te->state.state) {
 	    case TCVP_STATE_PL_END:
 		tcvp_stop(NULL, NULL);
@@ -144,9 +147,21 @@ tcvp_stop(tcwidget_t *w, void *p)
 extern int
 tcvp_play(tcwidget_t *w, void *p)
 {
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_START);
-    eventq_send(qs, te);
-    tcfree(te);
+    if(tcvpstate == TCVP_STATE_STOPPED) {
+	tcvp_pause(w, p);
+    } else {
+	if(tcvpstate != TCVP_STATE_PLAYING) {
+	    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_START);
+	    eventq_send(qs, te);
+	    tcfree(te);
+	} else {
+	    tcvp_stop(w, p);
+
+	    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_START);
+	    eventq_send(qs, te);
+	    tcfree(te);
+	}
+    }
 
     return 0;
 }
@@ -200,6 +215,15 @@ tcvp_close(tcwidget_t *w, void *p)
 
     XDestroyWindow(xd, w->common.skin->xw);
     XSync(xd, False);
+
+    return 0;
+}
+
+extern int
+tcvp_add_file(char *file)
+{
+    /* FIXME: add to playlist */
+    fprintf(stderr, "%s\n", file);
 
     return 0;
 }
