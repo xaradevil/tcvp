@@ -49,6 +49,7 @@ typedef int(*on_xevent_cb_t)(xtk_widget_t *, void *);
     int x,y;					\
     int enabled;       				\
     on_xevent_cb_t onclick;			\
+    on_xevent_cb_t onpress;			\
     on_xevent_cb_t drag_begin;			\
     on_xevent_cb_t ondrag;			\
     on_xevent_cb_t drag_end;			\
@@ -85,6 +86,7 @@ struct _tcimage_button_t{
     image_info_t *bgimg;
     image_info_t *over_img;
     image_info_t *down_img;
+    int pressed;
 };
 
 struct _tcstate_t{

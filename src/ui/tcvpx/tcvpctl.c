@@ -226,6 +226,7 @@ toggle_time(xtk_widget_t *w, void *p)
     } else if(show_time == TCTIME_REMAINING) {
 	show_time = TCTIME_ELAPSED;
     }
+    update_time();
 
     return 0;
 }

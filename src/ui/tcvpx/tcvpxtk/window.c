@@ -50,7 +50,7 @@ Pixmap root;
 int root_width;
 int root_height;
 int depth;
-tcwidget_t *drag, *pbt;
+tcwidget_t *drag, *pbt, *cbt, *tcbt;
 
 extern void *
 x11_event(void *p)
@@ -87,26 +87,40 @@ x11_event(void *p)
 
  	case ButtonRelease:
 	{
+	    list_item *current=NULL;
+	    tcwidget_t *w;
+
 	    if(drag){
 		if(drag->common.drag_end){
 		    drag->common.drag_end((xtk_widget_t *) drag, &xe);
-		    drag = NULL;
 		}
+		drag = NULL;
 	    }
 	    if(pbt) {
 		if(pbt->common.release){
 		    pbt->common.release((xtk_widget_t *) pbt, &xe);
 		}
+		pbt = NULL;
 	    }
+
+	    if(cbt) {
+		while((w = list_next(click_list, &current))!=NULL) {
+		    if(xe.xbutton.window == w->common.win){
+			if(cbt == w) {
+			    w->common.onclick((xtk_widget_t *) w, &xe);
+			    cbt = NULL;
+			}
+		    }
+		}
+	    }
+
 	    break;
 	}
 
  	case MotionNotify:
 	{
 	    if(drag){
-		if(drag->common.ondrag){
-		    drag->common.ondrag((xtk_widget_t *) drag, &xe);
-		}
+		drag->common.ondrag((xtk_widget_t *) drag, &xe);
 	    }
 	    break;
 	}
@@ -118,23 +132,17 @@ x11_event(void *p)
 
 	    while((w = list_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
-		    if(w->common.enabled && w->common.onclick){
-			w->common.onclick((xtk_widget_t *) w, &xe);
+		    if(w->common.enabled && w->common.onpress){
+			w->common.onpress((xtk_widget_t *) w, &xe);
 		    }
-		}
-	    }
-	    while((w = list_next(click_list, &current))!=NULL) {
-		if(xe.xbutton.window == w->common.win){
+		    if(w->common.enabled && w->common.onclick){
+			cbt = w;
+		    }
 		    if(w->common.enabled && w->common.press){
 			w->common.press((xtk_widget_t *) w, &xe);
 			pbt = w;
 		    }
-		}
-	    }
-
-	    while((w = list_next(drag_list, &current))!=NULL) {
-		if(xe.xbutton.window == w->common.win){
-		    if(w->common.enabled) {
+		    if(w->common.enabled && w->common.ondrag) {
 			drag = w;
 			if(w->common.drag_begin){
 			    w->common.drag_begin((xtk_widget_t *) w, &xe);
@@ -153,6 +161,10 @@ x11_event(void *p)
 
 	    while((w = list_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
+		    if(w == tcbt) {
+			cbt = tcbt;
+			tcbt = NULL;
+		    }
 		    if(w->common.enter){
 			w->common.enter((xtk_widget_t *) w, &xe);
 		    }
@@ -167,6 +179,10 @@ x11_event(void *p)
 	    list_item *current=NULL;
 	    tcwidget_t *w;
 
+	    if(cbt) {
+		tcbt = cbt;
+		cbt = NULL;
+	    }
 	    while((w = list_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
 		    if(w->common.exit){

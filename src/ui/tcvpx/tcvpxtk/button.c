@@ -58,6 +58,7 @@ press_button(xtk_widget_t *xw, void *xe)
     w->button.img = w->button.down_img;
     repaint_button(xw);
     draw_widget(w);
+    w->button.pressed = 1;
     return 0;
 }
 
@@ -66,9 +67,12 @@ static int
 release_button(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
-    w->button.img = w->button.bgimg;
+    if(w->button.img == w->button.down_img) {
+	w->button.img = w->button.over_img;
+    }
     repaint_button(xw);
     draw_widget(w);
+    w->button.pressed = 0;
     return 0;
 }
 
@@ -77,7 +81,11 @@ static int
 enter_button(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
-    w->button.img = w->button.over_img;
+    if(w->button.pressed) {
+	w->button.img = w->button.down_img;
+    } else {
+	w->button.img = w->button.over_img;
+    }
     repaint_button(xw);
     draw_widget(w);
     return 0;
@@ -142,7 +150,8 @@ create_button(window_t *window, int x, int y, image_info_t *image,
 	btn->action = action;
 	btn->onclick = widget_onclick;
 	list_push(click_list, btn);
-	emask |= ButtonPressMask;
+	emask |= ButtonPressMask | ButtonReleaseMask |
+	    EnterWindowMask | LeaveWindowMask;
     }
 
     XSelectInput(xd, btn->win, emask);

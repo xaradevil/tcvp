@@ -106,7 +106,7 @@ change_seek_bar(tcseek_bar_t *w, double position)
 
 
 extern int
-seek_bar_onclick(xtk_widget_t *xw, void *xe)
+seek_bar_onpress(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
 
@@ -190,7 +190,7 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
     emask = ExposureMask;
     list_push(widget_list, sb);
     if(action){
-	sb->onclick = seek_bar_onclick;
+	sb->onpress = seek_bar_onpress;
 	sb->action = action;
 	list_push(click_list, sb);
 	emask |= ButtonPressMask;

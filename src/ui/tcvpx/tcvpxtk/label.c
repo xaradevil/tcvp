@@ -423,7 +423,8 @@ create_label(window_t *window, int x, int y, int width, int height,
 	txt->onclick = widget_onclick;
 	txt->action = action;
 	list_push(click_list, txt);
-	emask |= ButtonPressMask;
+	emask |= ButtonPressMask | ButtonReleaseMask | EnterWindowMask |
+	    LeaveWindowMask;
     }
     if((txt->scroll & TCLABELSTANDARD)==0) {
 	list_push(sl_list, txt);
