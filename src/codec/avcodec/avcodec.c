@@ -354,8 +354,11 @@ avc_new(stream_t *s, int mode)
     if(mode == CODEC_MODE_DECODE)
 	avc = avcodec_find_decoder(id);
 
-    if(avc == NULL)
+    if(avc == NULL){
+	fprintf(stderr, "AVC: Can't find codec for '%s' => %i\n",
+		s->common.codec, id);
 	return NULL;
+    }
 
     avctx = avcodec_alloc_context();
     avcodec_get_context_defaults(avctx);
@@ -475,21 +478,10 @@ static enum CodecID
 avc_codec_id(stream_t *s)
 {
     int i;
-    char *n;
+    char *n = s->common.codec;
 
-    switch(s->stream_type){
-    case STREAM_TYPE_VIDEO:
-	n = s->video.codec;
-	break;
-    case STREAM_TYPE_AUDIO:
-	n = s->audio.codec;
-	break;
-    default:
-	return 0;
-    }
-
-    for(i = 0; codec_names[i]; i++){
-	if(!strcmp(n, codec_names[i])){
+    for(i = 0; i < sizeof(codec_names)/sizeof(codec_names[0]); i++){
+	if(codec_names[i] && !strcmp(n, codec_names[i])){
 	    return i;
 	}
     }
