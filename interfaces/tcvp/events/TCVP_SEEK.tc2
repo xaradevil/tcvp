@@ -1,10 +1,6 @@
-inherit "tcvp/events"
+TCVP {
+    event TCVP_SEEK time%I how%i
+}
 include
-typedef struct tcvp_seek_event {
-    int type;
-    int64_t time;
-    int how;
-} tcvp_seek_event_t;
-
 #define TCVP_SEEK_ABS  0
 #define TCVP_SEEK_REL  1

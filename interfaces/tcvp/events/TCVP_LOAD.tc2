@@ -1,8 +1,5 @@
-inherit "tcvp/events"
-include
+TCVP {
+    event TCVP_LOAD stream%p[muxed_stream_t *]
+}
+preinclude
 #include <tcvp_types.h>
-
-typedef struct tcvp_load_event {
-    int type;
-    muxed_stream_t *stream;
-} tcvp_load_event_t;

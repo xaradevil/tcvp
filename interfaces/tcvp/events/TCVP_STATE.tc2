@@ -1,10 +1,7 @@
-inherit "tcvp/events"
+TCVP {
+    event TCVP_STATE state%i
+}
 include
-typedef struct tcvp_state_event {
-    int type;
-    int state;
-} tcvp_state_event_t;
-
 #define TCVP_STATE_PLAYING 0
 #define TCVP_STATE_END     1
 #define TCVP_STATE_ERROR   2

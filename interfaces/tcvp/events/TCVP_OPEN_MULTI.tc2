@@ -1,7 +1,3 @@
-inherit "tcvp/events"
-include
-typedef struct tcvp_open_multi_event {
-    int type;
-    int nfiles;
-    char **files;
-} tcvp_open_multi_event_t;
+TCVP {
+    event TCVP_OPEN_MULTI nfiles%i files%p[char **]
+}
