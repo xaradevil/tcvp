@@ -18,6 +18,7 @@ AC_CONFIG_FILES([Makefile
 		 src/codec/pcm/Makefile
 		 src/output/Makefile
 		 src/output/alsa/Makefile
+		 src/output/oss/Makefile
 		 src/output/xv/Makefile
 		 src/tcvp/Makefile
 		 src/timer/Makefile])
