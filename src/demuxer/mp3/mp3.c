@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -403,20 +403,21 @@ fill_buffer(mp3_file_t *mf)
 }
 
 static mp3_packet_t *
-make_packet(mp3_file_t *mf, int offset, int size)
+make_packet(mp3_file_t *mf, int offset, mp3_frame_t *fr)
 {
     mp3_packet_t *mp;
 
     mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
     mp->data = mf->buf + offset;
     mp->buf = tcref(mf->buf);
-    mp->size = size;
+    mp->size = fr->size;
     mp->pk.stream = 0;
     mp->pk.data = &mp->data;
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;
     mp->pk.flags = TCVP_PKT_FLAG_PTS;
     mp->pk.pts = mf->samples * 27000000LL / mf->stream.audio.sample_rate;
+    mp->pk.samples = fr->samples;
 
     return mp;
 }
@@ -448,7 +449,7 @@ mp3_packet(muxed_stream_t *ms, int str)
 		if(fr.size > mf->bhead - mf->btail)
 		    break;
 
-		mp = make_packet(mf, mf->btail, fr.size);
+		mp = make_packet(mf, mf->btail, &fr);
 
 		mf->samples += fr.samples;
 		mf->sbr += (uint64_t) fr.size * fr.bitrate;
@@ -577,9 +578,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     u_char head[4];
     int ts = 0;
 
-    ms = tcallocd(sizeof(*ms), NULL, mp3_free);
-    memset(ms, 0, sizeof(*ms));
-
+    ms = tcallocdz(sizeof(*ms), NULL, mp3_free);
     mf = calloc(1, sizeof(*mf));
 
     ms->n_streams = 1;
