@@ -246,20 +246,15 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
 
 	if(tl && vl){
 	    char tt[tl];
+	    char *ct;
+
 	    for(j = 0; j < tl; j++)
 		tt[j] = tolower(t[j]);
 
-	    if(!strncmp(tt, "title", tl)){
-		char *title = malloc(vl + 1);
-		strncpy(title, v, vl);
-		title[vl] = 0;
-		tcattr_set(ms, "title", title, NULL, free);
-	    } else if(!strncmp(tt, "artist", tl)){
-		char *performer = malloc(vl + 1);
-		strncpy(performer, v, vl);
-		performer[vl] = 0;
-		tcattr_set(ms, "performer", performer, NULL, free);
-	    }
+	    ct = malloc(vl + 1);
+	    strncpy(ct, v, vl);
+	    ct[vl] = 0;
+	    tcattr_set(ms, tt, ct, NULL, free);
 	}
     }
 
