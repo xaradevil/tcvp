@@ -86,7 +86,11 @@ typedef struct avi_file {
     avi_index_t *index;
     int idxlen;
     int idxok;
+    uint32_t movi_start;
     uint64_t *pts;
+    uint64_t *ipts;
+    uint64_t *ptsn;
+    uint64_t *ptsd;
 } avi_file_t;
 
 typedef struct avi_packet {
@@ -137,6 +141,70 @@ tag2str(u_char *tag)
     return (xval[tag[0]] << 4) + xval[tag[1]];    
 }
 
+static int
+avi_append_index(muxed_stream_t *ms, uint32_t size)
+{
+    avi_file_t *af = ms->private;
+    int idxoff;
+    int idxl = size / sizeof(avi_index_t), ix;
+    int i, s;
+
+    af->index = calloc(idxl, sizeof(*af->index));
+    af->pts = calloc(idxl, sizeof(*af->pts));
+    af->ipts = calloc(ms->n_streams, sizeof(*af->ipts));
+    af->ptsn = calloc(ms->n_streams, sizeof(*af->ptsn));
+    af->ptsd = calloc(ms->n_streams, sizeof(*af->ptsd));
+    for(i = 0; i < ms->n_streams; i++){
+	switch(ms->streams[i].stream_type){
+	case STREAM_TYPE_VIDEO:
+	    af->ptsn[i] = (uint64_t) 1000000 *
+		ms->streams[i].video.frame_rate.den;
+	    af->ptsd[i] = ms->streams[i].video.frame_rate.num;
+	    break;
+	case STREAM_TYPE_AUDIO:
+	    af->ptsd[i] = ms->streams[i].audio.bit_rate;
+	    break;
+	}
+    }
+
+    ix = fread(af->index, sizeof(avi_index_t), idxl, af->file);
+    if(ix != idxl)
+	fprintf(stderr, "AVI: Short index. Expected %i, got %i.\n",
+		idxl, ix);
+    idxl = ix;
+    af->idxlen += idxl;
+    idxoff = af->movi_start - af->index[0].offset;
+    for(i = 0; i < af->idxlen; i++){
+	af->index[i].offset += idxoff;
+    }
+
+    for(i = 0; i < af->idxlen; i++){
+	if(!valid_tag(af->index[i].tag, 0)){
+	    fprintf(stderr, "AVI: Invalid tag in index @ %i\n", i);
+	    continue;
+	}
+
+	s = tag2str(af->index[i].tag);
+	if(s > ms->n_streams){
+	    fprintf(stderr, "AVI: Invalid stream # %i in index.\n", s);
+	    continue;
+	}
+
+	af->pts[i] = af->ipts[s] / af->ptsd[s];
+
+	switch(ms->streams[s].stream_type){
+	case STREAM_TYPE_AUDIO:
+	    af->ipts[s] += 1000000LL * af->index[i].size * 8;
+	    break;
+	case STREAM_TYPE_VIDEO:
+	    af->ipts[s] += af->ptsn[s];
+	    break;
+	}
+    }
+
+    return 0;
+}
+
 static muxed_stream_t *
 avi_header(FILE *f)
 {
@@ -147,7 +215,6 @@ avi_header(FILE *f)
     uint32_t ftime = 0, start = 0;
     char st[5] = {[4] = 0};
     int i;
-    long movi_start = 0;
     struct stat sst;
     off_t fsize, pos;
 
@@ -181,7 +248,7 @@ avi_header(FILE *f)
 	if(pos + size > fsize){
 	    fprintf(stderr,
 		    "AVI: Chunk '%s' exceeds file size.\n"
-		    "     Chunk size %i, remains %li of file\n",
+		    "     Chunk size %u, remains %lu of file\n",
 		    st, size, fsize - pos);
 	}
 
@@ -198,7 +265,8 @@ avi_header(FILE *f)
 	case TAG('L','I','S','T'): {
 	    uint32_t lt = getu32(f);
 	    if(lt == TAG('m','o','v','i')){
-		movi_start = ftell(f);
+		if(!af->movi_start)
+		    af->movi_start = ftell(f);
 		fseek(f, size-4, SEEK_CUR);
 	    } else if(lt == TAG('s','t','r','l')){
 		next = TAG('s','t','r','h');
@@ -353,59 +421,11 @@ avi_header(FILE *f)
 	    break;
 	}
 	case TAG('i','d','x','1'):{
-	    int idxoff;
-	    int idxl = size / sizeof(avi_index_t), ix;
-	    uint64_t pts[ms->n_streams];
-	    uint64_t ptsn[ms->n_streams];
-	    uint64_t ptsd[ms->n_streams];
-
-	    af->index = calloc(idxl, sizeof(*af->index));
-	    ix = fread(af->index, sizeof(avi_index_t), idxl, f);
-	    if(ix != idxl)
-		fprintf(stderr, "AVI: Short index. Expected %i, got %i.\n",
-			idxl, ix);
-	    idxl = ix;
-	    af->idxlen = idxl;
-	    idxoff = movi_start - af->index[0].offset;
-	    for(i = 0; i < idxl; i++){
-		af->index[i].offset += idxoff;
-	    }
-	    af->pts = calloc(idxl, sizeof(*af->pts));
-	    for(i = 0; i < ms->n_streams; i++){
-		pts[i] = 0;
-		if(ms->streams[i].stream_type == STREAM_TYPE_VIDEO){
-		    ptsn[i] = (uint64_t) 1000000 *
-			ms->streams[i].video.frame_rate.den;
-		    ptsd[i] = ms->streams[i].video.frame_rate.num;
-		}
-	    }
-
-	    for(i = 0; i < idxl; i++){
-		int s;
-
-		if(!valid_tag(af->index[i].tag, 0)){
-		    fprintf(stderr, "AVI: Invalid tag in index @ %i\n", i);
-		    continue;
-		}
-
-		s = tag2str(af->index[i].tag);
-		if(s > ms->n_streams){
-		    fprintf(stderr, "AVI: Invalid stream # %i in index.\n", s);
-		    continue;
-		}
-
-		switch(ms->streams[s].stream_type){
-		case STREAM_TYPE_AUDIO:
-		    af->pts[i] = pts[s] / ms->streams[s].audio.bit_rate;
-		    pts[s] += 1000000LL * af->index[i].size * 8;
-		    break;
-		case STREAM_TYPE_VIDEO:
-		    af->pts[i] = pts[s] / ptsd[s];
-		    pts[s] += ptsn[s];
-		    break;
-		}
-	    }
-
+	    avi_append_index(ms, size);
+	    break;
+	}
+	case TAG('R','I','F','F'):{
+	    getu32(f);		/* AVIX */
 	    break;
 	}
 	default:
@@ -413,7 +433,7 @@ avi_header(FILE *f)
 	}
     }
 
-    fseek(f, movi_start, SEEK_SET);
+    fseek(f, af->movi_start, SEEK_SET);
 
     return ms;
 }
@@ -452,6 +472,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	do {
 	    int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
 	    uint32_t flags = 0;
+	    uint64_t pts = 0;
 	    char *buf;
 	    size_t pos;
 
@@ -461,20 +482,17 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    if(!get4c(tag, af->file))
 		break;
 
-	    if(!strcmp(tag, "LIST")){
-		getu32(af->file); /* size */
-		getu32(af->file); /* rec */
-		goto again;
-	    } else if(!strcmp(tag, "idx1")){
-		af->eof = 1;
-		break;
-	    } else if(!strcmp(tag, "JUNK")){
-		size = getu32(af->file);
-		fseek(af->file, size, SEEK_CUR);
-		goto again;
-	    }
-
 	    if(!valid_tag(tag, scan)){
+		if(!strcmp(tag, "LIST") || !strcmp(tag, "RIFF")){
+		    getu32(af->file); /* size */
+		    getu32(af->file); /* rec/movi/AVIX */
+		    goto again;
+		} else if(!strcmp(tag, "JUNK") || !strcmp(tag, "idx1")){
+		    size = getu32(af->file);
+		    fseek(af->file, size, SEEK_CUR);
+		    goto again;
+		}
+
 		if(!scan)
 		    fprintf(stderr,
 			    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08lx\n",
@@ -553,6 +571,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 		if(af->index[af->pkt].offset == pos){
 		    af->idxok++;
 		    flags = af->index[af->pkt].flags;
+		    pts = af->pts[af->pkt];
 		} else {
 		    af->idxok = 0;
 		}
@@ -569,7 +588,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    pk->pk.sizes = &pk->size;
 	    pk->pk.sizes[0] = size;
 	    pk->pk.planes = 1;
-	    pk->pk.pts = af->pts? af->pts[af->pkt]: 0;
+	    pk->pk.pts = pts;
 	    pk->pk.free = avi_free_packet;
 	    pk->flags = flags;
 
@@ -589,7 +608,7 @@ avi_packet(muxed_stream_t *ms, int stream)
     return (packet_t *) pk;
 }
 
-static int
+static uint64_t
 avi_seek(muxed_stream_t *ms, uint64_t time)
 {
     avi_file_t *af = ms->private;
@@ -597,16 +616,9 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     int i;
 
     if(!af->index)
-	return -1;
+	return -1LL;
 
     pthread_mutex_lock(&af->mx);
-
-    for(i = 0; i < ms->n_streams; i++){
-	packet_t *pk;
-	while((pk = list_shift(af->packets[i]))){
-	    pk->free(pk);
-	}
-    }
 
     for(i = 0; i < af->idxlen; i++){
 	if(af->pts[i] >= time){
@@ -630,9 +642,19 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	}
     }
 
-    if(i < af->idxlen){
-	fseek(af->file, pos, SEEK_SET);
+    if(i == af->idxlen){
+	pthread_mutex_unlock(&af->mx);
+	return -1LL;
     }
+
+    for(i = 0; i < ms->n_streams; i++){
+	packet_t *pk;
+	while((pk = list_shift(af->packets[i]))){
+	    pk->free(pk);
+	}
+    }
+
+    fseek(af->file, pos, SEEK_SET);
 
     pthread_mutex_unlock(&af->mx);
 
@@ -653,7 +675,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	}
     }
 
-    return 0;
+    return time;
 }
 
 static int
