@@ -56,12 +56,13 @@ typedef struct xv_window {
     XShmSegmentInfo *shm;
     XvImage **images;
     window_manager_t *wm;
+    int last_frame;
 } xv_window_t;
 
 static int
-xv_show(video_driver_t *vd, int frame)
+do_show(xv_window_t *xvw, int frame)
 {
-    xv_window_t *xvw = vd->private;
+    xvw->last_frame = frame;
 
     XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
 		  xvw->images[frame],
@@ -71,6 +72,12 @@ xv_show(video_driver_t *vd, int frame)
     XSync(xvw->dpy, False);
 
     return 0;
+}
+
+static int
+xv_show(video_driver_t *vd, int frame)
+{
+    return do_show(vd->private, frame);
 }
 
 static int
@@ -97,6 +104,9 @@ xv_reconf(void *p, int event, int x, int y, int w, int h)
 	xvw->dw = w;
 	xvw->dh = h;
     }
+
+    if((event == WM_MOVE || event == WM_SHOW) && xvw->last_frame > -1)
+	do_show(xvw, xvw->last_frame);
 
     return 0;
 }
@@ -168,6 +178,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     xvw->dh = vs->height;
     xvw->shm = malloc(frames * sizeof(*xvw->shm));
     xvw->images = malloc(frames * sizeof(*xvw->images));
+    xvw->last_frame = -1;
 
     XvFreeAdaptorInfo(xai);
 
