@@ -84,17 +84,13 @@ tcvpx_init(tcvp_module_t *tm)
 
     xtk_widget_container_set_data(skin->window, wd);
 
-    if(tcvp_ui_tcvpx_conf_change_window_title) {
-	char *default_text = malloc(1024);
-	wd->value = tcvp_ui_tcvpx_conf_window_title;
-	register_textwidget(skin->window, wd->value);
+    char *default_text = malloc(1024);
+    wd->value = tcvp_ui_tcvpx_conf_window_title;
+    register_textwidget(skin->window, wd->value);
 
-	parse_text(wd->value, default_text, 1024);
-	xtk_window_set_title(skin->window, default_text);
-	free(default_text);
-    } else {
-	xtk_window_set_title(skin->window, "TCVP");
-    }
+    parse_text(wd->value, default_text, 1024);
+    xtk_window_set_title(skin->window, default_text);
+    free(default_text);
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
 	tc2_print("TCVPX", TC2_PRINT_ERROR,

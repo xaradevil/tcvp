@@ -80,7 +80,6 @@ import		"URL"			"open"
 option		always_on_top%d=0
 option		skin%s
 option		sticky%d=0
-option		change_window_title%d=1
 option		xposition%d=-2
 option		yposition%d=-2
 option		*skinpath%s
