@@ -169,6 +169,7 @@ mux_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     mux_t *mx;
 
     mx = calloc(1, sizeof(*mx));
+    mx->nstreams = 1;
     pthread_mutex_init(&mx->lock, NULL);
     pthread_cond_init(&mx->cond, NULL);
 

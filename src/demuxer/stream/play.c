@@ -119,6 +119,14 @@ close_pipe(tcvp_pipe_t *p)
     }
 }
 
+static void
+pid_free(void *p)
+{
+    stream_shared_t *sh = tcattr_get(p, "stream-shared");
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "removing %s from hash\n", p);
+    tchash_delete(sh->filters, p, -1, NULL);
+}
+
 static tcvp_pipe_t *
 new_pipe(stream_player_t *sp, stream_t *s)
 {
@@ -168,19 +176,24 @@ new_pipe(stream_player_t *sp, stream_t *s)
 
 	    if(!(pn = fn(pp? &pp->format: s, mcf, sh->timer, sp->ms))){
 		tc2_print("STREAM", TC2_PRINT_WARNING,
-			  "error opening filter %s\n", type);
+			  "error opening filter '%s'\n", type);
 		break;
 	    }
 
-	    if(id)
+	    if(id){
+		char *cid = tcalloc(strlen(id) + 1);
+		strcpy(cid, id);
+		tcattr_set(cid, "stream-shared", sh, NULL, NULL);
+		tcattr_set(pn, "id", cid, NULL, pid_free);
 		tchash_replace(sh->filters, id, -1, pn, NULL);
+	    }
 	    tcfree(mcf);
+	} else {
+	    tcref(pn);
 	}
 
-	if(id){
-	    tcref(pn);
+	if(id)
 	    free(id);
-	}
 
 	if(!pipe)
 	    pipe = pn;
@@ -264,6 +277,7 @@ add_stream(stream_player_t *sp, int s)
 
     if(!use_stream(sh, s, sp->ms->streams[s].stream_type))
 	goto out;
+    r = -2;
 
     if(sp->ms->streams[s].stream_type == STREAM_TYPE_VIDEO){
 	sh->vs = sid;
@@ -294,7 +308,7 @@ add_stream(stream_player_t *sp, int s)
 
 out:
     pthread_mutex_unlock(&sh->lock);
-    if(r)
+    if(r < -1)
 	tc2_print("STREAM", TC2_PRINT_WARNING,
 		  "error opening stream #%i\n", sid);
     return r;
@@ -653,6 +667,12 @@ s_play(stream_shared_t *sh, muxed_stream_t *ms)
 }
 
 static void
+sh_free(void *p)
+{
+    tc2_print("STREAM", TC2_PRINT_WARNING, "%p still in hash\n", p);
+}
+
+static void
 free_shared(void *p)
 {
     stream_shared_t *sh = p;
@@ -660,7 +680,7 @@ free_shared(void *p)
     tcfree(sh->profile);
     tcfree(sh->conf);
     tcfree(sh->timer);
-    tchash_destroy(sh->filters, tcfree);
+    tchash_destroy(sh->filters, sh_free);
     if(sh->outfile)
 	free(sh->outfile);
 }
