@@ -342,7 +342,7 @@ static inline int
 valid_tag(char *t)
 {
     return (isxdigit(t[0]) || t[0] == ' ') && isxdigit(t[1]) &&
-	isprint(t[2]) && isprint(t[3]);
+	isalpha(t[2]) && isalpha(t[3]);
 }
 
 static inline int
