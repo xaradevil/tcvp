@@ -58,6 +58,7 @@ show_help(void)
 	   "   -C      --validate            Check file integrity\n"
 	   "   -s t    --seek=t              Seek t seconds at start\n"
 	   "   -u name --user-interface=name Select user interface\n"
+	   "   -z      --shuffle             Shuffle files\n"
 	);
 }
 
@@ -134,8 +135,11 @@ tcl_check(void *p)
 {
     int i;
 
-    for(i = 0; i < nfiles; i++)
+    for(i = 0; i < nfiles; i++){
+	if(nfiles > 1)
+	    printf("checking \"%s\"...\n", files[i]);
 	stream_validate(files[i], cf);
+    }
 
     tc2_request(TC2_UNLOAD_MODULE, 0, MODULE_INFO.name);
     return NULL;
@@ -154,9 +158,6 @@ tcl_init(char *p)
 
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
-
-    if(!sel_ui){
-    }
 
     pll = playlist_new(cf);
     pll->add(pll, files, nfiles, 0);
@@ -207,7 +208,7 @@ tcl_stop(void)
     if(validate)
 	pthread_join(check_thr, NULL);
 
-    if(!sel_ui){
+    if(qr){
 	tcvp_event_t *te = tcvp_alloc_event(-1);
 	eventq_send(qr, te);
 	tcfree(te);
@@ -221,8 +222,11 @@ tcl_stop(void)
 	sem_destroy(&psm);
     }
 
-    pl->free(pl);
-    pll->free(pll);
+    if(pl)
+	pl->free(pl);
+
+    if(pll)
+	pll->free(pll);
 
     return 0;
 }
