@@ -78,7 +78,7 @@ new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
 
     event_tab = realloc(event_tab, (event_num + 1) * sizeof(*event_tab));
     event_tab[e->num] = e;
-    tchash_replace(event_types, name, e);
+    tchash_replace(event_types, name, -1, e, NULL);
 
     tc2_print("EVENT", TC2_PRINT_DEBUG,
 	      "registered %s as %i\n", name, e->num);
@@ -100,7 +100,7 @@ reg_event(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
 	    df = evt_deserialize;
     }
 
-    if(!tchash_find(event_types, name, &e)){
+    if(!tchash_find(event_types, name, -1, &e)){
 	if(e->alloc)
 	    return -1;
 	e->alloc = af;
@@ -119,7 +119,7 @@ get_event(char *name)
 {
     tcvp_event_type_t *e;
 
-    if(tchash_find(event_types, name, &e))
+    if(tchash_find(event_types, name, -1, &e))
 	e = new_type(name, NULL, NULL, NULL);
 
     return e->num;
@@ -139,7 +139,7 @@ del_event(char *name)
 {
     tcvp_event_type_t *e;
 
-    if(!tchash_delete(event_types, name, &e))
+    if(!tchash_delete(event_types, name, -1, &e))
 	free_event(e);
 
     return 0;
@@ -224,7 +224,7 @@ deserialize_event(u_char *event, int size)
     if(!memchr(event, 0, size))
 	return NULL;
 
-    if(tchash_find(event_types, event, &e))
+    if(tchash_find(event_types, event, -1, &e))
 	return NULL;
 
     if(!e->deserialize)
@@ -247,7 +247,7 @@ alloc_event(int type, int size, tcfree_fn ff)
 extern int
 event_init(char *p)
 {
-    event_types = tchash_new(20, 0);
+    event_types = tchash_new(20, TC_LOCK_SLOPPY, 0);
     return 0;
 }
 
