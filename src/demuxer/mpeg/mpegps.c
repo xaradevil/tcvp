@@ -327,7 +327,7 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 			sp = &ms->streams[ms->n_streams];
 		    }
 
-		    memset(sp, sizeof(&sp), 0);
+		    memset(sp, 0, sizeof(*sp));
 		    s->imap[pk->stream_id] = ms->n_streams;
 
 		    if(pk->stream_id & 0x20){
