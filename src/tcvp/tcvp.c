@@ -104,7 +104,7 @@ t_open(char *name)
     timer_new_t tmnew;
     stream_t *as = NULL, *vs = NULL;
     tcvp_pipe_t *codecs[2];
-    int aci, vci;
+    int aci, vci, asi, vsi;
     tcvp_pipe_t *demux = NULL;
     tcvp_pipe_t *vcodec = NULL, *acodec = NULL;
     tcvp_pipe_t *sound = NULL, *video = NULL;
@@ -147,6 +147,7 @@ t_open(char *name)
 	    }
 	    stream->used_streams[i] = 1;
 	    vci = j++;
+	    vsi = i;
 	} else if(stream->streams[i].stream_type == STREAM_TYPE_AUDIO &&
 		  !as && output_audio_open){
 	    as = &stream->streams[i];
@@ -158,6 +159,7 @@ t_open(char *name)
 	    }
 	    stream->used_streams[i] = 1;
 	    aci = j++;
+	    asi = i;
 	}
     }
 
@@ -165,9 +167,12 @@ t_open(char *name)
 	return NULL;
 
     if(as){
-	sound = output_audio_open((audio_stream_t *) as, NULL, &timer);
-	acodec = acnew(as, CODEC_MODE_DECODE, sound);
-	codecs[aci] = acodec;
+	if((sound = output_audio_open((audio_stream_t *) as, NULL, &timer))){
+	    acodec = acnew(as, CODEC_MODE_DECODE, sound);
+	    codecs[aci] = acodec;
+	} else {
+	    stream->used_streams[asi] = 0;
+	}
     }
 
     if(vs){
