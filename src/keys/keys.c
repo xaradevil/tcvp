@@ -57,6 +57,7 @@ ac_send(tcscript_t *tcs, void *p, char *fun, int na, tcscript_value_t **args)
     tcvp_module_t *tm = p;
     tcvp_keys_t *tk = tm->private;
     tcarg_t evt_args;
+    char *fmt, **str;
     int evt;
     int i;
 
@@ -64,16 +65,57 @@ ac_send(tcscript_t *tcs, void *p, char *fun, int na, tcscript_value_t **args)
 	return NULL;
 
     evt = tcscript_getint(args[0]);
-    tcarg_init(evt_args);
+    fmt = tcvp_event_format(evt);
 
-    for(i = 1; i < na; i++){
-	tcarg_add(evt_args, int64_t, tcscript_getint(args[i]));
+    if(!fmt){
+	tc2_print("KEYS", TC2_PRINT_WARNING,
+		  "format of event %i unknown\n", evt);
+	return NULL;
+    }
+
+    na--;
+    args++;
+
+    if(strlen(fmt) != na){
+	tc2_print("KEYS", TC2_PRINT_WARNING,
+		  "incorrect number of arguments for event %i: %i\n", evt, na);
+	return 0;
+    }
+
+    tcarg_init(evt_args);
+    str = calloc(na, sizeof(*str));
+
+    for(i = 0; i < na; i++){
+	switch(fmt[i]){
+	case 'i':
+	case 'u':
+	    tcarg_add(evt_args, int32_t, tcscript_getint(args[i]));
+	    break;
+	case 'I':
+	case 'U':
+	    tcarg_add(evt_args, int64_t, tcscript_getint(args[i]));
+	    break;
+	case 'f':
+	    tcarg_add_float(evt_args, double, tcscript_getfloat(args[i]));
+	    break;
+	case 's':
+	    str[i] = tcscript_getstring(args[i]);
+	    tcarg_add(evt_args, char *, str[i]);
+	    break;
+	case 'p':
+	    tcarg_add(evt_args, void *, tcscript_getptr(args[i]));
+	    break;
+	}
     }
 
     tcvp_event_sendv(tk->control, evt, tcarg_va_list(evt_args));
     tcarg_free(evt_args);
 
-    return 0;
+    for(i = 0; i < na; i++)
+	free(str[i]);
+    free(str);
+
+    return NULL;
 }
 
 static tcscript_value_t *
