@@ -300,7 +300,7 @@ tcvp_event(void *p)
 	    muxed_stream_t *st = te->load.stream;
 	    char *title;
 	    if(st->title){
-		title = st->title;
+		title = strdup(st->title);
 	    } else {
 		char *ext;
 		title = strrchr(st->file, '/');
