@@ -1,4 +1,3 @@
 TC2_CHECK_INTERFACE(xtk,
-	TC2_ENABLE_MODULE
-	AC_CONFIG_FILES([src/ui/tcvpx/skin/Makefile]),
+	TC2_ENABLE_MODULE,
 	AC_MSG_WARN([xtk not found]))
