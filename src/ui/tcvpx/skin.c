@@ -212,7 +212,7 @@ load_skin(char *skinconf)
 	sprintf(conf_tmp, "%s/%s", TCVP_SKINS, skinconf);
     }
 
-    fprintf(stderr, "%s\n", conf_tmp);
+    tc2_print("TCVPX", TC2_PRINT_DEBUG+4, "Using skin: \"%s\"\n", conf_tmp);
 
     if(!(skin->config = tcconf_load_file (NULL, conf_tmp))){
 	tc2_print("TCVPX", TC2_PRINT_ERROR, "Error loading file \"%s\".\n", conf_tmp);
