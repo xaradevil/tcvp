@@ -28,6 +28,7 @@
 #define TCLABEL       1
 #define TCBACKGROUND  2
 #define TCSEEKBAR     3
+#define TCSTATE       4
 
 #define TCLABELSTANDARD   (1<<0)
 #define TCLABELSCROLLING  (1<<1)
@@ -79,6 +80,14 @@ typedef struct {
 
 typedef struct {
     WIDGET_COMMON;
+    int active_state;
+    int num_states;
+    char **states;
+    image_info_t **images;
+} tcstate_t;
+
+typedef struct {
+    WIDGET_COMMON;
     char *colorname;
     uint32_t color;
     short alpha;
@@ -112,6 +121,7 @@ union _tcwidget_t {
     tclabel_t label;
     tcbackground_t background;
     tcseek_bar_t seek_bar;
+    tcstate_t state;
 };
 
 extern list *widget_list, *click_list, *sl_list, *drag_list, *skin_list;
@@ -149,6 +159,11 @@ tcseek_bar_t *create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 			      double position, action_cb_t action);
 int enable_seek_bar(tcseek_bar_t *sb);
 int disable_seek_bar(tcseek_bar_t *sb);
+
+tcstate_t* create_state(skin_t *skin, int x, int y, int num_states, 
+			char **imagefiles, char **states, char *state,
+			action_cb_t action);
+int change_state(tcstate_t* st, char *state);
 
 int widget_cmp(const void *, const void *);
 

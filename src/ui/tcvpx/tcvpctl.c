@@ -39,6 +39,18 @@ tcvp_event(void *p)
 	    case TCVP_STATE_PL_END:
 		tcvp_stop(NULL, NULL);
 		break;
+
+	    case TCVP_STATE_PLAYING:
+		change_state(skin->state, "play");
+		break;
+
+	    case TCVP_STATE_STOPPED:
+		change_state(skin->state, "pause");
+		break;
+
+	    case TCVP_STATE_END:
+		change_state(skin->state, "stop");
+		break;
 	    }
 	    break;
 

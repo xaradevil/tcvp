@@ -162,6 +162,41 @@ create_skinned_seek_bar(skin_t *skin, conf_section *sec, double position,
 }
 
 
+static tcstate_t*
+create_skinned_state(skin_t *skin, conf_section *sec, char *state,
+		     action_cb_t acb)
+{
+    int x, y;
+    int ns = 0;
+    char **imgs = NULL, **states = NULL;
+    void *c = NULL;
+    int i;
+    char *img, *st;
+
+    i = conf_getvalue(sec, "position", "%d %d", &x, &y);
+    if (i != 2) {
+	return NULL;
+    }
+
+    for(i = conf_nextvalue(sec, "image", &c, "%s %s", &st, &img); c;
+	i = conf_nextvalue(sec, "image", &c, "%s %s", &st, &img)){
+	if(i == 2) {
+	    imgs = realloc(imgs, sizeof(*imgs)*(ns+1));
+	    states = realloc(states, sizeof(*states)*(ns+1));
+	    imgs[ns] = img;
+	    states[ns] = st;
+	    ns++;
+	}
+    }
+
+    if(ns > 0) {
+	return(create_state(skin, x, y, ns, imgs, states, state, acb));
+    } else {
+	return NULL;
+    }
+}
+    
+
 static int
 tcvp_playlist(tcwidget_t *w, void *p)
 {
@@ -196,7 +231,7 @@ extern int
 create_ui(skin_t *skin)
 {
     conf_section *sec;
-    tcimage_button_t *w;
+    void *w;
 
     conf_getvalue(skin->config, "playlist", "%s", &skin->playlistfile);
 
@@ -265,25 +300,34 @@ create_ui(skin_t *skin)
 
     sec = conf_getsection(skin->config, "time");
     if(sec){
-	skin->time = create_skinned_label(skin, sec, "  0:00", toggle_time);
-	if(skin->time) {
-	    list_push(skin->widgets, skin->time);
+	w = skin->time =
+	    create_skinned_label(skin, sec, "  0:00", toggle_time);
+	if(w) {
+	    list_push(skin->widgets, w);
 	}
     }
 
     sec = conf_getsection(skin->config, "title");
     if(sec){
-	skin->title = create_skinned_label(skin, sec, "", NULL);
-	if(skin->title) {
-	    list_push(skin->widgets, skin->title);
+	w = skin->title = create_skinned_label(skin, sec, "", NULL);
+	if(w) {
+	    list_push(skin->widgets, w);
 	}
     }
 
     sec = conf_getsection(skin->config, "seek_bar");
     if(sec){
-	skin->seek_bar = create_skinned_seek_bar(skin, sec, 0, tcvp_seek);
-	if(skin->seek_bar) {
-	    list_push(skin->widgets, skin->seek_bar);
+	w = skin->seek_bar = create_skinned_seek_bar(skin, sec, 0, tcvp_seek);
+	if(w) {
+	    list_push(skin->widgets, w);
+	}
+    }
+
+    sec = conf_getsection(skin->config, "state");
+    if(sec){
+	w = skin->state = create_skinned_state(skin, sec, "stopped", NULL);
+	if(w) {
+	    list_push(skin->widgets, w);
 	}
     }
 
