@@ -57,7 +57,7 @@ mpegpes_packet(url_t *u, int pedantic)
 
     do {
 	uint32_t stream_id;
-	int scode = 0, pklen, zc = 0, i = pedantic? 3: 0x10000;
+	u_int scode = 0, pklen, zc = 0, i = pedantic? 3: 0x10000;
 
 	do {
 	    scode = url_getc(u);
