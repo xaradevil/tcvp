@@ -33,7 +33,7 @@ pcm_free_pipe(tcvp_pipe_t *p)
 }
 
 extern tcvp_pipe_t *
-pcm_new_pipe(int mode, tcvp_pipe_t *p)
+pcm_new(stream_t *s, int mode, tcvp_pipe_t *p)
 {
     tcvp_pipe_t *np = malloc(sizeof(*np));
     np->input = p->input;
@@ -43,27 +43,4 @@ pcm_new_pipe(int mode, tcvp_pipe_t *p)
     np->private = p->private;
 
     return np;
-}
-
-extern packet_t *
-pcm_encdec(codec_t *c, packet_t *p)
-{
-    return p;
-}
-
-static int
-pcm_free(codec_t *c)
-{
-    free(c);
-    return 0;
-}
-
-extern codec_t *
-pcm_new(int mode)
-{
-    codec_t *c = malloc(sizeof(*c));
-    c->decode = pcm_encdec;
-    c->encode = pcm_encdec;
-    c->free = pcm_free;
-    return c;
 }

@@ -4,6 +4,3 @@ version		0.1.0
 tc2version	0.4.0
 sources		pcm.c
 implement	"codec/audio/pcm-s16le"	"new"		pcm_new
-implement	"codec/audio/pcm-s16le"	"new_pipe"	pcm_new_pipe
-implement	"codec/audio/pcm-s16le"	"encode"	pcm_encdec
-implement	"codec/audio/pcm-s16le"	"decode"	pcm_encdec
