@@ -131,6 +131,7 @@ tcvpx_init(char *p)
     skin=load_skin(tcvp_ui_tcvpx_conf_skin);
 
     create_window(skin);
+
     create_ui(skin);
     update_root(skin);
 
@@ -142,7 +143,6 @@ tcvpx_init(char *p)
     repaint_widgets();
     draw_widgets();
 
-    XSelectInput(xd, xw, ExposureMask | StructureNotifyMask);
     XSync(xd, False);
 
     pthread_create(&xth, NULL, x11_event, skin);

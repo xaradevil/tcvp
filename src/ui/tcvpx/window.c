@@ -128,6 +128,8 @@ create_window(skin_t *skin)
 			CopyFromParent, InputOutput,
 			CopyFromParent, 0, 0);
 
+    XSelectInput(xd, xw, ExposureMask | StructureNotifyMask);
+
     memset(&mwmhints, 0, sizeof(MWMHints));
     prop = XInternAtom(xd, "_MOTIF_WM_HINTS", False);
     mwmhints.flags = MWM_HINTS_DECORATIONS;
