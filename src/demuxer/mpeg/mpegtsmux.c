@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -105,7 +105,7 @@ put_pcr(u_char *p, uint64_t pcr)
 static u_char *
 null_packet(void)
 {
-    u_char *tsp = malloc(TS_PACKET_SIZE);
+    u_char *tsp = calloc(1, TS_PACKET_SIZE);
 
     tsp[0] = 0x47;
     st_unaligned16(htob_16(0x1fff), tsp + 1);
@@ -599,6 +599,7 @@ static void
 tmx_free(void *p)
 {
     mpegts_mux_t *tsm = p;
+    int i;
 
     tsm->out->close(tsm->out);
     free(tsm->outbuf);
@@ -606,8 +607,11 @@ tmx_free(void *p)
     free(tsm->pmt);
     free(tsm->pcr_packet);
     free(tsm->null);
-    if(tsm->streams)
-	free(tsm->streams);
+
+    for(i = 0; i < tsm->astreams; i++)
+	tclist_destroy(tsm->streams[i].packets, tcfree);
+
+    free(tsm->streams);
     tcfree(tsm->timer);
 }
 
