@@ -25,6 +25,7 @@ typedef struct tcvp_playlist {
     pthread_t eth;
     pthread_mutex_t lock;
     int shuffle;
+    tcconf_section_t *conf;
 } tcvp_playlist_t;
 
 typedef union tcvp_pl_event {
@@ -46,6 +47,7 @@ static int TCVP_STATE;
 static int TCVP_OPEN;
 static int TCVP_START;
 static int TCVP_CLOSE;
+static int TCVP_LOAD;
 static int TCVP_PL_START;
 static int TCVP_PL_STOP;
 static int TCVP_PL_NEXT;
@@ -285,6 +287,13 @@ pl_next(tcvp_playlist_t *tpl, int dir)
     if(tpl->state == PLAYING){
 	tpl->state = STOPPED;
 	pl_start(tpl);
+    } else if(tpl->cur < tpl->nf){
+	muxed_stream_t *ms = stream_open(tpl->files[tpl->order[tpl->cur]],
+					 tpl->conf, NULL);
+	if(ms){
+	    tcvp_event_send(tpl->ss, TCVP_LOAD, ms);
+	    tcfree(ms);
+	}
     }
 
     return ret;
@@ -361,6 +370,7 @@ pl_free(playlist_t *pl)
 
     pthread_mutex_destroy(&tpl->lock);
 
+    tcfree(tpl->conf);
     free(tpl);
     free(pl);
 }
@@ -378,6 +388,7 @@ pl_new(tcconf_section_t *cs)
     tpl->order = malloc(tpl->af * sizeof(*tpl->order));
     pthread_mutex_init(&tpl->lock, NULL);
     tpl->state = END;
+    tpl->conf = tcref(cs);
 
     tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 9);
@@ -621,6 +632,7 @@ pl_init(char *p)
     TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 
     TCVP_START = tcvp_event_get("TCVP_START");
     TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
+    TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
 
     return 0;
 }
