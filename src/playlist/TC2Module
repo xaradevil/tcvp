@@ -23,7 +23,6 @@ TCVP {
 		event control TCVP_PL_ADD epl_add
 		event control TCVP_PL_ADDLIST epl_addlist
 		event control TCVP_PL_REMOVE epl_remove
-		event control TCVP_PL_SHUFFLE epl_shuffle
 		event control TCVP_PL_FLAGS epl_flags
 	}
 	event TCVP_OPEN
@@ -31,10 +30,9 @@ TCVP {
 	event TCVP_CLOSE
 	event TCVP_LOAD
 	event TCVP_PL_ADD	pl_alloc_add pl_add_ser pl_add_deser
-	event TCVP_PL_ADDLIST  pl_alloc_addlist pl_addlist_ser pl_addlist_deser
-	event TCVP_PL_REMOVE	pl_alloc_remove remove_ser remove_deser
-	event TCVP_PL_SHUFFLE	pl_alloc_shuffle shuffle_ser shuffle_deser
-	event TCVP_PL_FLAGS	pl_flags_alloc pl_flags_ser pl_flags_deser
+	event TCVP_PL_ADDLIST	auto
+	event TCVP_PL_REMOVE	auto
+	event TCVP_PL_FLAGS	auto
 	event TCVP_PL_START	NULL NULL NULL
 	event TCVP_PL_STOP	NULL NULL NULL
 	event TCVP_PL_NEXT	NULL NULL NULL

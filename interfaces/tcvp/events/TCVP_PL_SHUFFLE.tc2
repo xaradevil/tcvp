@@ -1,6 +1,0 @@
-inherit "tcvp/events"
-include
-typedef struct tcvp_pl_shuffle_event {
-    int type;
-    int shuffle;
-} tcvp_pl_shuffle_event_t;
