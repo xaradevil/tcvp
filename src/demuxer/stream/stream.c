@@ -115,7 +115,8 @@ play_stream(void *p)
     }
 
     vp->pipes[stream]->input(vp->pipes[stream], NULL);
-    vp->pipes[stream]->flush(vp->pipes[stream], vp->state == STOP);
+    if(vp->state != STOP)
+	vp->pipes[stream]->flush(vp->pipes[stream], 0);
 
     pthread_mutex_lock(&vp->mtx);
     vp->streams--;
@@ -179,9 +180,6 @@ s_flush(tcvp_pipe_t *p, int drop)
     while(vp->streams > 0)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
-
-    if(!drop)
-	flush_all(vp, drop);
 
     pthread_mutex_lock(&vp->mtx);
     if(--vp->flushing == 0)
