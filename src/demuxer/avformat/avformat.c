@@ -157,14 +157,6 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     return pk;
 }
 
-
-extern int
-avf_close(muxed_stream_t *ms)
-{
-    tcfree(ms);
-    return 0;
-}
-
 extern void
 avf_free(void *p)
 {
@@ -243,7 +235,6 @@ avf_open(char *name, conf_section *cs)
     }
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = avf_next_packet;
-    ms->close = avf_close;
 
     as = calloc(1, sizeof(*as));
     as->afc = afc;

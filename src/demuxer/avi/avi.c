@@ -329,6 +329,42 @@ avi_read_indx(muxed_stream_t *ms)
     return 0;
 }
 
+static void
+avi_merge_index(muxed_stream_t *ms)
+{
+    avi_file_t *af = ms->private;
+    int i, j;
+
+    for(i = 0; i < ms->n_streams; i++){
+	af->idxlen += af->streams[i].idxlen;
+    }
+
+    if(af->idxlen){
+	avi_index_t *sx[ms->n_streams];
+	for(i = 0; i < ms->n_streams; i++)
+	    sx[i] = af->streams[i].index;
+
+	af->index = calloc(af->idxlen, sizeof(*af->index));
+	for(i = 0; i < af->idxlen; i++){
+	    int x = -1;
+	    for(j = 0; j < ms->n_streams; j++){
+		if(!sx[j])
+		    continue;
+		if(!af->index[i])
+		    af->index[i] = sx[j];
+		if(af->index[i] && sx[j]->offset <= af->index[i]->offset){
+		    af->index[i] = sx[j];
+		    x = j;
+		}
+	    }
+	    if(x >= 0 &&
+	       ++sx[x] - af->streams[x].index == af->streams[x].idxlen){
+		sx[x] = NULL;
+	    }
+	}
+    }
+}
+
 static muxed_stream_t *
 avi_header(FILE *f)
 {
@@ -338,7 +374,7 @@ avi_header(FILE *f)
     uint32_t width = 0, height = 0;
     uint32_t ftime = 0, start = 0;
     char st[5] = {[4] = 0};
-    int i, j;
+    int i;
     struct stat sst;
     off_t fsize, pos;
     int odml_idx = 0;
@@ -579,34 +615,7 @@ avi_header(FILE *f)
 	fseek(f, pos + size, SEEK_SET);
     }
 
-    for(i = 0; i < ms->n_streams; i++){
-	af->idxlen += af->streams[i].idxlen;
-    }
-
-    if(af->idxlen){
-	avi_index_t *sx[ms->n_streams];
-	for(i = 0; i < ms->n_streams; i++)
-	    sx[i] = af->streams[i].index;
-
-	af->index = calloc(af->idxlen, sizeof(*af->index));
-	for(i = 0; i < af->idxlen; i++){
-	    int x = -1;
-	    for(j = 0; j < ms->n_streams; j++){
-		if(!sx[j])
-		    continue;
-		if(!af->index[i])
-		    af->index[i] = sx[j];
-		if(af->index[i] && sx[j]->offset <= af->index[i]->offset){
-		    af->index[i] = sx[j];
-		    x = j;
-		}
-	    }
-	    if(x >= 0 &&
-	       ++sx[x] - af->streams[x].index == af->streams[x].idxlen){
-		sx[x] = NULL;
-	    }
-	}
-    }
+    avi_merge_index(ms);
 
     fseek(f, af->movi_start, SEEK_SET);
 
@@ -793,7 +802,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 {
     avi_file_t *af = ms->private;
     uint64_t pos = -1;
-    int i, s;
+    int i;
 
     pthread_mutex_lock(&af->mx);
 
@@ -881,13 +890,6 @@ avi_free(void *p)
     free(af);
 }
 
-static int
-avi_close(muxed_stream_t *ms)
-{
-    tcfree(ms);
-    return 0;
-}
-
 extern muxed_stream_t *
 avi_open(char *file, conf_section *cs)
 {
@@ -902,7 +904,6 @@ avi_open(char *file, conf_section *cs)
 
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = avi_packet;
-    ms->close = avi_close;
     ms->seek = avi_seek;
     ms->file = strdup(file);
 

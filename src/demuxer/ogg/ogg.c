@@ -193,14 +193,6 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
     return (1000000*ppos)/ms->streams[0].audio.sample_rate;
 }
 
-extern int
-ogg_close(muxed_stream_t *ms)
-{
-    tcfree(ms);
-    return 0;
-}
-
-
 static void
 ogg_free(void *p)
 {
@@ -298,7 +290,6 @@ ogg_open(char *name, conf_section *cs)
 
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = ogg_next_packet;
-    ms->close = ogg_close;
     ms->seek = ogg_seek;
     ms->private = ost;
 

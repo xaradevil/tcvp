@@ -60,12 +60,6 @@ tcvp_event(void *p)
 	    break;
 
 	case TCVP_LOAD:{
-	    u_long samples = 0;
-	    int sample_rate = 0;
-	    u_long frames = 0;
-	    int frame_rate_num = 0, frame_rate_den = 0;
-	    int i;
-
 	    muxed_stream_t *st = te->load.stream;
 	    char *title;
 
@@ -87,26 +81,8 @@ tcvp_event(void *p)
 		    *ext = 0;
 	    }
 
-	    for(i=0; i<st->n_streams; i++){
-		if(st->used_streams[i]){
-		    if(st->streams[i].stream_type == STREAM_TYPE_AUDIO) {
-			samples = st->streams[i].audio.samples;
-			sample_rate = st->streams[i].audio.sample_rate;
-			if(sample_rate>0 && samples>0){
-			    s_length = samples/sample_rate;
-			}
-		    } else if(st->streams[i].stream_type == STREAM_TYPE_VIDEO) {
-			frames = st->streams[i].video.frames;
-			frame_rate_num = st->streams[i].video.frame_rate.num;
-			frame_rate_den = st->streams[i].video.frame_rate.den;
-
-			if(frame_rate_num>0 && frame_rate_den>0 && frames>0){
-			    s_length = ((uint64_t)frames * frame_rate_den) /
-				frame_rate_num;
-			}
-		    }
-		}
-	    }
+	    if(st->time)
+		s_length = st->time / 1000000;
 
 /* 	    printf("%ld (%d)\n", samples, sample_rate); */
 /* 	    printf("%ld (%d/%d)\n", frames, frame_rate_num, frame_rate_den); */

@@ -21,6 +21,7 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <pthread.h>
+#include <tcalloc.h>
 #include <tcvp_types.h>
 #include <stream_tc2.h>
 
@@ -38,6 +39,8 @@ s_open(char *name, conf_section *cs)
 	    m = "audio/ogg";
 	} else if(!strcmp(ext, "avi")){
 	    m = "video/x-avi";
+	} else if(!strcmp(ext, "mp3")){
+	    m = "audio/mp3";
 	}
     }
 
@@ -56,12 +59,6 @@ s_next_packet(muxed_stream_t *ms, int stream)
 }
 
 extern int
-s_close(muxed_stream_t *ms)
-{
-    return ms->close(ms);
-}
-
-extern int
 s_validate(char *name, conf_section *cs)
 {
     muxed_stream_t *ms = s_open(name, cs);
@@ -71,7 +68,7 @@ s_validate(char *name, conf_section *cs)
 
     while(ms->next_packet(ms, -1));
 
-    ms->close(ms);
+    tcfree(ms);
     return 0;
 }
 

@@ -117,7 +117,7 @@ t_close(player_t *pl)
     }
 
     if(tp->stream){
-	tp->stream->close(tp->stream);
+	tcfree(tp->stream);
 	tp->stream = NULL;
     }
 
@@ -225,12 +225,11 @@ st_ticker(void *p)
     while(tp->state != TCVP_STATE_END){
 	pthread_mutex_unlock(&tp->tmx);
 	time = tp->timer->read(tp->timer);
-	if(tp->timer->wait(tp->timer, time += 1000000) == 0){
-	    tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER);
-	    te->time = time;
-	    eventq_send(tp->qt, te);
-	    tcfree(te);
-	}
+	tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER);
+	te->time = time;
+	eventq_send(tp->qt, te);
+	tcfree(te);
+	tp->timer->wait(tp->timer, time += 1000000);
 	pthread_mutex_lock(&tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
@@ -244,7 +243,7 @@ t_seek(player_t *pl, int64_t time, int how)
     tcvp_player_t *tp = pl->private;
     uint64_t ntime;
 
-    if(tp->stream->seek){
+    if(tp->stream && tp->stream->seek){
 	int s = tp->state;
 	if(s == TCVP_STATE_PLAYING){
 	    tp->demux->stop(tp->demux);
@@ -347,13 +346,39 @@ t_open(player_t *pl, char *name)
 
     if(!as && !vs){
 	printf("No supported streams found.\n");
-	stream->close(stream);
+	tcfree(stream);
 	return -1;
     }
 
     tp->open = 1;
 
     stream_probe(stream, codecs);
+
+    if(!stream->time){
+	for(i = 0; i < stream->n_streams; i++){
+	    if(stream->used_streams[i]){
+		stream_t *st = &stream->streams[i];
+		uint64_t len = 0;
+		if(st->stream_type == STREAM_TYPE_VIDEO){
+		    int frames = st->video.frames;
+		    int frn = st->video.frame_rate.num;
+		    int frd = st->video.frame_rate.den;
+		    if(frn > 0 && frd > 0 && frames > 0){
+			len = (uint64_t) frames * 1000000LL * frd / frn;
+		    }
+		} else if(st->stream_type == STREAM_TYPE_AUDIO){
+		    int samples = st->audio.samples;
+		    int srate = st->audio.sample_rate;
+		    if(srate > 0 && samples > 0){
+			len = (uint64_t) samples *1000000LL / srate;
+		    }
+		}
+		if(len > stream->time){
+		    stream->time = len;
+		}
+	    }
+	}
+    }
 
     print_info(stream);
 
