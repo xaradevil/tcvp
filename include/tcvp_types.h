@@ -72,10 +72,11 @@ typedef union tcvp_packet {
 #define TCVP_PKT_TYPE_STILL 2
 #define TCVP_PKT_TYPE_TIMER 3
 
-#define TCVP_PKT_FLAG_PTS        0x1
-#define TCVP_PKT_FLAG_DTS        0x2
-#define TCVP_PKT_FLAG_KEY        0x4
-#define TCVP_PKT_FLAG_DISCONT    0x8
+#define TCVP_PKT_FLAG_PTS		0x01
+#define TCVP_PKT_FLAG_DTS		0x02
+#define TCVP_PKT_FLAG_KEY		0x04
+#define TCVP_PKT_FLAG_DISCONT		0x08
+#define TCVP_PKT_FLAG_TOPFIELDFIRST	0x10
 
 #define STREAM_TYPE_VIDEO     1
 #define STREAM_TYPE_AUDIO     2
