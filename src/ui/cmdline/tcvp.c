@@ -235,6 +235,11 @@ tcl_init(char *p)
     char *profile = NULL;
     int i;
 
+    for(i = 0; i < nfiles; i++)
+	files[i] = fullpath(files[i]);
+    for(i = 0; i < npl; i++)
+	playlist[i] = fullpath(playlist[i]);
+
     if(validate){
 	pthread_create(&check_thr, NULL, tcl_check, NULL);
 	return 0;
@@ -325,11 +330,6 @@ tcl_init(char *p)
     qs = eventq_new(NULL);
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
-
-    for(i = 0; i < nfiles; i++)
-	files[i] = fullpath(files[i]);
-    for(i = 0; i < npl; i++)
-	playlist[i] = fullpath(playlist[i]);
 
     if(!prl){
 	if(nfiles)
