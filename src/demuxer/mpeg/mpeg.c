@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -383,6 +383,14 @@ write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
 	}
 
 	pklen += hdrl;
+    }
+
+    if(size > 0){
+	if(pklen > 0xffff)
+	    tc2_print("MPEG", TC2_PRINT_WARNING, "oversized PES packet: %i\n",
+		      pklen);
+    } else {
+	pklen = 0;
     }
 
     st_unaligned16(htob_16(pklen), plen);
