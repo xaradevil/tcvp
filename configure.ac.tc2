@@ -1,6 +1,6 @@
-AC_INIT([TCVP], [0.1.1])
+AC_INIT([TCVP], [0.1.2])
 AC_CONFIG_SRCDIR([interfaces/stream.tc2])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([dist-bzip2])
 
 CFLAGS=${CFLAGS--O2 -Wall -g}
 
