@@ -60,10 +60,7 @@ typedef struct mpeg_stream {
     int *map, *imap;
     list **packets;
     pthread_mutex_t mtx;
-    struct {
-	uint64_t val;
-	uint64_t offset;
-    } *pts;
+    uint64_t *pts;
 } mpeg_stream_t;
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -260,23 +257,22 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	    if(mp->unit_start){
 		int peshl = mp->datap[8];
-		if(mp->datap[7] & 0x80 /* && !s->pts[sx].val */){
+		if(mp->datap[7] & 0x80){
 		    pts = (htob_16(unaligned16(mp->datap+12)) & 0xfffe) >> 1;
 		    pts |= (htob_16(unaligned16(mp->datap+10)) & 0xfffe) << 14;
 		    pts |= (uint64_t) (mp->datap[9] & 0xe) << 29;
 
-		    if(pts < s->pts[sx].val &&
-		       s->pts[sx].val - pts > 24000){
+		    if(pts < s->pts[sx] &&
+		       s->pts[sx] - pts > 24000){
 			fprintf(stderr, "MPEGTS: PTS discontinuous\n");
 /* 			s->pts[sx].offset += 1LL << 33; */
 		    }
-		    s->pts[sx].val = pts;
-		    upts = pts + s->pts[sx].offset;
-		    upts *= 100LL;
-		    upts /= 9LL;
-
-/* 		    fprintf(stderr, "MPEGTS: sx = %i, pts = %10llu, upts = %15llu\n", */
-/* 			    sx, pts, upts); */
+		    upts = pts;
+		    upts *= 100ULL;
+		    upts /= 9ULL;
+/* 		    fprintf(stderr, "MPEGTS: sx = %i, pts = %10llu, upts = %15llu, dpts = %lli\n", */
+/* 			    sx, pts, upts, pts - s->pts[sx]); */
+		    s->pts[sx] = pts;
 		}
 		mp->datap += 9 + peshl;
 		mp->data_length -= 9 + peshl;

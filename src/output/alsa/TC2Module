@@ -6,3 +6,4 @@ sources		alsa.c timer.c
 implement	"output/audio"	"open"	alsa_open
 option		device%s="default"
 option		pts_threshold%i=10000
+option		pts_qsize%i=16

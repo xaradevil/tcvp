@@ -34,6 +34,8 @@
 #include <alsa_tc2.h>
 #include <alsamod.h>
 
+#define ptsqsize tcvp_output_alsa_conf_pts_qsize
+
 #define min(a, b)  ((a) < (b)? (a): (b))
 
 typedef struct alsa_out {
@@ -51,8 +53,11 @@ typedef struct alsa_out {
     pthread_t pth;
     int can_pause;
     int data_end;
-    uint64_t npts;
-    int ptsc;
+    struct {
+	uint64_t pts;
+	u_char *bp;
+    } *ptsq;
+    int pqh, pqt, pqc;
 } alsa_out_t;
 
 static int
@@ -145,19 +150,16 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
     alsa_out_t *ao = p->private;
     size_t count;
     u_char *data;
+    uint64_t pts;
 
     if(!pk){
 	ao->data_end = 1;
 	return 0;
     }
 
-    if(pk->pts && ao->ptsc <= 0){
-	ao->npts = pk->pts;
-	ao->ptsc = ao->bbytes;
-    }
-
     count = pk->sizes[0];
     data = pk->data[0];
+    pts = pk->pts;
 
     while(count > 0){
 	int bs;
@@ -165,6 +167,17 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
 	pthread_mutex_lock(&ao->mx);
 	while(ao->bbytes == ao->bufsize && ao->state != STOP)
 	    pthread_cond_wait(&ao->cd, &ao->mx);
+
+	if(pts && ao->pqc < ptsqsize){
+/* 	    fprintf(stderr, "ALSA: pts %llu, pqc %i, bp %p\n", */
+/* 		    pk->pts, ao->pqc, ao->head); */
+	    ao->ptsq[ao->pqh].pts = pk->pts;
+	    ao->ptsq[ao->pqh].bp = ao->head;
+	    if(++ao->pqh == ptsqsize)
+		ao->pqh = 0;
+	    ao->pqc++;
+	    pts = 0;
+	}
 
 	bs = min(count, ao->bufsize - ao->bbytes);
 	bs = min(bs, ao->bufsize - (ao->head - ao->buf));
@@ -189,7 +202,6 @@ alsa_play(void *p)
 {
     alsa_out_t *ao = p;
 
-
     while(ao->state != STOP){
 	int count, r;
 
@@ -204,32 +216,42 @@ alsa_play(void *p)
 	r = snd_pcm_writei(ao->pcm, ao->tail, count);
 
 	if(r > 0){
+	    u_char *pt = ao->tail;
 	    count -= r;
 	    ao->bbytes -= r * ao->bpf;
 	    ao->tail += r * ao->bpf;
-	    if(ao->tail - ao->buf == ao->bufsize)
-		ao->tail = ao->buf;
-	    pthread_cond_broadcast(&ao->cd);
-	    pthread_mutex_unlock(&ao->mx);
 
-	    if(ao->ptsc > 0){
-		ao->ptsc -= r * ao->bpf;
-		if(ao->ptsc <= 0){
+	    if(ao->pqc){
+		u_char *pp = ao->ptsq[ao->pqt].bp;
+/* 		fprintf(stderr, "ALSA: %p %p %p\n", pt, pp, ao->tail); */
+		if(pt <= pp && pp <= ao->tail){
+		    int bc = ao->tail - pp;
 		    uint64_t d, t, tm;
 		    int64_t dt;
 		    snd_pcm_sframes_t df;
 		    snd_pcm_delay(ao->pcm, &df);
-		    d = (uint64_t) df * 1000000 / ao->rate;
-		    t = ao->npts - d;
+		    d = (uint64_t) (df - bc / ao->bpf) * 1000000 / ao->rate;
+		    t = ao->ptsq[ao->pqt].pts - d;
 		    tm = ao->timer->read(ao->timer);
 		    dt = tm > t? tm - t: t - tm;
 		    if(dt > tcvp_output_alsa_conf_pts_threshold){
 			ao->timer->reset(ao->timer, t);
-			fprintf(stderr, "ALSA: pts = %llu, t = %llu, dt = %lli\n",
-				ao->npts, t, t - tm);
+			fprintf(stderr, "ALSA: pts = %llu, t = %llu, dt = %5lli\n",
+				ao->ptsq[ao->pqt].pts, t, t - tm);
+		    }
+		    while(ao->ptsq[ao->pqt].bp < ao->tail && ao->pqc){
+			if(++ao->pqt == ptsqsize)
+			    ao->pqt = 0;
+			--ao->pqc;
 		    }
 		}
 	    }
+
+	    if(ao->tail - ao->buf == ao->bufsize)
+		ao->tail = ao->buf;
+
+	    pthread_cond_broadcast(&ao->cd);
+	    pthread_mutex_unlock(&ao->mx);
 	} else if(r == -EAGAIN){
 	    pthread_mutex_unlock(&ao->mx);
 	    snd_pcm_wait(ao->pcm, 1000);
@@ -314,6 +336,7 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ao->state = PAUSE;
     if(timer)
 	ao->timer = *timer;
+    ao->ptsq = calloc(ptsqsize, sizeof(*ao->ptsq));
     pthread_create(&ao->pth, NULL, alsa_play, ao);
 
     tp = calloc(1, sizeof(*tp));

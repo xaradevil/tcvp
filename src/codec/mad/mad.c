@@ -229,7 +229,6 @@ do_decode(tcvp_pipe_t *p)
 		md->out->pk.pts = md->npts - ((md->out->dp - md->out->data) /
 		    md->synth.pcm.channels) * 1000000 /
 		    md->frame.header.samplerate;
-		md->ptsc = 0;
 	    }
 	}
 	output(p, &md->frame.header, &md->synth.pcm);
@@ -275,8 +274,12 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     size = pk->sizes[0];
 
     if(pk->pts){
-	md->npts = pk->pts;
-	md->ptsc = md->bs;
+	if(md->ptsc <= 0){
+	    md->npts = pk->pts;
+	    md->ptsc = md->bs;
+	} else {
+	    fprintf(stderr, "MAD: lost pts %llu\n", pk->pts);
+	}
     }
 
     while(size > 0 && !md->flush){
