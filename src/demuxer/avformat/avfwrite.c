@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -130,6 +130,7 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	as->codec.channels = s->audio.channels;
     }
 
+    tcfree(pk);
     return PROBE_OK;
 }
 
@@ -137,10 +138,15 @@ static void
 avfw_free(void *p)
 {
     avf_write_t *avf = p;
+    int i;
 
     url_fclose(&avf->fc.pb);
-    if(avf->streams)
-	free(avf->streams);
+    free(avf->streams);
+
+    for(i = 0; i < avf->fc.nb_streams; i++){
+	av_free(avf->fc.streams[i]->codec.coded_frame);
+	av_free(avf->fc.streams[i]);
+    }
 }
 
 extern int
@@ -169,7 +175,6 @@ avfw_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     p->private = avf;
 
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
-    p->format.common.codec = of->name;
 
     free(ofn);
     return 0;
