@@ -11,6 +11,7 @@
 #include <tcalloc.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <tcbyteswap.h>
 #include <tcvp_types.h>
 #include <playlist_tc2.h>
 
@@ -403,6 +404,66 @@ pl_alloc_add(int t, va_list args)
     return te;
 }
 
+static u_char *
+pl_add_ser(char *name, void *event, int *size)
+{
+    tcvp_pl_add_event_t *te = event;
+    int s = strlen(name) + 1 + 4 + 4;
+    u_char *sb, *p;
+    int i;
+
+    for(i = 0; i < te->n; i++)
+	s += strlen(te->names[i]) + 1;
+
+    sb = malloc(s);
+    p = sb;
+
+    p += sprintf(p, "%s", name) + 1;
+    st_unaligned32(htob_32(te->n), p);
+    p += 4;
+    st_unaligned32(htob_32(te->pos), p);
+    p += 4;
+    for(i = 0; i < te->n; i++)
+	p += sprintf(p, "%s", te->names[i]) + 1;
+
+    *size = s;
+    return sb;
+}
+
+static void *
+pl_add_deser(int type, u_char *event, int size)
+{
+    u_char *nm = memchr(event, 0, size);
+    char **names;
+    int n, i, pos;
+
+    if(!nm)
+	return NULL;
+    nm++;
+    size -= nm - event;
+    if(size < 8)
+	return NULL;
+    n = htob_32(unaligned32(nm));
+    nm += 4;
+    pos = htob_32(unaligned32(nm));
+    nm += 4;
+    size -= 8;
+
+    names = calloc(n, sizeof(*names));
+    i = 0;
+    while(i < n && size > 0){
+	u_char *m = memchr(nm, 0, size);
+	if(!m)
+	    break;
+	names[i] = nm;
+	m++;
+	size -= m - nm;
+	nm = m;
+    }
+
+    return tcvp_event_new(type, names, n, pos);
+}
+
 static void
 pl_free_addlist(void *p)
 {
@@ -421,6 +482,44 @@ pl_alloc_addlist(int t, va_list args)
     te->pos = va_arg(args, int);
 
     return te;
+}
+
+static u_char *
+pl_addlist_ser(char *name, void *event, int *size)
+{
+    tcvp_pl_addlist_event_t *te = event;
+    int s = strlen(name) + 1 + 4 + strlen(te->name) + 1;
+    u_char *sb, *p;
+
+    sb = malloc(s);
+    p = sb + sprintf(sb, "%s", name) + 1;
+    st_unaligned32(htob_32(te->pos), p);
+    p += 4;
+    strcpy(p, te->name);
+
+    *size = s;
+    return sb;
+}
+
+static void *
+pl_addlist_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    int pos;
+
+    if(!n)
+	return NULL;
+    n++;
+    size -= n - event;
+    if(size < 4)
+	return NULL;
+    pos = htob_32(unaligned32(n));
+    n += 4;
+    size -= 4;
+    if(!memchr(n, 0, size))
+	return NULL;
+
+    return tcvp_event_new(type, n, pos);
 }
 
 static void *
@@ -451,9 +550,10 @@ pl_init(char *p)
     TCVP_PL_STOP = tcvp_event_register("TCVP_PL_STOP", NULL, NULL, NULL);
     TCVP_PL_NEXT = tcvp_event_register("TCVP_PL_NEXT", NULL, NULL, NULL);
     TCVP_PL_PREV = tcvp_event_register("TCVP_PL_PREV", NULL, NULL, NULL);
-    TCVP_PL_ADD = tcvp_event_register("TCVP_PL_ADD", pl_alloc_add, NULL, NULL);
+    TCVP_PL_ADD = tcvp_event_register("TCVP_PL_ADD", pl_alloc_add,
+				      pl_add_ser, pl_add_deser);
     TCVP_PL_ADDLIST = tcvp_event_register("TCVP_PL_ADDLIST", pl_alloc_addlist,
-					  NULL, NULL);
+					  pl_addlist_ser, pl_addlist_deser);
     TCVP_PL_REMOVE = tcvp_event_register("TCVP_PL_REMOVE", pl_alloc_remove,
 					 NULL, NULL);
     TCVP_PL_SHUFFLE = tcvp_event_register("TCVP_PL_SHUFFLE", pl_alloc_shuffle,
