@@ -280,6 +280,13 @@ tcl_init(char *p)
     }
 
     tcvp_conf = tc2_get_conf("TCVP");
+    if(!tcvp_conf){
+	tc2_print("TCVP", TC2_PRINT_ERROR,
+		  "configuration file missing or corrupt\n");
+	tc2_request(TC2_UNLOAD_ALL, 0);
+	return 0;
+    }
+
     if(tcconf_getvalue(cf, "profile", "%s", &profile) <= 0)
 	tcconf_getvalue(tcvp_conf, "default_profile", "%s", &profile);
     if(profile){
