@@ -1,0 +1,2 @@
+AC_CHECK_LIB(avcodec, img_resample_init,
+	     [FILTERS_MODULES="$FILTERS_MODULES scale"])
