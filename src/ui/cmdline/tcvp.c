@@ -16,6 +16,7 @@
 #include <tcalloc.h>
 #include <mcheck.h>
 #include <sys/time.h>
+#include <limits.h>
 #include <tcvp_types.h>
 #include <tcvp_tc2.h>
 
@@ -35,8 +36,8 @@ static playlist_t *pll;
 static int shuffle;
 static char *skin;
 static int prl;
-static char **aonames;
-static int nadd;
+static char **aonames, **nanames;
+static int nadd, nnadd;
 static tcvp_addon_t **addons;
 static char **commands;
 static int ncmds;
@@ -77,6 +78,8 @@ show_help(void)
 	   "           --aspect=a[/b]        Force video aspect ratio\n"
 	   "           --skin=file           Select skin\n"
 	   "   -D      --daemon              Fork into background.\n"
+	   "   -x name --addon=name          Enable addon.\n"
+	   "   -X name --noaddon=name        Disable addon.\n"
 	   "           --play\n"
 	   "           --pause\n"
 	   "           --stop\n"
@@ -86,10 +89,47 @@ show_help(void)
 }
 
 static void
+add_addon(char *ao)
+{
+    int i;
+    for(i = 0; i < nadd; i++)
+	if(!strcmp(aonames[i], ao))
+	    return;
+    aonames = realloc(aonames, (nadd + 1) * sizeof(*aonames));
+    aonames[nadd++] = strdup(ao);
+}
+
+static int
+noaddon(char *ao)
+{
+    int i;
+    for(i = 0; i < nnadd; i++)
+	if(!strcmp(nanames[i], ao))
+	    return 1;
+    return 0;
+}
+
+static void
 add_cmd(char *cmd)
 {
     commands = realloc(commands, (ncmds + 1) * sizeof(*commands));
     commands[ncmds++] = cmd;
+}
+
+static char *
+fullpath(char *file)
+{
+    char *path, *p;
+
+    if(file[0] == '/' || strchr(file, ':'))
+	return strdup(file);
+
+    path = malloc(PATH_MAX);
+    getcwd(path, PATH_MAX);
+    p = strchr(path, 0);
+    snprintf(p, PATH_MAX - (p - path), "/%s", file);
+
+    return path;
 }
 
 static void
@@ -186,6 +226,8 @@ tcl_init(char *p)
 {
     char *qname = NULL, *qn;
     struct sigaction sa;
+    tcconf_section_t *tcvp_conf, *prconf = NULL;
+    char *profile = NULL;
     int i;
 
     if(validate){
@@ -197,6 +239,25 @@ tcl_init(char *p)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
     if(sel_ui && !strcmp(sel_ui, "none"))
 	sel_ui = NULL;
+
+    tcvp_conf = tc2_get_conf("TCVP");
+    if(tcconf_getvalue(cf, "profile", "%s", &profile) <= 0)
+	tcconf_getvalue(tcvp_conf, "default_profile", "%s", &profile);
+    if(profile){
+	char pr[strlen(profile) + 12];
+	sprintf(pr, "profiles/%s", profile);
+	if((prconf = tcconf_getsection(tcvp_conf, pr))){
+	    void *nv = NULL;
+	    char *aon;
+	    while(tcconf_nextvalue(prconf, "addon", &nv, "%s", &aon) > 0){
+		add_addon(aon);
+		free(aon);
+	    }
+	    tcfree(prconf);
+	}
+	free(profile);
+    }
+    tcfree(tcvp_conf);
 
     if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon){
 	show_help();
@@ -213,6 +274,9 @@ tcl_init(char *p)
     for(i = 0; i < nadd; i++){
 	char an[strlen(aonames[i]) + 16];
 	tcvp_addon_new_t anf;
+
+	if(noaddon(aonames[i]))
+	    continue;
 
 	sprintf(an, "tcvp/addon/%s", aonames[i]);
 	anf = tc2_get_symbol(an, "new");
@@ -256,6 +320,11 @@ tcl_init(char *p)
     qs = eventq_new(NULL);
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
+
+    for(i = 0; i < nfiles; i++)
+	files[i] = fullpath(files[i]);
+    for(i = 0; i < npl; i++)
+	playlist[i] = fullpath(playlist[i]);
 
     if(!prl){
 	if(nfiles)
@@ -305,7 +374,7 @@ tcl_init(char *p)
     intr = 1;
     pthread_create(&intr_thr, NULL, tcl_intr, NULL);
 
-    if(ncmds)
+    if(!pl && !sel_ui)
 	tc2_request(TC2_UNLOAD_ALL, 0);
 
     free(qname);
@@ -315,6 +384,8 @@ tcl_init(char *p)
 extern int
 tcl_stop(void)
 {
+    int i;
+
     if(validate)
 	pthread_join(check_thr, NULL);
 
@@ -352,6 +423,11 @@ tcl_stop(void)
 
     if(commands)
 	free(commands);
+
+    for(i = 0; i < nfiles; i++)
+	free(files[i]);
+    for(i = 0; i < npl; i++)
+	free(playlist[i]);
 
     return 0;
 }
@@ -392,6 +468,7 @@ parse_options(int argc, char **argv)
 	{"skin", required_argument, 0, OPT_SKIN},
 	{"parallel", no_argument, 0, 'p'},
 	{"addon", required_argument, 0, 'x'},
+	{"noaddon", required_argument, 0, 'X'},
 	{"next", no_argument, 0, OPT_NEXT},
 	{"prev", no_argument, 0, OPT_PREV},
 	{"play", no_argument, 0, OPT_PLAY},
@@ -406,7 +483,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:px:D",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:px:X:D",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -496,8 +573,12 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'x':
-	    aonames = realloc(aonames, (nadd + 1) * sizeof(*aonames));
-	    aonames[nadd++] = optarg;
+	    add_addon(optarg);
+	    break;
+
+	case 'X':
+	    nanames = realloc(nanames, (nnadd + 1) * sizeof(*nanames));
+	    nanames[nnadd++] = optarg;
 	    break;
 
 	case OPT_NEXT:
