@@ -30,13 +30,14 @@ struct packet {
     int planes;
     int x, y, w, h;		/* slice position */
     int flags;
-    uint64_t pts;
+    uint64_t pts, dts;
     void (*free)(packet_t *);
     void *private;
 };
 
 #define TCVP_PKT_FLAG_PTS        0x1
-#define TCVP_PKT_FLAG_KEY        0x2
+#define TCVP_PKT_FLAG_DTS        0x2
+#define TCVP_PKT_FLAG_KEY        0x4
 
 #define STREAM_TYPE_VIDEO     1
 #define STREAM_TYPE_AUDIO     2
@@ -57,7 +58,8 @@ struct packet {
     int codec_data_size;			\
     uint64_t start_time;			\
     int index;					\
-    int flags
+    int flags;					\
+    int bit_rate
 
 typedef struct video_stream {
     STREAM_COMMON;
@@ -77,7 +79,6 @@ typedef struct audio_stream {
     int sample_rate;
     int channels;
     u_long samples;
-    int bit_rate;
     int block_align;
     int sample_size;
 } audio_stream_t;
