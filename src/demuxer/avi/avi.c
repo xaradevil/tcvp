@@ -99,7 +99,8 @@ typedef struct avi_stream {
     int wavex;
     avi_index_t *index;
     int idxlen, idxsize;
-    uint64_t ipts, ptsn, ptsd;
+    uint64_t blocknum;
+    uint64_t size;
     int pkt;
     int spts;
 } avi_stream_t;
@@ -186,7 +187,6 @@ avi_add_index(muxed_stream_t *ms, int s, uint64_t offset,
 {
     avi_file_t *af = ms->private;
     avi_stream_t *st = &af->streams[s];
-    uint64_t mpts = 1;
     int ixl = st->idxlen;
 
     if(st->idxlen == st->idxsize){
@@ -197,22 +197,31 @@ avi_add_index(muxed_stream_t *ms, int s, uint64_t offset,
     if(ms->streams[s].stream_type == STREAM_TYPE_AUDIO)
 	flags &= ~AVI_FLAG_KEYFRAME;
 
-    st->index[ixl].pts = st->ipts / st->ptsd;
     st->index[ixl].offset = offset;
     st->index[ixl].size = size;
     st->index[ixl].flags = flags;
 
     if(ms->streams[s].stream_type == STREAM_TYPE_AUDIO) {
-	if(!st->sample_size){
-	    mpts = 1;
-	} else if(st->wavex && ms->streams[s].audio.block_align){
-	    mpts = size / ms->streams[s].audio.block_align;
+	if(!st->sample_size && st->scale && st->rate){
+	    st->index[ixl].pts = 27000000LL * st->blocknum *
+		st->scale / st->rate;
+	} else if(st->wavex && st->block_align){
+	    st->index[ixl].pts =
+		27000000LL * st->size / st->block_align * st->scale / st->rate;
 	} else {
-	    mpts = size / st->sample_size;
+	    st->index[ixl].pts =
+		27000000LL * st->size / st->sample_size * st->scale / st->rate;
 	}
+	if(st->block_align){
+	    st->blocknum += (size + st->block_align - 1) / st->block_align;
+	} else {
+	    st->blocknum++;
+	}
+    } else if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO){
+	st->index[ixl].pts = 27000000LL * ixl * st->scale / st->rate;
     }
-    st->ipts += st->ptsn * mpts;
 
+    st->size += size;
     st->idxlen++;
 
     return 0;
@@ -450,12 +459,16 @@ avi_header(url_t *f)
 	switch(tag){
 	case TAG('L','I','S','T'): {
 	    uint32_t lt = getu32(f);
-	    if(lt == TAG('m','o','v','i')){
+	    switch(lt){
+	    case TAG('m','o','v','i'):
 		if(!af->movi_start)
 		    af->movi_start = f->tell(f);
+	    case TAG('I','N','F','O'):
 		f->seek(f, size-4, SEEK_CUR);
-	    } else if(lt == TAG('s','t','r','l')){
+		break;
+	    case TAG('s','t','r','l'):
 		next = TAG('s','t','r','h');
+		break;
 	    }
 	    continue;
 	}
@@ -498,6 +511,10 @@ avi_header(url_t *f)
 	    getval(f, "quality", 32);
 	    af->streams[sidx].sample_size = getu32(f);
 
+	    tc2_print("AVI", TC2_PRINT_DEBUG, "scale %i, rate %i, ssize %i\n",
+		      af->streams[sidx].scale, af->streams[sidx].rate,
+		      af->streams[sidx].sample_size);
+
 	    if(stype == TAG('v','i','d','s')){
 		uint32_t frn, frd;
 		ms->streams[sidx].stream_type = STREAM_TYPE_VIDEO;
@@ -511,8 +528,7 @@ avi_header(url_t *f)
 		    ms->streams[sidx].video.frame_rate.den = ftime;
 		}
 
-		af->streams[sidx].ptsn = 27000000LL * frd;
-		af->streams[sidx].ptsd = frn;
+		tc2_print("AVI", TC2_PRINT_DEBUG, "frn=%i frd=%i\n", frn, frd);
 
 		ms->streams[sidx].video.frames = length;
 
@@ -529,8 +545,6 @@ avi_header(url_t *f)
 		af->has_video = 1;
 	    } else if(stype == TAG('a','u','d','s')){
 		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
-		af->streams[sidx].ptsn = 27000000LL * af->streams[sidx].scale;
-		af->streams[sidx].ptsd = af->streams[sidx].rate;
 	    }
 
 	    ms->streams[sidx].common.index = sidx;
@@ -645,6 +659,11 @@ avi_header(url_t *f)
     }
 
     avi_merge_index(ms);
+
+    if(vs){
+	ms->time = (uint64_t) vs->video.frames * vs->video.frame_rate.den *
+	    27000000LL / vs->video.frame_rate.num;
+    }
 
     f->seek(f, af->movi_start, SEEK_SET);
 
@@ -835,11 +854,17 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    if(!af->streams[str].spts || flags & AVI_FLAG_KEYFRAME){
 		pts = af->index[af->pkt]->pts + starttime;
 		pflags |= TCVP_PKT_FLAG_PTS;
-		af->streams[str].spts = 1;
+		af->streams[str].spts = 250;
+	    } else {
+		af->streams[str].spts--;
 	    }
-	} else {
+	} else if(af->idxok){
+	    tc2_print("AVI", TC2_PRINT_WARNING,
+		      "index mismatch stream %i\n", str);
 	    af->idxok = 0;
 	}
+    } else if(af->pkt == af->idxlen){
+	tc2_print("AVI", TC2_PRINT_WARNING, "truncated index\n");
     }
 
     pk = avi_alloc_packet(size);
