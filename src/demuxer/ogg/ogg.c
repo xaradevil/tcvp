@@ -44,6 +44,11 @@ typedef struct {
     uint64_t grp, lgp;
 } ogg_stream_t;
 
+typedef struct {
+    tcvp_data_packet_t pk;
+    u_char *data;
+    int size[2];
+} ogg_data_packet_t;
 
 /* Get the length of this stream, must be seekable */
 static int64_t
@@ -96,10 +101,8 @@ ogg_get_length(muxed_stream_t *ms)
 static void
 ogg_free_packet(void *v)
 {
-    tcvp_data_packet_t *p = v;
-    free(p->data[0]);
+    ogg_data_packet_t *p = v;
     free(p->data);
-    free(p->sizes);
 }
 
 static int
@@ -130,7 +133,7 @@ extern tcvp_packet_t *
 ogg_next_packet(muxed_stream_t *ms, int stream)
 {
     ogg_stream_t *ost = ms->private;
-    tcvp_data_packet_t *pk;
+    ogg_data_packet_t *pk;
     ogg_packet op;
     uint64_t gp = -1;
 
@@ -138,21 +141,20 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 	return NULL;
 
     pk = tcallocdz(sizeof(*pk), NULL, ogg_free_packet);
-    pk->stream = 0;
-    pk->flags = 0;
+    pk->pk.stream = 0;
     if(gp != -1 && ms->streams[0].audio.sample_rate){
-	pk->flags |= TCVP_PKT_FLAG_PTS;
-	pk->pts = gp * 27000000 / ms->streams[0].audio.sample_rate;
+	pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+	pk->pk.pts = gp * 27000000 / ms->streams[0].audio.sample_rate;
     }
-    pk->data = malloc(sizeof(*pk->data));
-    pk->data[0] = malloc(op.bytes);
+    pk->pk.data = &pk->data;
+    pk->data = malloc(op.bytes);
 
-    memcpy(pk->data[0], op.packet, op.bytes);
+    memcpy(pk->data, op.packet, op.bytes);
 
-    pk->planes = 1;
-    pk->sizes = malloc(2 * sizeof(*pk->sizes));
-    pk->sizes[0] = op.bytes;
-    pk->sizes[1] = op.granulepos - ost->lgp;
+    pk->pk.planes = 1;
+    pk->pk.sizes = pk->size;
+    pk->size[0] = op.bytes;
+    pk->size[1] = op.granulepos - ost->lgp;
 
     ost->lgp = op.granulepos;
 
