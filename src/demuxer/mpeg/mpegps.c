@@ -172,7 +172,7 @@ mpegps_packet(muxed_stream_t *ms, int str)
 {
     mpegps_stream_t *s = ms->private;
     mpegpes_packet_t *mp = NULL;
-    packet_t *pk;
+    tcvp_data_packet_t *pk;
     int sx = -1;
 
     do {
@@ -194,6 +194,9 @@ mpegps_packet(muxed_stream_t *ms, int str)
 		mp->pts -= 27000000LL * aup / ms->streams[sx].common.bit_rate;
 	} else if(mp->stream_id == DVD_PESID){
 	    dvd_event_t *de = (dvd_event_t *) mp->data;
+	    tcvp_flush_packet_t *fp;
+	    tcvp_still_packet_t *sp;
+
 	    switch(de->type){
 	    case DVD_PTSSKIP:
 		s->pts_offset = de->ptsskip.offset;
@@ -201,23 +204,25 @@ mpegps_packet(muxed_stream_t *ms, int str)
 			  s->pts_offset);
 		break;
 	    case DVD_FLUSH:
-		pk = tcallocdz(sizeof(*pk), NULL, mpegps_free_pk);
-		pk->type = TCVP_PKT_TYPE_FLUSH;
-		pk->stream = de->flush.drop;
-		pk->private = mp;
-		return pk;
+		fp = tcallocz(sizeof(*fp));
+		fp->type = TCVP_PKT_TYPE_FLUSH;
+		fp->stream = -1;
+		fp->discard = de->flush.drop;
+		mpegpes_free(mp);
+		return (tcvp_packet_t *) fp;
 	    case DVD_STILL:
-		pk = tcallocdz(sizeof(*pk), NULL, mpegps_free_pk);
-		pk->type = TCVP_PKT_TYPE_STILL;
-		pk->private = mp;
-		return pk;
+		sp = tcallocz(sizeof(*sp));
+		sp->type = TCVP_PKT_TYPE_STILL;
+		sp->stream = 0;
+		sp->timeout = 0;
+		mpegpes_free(mp);
+		return (tcvp_packet_t *) sp;
 	    case DVD_AUDIO_ID:
 		s->imap[s->map[1]] = -1;
 		s->imap[de->audio.id] = 1;
 		s->map[1] = de->audio.id;
 		break;
 	    }
-	    continue;
 	}
     } while(sx < 0 || !ms->used_streams[sx]);	
 
@@ -544,7 +549,9 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	}
     }
 
-    if(!(u->flags & URL_FLAG_STREAMED) && u->size > 1048576){
+    s->dvd_funcs = tcattr_get(u, "dvd");
+
+    if(!(u->flags & URL_FLAG_STREAMED) && u->size > 1048576 && !s->dvd_funcs){
 	uint64_t stime, etime = -1, tt;
 	uint64_t spos, epos;
 
@@ -567,7 +574,6 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     s->stream->seek(s->stream, 0, SEEK_SET);
 
-    s->dvd_funcs = tcattr_get(u, "dvd");
     if(s->dvd_funcs){
 	char *qname, *qn;
 	qname = tcvp_event_get_qname(cs);

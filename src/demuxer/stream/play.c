@@ -384,6 +384,9 @@ flush_stream(struct sp_stream *str, int drop)
     if(str->pipe)
 	str->pipe->flush(str->pipe, drop);
 
+    if(str->probe == PROBE_OK)
+	str->sp->nbuf |= 1 << (str - str->sp->streams);
+
     return 0;
 }
 
@@ -612,7 +615,18 @@ read_stream(void *p)
 	    do_data_packet(sp, &tpk->data);
 	    break;
 	case TCVP_PKT_TYPE_FLUSH:
-	    flush_stream(sp->streams + tpk->flush.stream, tpk->flush.discard);
+	    if(tpk->flush.stream < 0){
+		int i;
+		for(i = 0; i < sp->nstreams; i++)
+		    flush_stream(sp->streams + i, tpk->flush.discard);
+	    } else {
+		flush_stream(sp->streams + tpk->flush.stream,
+			     tpk->flush.discard);
+	    }
+	    tcfree(tpk);
+	    break;
+	case TCVP_PKT_TYPE_STILL:
+	    tc2_print("STREAM", TC2_PRINT_DEBUG, "still\n");
 	    tcfree(tpk);
 	    break;
 	case TCVP_PKT_TYPE_TIMER:
@@ -712,8 +726,8 @@ s_flush(tcvp_pipe_t *tp, int drop)
 
     for(i = 0; i < sp->nstreams; i++){
 	flush_stream(sp->streams + i, drop);
-	if(sp->streams[i].probe == PROBE_OK)
-	    sp->nbuf |= 1 << i;
+/* 	if(sp->streams[i].probe == PROBE_OK) */
+/* 	    sp->nbuf |= 1 << i; */
     }
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "flush complete\n", drop);
