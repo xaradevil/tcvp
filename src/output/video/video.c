@@ -106,6 +106,9 @@ v_play(void *p)
 	dpt = vo->pts[vo->tail] - tm;
 
 	tc2_print("VIDEO", TC2_PRINT_DEBUG+1, "pts = %llu, dt = %lli, dpts = %lli pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames);
+	if(dpt < 0)
+	    tc2_print("VIDEO", TC2_PRINT_VERBOSE, "frame %lli us late\n",
+		      -dpt / 27);
 
 	if(vo->timer->wait(vo->timer, vo->pts[vo->tail], &vo->smx) < 0)
 	    continue;
