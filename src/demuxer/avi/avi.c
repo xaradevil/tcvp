@@ -886,6 +886,9 @@ avi_packet_ni(muxed_stream_t *ms, int str)
     avi_stream_t *as = af->streams + str;
     avi_packet_t *pk = NULL;
 
+    if(str < 0)
+	return avi_packet(ms, str);
+
     if(as->pkt < as->idxlen){
 	avi_index_t *ai = as->index + as->pkt++;
 
