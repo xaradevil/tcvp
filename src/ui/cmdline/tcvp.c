@@ -77,11 +77,18 @@ tcl_event(void *p)
 	switch(te->type){
 	case TCVP_STATE:
 	    switch(te->state.state){
+	    case TCVP_STATE_PLAYING:
+		printf("Playing...\n");
+		break;
 	    case TCVP_STATE_ERROR:
 		printf("Error opening file.\n");
 	    case TCVP_STATE_END:
 		sem_post(&psm);
 	    }
+	    break;
+	case TCVP_LOAD:
+	    printf("Loaded \"%s\"\n",
+		   te->load.stream->title?: te->load.stream->file);
 	    break;
 	case -1:
 	    r = 0;
