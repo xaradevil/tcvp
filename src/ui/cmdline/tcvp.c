@@ -164,11 +164,12 @@ tcl_event(void *p)
 
 /* There is a race condition here, but I don't care. */
 static int sig;
+static pthread_t sig_thr;
 
 static void
 sigint(int s)
 {
-    if(pthread_self() == intr_thr){
+    if(pthread_self() == sig_thr){
 	sig = s;
 	sem_post(&psm);
     }
@@ -662,6 +663,7 @@ main(int argc, char **argv)
 
     if(isdaemon)
 	daemon(0, 0);
+    sig_thr = pthread_self();
 
     snprintf(userconf, 1024, "%s/.tcvp/tcvp.conf", getenv("HOME"));
 
