@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -222,6 +222,20 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     ctx_conf(global_quality, i);
     ctx_conf(coder_type, i);
     ctx_conf(mb_decision, i);
+#if LIBAVCODEC_BUILD >= 4684
+    ctx_conf(lmin, i);
+    ctx_conf(lmax, i);
+#endif
+#if LIBAVCODEC_BUILD >= 4690
+    ctx_conf(noise_reduction, i);
+#endif
+#if LIBAVCODEC_BUILD >= 4694
+    ctx_conf(rc_initial_buffer_occupancy, i);
+    ctx_conf(inter_threshold, i);
+#endif
+#if LIBAVCODEC_BUILD >= 4700
+    ctx_conf(quantizer_noise_shaping, i);
+#endif
 
 #define ctx_flag(c, f) if(!tcconf_getvalue(cf, #c, ""))	\
     ctx->flags |= CODEC_FLAG_##f
@@ -233,6 +247,28 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     ctx_flag(interlaced_dct, INTERLACED_DCT);
     ctx_flag(alt_scan, ALT_SCAN);
     ctx_flag(trellis_quant, TRELLIS_QUANT);
+#if LIBAVCODEC_BUILD >= 4681
+    ctx_flag(cbp_rd, CBP_RD);
+#endif
+#if LIBAVCODEC_BUILD >= 4682
+    ctx_flag(ac_pred, AC_PRED);
+#endif
+#if LIBAVCODEC_BUILD >= 4683
+    ctx_flag(mv0, MV0);
+#endif
+#if LIBAVCODEC_BUILD >= 4693
+    ctx_flag(qp_rd, QP_RD);
+#endif
+#if LIBAVCODEC_BUILD >= 4694
+    ctx_flag(obmc, OBMC);
+    ctx_flag(loop_filter, LOOP_FILTER);
+#endif
+#if LIBAVCODEC_BUILD >= 4698
+    ctx_flag(interlaced_me, INTERLACED_ME);
+#endif
+#if LIBAVCODEC_BUILD >= 4700
+    ctx_flag(closed_gop, CLOSED_GOP);
+#endif
 
     enc = tcallocdz(sizeof(*enc), NULL, avc_free_encvid);
     enc->codec = codec;
