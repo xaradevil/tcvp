@@ -269,7 +269,7 @@ xv_open(video_stream_t *vs, char *display, timer__t *timer)
 	shm->readOnly = False;
 	xvi->data = shm->shmaddr;
 	XShmAttach(dpy, shm);
-/* 	shmdt(shm->shmaddr); */	/* detach now in case we crash */
+	shmctl(shm->shmid, IPC_RMID, NULL); /* delete now in case we crash */
 
 	xvw->images[i].image = xvi;
     }
