@@ -303,7 +303,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
 static tcvp_pipe_t *
 pipe_end(tcvp_pipe_t *p)
 {
-    while(p->next)
+    while(p && p->next)
 	p = p->next;
     return p;
 }
@@ -387,11 +387,8 @@ t_open(player_t *pl, char *name)
 	}
     }
 
-    if(!as && !vs){
-	printf("No supported streams found.\n");
-	tcfree(stream);
-	return -1;
-    }
+    if(!as && !vs)
+	goto err;
 
     tp->open = 1;
 
@@ -429,11 +426,23 @@ t_open(player_t *pl, char *name)
     print_info(stream, codecs);
 
     tp->state = TCVP_STATE_STOPPED;
+    if(stream->used_streams[vc]){
+	tp->video = video;
+	tp->vend = pipe_end(video);
+    } else {
+	close_pipe(video);
+	video = NULL;
+    }
+    if(stream->used_streams[ac]){
+	tp->audio = audio;
+	tp->aend = pipe_end(audio);
+    } else {
+	close_pipe(audio);
+	audio = NULL;
+    }
+    if(!audio && !video)
+	goto err;
     tp->demux = demux;
-    tp->video = video;
-    tp->vend = pipe_end(video);
-    tp->audio = audio;
-    tp->aend = pipe_end(audio);
     tp->stream = stream;
 
     if(conf_getvalue(tp->conf, "start_time", "%i", &start) == 1){
@@ -456,6 +465,13 @@ t_open(player_t *pl, char *name)
     tcfree(te);
 
     return 0;
+
+err:
+    printf("No supported streams found.\n");
+    if(demux)
+	demux->free(demux);
+    tcfree(stream);
+    return -1;
 }
 
 static void *

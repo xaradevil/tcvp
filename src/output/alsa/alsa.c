@@ -108,12 +108,13 @@ alsa_free(tcvp_pipe_t *p)
     pthread_mutex_unlock(&ao->mx);
     pthread_join(ao->pth, NULL);
 
-    if(ao->pcm){
+    if(ao->hwp){
+	snd_pcm_hw_params_free(ao->hwp);
 	snd_pcm_drop(ao->pcm);
+    }
+    if(ao->pcm){
 	snd_pcm_close(ao->pcm);
     }
-    if(ao->hwp)
-	snd_pcm_hw_params_free(ao->hwp);
     if(ao->timer)
 	tm_stop(ao->timer);
     if(ao->buf)
@@ -315,7 +316,7 @@ alsa_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     snd_pcm_hw_params_set_period_time_near(pcm, hwp, &ptime, &tmp);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
-	fprintf(stderr, "ALSA: snd_pcm_hw_parameters failed for\n");
+	fprintf(stderr, "ALSA: snd_pcm_hw_parameters failed\n");
 	return PROBE_FAIL;
     }
 
