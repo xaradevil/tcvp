@@ -473,6 +473,7 @@ rm_init(char *p)
     get_event("TCVP_TIMER", TIMER);
     get_event("TCVP_LOAD", STATUS);
     get_event("TCVP_QUERY", CONTROL);
+    get_event("TCVP_STREAM_INFO", STATUS);
 
     return 0;
 }
