@@ -11,9 +11,10 @@ implement	"decoder/audio/mp3"	"new"	avc_new
 implement	"decoder/audio/wmav2"	"new"	avc_new
 implement	"decoder/audio/wmav1"	"new"	avc_new
 implement	"decoder/audio/ac3"	"new"	avc_new
-implement	"decoder/audio/adpcm-ms"	"new"	avc_new
 implement	"decoder/audio/mace3"	"new"	avc_new
 implement	"decoder/audio/mace6"	"new"	avc_new
+implement	"decoder/audio/adpcm-ms"	"new"	avc_new
+implement	"decoder/audio/adpcm-ima-qt"	"new"	avc_new
 
 implement	"decoder/video/mpeg"	"new"	avc_new
 implement	"decoder/video/mpeg2"	"new"	avc_new
