@@ -62,14 +62,14 @@ typedef struct xv_window {
 static int
 do_show(xv_window_t *xvw, int frame)
 {
-    xvw->last_frame = frame;
-
     XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
 		  xvw->images[frame],
 		  0, 0, xvw->width, xvw->height,
 		  0, 0, xvw->dw, xvw->dh,
 		  False);
     XSync(xvw->dpy, False);
+
+    xvw->last_frame = frame;
 
     return 0;
 }
@@ -87,13 +87,13 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     XvImage *xi = xvw->images[frame];
     int i;
 
+    if(frame == xvw->last_frame)
+	xvw->last_frame = -1;
+
     for(i = 0; i < xi->num_planes; i++){
 	data[i] = xi->data + xi->offsets[i];
 	strides[i] = xi->pitches[i];
     }
-
-    if(frame == xvw->last_frame)
-	xvw->last_frame = -1;
 
     return xi->num_planes;
 }
