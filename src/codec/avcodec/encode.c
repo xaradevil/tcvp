@@ -64,7 +64,8 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 	f->linesize[i] = pk->sizes[i];
     }
 
-    f->pts = pk->pts;
+    if(pk->flags & TCVP_PKT_FLAG_PTS)
+	f->pts = pk->pts;
 
     if((size = avcodec_encode_video(enc->ctx, enc->buf, ENCBUFSIZE, f)) > 0){
 /* 	fprintf(stderr, "%lli %lli\n", pk->pts, enc->ctx->coded_frame->pts); */
@@ -73,10 +74,13 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 	ep->pk.data = &ep->data;
 	ep->pk.sizes = &ep->size;
 	ep->pk.planes = 1;
-	ep->pk.flags = TCVP_PKT_FLAG_PTS;
+	ep->pk.flags = 0;
+	if(f->pts != AV_NOPTS_VALUE){
+	    ep->pk.flags |= TCVP_PKT_FLAG_PTS;
+	    ep->pk.pts = enc->ctx->coded_frame->pts;
+	}
 	if(f->key_frame)
 	    ep->pk.flags |= TCVP_PKT_FLAG_KEY;
-	ep->pk.pts = pk->pts;
 	ep->data = enc->buf;
 	ep->size = size;
 	p->next->input(p->next, &ep->pk);
