@@ -45,6 +45,7 @@ typedef struct mpegts_mux {
     uint64_t pcr, pcr_int, last_pcr;
     uint64_t last_psi;
     int psi_interval;
+    int bitrate;
     int astreams;
     struct mpegts_output_stream {
 	int stream_type;
@@ -62,6 +63,7 @@ typedef struct mpegts_mux {
     u_char *pmt, *pmt_slen;
     u_char *pmap;
     u_char *pcr_packet;
+    u_char *null;
     int pcr_pid;
     int nextpid;
     uint64_t start_time;
@@ -69,6 +71,7 @@ typedef struct mpegts_mux {
     int64_t delay;
     uint64_t pts_interval;
     int started;
+    uint64_t bytes;
 } mpegts_mux_t;
 
 static void
@@ -86,6 +89,18 @@ put_pcr(u_char *p, uint64_t pcr)
     uint64_t pcrext = (pcr % 300) & 0x1ff;
     st_unaligned32(htob_32(pcrbase >> 1), p);
     st_unaligned16(htob_16(pcrext | ((pcrbase & 1)<<15) | 0x7e00), p + 4);
+}
+
+static u_char *
+null_packet(void)
+{
+    u_char *tsp = malloc(TS_PACKET_SIZE);
+
+    tsp[0] = 0x47;
+    st_unaligned16(htob_16(0x1fff), tsp + 1);
+    tsp[3] = 0x10;
+
+    return tsp;
 }
 
 static u_char *
@@ -271,6 +286,9 @@ post_packet(mpegts_mux_t *tsm)
 	tsm->out->write(tsm->outbuf, 1, tsm->bpos, tsm->out);
 	tsm->bpos = 0;
     }
+    if(tsm->pcr != -1)
+	tsm->pcr += TS_PACKET_SIZE * 27000000LL * 8 / tsm->bitrate;
+    tsm->bytes += TS_PACKET_SIZE;
 }
 
 static int
@@ -295,6 +313,10 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 		pk->flags & TCVP_PKT_FLAG_DTS? pk->dts: pk->pts;
 	    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "[%i] start %lli\n",
 		      pk->stream, tsm->streams[pk->stream].sts);
+	    if(tsm->pcr == -1){
+		tsm->pcr = tsm->streams[pk->stream].sts;
+		tsm->start_time = tsm->pcr;
+	    }
 	}
     }
 
@@ -326,7 +348,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 	    if(os->dts != -1){
 		int64_t ddts = dts - os->dts;
-		if(ddts > 27000 * 100){
+		if(ddts > 27000 * 10){
 		    int64_t d = dts - os->sts;
 		    int br =
 			os->bitrate - os->bitrate * d / ddts;
@@ -351,9 +373,15 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    pk->flags &= ~TCVP_PKT_FLAG_PTS;
 	}
 
+#if 0
+	if(pk->flags & TCVP_PKT_FLAG_KEY){
+	    tsm->last_psi = -1;
+	    pk->flags &= ~TCVP_PKT_FLAG_KEY;
+	}
+#endif
+
 	data = pk->data[0];
 	size = pk->sizes[0];
-	tsm->pcr = os->sts;
 
 	if(tsm->pcr - tsm->last_psi > tsm->psi_interval ||
 	   tsm->last_psi == -1){
@@ -383,6 +411,17 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	    os->sts += 27000000LL * 8 * psize / os->bitrate;
 
 	post_packet(tsm);
+
+	if(tsm->bytes > TS_PACKET_SIZE * 100){
+	    int64_t rate = tsm->bytes * 8 * 27000000LL / os->sts;
+	    if(rate > tsm->bitrate)
+		tsm->bitrate *= 1.000001;
+	    while(os->sts > tsm->pcr >
+		  TS_PACKET_SIZE * 8 * 27000000LL / tsm->bitrate){
+		memcpy(tsm->outbuf + tsm->bpos, tsm->null, TS_PACKET_SIZE);
+		post_packet(tsm);
+	    }
+	}
 
 	if(!size){
 	    tcfree(pk);
@@ -484,6 +523,8 @@ tmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 		  s->common.index, os->bitrate);
     }
 
+    tsm->bitrate += os->bitrate * 1.05;
+
     return PROBE_OK;
 }
 
@@ -515,6 +556,7 @@ tmx_free(void *p)
     free(tsm->pat);
     free(tsm->pmt);
     free(tsm->pcr_packet);
+    free(tsm->null);
     if(tsm->streams)
 	free(tsm->streams);
     tcfree(tsm->timer);
@@ -547,7 +589,7 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->nextpid = tcvp_demux_mpeg_conf_ts_start_pid;
     tsm->psi_interval = 1000;
     tsm->timer = tcref(t);
-    tsm->pcr_int = 27000 * mux_mpeg_ts_conf_pcr_interval * 3 / 4;
+    tsm->pcr_int = mux_mpeg_ts_conf_pcr_interval;
     tsm->delay = tcvp_demux_mpeg_conf_ts_pcr_delay;
 
     tsm->start_time = -1;
@@ -558,8 +600,13 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "delay", "%li", &tsm->delay);
     tcconf_getvalue(cs, "pts_interval", "%li", &tsm->pts_interval);
     tcconf_getvalue(cs, "psi_interval", "%i", &tsm->psi_interval);
+    tcconf_getvalue(cs, "pcr_interval", "%i", &tsm->pcr_int);
     tcconf_getvalue(cs, "start_pid", "%i", &tsm->nextpid);
 
+    tsm->bitrate = 8 * TS_PACKET_SIZE * 1000 / tsm->pcr_int +
+	2 * 8 * TS_PACKET_SIZE * 1000 / tsm->psi_interval;
+
+    tsm->null = null_packet();
     tsm->pat = pat_packet(1, tsm->nextpid);
     tsm->pcr_pid = tsm->nextpid + 1;
     tsm->pcr_packet = pcr_packet(tsm->pcr_pid);
@@ -569,6 +616,8 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->outbuf = malloc(tsm->bsize);
     tsm->pts_interval *= 27000;
     tsm->psi_interval *= 27000;
+    tsm->pcr_int *= 27000;
+    tsm->pcr = -1;
     tsm->last_pcr = -1;
     tsm->last_psi = -1;
     tsm->delay *= 27000;
