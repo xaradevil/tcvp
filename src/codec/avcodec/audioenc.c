@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2004-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -210,13 +210,15 @@ extern int
 avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, char *codec,
 		 tcconf_section_t *cf)
 {
-    enum CodecID cid;
     AVCodec *avc;
     AVCodecContext *ctx;
     avc_audioenc_t *enc;
+    char *avcname;
 
-    cid = avc_codec_id(codec);
-    avc = avcodec_find_encoder(cid);
+    avcname = avc_codec_name(codec);
+    avc = avcodec_find_encoder_by_name(avcname);
+    free(avcname);
+
     if(!avc){
 	tc2_print("AVCODEC", TC2_PRINT_ERROR,
 		  "Can't find encoder for '%s'.\n", codec);
@@ -237,10 +239,10 @@ avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     enc->ctx = ctx;
     enc->bufsize = ENCBUFSIZE;
 
-    if(cid == CODEC_ID_MP2){
+    if(avc->id == CODEC_ID_MP2){
 	enc->eframesize = 1792;
 	enc->framesize = 1152;
-    } else if(cid == CODEC_ID_AC3){
+    } else if(avc->id == CODEC_ID_AC3){
 	enc->eframesize = 3840;
 	enc->framesize = 1536;
     }

@@ -46,8 +46,7 @@ typedef struct avc_codec {
     int have_params;
 } avc_codec_t;
 
-extern enum CodecID avc_codec_id(char *);
-extern char *avc_codec_name(enum CodecID id);
+extern char *avc_codec_name(char *);
 extern void avc_free_packet(void *);
 
 #endif

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -190,14 +190,16 @@ extern int
 avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
 		 tcconf_section_t *cf)
 {
-    enum CodecID cid;
     AVCodec *avc;
     AVCodecContext *ctx;
     avc_encvid_t *enc;
     char *statsfile;
+    char *avcname;
 
-    cid = avc_codec_id(codec);
-    avc = avcodec_find_encoder(cid);
+    avcname = avc_codec_name(codec);
+    avc = avcodec_find_encoder_by_name(avcname);
+    free(avcname);
+
     if(!avc){
 	tc2_print("AVCODEC", TC2_PRINT_ERROR,
 		  "Can't find encoder for '%s'.\n", codec);

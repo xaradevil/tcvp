@@ -52,10 +52,9 @@ avc_free_pipe(void *p)
 {
     avc_codec_t *vc = p;
     avcodec_close(vc->ctx);
-    if(vc->buf)
-	free(vc->buf);
-    if(vc->frame)
-	free(vc->frame);
+    av_free(vc->ctx);
+    free(vc->buf);
+    free(vc->frame);
 }
 
 extern int
@@ -76,18 +75,18 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     avc_codec_t *ac;
     AVCodec *avc = NULL;
     AVCodecContext *avctx;
-    enum CodecID id;
+    char *avcname;
 
-    id = avc_codec_id(s->common.codec);
-    if(id == CODEC_ID_MPEG1VIDEO)
-	id = CODEC_ID_MPEG2VIDEO;
+    avcname = avc_codec_name(s->common.codec);
+    if(!avcname)
+	return -1;
 
-    avc = avcodec_find_decoder(id);
+    avc = avcodec_find_decoder_by_name(avcname);
+    free(avcname);
 
-    if(avc == NULL){
+    if(!avc){
 	tc2_print("AVCODEC", TC2_PRINT_ERROR,
-		  "Can't find codec for '%s' => %i\n",
-		  s->common.codec, id);
+		  "Can't find codec for '%s'\n", s->common.codec);
 	return -1;
     }
 
@@ -149,84 +148,35 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 }
 
 static char *codec_names[][2] = {
-    { (char *) CODEC_ID_NONE, "" }, 
-    { (char *) CODEC_ID_MPEG1VIDEO, "video/mpeg" },
-    { (char *) CODEC_ID_MPEG2VIDEO, "video/mpeg2" },
-    { (char *) CODEC_ID_H263, "video/h263" },
-    { (char *) CODEC_ID_RV10, "video/rv10" },
-    { (char *) CODEC_ID_MP2, "audio/mp2" },
-    { (char *) CODEC_ID_MP3, "audio/mp3" },
-    { (char *) CODEC_ID_MP3, "audio/mpeg" },
-    { (char *) CODEC_ID_VORBIS, "audio/vorbis" },
-    { (char *) CODEC_ID_AC3, "audio/ac3" },
-    { (char *) CODEC_ID_MJPEG, "video/mjpeg" },
-    { (char *) CODEC_ID_MJPEGB, "video/mjpegb" },
-    { (char *) CODEC_ID_MPEG4, "video/mpeg4" },
-    { (char *) CODEC_ID_RAWVIDEO, "video/rawvideo" },
-    { (char *) CODEC_ID_MSMPEG4V1, "video/msmpeg4v1" },
-    { (char *) CODEC_ID_MSMPEG4V2, "video/msmpeg4v2" },
-    { (char *) CODEC_ID_MSMPEG4V3, "video/msmpeg4v3" },
-    { (char *) CODEC_ID_WMV1, "video/wmv1" },
-    { (char *) CODEC_ID_WMV2, "video/wmv2" },
-    { (char *) CODEC_ID_H263P, "video/h263p" },
-    { (char *) CODEC_ID_H263I, "video/h263i" },
-    { (char *) CODEC_ID_SVQ1, "video/svq1" },
-    { (char *) CODEC_ID_SVQ3, "video/svq3" },
-    { (char *) CODEC_ID_DVVIDEO, "video/dv" },
-    { (char *) CODEC_ID_DVAUDIO, "audio/dv" },
-    { (char *) CODEC_ID_WMAV1, "audio/wmav1" },
-    { (char *) CODEC_ID_WMAV2, "audio/wmav2" },
-    { (char *) CODEC_ID_MACE3, "audio/mace3" },
-    { (char *) CODEC_ID_MACE6, "audio/mace6" },
-    { (char *) CODEC_ID_HUFFYUV, "video/huffyuv" },
-    { (char *) CODEC_ID_CYUV, "video/cyuv" },
-    { (char *) CODEC_ID_H264, "video/h264" },
-    { (char *) CODEC_ID_INDEO3, "video/indeo3" },
-    { (char *) CODEC_ID_VP3, "video/vp3" },
-    { (char *) CODEC_ID_CINEPAK, "video/cinepak" },
-    { (char *) CODEC_ID_TRUEMOTION1, "video/truemotion1" },
-
-    /* various pcm "codecs" */
-    { (char *) CODEC_ID_PCM_S16LE, "audio/pcm-s16le" },
-    { (char *) CODEC_ID_PCM_S16BE, "audio/pcm-s16be" },
-    { (char *) CODEC_ID_PCM_U16LE, "audio/pcm-u16le" },
-    { (char *) CODEC_ID_PCM_U16BE, "audio/pcm-u16be" },
-    { (char *) CODEC_ID_PCM_S8, "audio/pcm-s8" },
-    { (char *) CODEC_ID_PCM_U8, "audio/pcm-u8" },
-    { (char *) CODEC_ID_PCM_MULAW, "audio/pcm-ulaw" },
-    { (char *) CODEC_ID_PCM_ALAW, "audio/pcm-alaw" },
-
-    /* various adpcm codecs */
-    { (char *) CODEC_ID_ADPCM_IMA_QT, "audio/adpcm-ima-qt" },
-    { (char *) CODEC_ID_ADPCM_IMA_WAV, "audio/adpcm-ima-wav" },
-    { (char *) CODEC_ID_ADPCM_MS, "audio/adpcm-ms" },
-    { NULL, NULL }
+    { "video/mpeg", "mpeg1video" },
+    { "video/mpeg2", "mpeg2video" },
+    { "video/dv", "dvvideo" },
+    { "video/msmpeg4v3", "msmpeg4" },
+    { "audio/mpeg", "mp3" },
+    { }
 };
 
-extern enum CodecID
-avc_codec_id(char *codec)
-{
-    int i;
-
-    for(i = 0; codec_names[i][1]; i++){
-	if(!strcmp(codec, codec_names[i][1])){
-	    return (enum CodecID) codec_names[i][0];
-	}
-    }
-
-    return 0;
-}
-
 extern char *
-avc_codec_name(enum CodecID id)
+avc_codec_name(char *codec)
 {
+    char *cn;
     int i;
 
-    for(i = 0; codec_names[i][1]; i++){
-	if((enum CodecID) codec_names[i][0] == id){
-	    return codec_names[i][1];
+    for(i = 0; codec_names[i][0]; i++){
+	if(!strcmp(codec, codec_names[i][0])){
+	    return strdup(codec_names[i][1]);
 	}
     }
 
-    return 0;
+    cn = strchr(codec, '/');
+    if(!cn)
+	return NULL;
+
+    cn = strdup(cn + 1);
+
+    for(i = 0; cn[i]; i++)
+	if(cn[i] == '-')
+	    cn[i] = '_';
+
+    return cn;
 }
