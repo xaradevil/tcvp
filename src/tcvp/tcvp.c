@@ -220,6 +220,16 @@ print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes)
 {
     int i;
 
+    if(stream->file)
+	printf("File:      %s\n", stream->file);
+    if(stream->performer)
+	printf("Performer: %s\n", stream->performer);
+    if(stream->title)
+	printf("Title:     %s\n", stream->title);
+    if(stream->time)
+	printf("Length:    %lli:%02lli\n", stream->time / 27000000 / 60,
+	       (stream->time / 27000000) % 60);
+
     for(i = 0; i < stream->n_streams; i++){
 	int u = stream->used_streams[i];
 	printf("%2i%*s: ", i, 1 - u, u? "*": "");
@@ -458,7 +468,6 @@ t_open(player_t *pl, char *name)
     }
 
     demux = stream_play(stream, codecs, tp->conf);
-    print_info(stream, codecs);
 
     if(!stream->time){
 	for(i = 0; i < stream->n_streams; i++){
@@ -493,6 +502,8 @@ t_open(player_t *pl, char *name)
 	    }
 	}
     }
+
+    print_info(stream, codecs);
 
     tp->state = TCVP_STATE_STOPPED;
     if(vc >= 0 && stream->used_streams[vc]){
