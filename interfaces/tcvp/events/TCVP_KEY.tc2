@@ -1,0 +1,6 @@
+inherit "tcvp/events"
+include
+typedef struct tcvp_key_event {
+    int type;
+    char *key;
+} tcvp_key_event_t;

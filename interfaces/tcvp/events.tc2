@@ -1,0 +1,8 @@
+symbol "alloc" tcvp_alloc_event_t (*%s)
+symbol "serialize" tcvp_serialize_event_t (*%s)
+symbol "deserialize" tcvp_deserialize_event_t (*%s)
+require "tcvp/event"
+include
+typedef struct tcvp_event {
+    int type;
+} tcvp_event_t;

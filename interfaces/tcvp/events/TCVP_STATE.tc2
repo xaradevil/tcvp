@@ -1,0 +1,12 @@
+inherit "tcvp/events"
+include
+typedef struct tcvp_state_event {
+    int type;
+    int state;
+} tcvp_state_event_t;
+
+#define TCVP_STATE_PLAYING 0
+#define TCVP_STATE_END     1
+#define TCVP_STATE_ERROR   2
+#define TCVP_STATE_STOPPED 3
+#define TCVP_STATE_PL_END  4

@@ -75,11 +75,22 @@ sub tc2module {
 	TC2::tc2_import('tcvp/event', 'get');
 	TC2::tc2_import('tcvp/event', 'send');
 	TC2::tc2_import('tcvp/event', 'get_qname');
+	TC2::tc2_require("tcvp/events/$2");
     } elsif (not $module and /event\s+(\w+)(?:\s+(\w+)\s+(\w+)\s+(\w+))?/) {
 	$events{$1} = { alloc => $2,
 			ser => $3,
 			deser => $4 };
 	TC2::tc2_import('tcvp/event', $2? 'register': 'get');
+	if ($2) {
+	    TC2::tc2_export("tcvp/events/$1", "alloc",
+			    $2 eq 'NULL'? '@tcvp/events:alloc': $2);
+	    TC2::tc2_export("tcvp/events/$1", "serialize",
+			    $3 eq 'NULL'? '@tcvp/events:serialize': $3);
+	    TC2::tc2_export("tcvp/events/$1", "deserialize",
+			    $4 eq 'NULL'? '@tcvp/events:deserialize': $4);
+	} else {
+	    TC2::tc2_require("tcvp/events/$1");
+	}
     } elsif (/^}/) {
 	undef $module;
     } else {

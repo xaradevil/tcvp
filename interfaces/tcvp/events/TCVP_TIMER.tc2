@@ -1,0 +1,6 @@
+inherit "tcvp/events"
+include
+typedef struct tcvp_timer_event {
+    int type;
+    uint64_t time;
+} tcvp_timer_event_t;

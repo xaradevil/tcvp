@@ -1,0 +1,8 @@
+inherit "tcvp/events"
+include
+typedef struct tcvp_pl_add_event {
+    int type;
+    char **names;
+    int n;
+    int pos;
+} tcvp_pl_add_event_t;

@@ -15,4 +15,9 @@ implement	"tcvp/event"	"alloc"		alloc_event
 implement	"tcvp/event"	"serialize"	serialize_event
 implement	"tcvp/event"	"deserialize"	deserialize_event
 implement	"tcvp/event"	"get_qname"	get_qname
+
+implement	"tcvp/events"	"alloc"		evt_alloc
+implement	"tcvp/events"	"serialize"	evt_serialize
+implement	"tcvp/events"	"deserialize"	evt_deserialize
+
 import		"Eventq"	"send"

@@ -1,0 +1,7 @@
+inherit "tcvp/events"
+include
+typedef struct tcvp_pl_remove_event {
+    int type;
+    int start;
+    int n;
+} tcvp_pl_remove_event_t;

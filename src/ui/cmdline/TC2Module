@@ -22,3 +22,19 @@ option		*module%s
 Additional modules to load.
 option		autoplay%i=1
 Start playing automatically.
+
+TCVP {
+	event TCVP_CLOSE
+	event TCVP_LOAD
+	event TCVP_OPEN_MULTI
+	event TCVP_PL_ADD
+	event TCVP_PL_ADDLIST
+	event TCVP_PL_FLAGS
+	event TCVP_PL_NEXT
+	event TCVP_PL_REMOVE
+	event TCVP_PL_START
+	event TCVP_PL_STOP
+	event TCVP_QUERY
+	event TCVP_START
+	event TCVP_STATE
+}

@@ -58,21 +58,21 @@ get_qname(tcconf_section_t *cf)
     return qname;
 }
 
-static void *
+extern void *
 evt_alloc(int type, va_list args)
 {
     tcvp_event_t *te = alloc_event(type, sizeof(*te), NULL);
     return te;
 }
 
-static u_char *
+extern u_char *
 evt_serialize(char *name, void *event, int *size)
 {
     *size = strlen(name) + 1;
     return strdup(name);
 }
 
-static void *
+extern void *
 evt_deserialize(int type, u_char *event, int size)
 {
     return new_event(type);
@@ -136,6 +136,12 @@ get_event(char *name)
 
     if(tchash_find(event_types, name, -1, &e))
 	e = new_type(name, NULL, NULL, NULL);
+    if(!e->alloc){
+	char *m = malloc(strlen(name) + sizeof("tcvp/events/") + 1);
+	sprintf(m, "tcvp/events/%s", name);
+	tc2_request(TC2_LOAD_MODULE, 1, m, NULL);
+	free(m);
+    }
 
     return e->num;
 }

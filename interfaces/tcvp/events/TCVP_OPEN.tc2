@@ -1,0 +1,6 @@
+inherit "tcvp/events"
+include
+typedef struct tcvp_open_event {
+    int type;
+    char *file;
+} tcvp_open_event_t;

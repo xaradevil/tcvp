@@ -62,15 +62,6 @@ static int clr_pl;
 
 #define have_cmds (ncmds || clr_pl)
 
-static int TCVP_STATE;
-static int TCVP_PL_START;
-static int TCVP_PL_NEXT;
-static int TCVP_PL_ADD;
-static int TCVP_PL_ADDLIST;
-static int TCVP_PL_FLAGS;
-static int TCVP_OPEN_MULTI;
-static int TCVP_START;
-
 typedef union tcvp_cl_event {
     int type;
     tcvp_state_event_t state;
@@ -351,24 +342,15 @@ tcl_init(char *p)
 	return 0;
     }
 
-    TCVP_STATE = tcvp_event_get("TCVP_STATE");
-    TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
-    TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
-    TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
-    TCVP_PL_ADDLIST = tcvp_event_get("TCVP_PL_ADDLIST");
-    TCVP_PL_FLAGS = tcvp_event_get("TCVP_PL_FLAGS");
-    TCVP_OPEN_MULTI = tcvp_event_get("TCVP_OPEN_MULTI");
-    TCVP_START = tcvp_event_get("TCVP_START");
-
     qn = alloca(strlen(qname)+9);
     qs = eventq_new(NULL);
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
 
     if(clr_pl){
-	tcvp_event_send(qs, tcvp_event_get("TCVP_PL_STOP"));
-	tcvp_event_send(qs, tcvp_event_get("TCVP_CLOSE"));
-	tcvp_event_send(qs, tcvp_event_get("TCVP_PL_REMOVE"), 0, -1);
+	tcvp_event_send(qs, TCVP_PL_STOP);
+	tcvp_event_send(qs, TCVP_CLOSE);
+	tcvp_event_send(qs, TCVP_PL_REMOVE, 0, -1);
     }
 
     if(!prl){
@@ -404,7 +386,7 @@ tcl_init(char *p)
 	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
 
-	tcvp_event_send(qs, tcvp_event_get("TCVP_QUERY"));
+	tcvp_event_send(qs, TCVP_QUERY);
 
 	sem_init(&psm, 0, 0);
 	sa.sa_handler = sigint;
