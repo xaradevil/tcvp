@@ -55,7 +55,7 @@ cddb_cmd(char *cmd)
     reply = malloc(rsize);
     p = reply;
 
-    while((n = u->read(p, 1, 1024, u)) > 0){
+    while((n = u->read(p, 1, rsize - (p - reply), u)) > 0){
 	p += n;
 	if(p - reply == rsize){
 	    int s = p - reply;
