@@ -34,7 +34,6 @@
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
-#define FIRST_PID 0x100
 #define TS_PACKET_SIZE 188
 #define outbuf_size (mux_mpeg_ts_conf_outbuf * 188)
 
@@ -45,7 +44,7 @@ typedef struct mpegts_mux {
     int bpos, bsize;
     uint64_t pcr, pcr_int, last_pcr;
     uint64_t last_psi;
-    int psifreq;
+    int psi_interval;
     int astreams;
     struct mpegts_output_stream {
 	int stream_type;
@@ -356,7 +355,8 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	size = pk->sizes[0];
 	tsm->pcr = os->sts;
 
-	if(tsm->pcr - tsm->last_psi > tsm->psifreq || tsm->last_psi == -1){
+	if(tsm->pcr - tsm->last_psi > tsm->psi_interval ||
+	   tsm->last_psi == -1){
 	    memcpy(tsm->outbuf + tsm->bpos, tsm->pat, TS_PACKET_SIZE);
 	    inc_cc(tsm->pat);
 	    post_packet(tsm);
@@ -544,13 +544,8 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tsm->out = out;
     tsm->bsize = outbuf_size;
 
-    tsm->nextpid = FIRST_PID;
-    tsm->pat = pat_packet(1, tsm->nextpid);
-    tsm->pcr_pid = tsm->nextpid + 1;
-    tsm->pcr_packet = pcr_packet(tsm->pcr_pid);
-    init_pmt(tsm, tsm->nextpid++, tsm->pcr_pid);
-    tsm->nextpid++;
-    tsm->psifreq = 27000000;
+    tsm->nextpid = tcvp_demux_mpeg_conf_ts_start_pid;
+    tsm->psi_interval = 1000;
     tsm->timer = tcref(t);
     tsm->pcr_int = 27000 * mux_mpeg_ts_conf_pcr_interval * 3 / 4;
     tsm->delay = tcvp_demux_mpeg_conf_ts_pcr_delay;
@@ -562,10 +557,18 @@ mpegts_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "realtime", "%i", &tsm->realtime);
     tcconf_getvalue(cs, "delay", "%li", &tsm->delay);
     tcconf_getvalue(cs, "pts_interval", "%li", &tsm->pts_interval);
-    tcconf_getvalue(cs, "psi_interval", "%i", &tsm->psifreq);
+    tcconf_getvalue(cs, "psi_interval", "%i", &tsm->psi_interval);
+    tcconf_getvalue(cs, "start_pid", "%i", &tsm->nextpid);
+
+    tsm->pat = pat_packet(1, tsm->nextpid);
+    tsm->pcr_pid = tsm->nextpid + 1;
+    tsm->pcr_packet = pcr_packet(tsm->pcr_pid);
+    init_pmt(tsm, tsm->nextpid++, tsm->pcr_pid);
+    tsm->nextpid++;
 
     tsm->outbuf = malloc(tsm->bsize);
     tsm->pts_interval *= 27000;
+    tsm->psi_interval *= 27000;
     tsm->last_pcr = -1;
     tsm->last_psi = -1;
     tsm->delay *= 27000;
