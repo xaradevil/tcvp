@@ -67,11 +67,17 @@ extern int
 s_validate(char *name, tcconf_section_t *cs)
 {
     muxed_stream_t *ms = s_open(name, cs, NULL);
+    packet_t *pk;
+    int i;
 
     if(!ms)
 	return -1;
 
-    while(ms->next_packet(ms, -1));
+    for(i = 0; i < ms->n_streams; i++)
+	ms->used_streams[i] = 1;
+
+    while((pk = ms->next_packet(ms, -1)))
+	tcfree(pk);
 
     tcfree(ms);
     return 0;
