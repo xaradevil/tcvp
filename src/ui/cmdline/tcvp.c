@@ -193,6 +193,11 @@ tcl_init(char *p)
 	return 0;
     }
 
+    if(!sel_ui)
+	sel_ui = tcvp_ui_cmdline_conf_ui;
+    if(sel_ui && !strcmp(sel_ui, "none"))
+	sel_ui = NULL;
+
     if(!ncmds && !nfiles && !npl && !sel_ui && !isdaemon){
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
@@ -246,9 +251,6 @@ tcl_init(char *p)
     TCVP_PL_SHUFFLE = tcvp_event_get("TCVP_PL_SHUFFLE");
     TCVP_OPEN_MULTI = tcvp_event_get("TCVP_OPEN_MULTI");
     TCVP_START = tcvp_event_get("TCVP_START");
-
-    if(!sel_ui)
-	sel_ui = tcvp_ui_cmdline_conf_ui;
 
     qn = alloca(strlen(qname)+9);
     qs = eventq_new(NULL);
