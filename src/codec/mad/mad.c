@@ -26,7 +26,10 @@
 #include <mad.h>
 #include <mad_tc2.h>
 
-#define MAD_BUFFER_SIZE (3*8065)
+#define BUFFER_SIZE (tcvp_codec_mad_conf_input_buffer)
+
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
 
 typedef struct mad_packet {
     packet_t pk;
@@ -44,7 +47,8 @@ typedef struct mad_dec {
     packet_t *in;
     mad_packet_t *out;
     int bs, pfs;
-    u_char buf[MAD_BUFFER_SIZE];
+    int bufsize;
+    u_char *buf;
 } mad_dec_t;
 
 typedef struct mp3_frame {
@@ -138,7 +142,7 @@ mad_free_pk(packet_t *pk)
     free(mp);
 }
 
-#define OUT_PACKET_SIZE(c) (24000 * (c))
+#define OUT_PACKET_SIZE(c) (tcvp_codec_mad_conf_output_buffer * (c))
 
 static mad_packet_t *
 mad_alloc(int c)
@@ -213,8 +217,6 @@ do_decode(tcvp_pipe_t *p)
     return md->stream.error;
 }
 
-#define min(a,b) ((a)<(b)?(a):(b))
-
 static int
 decode(tcvp_pipe_t *p, packet_t *pk)
 {
@@ -252,20 +254,26 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     size = pk->sizes[0];
 
     while(size > 0 && !md->flush){
-	int bs = min(size, MAD_BUFFER_SIZE - md->bs);
+	int bs = min(size, md->bufsize - md->bs);
+	int nd = 0;
+
 	memcpy(md->buf + md->bs, d, bs);
 	md->bs += bs;
 	size -= bs;
 	d += bs;
 
-	if(md->bs == MAD_BUFFER_SIZE){
+	if(md->bs == md->bufsize){
 	    if(do_decode(p)){
 		int rs = md->bs - (md->stream.this_frame - md->buf);
 		if(rs == md->bs){
-		    fprintf(stderr, "MAD: nothing decoded\n");
-		    abort();
+		    md->buf = realloc(md->buf, md->bufsize *= 2);
+		    if(++nd == 8){
+			fprintf(stderr, "MAD: nothing decoded, bad file?\n");
+			goto out;
+		    }
+		} else {
+		    memmove(md->buf, md->stream.this_frame, rs);
 		}
-		memmove(md->buf, md->stream.this_frame, rs);
 		md->bs = rs;
 	    } else {
 		md->bs = 0;
@@ -349,6 +357,8 @@ mad_new(stream_t *s, int mode)
     mad_stream_init(&md->stream);
     mad_frame_init(&md->frame);
     mad_synth_init(&md->synth);
+    md->bufsize = BUFFER_SIZE;
+    md->buf = malloc(BUFFER_SIZE);
 
     p = calloc(1, sizeof(*p));
     p->input = decode;
