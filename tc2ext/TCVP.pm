@@ -74,7 +74,7 @@ sub tc2module {
 	TC2::tc2_import('Eventq', 'delete');
 	TC2::tc2_import('tcvp/event', 'get');
 	TC2::tc2_import('tcvp/event', 'send');
-    } elsif (not $module and /event\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)/) {
+    } elsif (not $module and /event\s+(\w+)(?:\s+(\w+)\s+(\w+)\s+(\w+))?/) {
 	$events{$1} = { alloc => $2,
 			ser => $3,
 			deser => $4 };
