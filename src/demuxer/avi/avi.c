@@ -81,6 +81,7 @@ typedef struct avi_stream {
     int scale;
     int rate;
     int sample_size;
+    int wavex;
     uint64_t ipts, ptsn, ptsd;
 } avi_stream_t;
 
@@ -186,7 +187,8 @@ avi_read_index(muxed_stream_t *ms, uint32_t size)
 	if(ms->streams[s].stream_type == STREAM_TYPE_AUDIO) {
 	    if(!af->streams[s].sample_size){
 		mpts = 1;
-	    } else if(ms->streams[s].audio.block_align){
+	    } else if(af->streams[s].wavex &&
+		      ms->streams[s].audio.block_align){
 		mpts = af->index[i].size / ms->streams[s].audio.block_align;
 	    } else {
 		mpts = af->index[i].size / af->streams[s].sample_size;
@@ -406,6 +408,7 @@ avi_header(FILE *f)
 			ms->streams[sidx].video.codec_data_size = cds;
 			ms->streams[sidx].video.codec_data = malloc(cds);
 			fread(ms->streams[sidx].video.codec_data, 1, cds, f);
+			af->streams[sidx].wavex = 1;
 		    }
 		}
 		break;
