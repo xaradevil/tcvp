@@ -339,9 +339,16 @@ avc_new(stream_t *s, int mode)
 
     avctx = avcodec_alloc_context();
     avcodec_get_context_defaults(avctx);
+    if(id == CODEC_ID_MPEG1VIDEO)
+	avctx->flags |= CODEC_FLAG_TRUNCATED;
 
     switch(s->stream_type){
     case STREAM_TYPE_AUDIO:
+	avctx->sample_rate = s->audio.sample_rate;
+	avctx->channels = s->audio.channels;
+	avctx->bit_rate = s->audio.bit_rate;
+	avctx->block_align = s->audio.block_align;
+
 	ac = calloc(1, sizeof(*ac));
 	ac->ctx = avctx;
 	ac->buf = malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE);
@@ -382,6 +389,9 @@ avc_new(stream_t *s, int mode)
 	p->private = vc;
 	break;
     }
+
+    avctx->extradata = s->common.codec_data;
+    avctx->extradata_size = s->common.codec_data_size;
 
     p->flush = avc_flush;
 

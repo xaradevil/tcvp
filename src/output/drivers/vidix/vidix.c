@@ -59,13 +59,7 @@ vx_show(video_driver_t *vd, int frame)
 
     if(vxw->use_dma){
 	sem_wait(&vxw->tsm);
-#if 0
-	if(vxw->vfmap[frame] != vxw->tail)
-	    fprintf(stderr, "VIDIX: %i != %i\n", vxw->vfmap[frame], vxw->tail);
-#endif
 	vdlPlaybackFrameSelect(vxw->driver, vxw->vfmap[frame]);
-/* 	if(++vxw->tail == vxw->vframes) */
-/* 	    vxw->tail = 0; */
 	sem_post(&vxw->hsm);
     } else {
 	vdlPlaybackFrameSelect(vxw->driver, frame);
@@ -312,7 +306,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	vxw->frames = frames;
 	vxw->vframes = vxw->pbc->num_frames;
 	vxw->head = 0;
-	sem_init(&vxw->hsm, 0, vxw->vframes - 3);
+	sem_init(&vxw->hsm, 0, vxw->vframes - 2);
 	sem_init(&vxw->tsm, 0, 0);
 	sem_init(&vxw->dsm, 0, 0);
 	vxw->dmabufs = malloc(frames * sizeof(*vxw->dmabufs));
@@ -322,7 +316,7 @@ vx_open(video_stream_t *vs, conf_section *cs)
 	    vxw->dmabufs[i] = valloc(vxw->pbc->frame_size);
 	}
 	vxw->dma->size = vxw->pbc->frame_size;
-	vxw->dma->flags = BM_DMA_SYNC;
+	vxw->dma->flags = BM_DMA_BLOCK;
 	vxw->use_dma = 1;
 	pthread_create(&vxw->dmath, NULL, vx_dmacpy, vxw);
 	fprintf(stderr, "VIDIX: Using DMA.\n");

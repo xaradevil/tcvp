@@ -220,9 +220,10 @@ avi_header(FILE *f)
 	}
 	case TAG('s','t','r','f'):{
 	    size_t fp = ftell(f);
+	    size_t cds;
 	    switch(stype){
 	    case TAG('v','i','d','s'):
-		getjunk(f, 32);
+		getval(f, "size", 32);
 
 		width = getu32(f);
 		height = getu32(f);
@@ -237,9 +238,16 @@ avi_header(FILE *f)
 		get4c(st, f);
 		ms->streams[sidx].video.codec = vtag2codec(st);
 
-		getjunk(f, 32);
-		for(i = 24; i < size; i += 4){
-		    getjunk(f, 32);
+		getval(f, "image_size", 32);
+		getval(f, "xpelspermeter", 32);
+		getval(f, "ypelspermeter", 32);
+		getval(f, "clrused", 32);
+		getval(f, "clrimportant", 32);
+
+		if((cds = size - 40) > 0){
+		    ms->streams[sidx].video.codec_data_size = cds;
+		    ms->streams[sidx].video.codec_data = malloc(cds);
+		    fread(ms->streams[sidx].video.codec_data, 1, cds, f);
 		}
 		break;
 
@@ -248,12 +256,21 @@ avi_header(FILE *f)
 		ms->streams[sidx].audio.codec = aid2codec(id);
 		ms->streams[sidx].audio.channels = getu16(f);
 		ms->streams[sidx].audio.sample_rate = getu32(f);
+		ms->streams[sidx].audio.bit_rate = getu32(f) * 8;
+		ms->streams[sidx].audio.block_align = getu16(f);
 
-		getval(f, "byte rate", 32);
-		getval(f, "block align", 16);
-		getval(f, "sample size", 16);
-		for(i = 16; i < size; i += 4){
-		    getjunk(f, 32);
+		if(size > 14)
+		    ms->streams[sidx].audio.sample_size = getu16(f);
+
+		if(size > 16){
+		    cds = getu16(f);
+		    if(cds > 0){
+			if(cds > size - 18)
+			    cds = size - 18;
+			ms->streams[sidx].video.codec_data_size = cds;
+			ms->streams[sidx].video.codec_data = malloc(cds);
+			fread(ms->streams[sidx].video.codec_data, 1, cds, f);
+		    }
 		}
 		break;
 	    }
@@ -346,7 +363,7 @@ avi_packet(muxed_stream_t *ms, int stream)
     pthread_mutex_lock(&af->mx);
 
     if(!(pk = list_shift(af->packets[stream])) && !af->eof){
-	int tried_index = 0, tried_bkup = 0, skipped = 0;
+	int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
 	do {
 	    char *buf;
 	    size_t pos;
@@ -367,20 +384,23 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    }
 
 	    if(!valid_tag(tag)){
-		fprintf(stderr, "AVI[%i]: Bad packet header @ %08x\n",
-			stream, pos);
+		if(!scan)
+		    fprintf(stderr, "AVI[%i]: Bad packet header @ %08x\n",
+			    stream, pos);
 		if(!tried_index && af->idxok > 256){
 		    fprintf(stderr, "AVI: Index => %08x\n",
 			    af->index[af->pkt].offset);
 		    fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
 		    tried_index++;
 		    goto again;
-		} else if(tried_bkup < 16){
-		    if(!tried_bkup){
-			fprintf(stderr, "AVI: Backing up 32 bytes.\n");
-			fseek(af->file, -36, SEEK_CUR);
-		    }
+		} else if(!tried_bkup){
+		    fprintf(stderr, "AVI: Backing up 64 bytes.\n");
+		    fseek(af->file, -68, SEEK_CUR);
 		    tried_bkup++;
+		    goto again;
+		} else if(scan < 128){
+		    fseek(af->file, -3, SEEK_CUR);
+		    scan++;
 		    goto again;
 		} else if(skipped < 8 && af->idxok > 256){
 		    fprintf(stderr, "AVI: Skipping frame.\n");

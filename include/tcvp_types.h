@@ -41,9 +41,14 @@ struct packet {
 #define PIXEL_FORMAT_I420 2
 #define PIXEL_FORMAT_YUY2 3
 
+#define STREAM_COMMON				\
+    int stream_type;				\
+    char *codec;				\
+    void *codec_data;				\
+    int codec_data_size
+
 typedef struct video_stream {
-    int stream_type;
-    char *codec;
+    STREAM_COMMON;
     struct {
 	int num, den;
     } frame_rate;
@@ -53,15 +58,20 @@ typedef struct video_stream {
 } video_stream_t;
 
 typedef struct audio_stream {
-    int stream_type;
-    char *codec;
+    STREAM_COMMON;
     int sample_rate;
     int channels;
     u_long samples;
+    int bit_rate;
+    int block_align;
+    int sample_size;
 } audio_stream_t;
 
 typedef union stream {
     int stream_type;
+    struct {
+	STREAM_COMMON;
+    } common;
     video_stream_t video;
     audio_stream_t audio;
 } stream_t;

@@ -4,7 +4,6 @@ version		0.1.0
 tc2version	0.4.0
 sources		avformat.c
 postinit	avf_init
-shutdown	avf_shutdown
 implement	"video/mpeg"	"open"		avf_open
 implement	"video/mpeg"	"close"		avf_close
 implement	"video/mpeg"	"next_packet"	avf_next_packet

@@ -51,16 +51,26 @@ typedef struct video_out {
     int framecnt;
 } video_out_t;
 
-#define DROPLEN 4
+#define DROPLEN 8
 
 static int drops[][DROPLEN] = {
-    {0, 0, 0, 0},
-    {1, 0, 0, 0},
-    {1, 0, 1, 0},
-    {1, 1, 1, 0}
+    {[0 ... 7] = 0},
+    {[0] = 1},
+    {[0] = 1, [4] = 1},
+    {[0] = 1, [3] = 1, [6] = 1},
+    {[0] = 1, [2] = 1, [4] = 1, [6] = 1},
+    {[0 ... 2] = 1, [4 ... 6] = 1},
+    {[0 ... 6] = 1}
 };
 
-static float drop_thresholds[] = {0.2, 0.13, 0.066, 0};
+static float drop_thresholds[] = {7.0 / 21,
+				  6.0 / 21,
+				  5.0 / 21,
+				  4.0 / 21,
+				  3.0 / 21,
+				  2.0 / 21,
+				  1.0 / 21,
+				  0};
 
 static void *
 v_play(void *p)
@@ -143,7 +153,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
     }
 
     if(output_video_conf_framedrop &&
-       ++vo->framecnt > vo->driver->frames * 2){
+       vo->framecnt > vo->driver->frames){
 	int i, bf;
 	float bfr;
 
@@ -158,6 +168,8 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	for(i = 0; bfr < drop_thresholds[i]; i++);
 	vo->drop = drops[i];
     }
+
+    vo->framecnt++;
 
     pk->free(pk);
 

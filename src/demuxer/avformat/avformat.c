@@ -33,13 +33,6 @@ avf_init(char *p)
     return 0;
 }
 
-extern int
-avf_shutdown(void)
-{
-    return 0;
-}
-
-
 static char *codec_names[] = {
     [CODEC_ID_NONE] = "", 
     [CODEC_ID_MPEG1VIDEO] = "video/mpeg",
@@ -228,6 +221,10 @@ avf_open(char *name, conf_section *cs)
 	    ms->streams[i].stream_type = 0;
 	    break;
 	}
+
+	ms->streams[i].common.codec_data = afc->streams[i]->codec.extradata;
+	ms->streams[i].common.codec_data_size =
+	    afc->streams[i]->codec.extradata_size;
     }
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = avf_next_packet;
