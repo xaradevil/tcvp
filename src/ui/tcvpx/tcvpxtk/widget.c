@@ -32,14 +32,18 @@ alpha_render_part(unsigned char *src, unsigned char *dest,
 
     for(y=src_y;y<src_height;y++){
 	for(x=src_x;x<src_width;x++){
-	    int spos = ((x+src_x)+(y+src_y)*src_width)*4;
-	    int dpos = ((x+dest_x)+(y+dest_y)*dest_width)*4;
-	    int b = src[spos+3];
-	    int a = 256-b;
-	    dest[dpos+0] = (dest[dpos+0]*a + src[spos+0]*b)/256;
-	    dest[dpos+1] = (dest[dpos+1]*a + src[spos+1]*b)/256;
-	    dest[dpos+2] = (dest[dpos+2]*a + src[spos+2]*b)/256;
-	    dest[dpos+3] = (dest[dpos+3]*a + src[spos+3]*b)/256;
+	    if(x < dest_width && x >= 0 && y < dest_height && y >= 0) {
+		int spos = ((x+src_x)+(y+src_y)*src_width)*4;
+		int dpos = ((x+dest_x)+(y+dest_y)*dest_width)*4;
+		int b = src[spos+3];
+		int a = 256-b;
+		dest[dpos+0] = (dest[dpos+0]*a + src[spos+0]*b)/256;
+		dest[dpos+1] = (dest[dpos+1]*a + src[spos+1]*b)/256;
+		dest[dpos+2] = (dest[dpos+2]*a + src[spos+2]*b)/256;
+		dest[dpos+3] = (dest[dpos+3]*a + src[spos+3]*b)/256;
+	    } else {
+		fprintf(stderr, "ERROR: Attempted to draw outside widget\n");
+	    }
 	}
     }
     

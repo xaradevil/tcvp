@@ -260,11 +260,6 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
     long emask;
 
     if(!background || !indicator) return NULL;
-    if(indicator->width/2 < sp_x || indicator->height/2 < sp_y ||
-       indicator->width/2 + ep_x > background->width ||
-       indicator->height/2 + ep_y > background->height) {
-	return NULL;
-    }
 
     sb = calloc(sizeof(tcseek_bar_t), 1);
     sb->type = TCSEEKBAR;
