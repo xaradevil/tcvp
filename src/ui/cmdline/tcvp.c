@@ -727,6 +727,8 @@ main(int argc, char **argv)
     tcfree(cf);
     if(playlist)
 	free(playlist);
+    if(nmodnames)
+	free(nmodnames);
 
     return 0;
 }
