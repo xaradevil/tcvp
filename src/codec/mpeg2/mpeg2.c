@@ -78,7 +78,7 @@ mpeg_release_buf(mpeg_dec_t *mpd, mpeg_buf_t *mb)
 	mpd->free_bufs = mb;
 	mpd->nfree++;
     } else {
-	tc2_print("MPEG2", TC2_PRINT_DEBUG, "%p release\n", mb);
+	tc2_print("MPEG2", TC2_PRINT_DEBUG+2, "%p release\n", mb);
 	tcfree(mb);
     }
 
@@ -90,7 +90,7 @@ static void
 mpeg_free_buf(void *p)
 {
     mpeg_buf_t *b = p;
-    tc2_print("MPEG2", TC2_PRINT_DEBUG, "%p free\n", b);
+    tc2_print("MPEG2", TC2_PRINT_DEBUG+2, "%p free\n", b);
     free(b->data[0]);
     free(b->data[1]);
     free(b->data[2]);
@@ -110,7 +110,7 @@ mpeg_alloc(mpeg_dec_t *mpd)
 	mpd->nfree--;
     } else {
 	mb = tcallocd(sizeof(*mb), NULL, mpeg_free_buf);
-	tc2_print("MPEG2", TC2_PRINT_DEBUG, "%p alloc\n", mb);
+	tc2_print("MPEG2", TC2_PRINT_DEBUG+2, "%p alloc\n", mb);
 	mb->data[0] = malloc(seq->width * seq->height);
 	mb->data[1] = malloc(seq->chroma_width * seq->chroma_height);
 	mb->data[2] = malloc(seq->chroma_width * seq->chroma_height);
@@ -155,12 +155,12 @@ mpeg_flush_bufs(mpeg_dec_t *mpd)
 {
     pthread_mutex_lock(&mpd->lock);
 
-    tc2_print("MPEG2", TC2_PRINT_DEBUG, "mpeg_flush_bufs free\n");
+    tc2_print("MPEG2", TC2_PRINT_DEBUG+1, "mpeg_flush_bufs free\n");
     mpeg_free_buflist(mpd->free_bufs);
     mpd->free_bufs = NULL;
     mpd->nfree = 0;
 
-    tc2_print("MPEG2", TC2_PRINT_DEBUG, "mpeg_flush_bufs used\n");
+    tc2_print("MPEG2", TC2_PRINT_DEBUG+1, "mpeg_flush_bufs used\n");
     mpeg_free_buflist(mpd->used_bufs);
     mpd->used_bufs = NULL;
 
@@ -230,6 +230,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 
 		if(mpd->info->display_picture->flags & PIC_FLAG_TAGS){
 		    uint32_t ptsh, ptsl;
+
 		    ptsl = mpd->info->display_picture->tag;
 		    ptsh = mpd->info->display_picture->tag2;
 		    if(mpd->flush && (ptsh & MPEG_PTS_FLUSH)){
@@ -241,11 +242,13 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		}
 
 		if(mpd->pts != -1LL){
+		    int nf = mpd->info->display_picture->nb_fields;
+
 		    tc2_print("MPEG2", TC2_PRINT_DEBUG+1, "pts %llu\n",
 			      mpd->pts / 27);
 		    pic->pk.flags = TCVP_PKT_FLAG_PTS;
 		    pic->pk.pts = mpd->pts;
-		    mpd->pts += mpd->info->sequence->frame_period;
+		    mpd->pts += nf * mpd->info->sequence->frame_period / 2;
 		}
 		pic->pk.private = pic;
 		p->next->input(p->next, &pic->pk);
@@ -291,6 +294,11 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    if(!(seq->flags & SEQ_FLAG_PROGRESSIVE_SEQUENCE))
 		p->format.video.flags |= TCVP_STREAM_FLAG_INTERLACED;
 	    mpeg_init_bufs(mpd);
+
+	    tc2_print("MPEG2", TC2_PRINT_DEBUG, "vbv_buffer_size %i\n",
+		      seq->vbv_buffer_size * 8);
+	    tc2_print("MPEG2", TC2_PRINT_DEBUG, "bit_rate %i\n",
+		      seq->byte_rate * 8);
 
 	    ret = PROBE_OK;
 	    break;
