@@ -68,6 +68,7 @@ show_help(void)
 	   "   -v #    --video-stream=#      Select video stream\n"
 	   "   -C      --validate            Check file integrity\n"
 	   "   -s t    --seek=t              Seek t seconds at start\n"
+	   "   -t t    --time=t              Play t seconds\n"
 	   "   -u name --user-interface=name Select user interface\n"
 	   "   -z      --shuffle             Shuffle files\n"
 	   "   -@ file --playlist=file       Load playlist from file\n"
@@ -271,6 +272,7 @@ parse_options(int argc, char **argv)
 	{"video-stream", required_argument, 0, 'v'},
 	{"validate", no_argument, 0, 'C'},
 	{"seek", required_argument, 0, 's'},
+	{"time", required_argument, 0, 't'},
 	{"user-interface", required_argument, 0, 'u'},
 	{"tc2-debug", required_argument, 0, OPT_TC2_DEBUG},
 	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
@@ -288,7 +290,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -328,6 +330,10 @@ parse_options(int argc, char **argv)
 
 	case 's':
 	    tcconf_setvalue(cf, "start_time", "%i", strtol(optarg, NULL, 0));
+	    break;
+
+	case 't':
+	    tcconf_setvalue(cf, "play_time", "%i", strtol(optarg, NULL, 0));
 	    break;
 
 	case 'u':
