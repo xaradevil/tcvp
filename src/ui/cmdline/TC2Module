@@ -5,4 +5,5 @@ tc2version	0.4.0
 sources		tcvp.c
 postinit	tcvp_init
 shutdown	tcvp_stop
-import		"tcvp"	"open"
+import		"tcvp"		"open"
+import		"stream"	"validate"

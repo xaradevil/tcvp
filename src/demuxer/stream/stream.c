@@ -28,18 +28,20 @@
 extern muxed_stream_t *
 s_open(char *name, conf_section *cs)
 {
-    char *m;
+    char *m = NULL;
     char *ext;
 
-    ext = strrchr(name, '.') + 1;
-    if(ext == (void *)1L)
-	return NULL;
+    ext = strrchr(name, '.');
 
-    if(!strcmp(ext, "ogg")) {
-	m = "audio/ogg";
-    } else if(!strcmp(ext, "avi")){
-	m = "video/x-avi";
-    } else {
+    if(ext++){
+	if(!strcmp(ext, "ogg")) {
+	    m = "audio/ogg";
+	} else if(!strcmp(ext, "avi")){
+	    m = "video/x-avi";
+	}
+    }
+
+    if(!m){
 	m = "video/mpeg";
     }
 
@@ -57,6 +59,20 @@ extern int
 s_close(muxed_stream_t *ms)
 {
     return ms->close(ms);
+}
+
+extern int
+s_validate(char *name, conf_section *cs)
+{
+    muxed_stream_t *ms = s_open(name, cs);
+
+    if(!ms)
+	return -1;
+
+    while(ms->next_packet(ms, -1));
+
+    ms->close(ms);
+    return 0;
 }
 
 #define RUN     1

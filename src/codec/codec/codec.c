@@ -26,7 +26,7 @@
 extern tcvp_pipe_t *
 c_new(stream_t *s, int mode)
 {
-    char *codec;
+    char *codec = NULL;
     codec_new_t cnew;
     char *buf;
 
@@ -42,6 +42,9 @@ c_new(stream_t *s, int mode)
     default:
 	return NULL;
     }
+
+    if(!codec)
+	return NULL;
 
     buf = alloca(strlen(codec) + 8);
     sprintf(buf, "codec/%s", codec);

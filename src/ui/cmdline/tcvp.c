@@ -34,7 +34,7 @@ static char **files;
 static sem_t psm;
 static int intr;
 static conf_section *cf;
-static int verbose_flag;
+static int validate;
 
 static void
 sigint(int s)
@@ -65,14 +65,18 @@ tcvp_play(void *p)
 	player_t *pl;
 	intr = 0;
 
-	if(!(pl = tcvp_open(files[i], tcvp_update, NULL, cf)))
-	    continue;
-	printf("Playing \"%s\"...\n", files[i]);
-	pl->start(pl);
-	sem_wait(&psm);
-	pl->close(pl);
-	if(intr){
+	if(validate){
+	    stream_validate(files[i], cf);
+	} else {
+	    if(!(pl = tcvp_open(files[i], tcvp_update, NULL, cf)))
+		continue;
+	    printf("Playing \"%s\"...\n", files[i]);
+	    pl->start(pl);
 	    sem_wait(&psm);
+	    pl->close(pl);
+	    if(intr){
+		sem_wait(&psm);
+	    }
 	}
     }
 
@@ -94,6 +98,19 @@ tcvp_stop(void)
     return 0;
 }
 
+static void
+show_help(void)
+{
+    /* FIXME: better helpscreen */
+    printf("TCVP helpscreen\n"
+	   "   -h, --help          This helpscreen\n"
+	   "   -A, --audio-device  Select audio device\n"
+	   "   -V, --video-device  Select video device\n"
+	   "   -a, --audio-stream  Select audio stream\n"
+	   "   -v, --video-stream  Select video stream\n"
+	   "   -C, --validate      Check file integrity\n");
+}
+
 static int
 parse_options(int argc, char **argv)
 {
@@ -103,13 +120,14 @@ parse_options(int argc, char **argv)
 	{"audio-stream", required_argument, 0, 'a'},
 	{"video-device", required_argument, 0, 'V'},
 	{"video-stream", required_argument, 0, 'v'},
+	{"validate", no_argument, 0, 'C'},
 	{0, 0, 0, 0}
     };
 
     for(;;){
 	int c, option_index = 0;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:",
+	c = getopt_long(argc, argv, "hA:a:V:v:C",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -117,10 +135,7 @@ parse_options(int argc, char **argv)
 
 	switch(c){
 	case 'h':
-	    /* FIXME: better helpscreen */
-	    printf("TCVP helpscreen\n"
-		   "   -h, --help          This helpscreen\n"
-		   "   -A, --audio-device  Select audio device\n");
+	    show_help();
 	    break;
 
 	case 'A':
@@ -137,6 +152,10 @@ parse_options(int argc, char **argv)
 
 	case 'v':
 	    conf_setvalue(cf, "video/stream", "%i", strtol(optarg, NULL, 0));
+	    break;
+
+	case 'C':
+	    validate = 1;
 	    break;
 	}
     }
@@ -155,17 +174,19 @@ main(int argc, char **argv)
     opt_num = parse_options(argc, argv);
 
     if(argc == opt_num) {
-	/* FIXME: print message */
+	show_help();
 	return 0;
     }
 
     nfiles = argc - opt_num;
     files = argv + opt_num;
 
-    sa.sa_handler = sigint;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    sigaction(SIGINT, &sa, NULL);
+    if(!validate){
+	sa.sa_handler = sigint;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGINT, &sa, NULL);
+    }
 
     tc2_add_config(TCVP_CONF);
     tc2_init();

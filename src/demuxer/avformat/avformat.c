@@ -34,7 +34,7 @@ avf_init(char *p)
 }
 
 static char *codec_names[] = {
-    [CODEC_ID_NONE] = "", 
+    [CODEC_ID_NONE] = NULL, 
     [CODEC_ID_MPEG1VIDEO] = "video/mpeg",
     [CODEC_ID_H263] = "video/h263",
     [CODEC_ID_RV10] = "video/rv10",
@@ -54,6 +54,7 @@ static char *codec_names[] = {
     [CODEC_ID_H263P] = "video/h263p",
     [CODEC_ID_H263I] = "video/h263i",
     [CODEC_ID_SVQ1] = "video/svq1",
+    [CODEC_ID_SVQ3] = "video/svq3",
     [CODEC_ID_DVVIDEO] = "video/dv",
     [CODEC_ID_DVAUDIO] = "audio/dv",
     [CODEC_ID_WMAV1] = "audio/wmav1",
@@ -62,6 +63,9 @@ static char *codec_names[] = {
     [CODEC_ID_MACE6] = "audio/mace6",
     [CODEC_ID_HUFFYUV] = "video/huffyuv",
     [CODEC_ID_CYUV] = "video/cyuv",
+    [CODEC_ID_H264] = "video/h264",
+    [CODEC_ID_INDEO3] = "video/indeo3",
+    [CODEC_ID_VP3] = "video/vp3",
 
     /* various pcm "codecs" */
     [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",

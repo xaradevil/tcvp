@@ -8,3 +8,4 @@ implement	"stream"	"close"		s_close
 implement	"stream"	"next_packet"	s_next_packet
 implement	"stream" 	"play"		s_play
 implement	"stream" 	"probe"		s_probe
+implement	"stream" 	"validate"	s_validate
