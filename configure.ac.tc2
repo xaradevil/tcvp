@@ -36,6 +36,7 @@ AC_CONFIG_FILES([Makefile
 		 src/ui/tcvpgtk/Makefile
 		 src/ui/tcvpshell/Makefile
 		 src/ui/tcvpx/Makefile
+		 src/ui/tcvpx/skin/Makefile
 		 src/wm/Makefile
 		 src/wm/wm/Makefile
 		 src/wm/x11/Makefile])
