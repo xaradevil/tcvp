@@ -57,7 +57,6 @@ typedef struct mp3_file {
     u_char *buf;
     int bufsize;
     int bhead, btail;
-    int fsize;
     int (*parse_header)(u_char *, mp3_frame_t *);
     int xtime;
     u_char *xing;
@@ -289,14 +288,23 @@ mp3_getparams(muxed_stream_t *ms)
     mp3_file_t *mf = ms->private;
     url_t *f = mf->file;
     mp3_frame_t fr;
-    int i;
+    uint64_t maxscan, i;
     off_t pos = f->tell(f);
     u_char head[MAX_HEADER_SIZE];
+    int resync;
+
+    if(mf->parse_header){
+	resync = 1;
+	maxscan = -1LL;
+    } else {
+	resync = 0;
+	maxscan = MAX_FRAME_SIZE;
+    }
 
     if(f->read(head, 1, MAX_HEADER_SIZE, f) < mf->header_size)
 	return -1;
 
-    for(i = 0; i < MAX_FRAME_SIZE; i++){
+    for(i = 0; i < maxscan; i++){
 	if(!all_headers(mf, head, &fr)){
 	    off_t pos2 = f->tell(f);
 	    u_char head2[MAX_HEADER_SIZE];
@@ -307,7 +315,8 @@ mp3_getparams(muxed_stream_t *ms)
 		break;
 	    }
 	    f->seek(f, pos2, SEEK_SET);
-	    mf->parse_header = NULL;
+	    if(!resync)
+		mf->parse_header = NULL;
 	}
 
 	memmove(head, head + 1, MAX_HEADER_SIZE - 1);
@@ -351,7 +360,10 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
 	    time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
 
     mf->samples = time / 27000000 * mf->stream.audio.sample_rate;
-    mf->fsize = 0;
+    mf->bhead = 0;
+    mf->btail = 0;
+    tcfree(mf->buf);
+    mf->buf = tcalloc(mf->bufsize);
 
     return time;
 }
@@ -413,7 +425,6 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp3_packet_t *mp = NULL;
     mp3_frame_t fr;
     int size;
-    int bh = 0;
     u_char *nb;
     int eof = 0;
 
@@ -456,14 +467,23 @@ mp3_packet(muxed_stream_t *ms, int str)
 		mf->btail += fr.size;
 		break;
 	    } else {
-		if(!bh++){
-		    u_char *h = mf->buf + mf->btail;
-		    tc2_print(mf->tag, TC2_PRINT_WARNING,
-			      "bad header %02x%02x%02x @ %llx\n",
-			      h[0], h[1], h[2], mf->file->tell(mf->file) -
-			      (mf->bhead - mf->btail));
+		uint64_t pos1, pos2;
+		u_char *h = mf->buf + mf->btail;
+		pos1 = mf->file->tell(mf->file) - (mf->bhead - mf->btail);
+		tc2_print(mf->tag, TC2_PRINT_WARNING,
+			  "bad header %02x%02x%02x @ %llx\n",
+			  h[0], h[1], h[2], pos1);
+		mf->bhead = 0;
+		mf->btail = 0;
+		mf->file->seek(mf->file, pos1, SEEK_SET);
+		if(mp3_getparams(ms) < 0){
+		    eof = 1;
+		    break;
 		}
-		mf->btail++;
+		pos2 = mf->file->tell(mf->file);
+		tc2_print(mf->tag, TC2_PRINT_WARNING,
+			  "sync at %llx, skipped %i bytes\n",
+			  pos2, pos2 - pos1);
 	    }
 	}
 
