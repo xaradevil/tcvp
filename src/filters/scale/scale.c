@@ -116,7 +116,8 @@ scale_free(void *p)
     tcvp_pipe_t *tp = p;
     scale_t *s = tp->private;
 
-    img_resample_close(s->irs);
+    if(s->irs)
+	img_resample_close(s->irs);
     free(s);
 }
 
