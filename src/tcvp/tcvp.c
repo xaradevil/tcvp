@@ -612,6 +612,7 @@ t_open(player_t *pl, int nn, char **names)
 		tp->ends[i] = pipe_end(tp->pipes[i]);
 	    } else {
 		close_pipe(tp->pipes[i]);
+		tp->pipes[i] = NULL;
 		ns--;
 	    }
 	}
