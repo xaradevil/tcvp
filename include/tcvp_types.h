@@ -109,7 +109,13 @@ typedef struct audio_stream {
     u_long samples;
     int block_align;
     int sample_size;
+    char language[4];
 } audio_stream_t;
+
+typedef struct subtitle_stream {
+    STREAM_COMMON;
+    char language[4];
+} subtitle_stream_t;
 
 typedef union stream {
     int stream_type;
@@ -118,6 +124,7 @@ typedef union stream {
     } common;
     video_stream_t video;
     audio_stream_t audio;
+    subtitle_stream_t subtitle;
 } stream_t;
 
 /* muxed_stream_t MUST be allocated with tcalloc */
