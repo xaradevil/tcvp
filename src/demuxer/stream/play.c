@@ -22,14 +22,10 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#define TCHASH_NEWAPI
-
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <tcalloc.h>
 #include <tclist.h>
 #include <tchash.h>
@@ -604,11 +600,16 @@ do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
     case PROBE_OK:
 	pthread_mutex_lock(&sp->lock);
 	if(str->packets){
+	    int np;
+
 	    tclist_push(str->packets, pk);
 	    if(pk && pk->flags & TCVP_PKT_FLAG_PTS)
 		str->headtime = pk->pts;
-	    if(tclist_items(str->packets) > max_packets ||
-	       str->headtime - str->tailtime > buffertime)
+
+	    np = tclist_items(str->packets);
+	    if(str->probe == PROBE_OK && (np > max_packets ||
+	       ((str->headtime - str->tailtime > buffertime) &&
+		np > min_packets)))
 		sp->nbuf &= ~(1ULL << ps);
 	}
 	pthread_cond_broadcast(&sp->cond);
