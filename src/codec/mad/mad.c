@@ -1,19 +1,7 @@
 /**
     Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    Licensed under the Open Software License version 2.0
 **/
 
 #include <stdlib.h>
@@ -89,10 +77,13 @@ static int sample_rates[3][4] = {
 };
 
 static int
-mp3_header(u_char *buf, mp3_frame_t *mf)
+mp3_header(u_char *buf, mp3_frame_t *mf, int size)
 {
     int bx, br, sr, pad;
     int c = buf[1], d = buf[2], e = buf[3];
+
+    if(size < 4)
+	return -1;
 
     if(buf[0] != 0xff)
 	return -1;
@@ -130,6 +121,8 @@ mp3_header(u_char *buf, mp3_frame_t *mf)
 /*     fprintf(stderr, "MP3: layer %i, version %i, rate %i, channels %i\n", */
 /* 	    mf->layer, mf->version, mf->bitrate, mf->channels); */
 
+    if(size > mf->size)
+	return mp3_header(buf + mf->size, NULL, size - mf->size);
     return 0;
 }
 
@@ -314,7 +307,7 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     u_char *d = pk->data[0];
     int ds = pk->sizes[0];
 
-    while(mp3_header(d, &mf) && ds > 4){
+    while(mp3_header(d, &mf, ds)){
 	d++;
 	ds--;
 	md->pc++;
