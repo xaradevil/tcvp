@@ -68,7 +68,7 @@ my $xml = new XML::Parser(Handlers => {Start => \&tag_start,
 my $space;
 
 my(%images, %groups, %layouts, $lc, $lg, $group, %imagefiles, $container);
-my(%fonts, $grplvl);
+my(%fonts);
 my $xmldir = $sd;
 
 sub max {
@@ -327,7 +327,6 @@ sub tag_start {
 	$$group{height} = $h;
 	$$group{text} = "$n [\n";
 	$$group{name} = $n;
-	$grplvl++;
     } elsif($tag =~ /(toggle)?button/){		  # button
 	my $img = $attr{image};
 	return unless exists $images{$img};
@@ -383,8 +382,6 @@ END_TCCONF
 	$$group{width} = $w;
 	$$group{height} = $h;
 	$$group{text} = $tx;
-	print STDERR "WARNING: grplvl=$grplvl\n" if $grplvl > 0;
-	$grplvl = 1;
     } elsif($tag eq 'group'){			  # group
 	my $gn = tag_name $attr{id};
 	$wdg{x} = 0 unless defined $x;
@@ -419,7 +416,6 @@ END_TCCONF
 	  print "*** font $attr{font} not found\n" and return;
 	my $d = $display{lc $attr{display}} or
 	  print "*** display $attr{display} not found\n" and return;
-	my $fl = '../' x $grplvl;
 	$wdg{text} = <<END_TCCONF;
 label [
 	color '$$font{color}'
@@ -509,12 +505,9 @@ sub tag_end {
     if($tag eq 'groupdef'){
 	undef $lc;
 	undef $group;
-	$grplvl--;
     } elsif($tag eq 'layout'){
 	undef $lc;
 	undef $group;
-	print STDERR "WARNING: grplvl=$grplvl\n" if $grplvl > 1;
-	$grplvl = 0;
     }	
 }
 
