@@ -86,6 +86,17 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	tcfraction_t asp = { s->video.height * s->video.aspect.num,
 			     s->video.width * s->video.aspect.den };
 	tcreduce(&asp);
+	if(asp.num > 255 || asp.den > 255){
+	    double a = (double) asp.num / asp.den;
+	    if(asp.num > asp.den){
+		asp.num = 240;
+		asp.den = asp.num / a + 0.5;
+	    } else {
+		asp.den = 240;
+		asp.num = asp.den * a + 0.5;
+	    }
+	    tcreduce(&asp);
+	}
 	ctx->sample_aspect_ratio.num = asp.num;
 	ctx->sample_aspect_ratio.den = asp.den;
 #else
