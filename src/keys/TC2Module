@@ -4,9 +4,6 @@ version		0.2.0
 tc2version	0.6.0
 sources		keys.c
 
-postinit	keys_init_bindings
-shutdown	keys_free_bindings
-
 import		"tcvp/event"	"alloc"
 import		"tcvp/event"	"new"
 import		"tcvp/event"	"sendv"
