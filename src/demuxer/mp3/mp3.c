@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003, 2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -310,7 +310,8 @@ mp3_packet(muxed_stream_t *ms, int str)
 		mf->stream.audio.bit_rate = br;
 		if(!mf->xtime){
 		    ms->time = 27 * 8000000LL * mf->size / br;
-		    tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
+		    if(mf->qs)
+			tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
 		}
 #ifdef DEBUG
 		fprintf(stderr, "%s: bitrate %i [%u] %lli s @%llx\n",
@@ -463,13 +464,13 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     xing_header(ms);
 
-    tcconf_getvalue(cs, "qname", "%s", &qname);
-    qn = alloca(strlen(qname) + 8);
-    mf->qs = eventq_new(NULL);
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(mf->qs, qn, EVENTQ_SEND);
-    free(qname);
-
+    if(tcconf_getvalue(cs, "qname", "%s", &qname) > 0){
+	qn = alloca(strlen(qname) + 8);
+	mf->qs = eventq_new(NULL);
+	sprintf(qn, "%s/status", qname);
+	eventq_attach(mf->qs, qn, EVENTQ_SEND);
+	free(qname);
+    }
 
     return ms;
 }
