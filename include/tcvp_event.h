@@ -91,6 +91,6 @@ typedef union tcvp_event {
 #define TCVP_PL_NEXT  14
 #define TCVP_PL_PREV  15
 
-extern void *tcvp_alloc_event(int type);
+extern void *tcvp_alloc_event(int type, ...);
 
 #endif

@@ -189,8 +189,7 @@ pl_start(tcvp_playlist_t *tpl)
     eventq_send(tpl->sc, te);
     tcfree(te);
 
-    oe = tcvp_alloc_event(TCVP_OPEN);
-    oe->file = tpl->files[tpl->cur];
+    oe = tcvp_alloc_event(TCVP_OPEN, tpl->files[tpl->cur]);
     eventq_send(tpl->sc, oe);
     tcfree(oe);
 
@@ -215,7 +214,7 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 	if(tpl->state == PLAYING){
 	    tcvp_state_event_t *te;
 	    tpl->state = STOPPED;
-	    te = tcvp_alloc_event(TCVP_STATE);
+	    te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_PL_END);
 	    te->state = TCVP_STATE_PL_END;
 	    eventq_send(tpl->ss, te);
 	    tcfree(te);

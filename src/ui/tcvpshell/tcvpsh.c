@@ -49,7 +49,7 @@ tcvp_stop(char *p)
 static int
 tcvp_play(char *file)
 {
-    tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
+    tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN, file);
     te->file = file;
     eventq_send(qs, te);
     tcfree(te);

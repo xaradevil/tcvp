@@ -53,8 +53,7 @@ t_start(player_t *pl)
 	tp->timer->start(tp->timer);
 
     tp->state = TCVP_STATE_PLAYING;
-    tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE);
-    te->state = TCVP_STATE_PLAYING;
+    tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_PLAYING);
     eventq_send(tp->qs, te);
     tcfree(te);
 
@@ -76,8 +75,7 @@ t_stop(player_t *pl)
 	tp->video->stop(tp->video);
 
     tp->state = TCVP_STATE_STOPPED;
-    tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE);
-    te->state = TCVP_STATE_STOPPED;
+    tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_STOPPED);
     eventq_send(tp->qs, te);
     tcfree(te);
 
@@ -201,8 +199,7 @@ st_ticker(void *p)
     while(tp->state != TCVP_STATE_END){
 	pthread_mutex_unlock(&tp->tmx);
 	time = tp->timer->read(tp->timer);
-	tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER);
-	te->time = time;
+	tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER, time);
 	eventq_send(tp->qt, te);
 	tcfree(te);
 	tp->timer->wait(tp->timer, time + 1000000);
@@ -410,8 +407,7 @@ t_open(player_t *pl, char *name)
 
     free(codecs);
 
-    te = tcvp_alloc_event(TCVP_LOAD);
-    te->stream = stream;
+    te = tcvp_alloc_event(TCVP_LOAD, stream);
     eventq_send(tp->qs, te);
     tcfree(te);
 
@@ -430,8 +426,8 @@ t_event(void *p)
 	switch(te->type){
 	case TCVP_OPEN:
 	    if(t_open(pl, te->open.file) < 0){
-		tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE);
-		te->state = TCVP_STATE_ERROR;
+		tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE,
+							  TCVP_STATE_ERROR);
 		eventq_send(tp->qs, te);
 		tcfree(te);
 	    }		
@@ -501,8 +497,7 @@ static int
 q_seek(player_t *pl, uint64_t pts)
 {
     tcvp_player_t *tp = pl->private;
-    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK);
-    se->time = pts;
+    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, pts, TCVP_SEEK_ABS);
     eventq_send(tp->qr, se);
     tcfree(se);
     return 0;

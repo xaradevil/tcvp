@@ -133,8 +133,7 @@ play_stream(void *p)
     pthread_mutex_lock(&vp->mtx);
     vp->streams--;
     if(vp->streams == 0){
-	tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE);
-	te->state = TCVP_STATE_END;
+	tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_END);
 	eventq_send(vp->sq, te);
 	tcfree(te);
     }

@@ -223,8 +223,11 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     int size;
 
     if(md->in){
-	packet_t *in = md->in;
+	packet_t *in;
+	pthread_mutex_lock(&md->lock);
+	in = md->in;
 	md->in = NULL;
+	pthread_mutex_unlock(&md->lock);
 	decode(p, in);
     }
 
@@ -304,6 +307,8 @@ mad_flush(tcvp_pipe_t *p, int drop)
     if(drop){
 	md->flush = 1;
 	pthread_mutex_lock(&md->lock);
+	if(md->in)
+	    md->in->free(md->in);
 	md->in = NULL;
 	if(md->out)
 	    mad_free_pk(&md->out->pk);

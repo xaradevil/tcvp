@@ -25,6 +25,7 @@
 #include <semaphore.h>
 #include <signal.h>
 #include <tcalloc.h>
+#include <mcheck.h>
 #include <sys/time.h>
 #include <tcvp_types.h>
 #include <tcvp_event.h>
@@ -239,6 +240,7 @@ tcl_stop(void)
 /* Identifiers for long-only options */
 #define OPT_TC2_DEBUG 128
 #define OPT_TC2_VERBOSE 129
+#define OPT_TRACE_MALLOC 130
 
 static int
 parse_options(int argc, char **argv)
@@ -257,6 +259,7 @@ parse_options(int argc, char **argv)
 	{"shuffle", no_argument, 0, 'z'},
 	{"playlist", required_argument, 0, '@'},
 	{"fullscreen", required_argument, 0, 'f'},
+	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
 
@@ -329,6 +332,9 @@ parse_options(int argc, char **argv)
 	case OPT_TC2_VERBOSE:
 	    tc2_verbose(strtol(optarg, NULL, 0));
 	    break;
+
+	case OPT_TRACE_MALLOC:
+	    mtrace();
 	}
     }
 
@@ -352,6 +358,7 @@ main(int argc, char **argv)
     tc2_request(TC2_ADD_MODULE, 0, NULL, &MODULE_INFO);
     tc2_request(TC2_LOAD_MODULE, 0, MODULE_INFO.name, NULL);
     tc2_run();
+    tc2_free();
 
     conf_free(cf);
 

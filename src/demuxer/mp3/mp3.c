@@ -54,7 +54,7 @@ static inline uint##s##_t			\
 getu##s(url_t *f)				\
 {						\
     uint##s##_t v;				\
-    f->read(&v, sizeof(v), 1, f);			\
+    f->read(&v, sizeof(v), 1, f);		\
     v = htob_##s(v);				\
     return v;					\
 }
@@ -499,6 +499,7 @@ mp3_open(char *name, conf_section *cs)
 
     ms = tcallocd(sizeof(*ms), NULL, mp3_free);
     memset(ms, 0, sizeof(*ms));
+
     mf = calloc(1, sizeof(*mf));
 
     ms->n_streams = 1;
