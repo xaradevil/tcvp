@@ -100,6 +100,15 @@ get_cookie(u_char *cookie)
     return ret;
 }
 
+static void
+cl_free(void *p)
+{
+    tcvp_remote_client_t *cl = p;
+
+    close(cl->socket);
+    free(cl);
+}
+
 static void *
 rm_event(void *p)
 {
@@ -133,9 +142,8 @@ rm_event(void *p)
 		if(send(cl->socket, &s, 4, MSG_MORE | MSG_NOSIGNAL) < 0 ||
 		   send(cl->socket, se, size, MSG_NOSIGNAL) < 0){
 		    fprintf(stderr, "REMOTE: error sending %s\n", se);
-		    tclist_remove(rm->clients, li);
 		    FD_CLR(cl->socket, &rm->clf);
-		    close(cl->socket);
+		    tclist_remove(rm->clients, li, cl_free);
 		}
 	    }
 	    free(se);
@@ -266,9 +274,8 @@ rm_listen(void *p)
 	    if(FD_ISSET(cl->socket, &tmp)){
 		if(cl->auth){
 		    if(read_event(rm, cl) < 0){
-			tclist_remove(rm->clients, li);
 			FD_CLR(cl->socket, &rm->clf);
-			close(cl->socket);
+			tclist_remove(rm->clients, li, cl_free);
 		    }
 		} else {
 		    u_char cookie[COOKIE_SIZE];
@@ -278,9 +285,8 @@ rm_listen(void *p)
 			write(cl->socket, "auth", 4);
 			send_features(rm, cl);
 		    } else {
-			tclist_remove(rm->clients, li);
 			FD_CLR(cl->socket, &rm->clf);
-			close(cl->socket);
+			tclist_remove(rm->clients, li, cl_free);
 		    }
 		}
 	    }
