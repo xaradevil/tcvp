@@ -318,13 +318,14 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 
 	    if((pk->stream_id & 0xe0) == 0xc0 ||
 	       (pk->stream_id & 0xf0) == 0xe0 ||
-	       (pk->stream_id & 0xe0) == 0x80){
+	       (pk->stream_id & 0xf8) == 0x80){
 		if(s->imap[pk->stream_id] < 0){
 		    if(ms->n_streams == ns){
 			ns *= 2;
 			ms->streams =
 			    realloc(ms->streams, ns * sizeof(*ms->streams));
 			sp = &ms->streams[ms->n_streams];
+			memset(sp, sizeof(&sp), 0);
 		    }
 
 		    s->imap[pk->stream_id] = ms->n_streams;
