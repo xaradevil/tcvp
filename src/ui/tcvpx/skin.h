@@ -37,6 +37,7 @@ struct _skin_t {
     conf_section *config;
     char *playlistfile;
     int enabled;
+    int net_wm_support;
 };
 
 skin_t* load_skin(char *skinfile);

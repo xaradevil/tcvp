@@ -209,32 +209,35 @@ check_wm(skin_t *skin)
     xa_window = XInternAtom(xd, "WINDOW", True);
     supporting = XInternAtom(xd, "_NET_SUPPORTING_WM_CHECK", True);
 
-    r = XGetWindowProperty(xd, RootWindow(xd, xs), supporting,
-			   0, 1, False, xa_window, &r_type, &r_format,
-			   &count, &bytes_remain, &p);
+    if(supporting != None) {
+	r = XGetWindowProperty(xd, RootWindow(xd, xs), supporting,
+			       0, 1, False, xa_window, &r_type, &r_format,
+			       &count, &bytes_remain, &p);
 
-    if(r == Success && p && r_type == xa_window && r_format == 32 &&
-       count == 1) {
-	Window w = *(Window *)p;
+	if(r == Success && p && r_type == xa_window && r_format == 32 &&
+	   count == 1) {
+	    Window w = *(Window *)p;
 
-	r = XGetWindowProperty(xd, w, supporting, 0, 1,
-			       False, xa_window, &r_type, &r_format,
-			       &count, &bytes_remain, &p2);
+	    r = XGetWindowProperty(xd, w, supporting, 0, 1,
+				   False, xa_window, &r_type, &r_format,
+				   &count, &bytes_remain, &p2);
 	
-	if (r == Success && p2 && *p2 == *p &&
-	    r_type == xa_window && r_format == 32 && count == 1) {
-	    ret = 1;
+	    if (r == Success && p2 && *p2 == *p &&
+		r_type == xa_window && r_format == 32 && count == 1) {
+		ret = 1;
+	    }
+	}
+
+	if (p) {
+	    XFree(p);
+
+	    if (p2) {
+		XFree(p2);
+	    }
 	}
     }
 
-    if (p) {
-	XFree(p);
-
-	if (p2) {
-	    XFree(p2);
-	}
-    }
-
+    skin->net_wm_support = ret;
     return ret;
 }
 
@@ -267,43 +270,42 @@ wm_set_property(skin_t *skin, char *atom, int enabled)
 extern int
 wm_set_sticky(skin_t *skin, int enabled)
 {
-    Atom xa_wm_desktop;
-    XEvent xev;
+    if(skin->net_wm_support == 1) {
+	Atom xa_wm_desktop;
+	XEvent xev;
 
-    int current_desktop = 0;
-    Atom xa_cardinal, xa_current_desktop;
-    Atom r_type;
-    int r_format, ret;
-    unsigned long count, bytes_remain;
-    unsigned char *p = NULL;
+	int current_desktop = 0;
+	Atom xa_cardinal, xa_current_desktop;
+	Atom r_type;
+	int r_format, ret;
+	unsigned long count, bytes_remain;
+	unsigned char *p = NULL;
 
-    wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
+	wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
 
+	xa_cardinal = XInternAtom(xd, "CARDINAL", True);
+	xa_current_desktop = XInternAtom(xd, "_NET_CURRENT_DESKTOP", True);
 
-    
+	ret = XGetWindowProperty(xd, RootWindow(xd, xs), xa_current_desktop,
+				 0, 1, False, xa_current_desktop, &r_type, &r_format,
+				 &count, &bytes_remain, &p);
+	if(ret == Success && p && r_type == xa_cardinal && r_format == 32 &&
+	   count == 1) {
+	    current_desktop = *(long *)p;
+	}
 
-    xa_cardinal = XInternAtom(xd, "CARDINAL", True);
-    xa_current_desktop = XInternAtom(xd, "_NET_CURRENT_DESKTOP", True);
+	xa_wm_desktop = XInternAtom(xd, "_NET_WM_DESKTOP", False);
 
-    ret = XGetWindowProperty(xd, RootWindow(xd, xs), xa_current_desktop,
-			     0, 1, False, xa_current_desktop, &r_type, &r_format,
-			     &count, &bytes_remain, &p);
-    if(ret == Success && p && r_type == xa_cardinal && r_format == 32 &&
-       count == 1) {
-	current_desktop = *(long *)p;
+	xev.type = ClientMessage;
+	xev.xclient.type = ClientMessage;
+	xev.xclient.window = skin->xw;
+	xev.xclient.message_type = xa_wm_desktop;
+	xev.xclient.format = 32;
+	xev.xclient.data.l[0] = (enabled>0)?-1:current_desktop;
+
+	XSendEvent(xd, RootWindow(xd, xs), False,
+		   SubstructureNotifyMask, (XEvent *) & xev);
     }
-
-    xa_wm_desktop = XInternAtom(xd, "_NET_WM_DESKTOP", False);
-
-    xev.type = ClientMessage;
-    xev.xclient.type = ClientMessage;
-    xev.xclient.window = skin->xw;
-    xev.xclient.message_type = xa_wm_desktop;
-    xev.xclient.format = 32;
-    xev.xclient.data.l[0] = (enabled>0)?-1:current_desktop;
-
-    XSendEvent(xd, RootWindow(xd, xs), False,
-	       SubstructureNotifyMask, (XEvent *) & xev);
 
     return 0;
 }
@@ -312,7 +314,10 @@ wm_set_sticky(skin_t *skin, int enabled)
 extern int
 wm_set_always_on_top(skin_t *skin, int enabled)
 {
-    wm_set_property(skin, "_NET_WM_STATE_STAYS_ON_TOP", 1);
+    if(skin->net_wm_support == 1) {
+	wm_set_property(skin, "_NET_WM_STATE_STAYS_ON_TOP", 1);
+    }
+
     return 0;
 }
 
@@ -377,7 +382,7 @@ create_window(skin_t *skin)
 		    (unsigned char *) &mwmhints,
 		    PROP_MWM_HINTS_ELEMENTS);
 
-/*     fprintf(stderr, "%d\n", check_wm(skin)); */
+    check_wm(skin);
 
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
 	wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
