@@ -52,7 +52,7 @@ vh_read(void *buf, size_t size, size_t count, url_t *u)
 	bytes -= hb;
     }
 
-    if(bytes)
+    if(bytes && vh->url->read)
 	rbytes += vh->url->read(buf, 1, bytes, vh->url);
 
     return rbytes / size;
@@ -62,27 +62,32 @@ static int
 vh_seek(url_t *u, int64_t offset, int how)
 {
     vheader_t *vh = u->private;
-    int64_t pos = -1;
+    int64_t pos;
 
     switch(how){
     case SEEK_SET:
 	pos = offset;
 	break;
     case SEEK_CUR:
-	pos = vh->url->tell(vh->url) + vh->hsize + offset;
+	pos = vh->hsize + offset;
+	if(vh->url->tell)
+	    pos += vh->url->tell(vh->url);
 	break;
     case SEEK_END:
 	pos = u->size + offset;
 	break;
+    default:
+	return -1;
     }
 
-    if(pos < 0 || pos > u->size)
+    if(pos > u->size)
 	return -1;
 
     if(pos < vh->hsize){
 	vh->pos = pos;
-	vh->url->seek(vh->url, 0, SEEK_SET);
-    } else {
+	if(vh->url->seek)
+	    vh->url->seek(vh->url, 0, SEEK_SET);
+    } else if(vh->url->seek){
 	vh->url->seek(vh->url, pos - vh->hsize, SEEK_SET);
     }
 
