@@ -236,7 +236,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 	    md->out = NULL;
 	}
 	p->next->input(p->next, NULL);
-	return 0;
+	goto out;
     }
 
     d = pk->data[0];
@@ -314,7 +314,8 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 
 out:
     pthread_mutex_unlock(&md->lock);
-    pk->free(pk);
+    if(pk)
+	pk->free(pk);
 
     return 0;
 }
