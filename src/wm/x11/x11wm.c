@@ -177,6 +177,6 @@ x11_getwindow(window_manager_t *wm, Display **dpy, Window *win)
 {
     x11_wm_t *xwm = wm->private;
     *dpy = xwm->dpy;
-    *win = xwm->win;
+    *win = xwm->swin;
     return 0;
 }
