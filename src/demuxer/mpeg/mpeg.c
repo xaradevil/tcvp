@@ -54,7 +54,7 @@ mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 	    pts = data + 9;
 	}
 	if(data[7] & 0x40){
-	    dts = data + 13;
+	    dts = data + 14;
 	}
     } else {
 	hl = 6;
@@ -90,6 +90,8 @@ mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 	pes->dts = (htob_16(unaligned16(dts+3)) & 0xfffe) >> 1;
 	pes->dts |= (htob_16(unaligned16(dts+1)) & 0xfffe) << 14;
 	pes->dts |= (uint64_t) (*dts & 0xe) << 29;
+/* 	fprintf(stderr, "MPEGPS: stream %x, dts %lli\n", */
+/* 		pes->stream_id, pes->dts); */
     }
 
     pes->data = data + hl;
