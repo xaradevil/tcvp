@@ -265,8 +265,9 @@ mpegps_open(char *name, conf_section *cs, tcvp_timer_t **tm)
     if(pk && pk->stream_id == 0xbc){
 	pm = pk->data + 2;
 	l = htob_16(unaligned16(pm));
-	pm += l;
+	pm += l + 2;
 	l = htob_16(unaligned16(pm));
+	pm += 2;
 
 	while(l > 0){
 	    u_int stype = *pm++;
@@ -292,8 +293,13 @@ mpegps_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 		sp++;
 	    }
 
-	    pm += il;
-	    l -= il + 4;
+	    while(il > 0){
+		int dl = mpeg_descriptor(sp, pm);
+		pm += dl;
+		il -= dl;
+		l -= dl;
+	    }
+	    l -= 4;
 	}
 	mpegpes_free(pk);
     } else {
