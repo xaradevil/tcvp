@@ -228,7 +228,7 @@ create_window(skin_t *skin)
     XSizeHints *sizehints;
     XTextProperty windowName;
     char *title = "TCVP";
-    int xdndversion = 1;
+    Atom xdndversion = 4, xa = 4;
 
     skin->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
 			     skin->width, skin->height, 0,
@@ -254,8 +254,8 @@ create_window(skin_t *skin)
 		    PROP_MWM_HINTS_ELEMENTS);
 
     prop = XInternAtom(xd, "XdndAware", False);
-    XChangeProperty(xd, skin->xw, prop, prop, 32, PropModeReplace,
-		    (unsigned char *) &xdndversion, 1);
+    XChangeProperty(xd, skin->xw, prop, xa, 32,
+		    PropModeReplace, (unsigned char *) &xdndversion, 1);
 
     skin->bgc = XCreateGC (xd, skin->xw, 0, NULL);
     XSetBackground(xd, skin->bgc, 0x00000000);

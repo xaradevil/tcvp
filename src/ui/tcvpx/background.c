@@ -21,29 +21,48 @@
 #include <string.h>
 
 
+static Pixmap
+get_root(skin_t *skin)
+{
+    Atom xa_pmap = XInternAtom(xd, "PIXMAP", True);
+    Atom aret;
+    int fret;
+    unsigned long nitems, remain;
+    unsigned char *buf;
+    Pixmap pmap;
+
+    XGetWindowProperty(xd, RootWindow(xd, xs), skin->background->xa_rootpmap,
+		       0, 1, False, xa_pmap, &aret, &fret, &nitems,
+		       &remain, &buf);
+
+    pmap = *((Pixmap*)buf);
+
+    XFree(buf);
+
+    return pmap;
+}
+
+static int
+check_root(skin_t *skin)
+{
+    if(skin->background->xa_rootpmap != None) {
+	Pixmap p = get_root(skin);
+	if(p != skin->background->xa_rootpmap) {
+	    root = p;
+	}
+    }
+
+    return 0;
+}
+
 extern int
 update_root(skin_t *skin)
 {
     if(skin->background->transparent){
-	Atom bg = XInternAtom(xd, "_XROOTPMAP_ID", True);
-	if(bg != None) {
-	    Atom pmap = XInternAtom(xd, "PIXMAP", True);
-	    Pixmap bgpmap;
-	    Atom aret;
-	    int fret;
-	    unsigned long nitems, remain;
-	    unsigned char *buf;
+	skin->background->xa_rootpmap = XInternAtom(xd, "_XROOTPMAP_ID", True);
 
-	    XGetWindowProperty(xd, RootWindow(xd, xs), bg, 0, 1, False,
-			       pmap, &aret, &fret, &nitems,
-			       &remain, &buf);
-
-	    bgpmap = *((Pixmap*)buf);
-
-	    XCopyArea(xd, bgpmap, root, skin->bgc, 0, 0,
-		      root_width, root_height, 0, 0);
-
-	    XFree(buf);
+	if(skin->background->xa_rootpmap != None) {
+	    root = get_root(skin);
 	} else {	
 	    XImage *img;
 	    img = XGetImage(xd, RootWindow(xd, xs), 0, 0, root_width, 
@@ -71,6 +90,8 @@ repaint_background(tcwidget_t *w)
 	XWindowAttributes wa;
 	Window foo;
 	int x, y;
+
+	check_root(w->background.skin);
 
 	XGetWindowAttributes(xd, w->background.win, &wa);
 	XTranslateCoordinates(xd, w->background.win, RootWindow(xd, xs),

@@ -62,6 +62,7 @@ typedef struct {
     WIDGET_COMMON;
     image_info_t *img;
     int transparent;
+    Atom xa_rootpmap;
 } tcbackground_t;
 
 typedef struct {
