@@ -1,0 +1,12 @@
+symbol	"open"	video_driver_t *(*%s)(video_stream_t *, char *)
+include
+#include <tcvp_types.h>
+
+typedef struct video_driver video_driver_t;
+struct video_driver {
+    int frames;
+    int (*put_frame)(video_driver_t *, packet_t *, int);
+    int (*show_frame)(video_driver_t *, int);
+    int (*close)(video_driver_t *);
+    void *private;
+};

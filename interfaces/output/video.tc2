@@ -1,4 +1,5 @@
 symbol	"open"	tcvp_pipe_t *(*%s)(video_stream_t *, char *device, timer__t *)
 require "timer"
+option	*driver name%s priority%i
 include
 #include <tcvp_types.h>
