@@ -34,11 +34,38 @@ open_free(void *p)
     free(te->file);
 }
 
+static void
+open_multi_free(void *p)
+{
+    tcvp_open_multi_event_t *te = p;
+    int i;
+
+    for(i = 0; i < te->nfiles; i++)
+	free(te->files[i]);
+    free(te->files);
+}
+
 static void *
 open_alloc(int type, va_list args)
 {
     tcvp_open_event_t *te = tcvp_event_alloc(type, sizeof(*te), open_free);
     te->file = strdup(va_arg(args, char *));
+    return te;
+}
+
+static void *
+open_multi_alloc(int type, va_list args)
+{
+    tcvp_open_multi_event_t *te =
+	tcvp_event_alloc(type, sizeof(*te), open_multi_free);
+    char **files;
+    int i;
+
+    te->nfiles = va_arg(args, int);
+    files = va_arg(args, char **);
+    te->files = malloc(te->nfiles * sizeof(*te->files));
+    for(i = 0; i < te->nfiles; i++)
+	te->files[i] = strdup(files[i]);
     return te;
 }
 
@@ -87,17 +114,18 @@ static struct {
     char *name;
     tcvp_alloc_event_t alloc;
 } core_events[] = {
-    { .name = "TCVP_KEY",         .alloc = key_alloc   },
-    { .name = "TCVP_OPEN",        .alloc = open_alloc  },
-    { .name = "TCVP_START",       .alloc = NULL        },
-    { .name = "TCVP_STOP",        .alloc = NULL        },
-    { .name = "TCVP_PAUSE",       .alloc = NULL        },
-    { .name = "TCVP_SEEK",        .alloc = seek_alloc  },
-    { .name = "TCVP_CLOSE",       .alloc = NULL        },
-    { .name = "TCVP_TIMER",       .alloc = timer_alloc },
-    { .name = "TCVP_STATE",       .alloc = state_alloc },
-    { .name = "TCVP_LOAD",        .alloc = load_alloc  },
-    { .name = "TCVP_STREAM_INFO", .alloc = NULL        },
+    { .name = "TCVP_KEY",         .alloc = key_alloc        },
+    { .name = "TCVP_OPEN",        .alloc = open_alloc       },
+    { .name = "TCVP_OPEN_MULTI",  .alloc = open_multi_alloc },
+    { .name = "TCVP_START",       .alloc = NULL             },
+    { .name = "TCVP_STOP",        .alloc = NULL             },
+    { .name = "TCVP_PAUSE",       .alloc = NULL             },
+    { .name = "TCVP_SEEK",        .alloc = seek_alloc       },
+    { .name = "TCVP_CLOSE",       .alloc = NULL             },
+    { .name = "TCVP_TIMER",       .alloc = timer_alloc      },
+    { .name = "TCVP_STATE",       .alloc = state_alloc      },
+    { .name = "TCVP_LOAD",        .alloc = load_alloc       },
+    { .name = "TCVP_STREAM_INFO", .alloc = NULL             },
 };
 
 extern int

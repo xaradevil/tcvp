@@ -34,6 +34,7 @@ typedef union tcvp_core_event {
     int type;
     tcvp_key_event_t key;
     tcvp_open_event_t open;
+    tcvp_open_multi_event_t open_m;
     tcvp_seek_event_t seek;
     tcvp_timer_event_t timer;
     tcvp_state_event_t state;
@@ -41,6 +42,7 @@ typedef union tcvp_core_event {
 } tcvp_core_event_t;
 
 static int TCVP_OPEN;
+static int TCVP_OPEN_MULTI;
 static int TCVP_START;
 static int TCVP_STOP;
 static int TCVP_PAUSE;
@@ -216,12 +218,12 @@ print_stream(stream_t *s)
 }
 
 static void
-print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes)
+print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes, int ss)
 {
-    int i;
     char *file = tcattr_get(stream, "file");
     char *performer = tcattr_get(stream, "performer");
     char *title = tcattr_get(stream, "title");
+    int i;
 
     if(file)
 	printf("File:      %s\n", file);
@@ -235,10 +237,10 @@ print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes)
 
     for(i = 0; i < stream->n_streams; i++){
 	int u = stream->used_streams[i];
-	printf("%2i%*s: ", i, 1 - u, u? "*": "");
+	printf("%2i%*s: ", ss + i, 1 - u, u? "*": "");
 	print_stream(stream->streams + i);
 	if(u){
-	    tcvp_pipe_t *np = pipes[i];
+	    tcvp_pipe_t *np = pipes[ss + i];
 	    while(np){
 		printf("     ");
 		print_stream(&np->format);
@@ -593,7 +595,7 @@ t_open(player_t *pl, int nn, char **names)
 
     for(i = 0, j = 0; i < tp->nstreams; i++){
 	stream_time(tp->streams[i], tp->pipes + j);
-	print_info(tp->streams[i], tp->pipes + j);
+	print_info(tp->streams[i], tp->pipes, j);
 	j += tp->streams[i]->n_streams;
     }
 
@@ -664,6 +666,9 @@ t_event(void *p)
 
 	if(te->type == TCVP_OPEN){
 	    if(t_open(pl, 1, &te->open.file) < 0)
+		tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_ERROR);
+	} else if(te->type == TCVP_OPEN_MULTI){
+	    if(t_open(pl, te->open_m.nfiles, te->open_m.files) < 0)
 		tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_ERROR);
 	} else if(te->type == TCVP_START){
 	    t_start(pl);
@@ -767,6 +772,7 @@ extern int
 init_core(void)
 {
     TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 
+    TCVP_OPEN_MULTI = tcvp_event_get("TCVP_OPEN_MULTI"); 
     TCVP_START = tcvp_event_get("TCVP_START");
     TCVP_STOP = tcvp_event_get("TCVP_STOP"); 
     TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");

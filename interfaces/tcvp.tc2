@@ -31,6 +31,12 @@ typedef struct tcvp_open_event {
     char *file;
 } tcvp_open_event_t;
 
+typedef struct tcvp_open_multi_event {
+    int type;
+    int nfiles;
+    char **files;
+} tcvp_open_multi_event_t;
+
 typedef struct tcvp_seek_event {
     int type;
     int64_t time;

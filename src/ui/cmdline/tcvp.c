@@ -33,11 +33,14 @@ static char *sel_ui;
 static playlist_t *pll;
 static int shuffle;
 static char *skin;
+static int prl;
 
 static int TCVP_STATE;
 static int TCVP_LOAD;
 static int TCVP_PL_START;
 static int TCVP_PL_NEXT;
+static int TCVP_OPEN_MULTI;
+static int TCVP_START;
 
 typedef union tcvp_cl_event {
     int type;
@@ -86,6 +89,9 @@ tcl_event(void *p)
 	    case TCVP_STATE_ERROR:
 		printf("Error opening file.\n");
 		break;
+	    case TCVP_STATE_END:
+		if(!prl)
+		    break;
 	    case TCVP_STATE_PL_END:
 		tc2_request(TC2_UNLOAD_ALL, 0);
 		break;
@@ -124,8 +130,10 @@ tcl_intr(void *p)
 
 	switch(ic){
 	case 0:
-	    tcvp_event_send(qs, TCVP_PL_NEXT);
-	    break;
+	    if(!prl){
+		tcvp_event_send(qs, TCVP_PL_NEXT);
+		break;
+	    }
 	case 1:
 	    tc2_request(TC2_UNLOAD_ALL, 0);
 	    break;
@@ -172,16 +180,21 @@ tcl_init(char *p)
     TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
     TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
     TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
+    TCVP_OPEN_MULTI = tcvp_event_get("TCVP_OPEN_MULTI");
+    TCVP_START = tcvp_event_get("TCVP_START");
 
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
-    pll = playlist_new(cf);
-    pll->add(pll, files, nfiles, 0);
-    for(i = 0; i < npl; i++)
-	nfiles += pll->addlist(pll, playlist[i], nfiles);
-    if(shuffle)
-	pll->shuffle(pll, 0, nfiles);
+    if(!prl){
+	pll = playlist_new(cf);
+	pll->add(pll, files, nfiles, 0);
+	for(i = 0; i < npl; i++)
+	    nfiles += pll->addlist(pll, playlist[i], nfiles);
+	if(shuffle)
+	    pll->shuffle(pll, 0, nfiles);
+
+    }
 
     if(sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
@@ -207,7 +220,12 @@ tcl_init(char *p)
 	sprintf(qn, "%s/control", qname);
 	eventq_attach(qs, qn, EVENTQ_SEND);
 
-	tcvp_event_send(qs, TCVP_PL_START);
+	if(prl){
+	    tcvp_event_send(qs, TCVP_OPEN_MULTI, nfiles, files);
+	    tcvp_event_send(qs, TCVP_START);
+	} else {
+	    tcvp_event_send(qs, TCVP_PL_START);
+	}
 
 	sem_init(&psm, 0, 0);
 	sa.sa_handler = sigint;
@@ -281,6 +299,7 @@ parse_options(int argc, char **argv)
 	{"output", required_argument, 0, 'o'},
 	{"profile", required_argument, 0, 'P'},
 	{"skin", required_argument, 0, OPT_SKIN},
+	{"parallel", no_argument, 0, 'p'},
 	{"trace-malloc", no_argument, 0, OPT_TRACE_MALLOC},
 	{0, 0, 0, 0}
     };
@@ -289,7 +308,7 @@ parse_options(int argc, char **argv)
 	int c, option_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:z@:fo:P:t:p",
 			long_options, &option_index);
 	
 	if(c == -1)
@@ -372,6 +391,10 @@ parse_options(int argc, char **argv)
 
 	case OPT_SKIN:
 	    skin = optarg;
+	    break;
+
+	case 'p':
+	    prl = 1;
 	    break;
 
 	case OPT_TC2_DEBUG:

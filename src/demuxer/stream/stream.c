@@ -263,9 +263,9 @@ wstream(s_play_t *vp)
 }
 
 static void *
-read_stream(void *p)
+read_stream(void *_p)
 {
-    s_play_t *vp = p;
+    s_play_t *vp = _p;
     int s;
 
     for(;;){
@@ -278,19 +278,19 @@ read_stream(void *p)
 	    packet_t *p = ms->next_packet(ms, s);
 	    int str;
 
-	    if(!p){
+	    if(p){
+		p->stream += vp->streams[s].soff;
+		str = p->stream;
+		if(p->flags & TCVP_PKT_FLAG_PTS)
+		    vp->streams[str].pts = p->pts;
+		list_push(vp->streams[str].pq, p);
+		sem_post(&vp->streams[str].ps);
+	    } else {
 		sem_post(&vp->streams[s].ps);
 		vp->streams[s].str = NULL;
 		if(++vp->eof == vp->nms)
 		    break;
 	    }
-
-	    p->stream += vp->streams[s].soff;
-	    str = p->stream;
-	    if(p->flags & TCVP_PKT_FLAG_PTS)
-		vp->streams[str].pts = p->pts;
-	    list_push(vp->streams[str].pq, p);
-	    sem_post(&vp->streams[str].ps);
 	}
     }
 
@@ -302,7 +302,7 @@ get_packet(s_play_t *vp, int s)
 {
     packet_t *p;
 
-    if(!vp->eof && sem_trywait(&vp->streams[s].ps)){
+    if(vp->streams[s].str && sem_trywait(&vp->streams[s].ps)){
 	sem_post(&vp->rsm);
 	sem_wait(&vp->streams[s].ps);
     }
@@ -459,9 +459,12 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
     memset(pstat, 0, ms->n_streams * sizeof(pstat[0]));
     memset(stime, 0, ms->n_streams * sizeof(stime[0]));
 
-    for(i = 0; i < ms->n_streams; i++)
+    for(i = 0; i < ms->n_streams; i++){
 	if(ms->used_streams[i])
 	    spc++;
+	vp->streams[msi + i].soff = msi;
+	ms->streams[i].common.index += msi;
+    }
 
     while(spc){
 	packet_t *pk = ms->next_packet(ms, -1);
@@ -477,7 +480,7 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 	pk->stream += msi;
 	ci = st + msi;
 
-	if(ms->used_streams[st] && codecs[st]->probe){
+	if(ms->used_streams[st] && codecs[ci]->probe){
 	    int ps;
 
 	    if(!pstat[st] || pstat[st] == PROBE_AGAIN){
@@ -516,6 +519,7 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 	    ms->used_streams[i] = 0;
 	    freeq(vp, ci);
 	    list_destroy(vp->streams[ci].pq, NULL);
+	    memset(vp->streams + ci, 0, sizeof(*vp->streams));
 	}
 	if(codecs[ci])
 	    codecs[ci]->flush(codecs[ci], 1);
@@ -563,7 +567,6 @@ s_play(muxed_stream_t **mss, int ns, tcvp_pipe_t **out, tcconf_section_t *cs)
     vp->start_time = -1;
 
     for(i = 0, j = 0; i < ns; i++){
-	vp->streams[i].soff = j;
 	s_probe(vp, mss[i], j, out);
 	j += mss[i]->n_streams;
     }
