@@ -1,0 +1,292 @@
+#! /usr/bin/perl
+# -*- mmm-classes: here-doc -*-
+
+# Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+# Licensed under the Open Software License version 2.0
+
+use strict;
+
+use File::Temp qw/tempdir/;
+use File::Basename;
+use Gimp qw/:auto/;
+use XML::Parser;
+
+die "Usage: wa3skin2tcvps skin dir\n" if $#ARGV != 1;
+
+my $skin = $ARGV[0];
+my $dir  = $ARGV[1];
+
+my $sd;
+
+-r $skin or die "Can't read $skin\n";
+
+if(! -e $dir){
+    mkdir($dir) or die "Can't create directory $dir.\n";
+} elsif(-d $dir and ! -w $dir){
+    die "Target directory $dir not writable.\n";
+} elsif(! -d $dir){
+    die "Target $dir exists and is non-directory.\n";
+}
+
+chomp(my $cwd = `pwd`);
+$dir = "$cwd/$dir" unless $dir =~ m,^/,;
+
+if(-d $skin){
+    $sd = $skin;
+} else {
+    $sd = tempdir(CLEANUP => 1) or die "Can't create temp dir.\n";
+    system "unzip -LL -qq -d $sd $skin" and die "Error unpacking skin.\n";
+}
+
+my $xml = new XML::Parser(Handlers => {Start => \&tag_start,
+				       End => \&tag_end});
+my $space;
+
+# generic image helpers
+
+sub save_image {
+    my ($img, $f, $d) = @_;
+    $f = "$dir/$f";
+    $d = gimp_image_active_drawable($img) unless $d;
+    gimp_file_save($img, $d, $f, $f);
+}
+
+sub load_image {
+    my ($file) = @_;
+    print STDERR "loading $file\n";
+    my $img = gimp_file_load($file, $file);
+    gimp_drawable_is_rgb(gimp_image_active_drawable($img)) or
+      gimp_convert_rgb($img);
+    return $img;
+}
+
+sub make_rect {
+    my ($w, $h, $x, $y, $ww, $hh, $bg, $name) = @_;
+    my $nbg = gimp_image_new($w, $h, RGB);
+    my $bl = gimp_layer_new($nbg, $w, $h, RGBA_IMAGE, 'foo', 0, NORMAL_MODE);
+    gimp_image_add_layer($nbg, $bl, 0);
+    gimp_layer_set_offsets($bl, 0, 0);
+    gimp_edit_clear($bl);
+    if($ww and $hh){
+	gimp_rect_select($nbg, $x, $y, $ww, $hh, REPLACE, 0, 0);
+	gimp_palette_set_background([@$bg[0..2]]);
+	gimp_edit_fill($bl, BG_IMAGE_FILL);
+    }
+    save_image($nbg, $name, $bl);
+    gimp_image_delete($nbg);
+}
+
+sub save_rect {
+    my ($img, $x, $y, $w, $h, $out) = @_;
+    my(@tl, @br, $b, $r, $s);
+    gimp_rect_select($img, $x, $y, $w, $h, REPLACE, 0, 0);
+    my $d = gimp_image_get_active_layer($img);
+    $r = $x + $w - 1;
+    $b = $y + $h - 1;
+    @tl = gimp_drawable_get_pixel($d, $x, $y);
+    gimp_drawable_set_pixel($d, $x, $y, 4, [255, 255, 255, 255]);
+    eval { @br = gimp_drawable_get_pixel($d, $r, $b) };
+    if(!$@){
+	gimp_drawable_set_pixel($d, $r, $b, 4, [255, 255, 255, 255]);
+	$s = 1;
+    }
+    gimp_edit_copy($d);
+    $img = gimp_image_new($w, $h, RGB);
+    my $tl = gimp_layer_new($img, $w, $h, RGBA_IMAGE, 'foo', 100, NORMAL_MODE);
+    gimp_image_add_layer($img, $tl, -1);
+    gimp_layer_set_offsets($tl, 0, 0);
+    gimp_edit_clear($tl);
+    my $l = gimp_edit_paste($tl, 0);
+    gimp_layer_set_offsets($l, 0, 0);
+    gimp_floating_sel_anchor($l);
+    gimp_drawable_set_pixel($tl, 0, 0, 4, \@tl);
+    gimp_drawable_set_pixel($tl, $w - 1, $h - 1, 4, \@br) if $s;
+    save_image($img, $out, $tl);
+    gimp_image_remove_layer($img, $tl);
+    gimp_layer_delete($tl);
+}
+
+# font utilities
+
+sub luminance {
+    0.212671 * $_[0] + 0.715160 * $_[1] + 0.072169 * $_[2];
+}
+
+sub text_properties {
+    my ($img, $x, $y, $h) = @_;
+    my ($i, $j, @c, $bl, $dl, $d, $md, @fg, @bg, $tt, $tb);
+    my $w = gimp_image_width($img);
+
+    $d = gimp_image_active_drawable($img);
+    @bg = gimp_drawable_get_pixel($d, $x, $y);
+
+    $md = 0;
+    $tt = -1;
+
+    for($j = 0; $j < $h; $j++){
+	my $rd = 0;
+	my (@rc, @rb);
+
+	@rb = gimp_drawable_get_pixel($d, $x, $j);
+	$bl = luminance(@rb);
+
+	for($i = 0; $i < $w; $i++){
+	    @c = gimp_drawable_get_pixel($d, $i, $j);
+	    $dl = abs(luminance(@c) - $bl);
+	    if($dl > $rd){
+		@rc = @c;
+		$rd = $dl;
+	    }
+	}
+	if($rd > 50){
+	    $tt = $j if $tt < 0;
+	    $tb = $j;
+	}
+	if($rd > $md){
+	    @fg = @rc;
+	    $md = $rd;
+	}
+    }
+
+    return (\@fg, \@bg, $tt, $tb);
+}
+
+sub tag_name {
+    my($n) = @_;
+    $n =~ s,[^[:alnum:]_/-],_,g;
+    return $n;
+}
+
+sub max {
+    $_[0] > $_[1]? $_[0]: $_[1];
+}
+
+my %actions = (prev => 'previous',
+	       play => 'play',
+	       pause => 'pause',
+	       stop => 'stop',
+	       next => 'next',
+	       eject => 'open',
+	       close => 'close_ui');
+my(%images, %groups, %layouts, $lc, $lg, $group, %imagefiles);
+my $xmldir = $sd;
+
+sub update_size {
+    my($group, $x, $y, $w, $h) = @_;
+    if($group){
+	$$group{width} = max($$group{width}, $x + $w);
+	$$group{height} = max($$group{height}, $y + $h);
+    }
+}
+
+sub tag_start {
+    my(undef, $tag, %attr) = @_;
+    return if $tag eq 'foo';
+    print qq/$space$tag @{[map "$_=\"$attr{$_}\"", keys %attr]}\n/;
+    $space .= '    ';
+    if($tag eq 'include'){
+	my $xd = $xmldir;
+	$xmldir = "$xmldir/" . dirname $attr{file};
+	open F, "$xmldir/" . basename $attr{file};
+	$xml->parse(join('', '<foo>', <F>, '</foo>'));
+	close F;
+	$xmldir = $xd;
+    } elsif($tag eq 'groupdef'){
+	my $n = tag_name $attr{id};
+	$lc = \$groups{$n}{content};
+	$groups{$attr{id}}{groups} = [];
+	$lg = $groups{$attr{id}}{groups};
+	$group = $groups{$attr{id}};
+	$$lc .= "$n \[\n";
+    } elsif($tag =~ /(toggle)?button/){
+	my $img = $attr{image};
+	update_size $group, $attr{x}, $attr{'y'},
+	  $images{$img}{width}, $images{$img}{height};
+	my $action = $actions{lc $attr{action}} || $attr{action};
+	$$lc .= <<END_TCCONF;
+button [
+	position $attr{x} $attr{y}
+	action '$action'
+	image '$img.png'
+END_TCCONF
+	$$lc .= "\tmouse_over '$attr{hoverimage}.png'\n" if($attr{hoverimage});
+	$$lc .= "\tpressed '$attr{downimage}.png'\n" if($attr{downimage});
+	$$lc .= "]\n";
+    } elsif($tag eq 'bitmap'){
+	my $id = $attr{id};
+	my $img = $imagefiles{$attr{file}} || load_image "$sd/$attr{file}" or
+	  die "Can't load $sd/$attr{file}";
+	$imagefiles{$attr{file}} = $img;
+	if(exists $attr{x}){
+	    save_rect($img, $attr{x}, $attr{'y'}, $attr{w}, $attr{h},
+		      "$attr{id}.png");
+	    $images{$id}{width} = $attr{w};
+	    $images{$id}{height} = $attr{h};
+	} else {
+	    save_image($img, "$attr{id}.png");
+	    $images{$id}{width} = gimp_image_width($img);
+	    $images{$id}{height} = gimp_image_height($img);
+	}
+    } elsif($tag eq 'layout'){
+	my $im = $images{$attr{background}};
+	$lc = \$layouts{$attr{id}}{content};
+	$layouts{$attr{id}}{groups} = [];
+	$lg = $layouts{$attr{id}}{groups};
+	$group = $layouts{$attr{id}};
+	$$lc .= "background '$attr{background}.png'\n";
+	$$lc .= sprintf "size %i %i\n", $$im{width}, $$im{height};
+    } elsif($tag eq 'group'){
+	my $gn = tag_name $attr{id};
+	push @$lg, $gn;
+	$$lc .= <<END_TCCONF;
+box : $gn [
+	position $attr{x} $attr{y}
+]
+END_TCCONF
+    } elsif($tag eq 'layer'){
+	my $im = $images{$attr{image}};
+	update_size $group, 0, 0, $$im{width}, $$im{height};
+	$$lc .= <<END_TCCONF;
+box [
+	position $attr{x} $attr{y}
+	size $attr{w} $attr{h}
+	background '$attr{image}.png'
+]
+END_TCCONF
+    }
+}
+
+sub tag_end {
+    my(undef, $tag) = @_;
+    return if $tag eq 'foo';
+    $space = substr $space, 0, -4;
+    if($tag eq 'groupdef'){
+	$$lc .= "	size $$group{width} $$group{height}\n";
+	$$lc .= "]\n";
+	undef $lc;
+	undef $group;
+    } elsif($tag eq 'layout'){
+	undef $lc;
+	undef $group;
+    }	
+}
+
+Gimp::on_net {
+    $xml->parsefile("$sd/skin.xml");
+
+    for(keys %layouts){
+	my $l = $layouts{$_};
+	open S, ">$dir/$_.conf" or die;
+	print S "# -*- tcconf -*-\n";
+	for(@{$$l{groups}}){
+	    my $c = $groups{$_}{content};
+	    $c =~ s/(?<=.)^(?=...)/\t/mg;
+	    print S $c;
+	}
+	print S $$l{content};
+	close S;
+    }
+};
+
+#Gimp::set_trace(TRACE_ALL);
+exit main;
