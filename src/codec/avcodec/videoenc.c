@@ -260,6 +260,7 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
     ctx_conf(coder_type, i);
     ctx_conf(mb_decision, i);
     ctx_conf(scenechange_threshold, i);
+    ctx_conf(strict_std_compliance, i);
 #if LIBAVCODEC_BUILD >= 4684
     ctx_conf(lmin, i);
     ctx_conf(lmax, i);
