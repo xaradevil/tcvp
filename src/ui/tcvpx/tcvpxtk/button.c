@@ -183,20 +183,20 @@ create_button(window_t *window, int x, int y, image_info_t *bg,
     merge_shape(window, btn->win, btn->x, btn->y);
     shape_button(btn, 0);
 
-    list_push(widget_list, btn);
+    tclist_push(widget_list, btn);
     emask |= ExposureMask;
 
     if(action){
 	btn->action = action;
 	btn->onclick = widget_onclick;
-	list_push(click_list, btn);
+	tclist_push(click_list, btn);
 	emask |= ButtonPressMask | ButtonReleaseMask |
 	    EnterWindowMask | LeaveWindowMask;
     }
 
     XSelectInput(xd, btn->win, emask);
 
-    list_push(window->widgets, btn);
+    tclist_push(window->widgets, btn);
 
     return (xtk_widget_t *) btn;
 }

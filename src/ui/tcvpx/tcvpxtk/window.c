@@ -56,10 +56,10 @@ x11_event(void *p)
 
 	case ConfigureNotify:
 	{
-	    list_item *current=NULL;
+	    tclist_item_t *current=NULL;
 	    window_t *s;
 
-	    while((s = list_next(window_list, &current))!=NULL) {
+	    while((s = tclist_next(window_list, &current))!=NULL) {
 		if(xe.xconfigure.window == s->xw){
 		    if(s->background->transparent) {
 			if(!drag) {
@@ -77,7 +77,7 @@ x11_event(void *p)
 
  	case ButtonRelease:
 	{
-	    list_item *current=NULL;
+	    tclist_item_t *current=NULL;
 	    tcwidget_t *w;
 
 	    if(drag){
@@ -94,7 +94,7 @@ x11_event(void *p)
 	    }
 
 	    if(cbt) {
-		while((w = list_next(click_list, &current))!=NULL) {
+		while((w = tclist_next(click_list, &current))!=NULL) {
 		    if(xe.xbutton.window == w->common.win){
 			if(cbt == w) {
 			    cbt->common.onclick((xtk_widget_t *) w, &xe);
@@ -116,10 +116,10 @@ x11_event(void *p)
 
  	case ButtonPress:	
 	    if(xe.xbutton.button == 1) {
-		list_item *current=NULL;
+		tclist_item_t *current=NULL;
 		tcwidget_t *w;
 
-		while((w = list_next(click_list, &current))!=NULL) {
+		while((w = tclist_next(click_list, &current))!=NULL) {
 		    if(xe.xbutton.window == w->common.win){
 			if(w->common.enabled && w->common.onpress){
 			    w->common.onpress((xtk_widget_t *) w, &xe);
@@ -144,10 +144,10 @@ x11_event(void *p)
 
  	case EnterNotify:
 	{
-	    list_item *current=NULL;
+	    tclist_item_t *current=NULL;
 	    tcwidget_t *w;
 
-	    while((w = list_next(click_list, &current))!=NULL) {
+	    while((w = tclist_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
 		    if(w == tcbt) {
 			cbt = tcbt;
@@ -164,14 +164,14 @@ x11_event(void *p)
 
 	case LeaveNotify:
 	{
-	    list_item *current=NULL;
+	    tclist_item_t *current=NULL;
 	    tcwidget_t *w;
 
 	    if(cbt) {
 		tcbt = cbt;
 		cbt = NULL;
 	    }
-	    while((w = list_next(click_list, &current))!=NULL) {
+	    while((w = tclist_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
 		    if(w->common.exit){
 			w->common.exit((xtk_widget_t *) w, &xe);
@@ -418,10 +418,10 @@ set_dnd_cb(int(*cb)(char *))
 extern int
 init_graphics()
 {
-    click_list = list_new(TC_LOCK_SLOPPY);
-    widget_list = list_new(TC_LOCK_SLOPPY);
-    sl_list = list_new(TC_LOCK_SLOPPY);
-    window_list = list_new(TC_LOCK_SLOPPY);
+    click_list = tclist_new(TC_LOCK_SLOPPY);
+    widget_list = tclist_new(TC_LOCK_SLOPPY);
+    sl_list = tclist_new(TC_LOCK_SLOPPY);
+    window_list = tclist_new(TC_LOCK_SLOPPY);
 
     XInitThreads();
     xd = XOpenDisplay(NULL);
@@ -461,10 +461,10 @@ shdn_graphics()
 
     XCloseDisplay(xd);
 
-    list_destroy(click_list, NULL);
-    list_destroy(widget_list, NULL);
-    list_destroy(sl_list, NULL);
-    list_destroy(window_list, NULL);
+    tclist_destroy(click_list, NULL);
+    tclist_destroy(widget_list, NULL);
+    tclist_destroy(sl_list, NULL);
+    tclist_destroy(window_list, NULL);
 
     return 0;
 }
@@ -561,9 +561,9 @@ create_window(char *title, int width, int height)
 
     XSync(xd, False);
 
-    window->widgets = list_new(TC_LOCK_SLOPPY);
+    window->widgets = tclist_new(TC_LOCK_SLOPPY);
 
-    list_push(window_list, window);
+    tclist_push(window_list, window);
 
     window->enabled = 1;
     clear_shape(window->xw);
@@ -576,14 +576,14 @@ extern int
 show_window(window_t *window)
 {
     tcwidget_t *w;
-    list_item *current=NULL;
+    tclist_item_t *current=NULL;
 
     if(!window->subwindow) {
 	XMapWindow (xd, window->xw);
     }
     window->mapped = 1;
 
-    while((w = list_next(window->widgets, &current))!=NULL) {
+    while((w = tclist_next(window->widgets, &current))!=NULL) {
 /* 	if(w->common.visible == 1) { */
 /* 	        XMapWindow(xd, w->common.win); */
 /* 	} */
@@ -600,7 +600,7 @@ extern int
 hide_window(window_t *window)
 {
     tcwidget_t *w;
-    list_item *current=NULL;
+    tclist_item_t *current=NULL;
 
     if(!window->subwindow) {
 	XUnmapWindow (xd, window->xw);
@@ -608,7 +608,7 @@ hide_window(window_t *window)
 /*     XUnmapSubwindows(xd, window->xw); */
     window->mapped = 0;
 
-    while((w = list_next(window->widgets, &current))!=NULL) {
+    while((w = tclist_next(window->widgets, &current))!=NULL) {
 	if(w->type == TCBOX && w->box.visible != 0) {
 	    hide_window(w->box.subwindow);
 	}
@@ -624,16 +624,16 @@ destroy_window(window_t *window)
     tcwidget_t *w;
 
     window->enabled = 0;
-    list_delete(window_list, window, widget_cmp, NULL);
+    tclist_delete(window_list, window, widget_cmp, NULL);
 
-    while((w = list_pop(window->widgets))!=NULL) {
+    while((w = tclist_pop(window->widgets))!=NULL) {
 	if(w->type == TCBOX) {
 	    destroy_window(w->box.subwindow);
 	}
 	destroy_widget(w);
     }
 
-    list_destroy(window->widgets, NULL);
+    tclist_destroy(window->widgets, NULL);
     if(!window->subwindow){
 	XDestroyWindow(xd, window->xw);
     }

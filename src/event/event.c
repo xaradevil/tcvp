@@ -22,7 +22,7 @@ typedef struct tcvp_event_type {
     tcvp_deserialize_event_t deserialize;
 } tcvp_event_type_t;
 
-static hash_table *event_types;
+static tchash_table_t *event_types;
 static tcvp_event_type_t **event_tab;
 
 static int event_num;
@@ -62,7 +62,7 @@ new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
 
     event_tab = realloc(event_tab, (event_num + 1) * sizeof(*event_tab));
     event_tab[e->num] = e;
-    hash_replace(event_types, name, e);
+    tchash_replace(event_types, name, e);
 
 #ifdef DEBUG
     fprintf(stderr, "EVENT: registered %s as %i\n", name, e->num);
@@ -85,7 +85,7 @@ reg_event(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
 	    df = evt_deserialize;
     }
 
-    if(!hash_find(event_types, name, &e)){
+    if(!tchash_find(event_types, name, &e)){
 	if(e->alloc)
 	    return -1;
 	e->alloc = af;
@@ -104,7 +104,7 @@ get_event(char *name)
 {
     tcvp_event_type_t *e;
 
-    if(hash_find(event_types, name, &e))
+    if(tchash_find(event_types, name, &e))
 	e = new_type(name, NULL, NULL, NULL);
 
     return e->num;
@@ -124,7 +124,7 @@ del_event(char *name)
 {
     tcvp_event_type_t *e;
 
-    if(!hash_delete(event_types, name, &e))
+    if(!tchash_delete(event_types, name, &e))
 	free_event(e);
 
     return 0;
@@ -210,7 +210,7 @@ deserialize_event(u_char *event, int size)
     if(!memchr(event, 0, size))
 	return NULL;
 
-    if(hash_find(event_types, event, &e))
+    if(tchash_find(event_types, event, &e))
 	return NULL;
 
     if(!e->deserialize)
@@ -220,7 +220,7 @@ deserialize_event(u_char *event, int size)
 }
 
 extern void *
-alloc_event(int type, int size, tc_free_fn ff)
+alloc_event(int type, int size, tcfree_fn ff)
 {
     tcvp_event_t *te;
 
@@ -233,14 +233,14 @@ alloc_event(int type, int size, tc_free_fn ff)
 extern int
 event_init(char *p)
 {
-    event_types = hash_new(20, 0);
+    event_types = tchash_new(20, 0);
     return 0;
 }
 
 extern int
 event_free(void)
 {
-    hash_destroy(event_types, free_event);
+    tchash_destroy(event_types, free_event);
     if(event_tab)
 	free(event_tab);
     event_num = 0;

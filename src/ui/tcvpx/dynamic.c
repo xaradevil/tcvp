@@ -8,15 +8,15 @@
 #include <tcstring.h>
 #include <ctype.h>
 
-hash_table *variable_hash;
-hash_table *widget_hash;
+tchash_table_t *variable_hash;
+tchash_table_t *widget_hash;
 
 static char *
 lookup_variable(char *key, void *p)
 {
     void *var = NULL;
 
-    hash_find(variable_hash, key, &var);
+    tchash_find(variable_hash, key, &var);
 
     return var;
 }
@@ -24,23 +24,23 @@ lookup_variable(char *key, void *p)
 extern int
 change_variable(char *key, void *data)
 {
-    list_item *current = NULL;
-    list *lst = NULL;
+    tclist_item_t *current = NULL;
+    tclist_t *lst = NULL;
     char buf[1024];
     void *tmp = NULL;
 
-    hash_delete(variable_hash, key, &tmp);
+    tchash_delete(variable_hash, key, &tmp);
     if(tmp) free(tmp);
 
-    hash_search(variable_hash, key, data, NULL);
+    tchash_search(variable_hash, key, data, NULL);
 
     sprintf(buf, "var:%s", key);
-    hash_find(widget_hash, buf, &lst);
+    tchash_find(widget_hash, buf, &lst);
 
     if(lst) {
 	xtk_widget_t *w;
 
-	while((w = list_next(lst, &current))!=NULL) {
+	while((w = tclist_next(lst, &current))!=NULL) {
 	    widget_data_t *ad = w->data;
 	    parse_variable(ad->value, &tmp, NULL);
 	    switch(w->type) {
@@ -65,25 +65,25 @@ change_variable(char *key, void *data)
 extern int
 change_text(char *key, char *text)
 {
-    list_item *current = NULL;
-    list *lst = NULL;
+    tclist_item_t *current = NULL;
+    tclist_t *lst = NULL;
     char buf[1024];
     void *tmp = NULL;
 
-    hash_delete(variable_hash, key, &tmp);
+    tchash_delete(variable_hash, key, &tmp);
     if(tmp) free(tmp);
 
     if(text) {
-	hash_search(variable_hash, key, strdup(text), NULL);
+	tchash_search(variable_hash, key, strdup(text), NULL);
     }
 
     sprintf(buf, "text:%s", key);
-    hash_find(widget_hash, buf, &lst);
+    tchash_find(widget_hash, buf, &lst);
 
     if(lst) {
 	xtk_widget_t *w;
 
-	while((w = list_next(lst, &current))!=NULL) {
+	while((w = tclist_next(lst, &current))!=NULL) {
 	    widget_data_t *ad = w->data;
 	    parse_text(ad->value, buf);
 	    switch(w->type) {
@@ -159,15 +159,15 @@ get_keys(char *text, char ***keysp, char ***defaultsp)
 static int
 register_key(char *key, xtk_widget_t *w)
 {
-    list *lst = NULL;
-    hash_find(widget_hash, key, &lst);
+    tclist_t *lst = NULL;
+    tchash_find(widget_hash, key, &lst);
 
     if(!lst) {
-	lst = list_new(TC_LOCK_SLOPPY);
-	hash_search(widget_hash, key, lst, NULL);
+	lst = tclist_new(TC_LOCK_SLOPPY);
+	tchash_search(widget_hash, key, lst, NULL);
     }
 
-    list_push(lst, w);
+    tclist_push(lst, w);
 
     return 0;
 }
@@ -175,11 +175,11 @@ register_key(char *key, xtk_widget_t *w)
 static int
 unregister_key(char *key, xtk_widget_t *w)
 {
-    list *lst = NULL;
-    hash_find(widget_hash, key, &lst);
+    tclist_t *lst = NULL;
+    tchash_find(widget_hash, key, &lst);
 
     if(lst) {
-	list_delete(lst, w, xtk_widget_cmp, NULL);
+	tclist_delete(lst, w, xtk_widget_cmp, NULL);
     }
 
     return 0;
@@ -319,8 +319,8 @@ parse_text(char *text, char *result)
 extern int
 init_dynamic(void)
 {
-    variable_hash = hash_new(10, 0);
-    widget_hash = hash_new(10, 0);
+    variable_hash = tchash_new(10, 0);
+    widget_hash = tchash_new(10, 0);
 
     return 0;
 }
@@ -328,12 +328,12 @@ init_dynamic(void)
 static void
 wh_free(void *p)
 {
-    list_destroy(p, NULL);
+    tclist_destroy(p, NULL);
 }
 
 extern void
 free_dynamic(void)
 {
-    hash_destroy(variable_hash, free);
-    hash_destroy(widget_hash, wh_free);
+    tchash_destroy(variable_hash, free);
+    tchash_destroy(widget_hash, wh_free);
 }

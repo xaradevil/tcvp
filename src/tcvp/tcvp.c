@@ -26,7 +26,7 @@ typedef struct tcvp_player {
     eventq_t qs, qr, qt;
     tcconf_section_t *conf;
     int open;
-    hash_table *filters;
+    tchash_table_t *filters;
     char *outfile;
 } tcvp_player_t;
 
@@ -336,7 +336,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p,
 	    continue;
 
 	if(tcconf_getvalue(f, "id", "%s", &id) > 0)
-	    hash_find(tp->filters, id, &pn);
+	    tchash_find(tp->filters, id, &pn);
 
 	if(!pn){
 	    if(!(fn = tc2_get_symbol(type, "new")))
@@ -351,7 +351,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, tcconf_section_t *p,
 		break;
 
 	    if(id)
-		hash_replace(tp->filters, id, pn);
+		tchash_replace(tp->filters, id, pn);
 	    tcfree(mcf);
 	}
 
@@ -482,7 +482,7 @@ t_open(player_t *pl, int nn, char **names)
 	return -1;
     }
 
-    tp->filters = hash_new(10, 0);
+    tp->filters = tchash_new(10, 0);
     free(profile);
 
     dc = tcconf_getsection(prsec, "demux");
@@ -591,7 +591,7 @@ t_open(player_t *pl, int nn, char **names)
 	}
     }
 
-    hash_destroy(tp->filters, tcfree);
+    tchash_destroy(tp->filters, tcfree);
 
     if(!ns)
 	goto err;

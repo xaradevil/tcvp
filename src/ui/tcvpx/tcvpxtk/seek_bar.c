@@ -281,7 +281,7 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
     merge_shape(window, sb->win, x, y);
 
     emask = ExposureMask;
-    list_push(widget_list, sb);
+    tclist_push(widget_list, sb);
 
 
     if(action){
@@ -290,7 +290,7 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 	sb->ondrag = sb_ondrag;
 	sb->drag_end = seek_bar_drag_end;
 	emask |= ButtonPressMask | PointerMotionMask | ButtonReleaseMask;
-	list_push(click_list, sb);
+	tclist_push(click_list, sb);
     }
 
     if(over_image != NULL) {
@@ -308,7 +308,7 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 
     XSelectInput(xd, sb->win, emask);
 
-    list_push(window->widgets, sb);
+    tclist_push(window->widgets, sb);
 
     return (xtk_widget_t *) sb;
 }

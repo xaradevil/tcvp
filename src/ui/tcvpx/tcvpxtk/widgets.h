@@ -131,7 +131,7 @@ union _tcwidget_t {
 
 struct _window_t {
     tcbackground_t *background;
-    list *widgets;
+    tclist_t *widgets;
     Window xw;
     GC wgc, bgc;
     window_t *parent;
@@ -144,7 +144,7 @@ struct _window_t {
     void *data;
 };
 
-extern list *widget_list, *click_list, *sl_list, *window_list;
+extern tclist_t *widget_list, *click_list, *sl_list, *window_list;
 extern Display *xd;
 extern int xs;
 extern Pixmap root;

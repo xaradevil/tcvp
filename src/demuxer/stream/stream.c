@@ -194,7 +194,7 @@ typedef struct s_play {
     struct sp_stream {
 	muxed_stream_t *str;
 	int soff;
-	list *pq;
+	tclist_t *pq;
 	sem_t ps;
 	uint64_t pts;
 	uint64_t pts_offset;
@@ -213,7 +213,7 @@ freeq(s_play_t *vp, int i)
 {
     packet_t *pk;
 
-    while((pk = list_shift(vp->streams[i].pq))){
+    while((pk = tclist_shift(vp->streams[i].pq))){
 	tcfree(pk);
     }
 }
@@ -249,7 +249,7 @@ wstream(s_play_t *vp)
     for(i = 0; i < vp->tstreams; i++){
 	if(vp->streams[i].str &&
 	   vp->streams[i].pts < pts &&
-	   list_items(vp->streams[i].pq) < min_buffer){
+	   tclist_items(vp->streams[i].pq) < min_buffer){
 	    s = i;
 	    pts = vp->streams[i].pts;
 	}
@@ -290,7 +290,7 @@ read_stream(void *_p)
 		    if(p->flags & TCVP_PKT_FLAG_DTS)
 			p->dts += st->pts_offset;
 		}
-		list_push(vp->streams[str].pq, p);
+		tclist_push(vp->streams[str].pq, p);
 		sem_post(&vp->streams[str].ps);
 	    } else {
 		muxed_stream_t *ms = vp->streams[s].str;
@@ -323,8 +323,8 @@ get_packet(s_play_t *vp, int s)
 	sem_post(&vp->rsm);
 	sem_wait(&vp->streams[s].ps);
     }
-    p = list_shift(vp->streams[s].pq);
-    if(list_items(vp->streams[s].pq) < min_buffer && vp->streams[s].str)
+    p = tclist_shift(vp->streams[s].pq);
+    if(tclist_items(vp->streams[s].pq) < min_buffer && vp->streams[s].str)
 	sem_post(&vp->rsm);
     return p;
 }
@@ -444,7 +444,7 @@ s_free(void *p)
 	if(vp->streams[i].str){
 	    pthread_join(vp->threads[j], NULL);
 	    freeq(vp, i);
-	    list_destroy(vp->streams[i].pq, NULL);
+	    tclist_destroy(vp->streams[i].pq, NULL);
 	    j++;
 	}
     }
@@ -511,7 +511,7 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 		if(ps == PROBE_FAIL){
 		    ms->used_streams[st] = 0;
 		} else {
-		    list_push(vp->streams[ci].pq, pk);
+		    tclist_push(vp->streams[ci].pq, pk);
 		    vp->streams[ci].str = ms;
 		}
 		if(!stime[st] && pk->flags & TCVP_PKT_FLAG_PTS){
@@ -521,7 +521,7 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 			start_time = pk->pts;
 		}
 	    } else if(pstat[st] == PROBE_OK){
-		list_push(vp->streams[st].pq, pk);
+		tclist_push(vp->streams[st].pq, pk);
 	    }
 	}
     }
@@ -534,7 +534,7 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 	if(pstat[i] != PROBE_OK){
 	    ms->used_streams[i] = 0;
 	    freeq(vp, ci);
-	    list_destroy(vp->streams[ci].pq, NULL);
+	    tclist_destroy(vp->streams[ci].pq, NULL);
 	    memset(vp->streams + ci, 0, sizeof(*vp->streams));
 	}
 	if(codecs[ci])
@@ -576,7 +576,7 @@ s_play(muxed_stream_t **mss, int ns, tcvp_pipe_t **out, tcconf_section_t *cs)
     eventq_attach(vp->sq, qn, EVENTQ_SEND);
 
     for(i = 0; i < np; i++){
-	vp->streams[i].pq = list_new(TC_LOCK_SLOPPY);
+	vp->streams[i].pq = tclist_new(TC_LOCK_SLOPPY);
 	sem_init(&vp->streams[i].ps, 0, 0);
     }
 

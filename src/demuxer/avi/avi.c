@@ -90,7 +90,7 @@ typedef struct avi_stream {
 
 typedef struct avi_file {
     url_t *file;
-    list *packets;
+    tclist_t *packets;
     pthread_mutex_t mx;
     int eof;
     int idxok;
@@ -389,7 +389,7 @@ avi_header(url_t *f)
     af->file = tcref(f);
     pthread_mutex_init(&af->mx, NULL);
     ms->private = af;
-    af->packets = list_new(TC_LOCK_NONE);
+    af->packets = tclist_new(TC_LOCK_NONE);
 
     while(f->read(&tag, 4, 1, f) == 1){
 	size = getu32(f);
@@ -667,7 +667,7 @@ avi_packet(muxed_stream_t *ms, int stream)
     int pflags = 0;
     uint64_t pos;
 
-    if(stream > -2 && (pk = list_shift(af->packets)))
+    if(stream > -2 && (pk = tclist_shift(af->packets)))
 	return &pk->pk;
 
     /* FIXME: get rid of gotos */
@@ -847,7 +847,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	}
     }
 
-    while((pk = list_shift(af->packets)))
+    while((pk = tclist_shift(af->packets)))
 	avi_free_packet(&pk->pk);
 
     af->file->seek(af->file, pos, SEEK_SET);
@@ -875,7 +875,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	}
 
 	if(fi[s]){
-	    list_push(af->packets, pk);
+	    tclist_push(af->packets, pk);
 	} else {
 	    avi_free_packet(&pk->pk);
 	}
@@ -955,7 +955,7 @@ avi_free(void *p)
     free(ms->streams);
     free(ms->used_streams);
 
-    list_destroy(af->packets, (tc_free_fn) avi_free_packet);
+    tclist_destroy(af->packets, (tcfree_fn) avi_free_packet);
 
     for(i = 0; i < ms->n_streams; i++){
 	if(af->streams[i].index){

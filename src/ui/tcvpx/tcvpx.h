@@ -27,13 +27,13 @@ typedef struct {
     int width, height;
     window_t *window;
     int state;
-    hash_table *id_hash;
-    list *templates;
+    tchash_table_t *id_hash;
+    tclist_t *templates;
 } skin_t;
 
 extern skin_t* load_skin(char *skinfile);
 extern int create_ui(window_t *win, skin_t *skin, tcconf_section_t *config, 
-	      hash_table *parameters);
+	      tchash_table_t *parameters);
 
 extern int init_skins(void);
 extern void cleanup_skins(void);
@@ -69,7 +69,7 @@ extern eventq_t qr;
 
 extern int s_time;
 extern int s_length;
-hash_table *text_hash;
+tchash_table_t *text_hash;
 
 typedef struct {
     char *action;

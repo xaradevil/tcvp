@@ -60,7 +60,7 @@ create_box(window_t *window, int x, int y, int width, int height,
     box->subwindow->height = height;
     box->subwindow->enabled = 1;
     box->subwindow->subwindow = 1;
-    box->subwindow->widgets = list_new(TC_LOCK_SLOPPY);
+    box->subwindow->widgets = tclist_new(TC_LOCK_SLOPPY);
 
     box->subwindow->bgc = XCreateGC (xd, box->subwindow->xw, 0, NULL);
     XSetBackground(xd, box->subwindow->bgc, 0x00000000);
@@ -78,12 +78,12 @@ create_box(window_t *window, int x, int y, int width, int height,
     box->subwindow->background->height = height;
     box->subwindow->parent = window;
 
-    list_push(widget_list, box);
+    tclist_push(widget_list, box);
     emask |= ExposureMask;
 
     XSelectInput(xd, box->win, emask);
 
-    list_push(window->widgets, box);
+    tclist_push(window->widgets, box);
 
     return (xtk_widget_t *) box;
 }

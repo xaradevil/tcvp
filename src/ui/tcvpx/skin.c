@@ -22,7 +22,7 @@ static int enable_widgets(xtk_widget_t *w, void *p);
 static int disable_widgets(xtk_widget_t *w, void *p);
 
 int ui_count = 1;
-hash_table *action_hash;
+tchash_table_t *action_hash;
 
 typedef struct {
     char *name;
@@ -91,10 +91,10 @@ init_skins(void)
     };
     int i;
 
-    action_hash = hash_new(10, 0);
+    action_hash = tchash_new(10, 0);
 
     for(i=0; actions[i].name != NULL; i++) {
-	hash_search(action_hash, actions[i].name, actions[i].action, NULL);
+	tchash_search(action_hash, actions[i].name, actions[i].action, NULL);
     }
 
     return 0;
@@ -103,7 +103,7 @@ init_skins(void)
 extern void
 cleanup_skins(void)
 {
-    hash_destroy(action_hash, NULL);
+    tchash_destroy(action_hash, NULL);
 }
 
 extern int
@@ -139,7 +139,7 @@ lookup_action(xtk_widget_t *w, void *p)
 		next++;
 	    }
 
-	    hash_find(action_hash, c, &acb);
+	    tchash_find(action_hash, c, &acb);
 	    if(acb) {
 /* 		fprintf(stderr, "Action: \"%s(%s)\"\n", c, wd->action_data); */
 		acb(w, p);
@@ -187,7 +187,7 @@ load_skin(char *skinconf)
 	return NULL;
     }
 
-    skin->id_hash = hash_new(10, 0);
+    skin->id_hash = tchash_new(10, 0);
 
     return skin;
 }
@@ -197,13 +197,13 @@ free_skin(skin_t *skin)
 {
     free(skin->path);
     tcfree(skin->config);
-    hash_destroy(skin->id_hash, NULL);
+    tchash_destroy(skin->id_hash, NULL);
     free(skin);
 }
 
 static xtk_widget_t*
 create_skinned_background(window_t *win, skin_t *skin, tcconf_section_t *sec,
-			  hash_table *parameters)
+			  tchash_table_t *parameters)
 {
     char *file;
     int i=0;
@@ -230,7 +230,7 @@ destroy_skinned_box(xtk_widget_t *w)
 
 static xtk_widget_t*
 create_skinned_box(window_t *win, skin_t *skin, tcconf_section_t *sec,
-		   hash_table *parameters)
+		   tchash_table_t *parameters)
 {
     int x, y, width, height;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
@@ -263,7 +263,7 @@ destroy_skinned_button(xtk_widget_t *w)
 
 static xtk_widget_t*
 create_skinned_button(window_t *win, skin_t *skin, tcconf_section_t *sec,
-		      hash_table *parameters)
+		      tchash_table_t *parameters)
 {
     char *file, *of = NULL, *df = NULL, *bg = NULL;
     int x, y;
@@ -312,7 +312,7 @@ destroy_skinned_label(xtk_widget_t *w)
 
 static xtk_widget_t*
 create_skinned_label(window_t *win, skin_t *skin, tcconf_section_t *sec,
-		     hash_table *parameters)
+		     tchash_table_t *parameters)
 {
     int x, y;
     int width, height;
@@ -398,7 +398,7 @@ destroy_skinned_seek_bar(xtk_widget_t *w)
 
 static xtk_widget_t*
 create_skinned_seek_bar(window_t *win, skin_t *skin, tcconf_section_t *sec,
-			hash_table *parameters)
+			tchash_table_t *parameters)
 {
     int x, y;
     int sp_x, sp_y;
@@ -475,7 +475,7 @@ destroy_skinned_state(xtk_widget_t *w)
 
 static xtk_widget_t*
 create_skinned_state(window_t *win, skin_t *skin, tcconf_section_t *sec,
-		     hash_table *parameters)
+		     tchash_table_t *parameters)
 {
     int x, y;
     int ns = 0;
@@ -629,7 +629,7 @@ do {									\
 	} else {							\
 	    tcconf_getvalue(sec, "id", "%s", &id);			\
 	    if(id){							\
-		hash_replace(skin->id_hash, id, w);			\
+		tchash_replace(skin->id_hash, id, w);			\
 		free(id);						\
 	    }								\
 	    tcconf_getvalue(sec, "enabled", "%d", &e);			\
@@ -641,7 +641,7 @@ do {									\
 
 extern int
 create_ui(window_t *win, skin_t *skin, tcconf_section_t *config,
-	  hash_table *parameters)
+	  tchash_table_t *parameters)
 {
     void *w;
 
@@ -770,7 +770,7 @@ show_widgets(skin_t *skin, char *widgets, int show)
 	    next++;
 	}
 	
-	hash_find(skin->id_hash, tmp, &w);
+	tchash_find(skin->id_hash, tmp, &w);
 	if(w) {
 	    if(show) {
 		xtk_show_widget(w);

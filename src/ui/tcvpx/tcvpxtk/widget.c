@@ -7,7 +7,7 @@
 #include "widgets.h"
 #include <unistd.h>
 
-list *widget_list, *click_list, *sl_list, *window_list;
+tclist_t *widget_list, *click_list, *sl_list, *window_list;
 
 
 extern int
@@ -52,9 +52,9 @@ extern int
 draw_window(window_t *win)
 {
     if(win->mapped==1){
-	list_item *current=NULL;
+	tclist_item_t *current=NULL;
 	tcwidget_t *w;
-	while((w = list_next(win->widgets, &current))!=NULL) {
+	while((w = tclist_next(win->widgets, &current))!=NULL) {
 	    draw_widget(w);
 	}
     }
@@ -79,10 +79,10 @@ draw_widget(tcwidget_t *w)
 extern int
 draw_widgets()
 {
-    list_item *currentwin=NULL;
+    tclist_item_t *currentwin=NULL;
     window_t *win;
 
-    while((win = list_next(window_list, &currentwin))!=NULL) {
+    while((win = tclist_next(window_list, &currentwin))!=NULL) {
 	draw_window(win);
     }
 
@@ -97,8 +97,8 @@ repaint_window(window_t *win)
 {
     if(win->mapped==1){
 	tcwidget_t *w;
-	list_item *current=NULL;
-	while((w = list_next(win->widgets, &current))!=NULL) {
+	tclist_item_t *current=NULL;
+	while((w = tclist_next(win->widgets, &current))!=NULL) {
 	    if(w->common.repaint && w->common.visible != 0) {
 		w->common.repaint((xtk_widget_t *)w);
 	    }
@@ -114,10 +114,10 @@ repaint_window(window_t *win)
 extern int
 repaint_widgets()
 {
-    list_item *currentwin=NULL;
+    tclist_item_t *currentwin=NULL;
     window_t *win;
 
-    while((win = list_next(window_list, &currentwin))!=NULL) {
+    while((win = tclist_next(window_list, &currentwin))!=NULL) {
 	repaint_window(win);
     }
 
@@ -146,14 +146,14 @@ widget_cmp(const void *p1, const void *p2)
 extern int
 destroy_widget(tcwidget_t *w)
 {
-    list_delete(widget_list, w, widget_cmp, NULL);
+    tclist_delete(widget_list, w, widget_cmp, NULL);
 
     if(w->type == TCLABEL) {
-	list_delete(sl_list, w, widget_cmp, NULL);
+	tclist_delete(sl_list, w, widget_cmp, NULL);
     }
 
     if(w->common.action || w->common.ondrag){
-	list_delete(click_list, w, widget_cmp, NULL);
+	tclist_delete(click_list, w, widget_cmp, NULL);
     }
 
     if(w->common.win) {

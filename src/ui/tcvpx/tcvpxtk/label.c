@@ -16,12 +16,12 @@ scroll_labels(void *p)
 {
     while(!quit) {
 	int c = 0;
-	list_item *current=NULL;
+	tclist_item_t *current=NULL;
 	tcwidget_t *w;
 
 	usleep(100000);
 
-	while((w = list_next(sl_list, &current))!=NULL) {
+	while((w = tclist_next(sl_list, &current))!=NULL) {
 	    if(w->label.window->mapped == 1 && w->label.window->enabled == 1) {
 		if((w->label.scrolling & TCLABELMANUAL) == 0) {
 		    if(w->label.scrolling & TCLABELSCROLLING) {
@@ -287,7 +287,7 @@ destroy_label(xtk_widget_t *xw)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
     if((w->label.scroll & TCLABELSTANDARD)==0) {
-	list_delete(sl_list, w, widget_cmp, NULL);
+	tclist_delete(sl_list, w, widget_cmp, NULL);
     }
 
     if(w->label.xftdraw) XftDrawDestroy(w->label.xftdraw);
@@ -375,7 +375,7 @@ create_label(window_t *window, int x, int y, int width, int height,
     change_label((xtk_widget_t *) txt, text);
 
     emask = ExposureMask;
-    list_push(widget_list, txt);
+    tclist_push(widget_list, txt);
     if(action){
 	txt->onclick = widget_onclick;
 	txt->action = action;
@@ -383,19 +383,19 @@ create_label(window_t *window, int x, int y, int width, int height,
 	    LeaveWindowMask;
     }
     if((txt->scroll & TCLABELSTANDARD)==0) {
-	list_push(sl_list, txt);
+	tclist_push(sl_list, txt);
 	txt->ondrag = label_ondrag;
 	txt->drag_begin = label_drag_begin;
 	txt->drag_end = label_drag_end;
 	emask |= ButtonPressMask | PointerMotionMask | ButtonReleaseMask;
     }
     if(action || (txt->scroll & TCLABELSTANDARD)==0){
-	list_push(click_list, txt);
+	tclist_push(click_list, txt);
     }
 
     XSelectInput(xd, txt->win, emask);
 
-    list_push(window->widgets, txt);
+    tclist_push(window->widgets, txt);
 
     return (xtk_widget_t *) txt;
 }

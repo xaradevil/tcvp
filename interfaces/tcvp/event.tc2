@@ -3,7 +3,7 @@ symbol "send"		int (*%s)(eventq_t q, int type, ...)
 symbol "new"		void *(*%s)(int type, ...)
 symbol "get"		int (*%s)(char *name)
 symbol "delete"		int (*%s)(char *name)
-symbol "alloc"		void *(*%s)(int type, int size, tc_free_fn)
+symbol "alloc"		void *(*%s)(int type, int size, tcfree_fn)
 symbol "serialize"	u_char *(*%s)(void *event, int *size)
 symbol "deserialize"	void *(*%s)(u_char *event, int size)
 require "Eventq"

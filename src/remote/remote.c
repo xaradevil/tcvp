@@ -24,7 +24,7 @@ typedef struct tcvp_remote {
     pthread_t eth, lth;
     int ssock;
     tcconf_section_t *conf;
-    list *clients;
+    tclist_t *clients;
     fd_set clf;
     int run;
 } tcvp_remote_t;
@@ -62,16 +62,16 @@ rm_event(void *p)
 
 	se = tcvp_event_serialize(te, &size);
 	if(se){
-	    list_item *li = NULL;
+	    tclist_item_t *li = NULL;
 	    uint32_t s = htonl(size);
 	    tcvp_remote_client_t *cl;
 
 /* 	    fprintf(stderr, "REMOTE: serialized %i as %i bytes\n", */
 /* 		    te->type, size); */
-	    while((cl = list_next(rm->clients, &li))){
+	    while((cl = tclist_next(rm->clients, &li))){
 		if(write(cl->socket, &s, 4) < 0 ||
 		   write(cl->socket, se, size) < 0){
-		    list_remove(rm->clients, li);
+		    tclist_remove(rm->clients, li);
 		    FD_CLR(cl->socket, &rm->clf);
 		    close(cl->socket);
 		}
@@ -141,7 +141,7 @@ rm_listen(void *p)
 
     while(rm->run){
 	tcvp_remote_client_t *cl;
-	list_item *li = NULL;
+	tclist_item_t *li = NULL;
 	struct timeval tv = { 1, 0 };
 	fd_set tmp = rm->clf;
 
@@ -162,14 +162,14 @@ rm_listen(void *p)
 	    cl->socket = s;
 	    cl->addr = sa;
 	    FD_SET(s, &rm->clf);
-	    list_push(rm->clients, cl);
+	    tclist_push(rm->clients, cl);
 	}
 
-	while((cl = list_next(rm->clients, &li))){
+	while((cl = tclist_next(rm->clients, &li))){
 	    if(FD_ISSET(cl->socket, &tmp)){
 		if(read_event(rm, cl) < 0){
 /* 		    fprintf(stderr, "REMOTE: read event failed\n"); */
-		    list_remove(rm->clients, li);
+		    tclist_remove(rm->clients, li);
 		    FD_CLR(cl->socket, &rm->clf);
 		}
 	    }
@@ -205,7 +205,7 @@ rm_free(void *p)
     if(rm->ssock >= 0)
 	close(rm->ssock);
 
-    list_destroy(rm->clients, free_cl);
+    tclist_destroy(rm->clients, free_cl);
 
     if(rm->ss)
 	eventq_delete(rm->ss);
@@ -273,7 +273,7 @@ rm_new(tcconf_section_t *cs)
 
     rm = calloc(1, sizeof(*rm));
     rm->conf = tcref(cs);
-    rm->clients = list_new(TC_LOCK_SLOPPY);
+    rm->clients = tclist_new(TC_LOCK_SLOPPY);
     FD_ZERO(&rm->clf);
 
     if(!connect(sock, (struct sockaddr *) &rsa, sizeof(rsa))){
@@ -285,7 +285,7 @@ rm_new(tcconf_section_t *cs)
 	cl = calloc(1, sizeof(*cl));
 	cl->socket = sock;
 	cl->addr = rsa;
-	list_push(rm->clients, cl);
+	tclist_push(rm->clients, cl);
 	rm->ssock = -1;
     } else {
 	int r = 1;

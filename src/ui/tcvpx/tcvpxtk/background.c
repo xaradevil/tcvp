@@ -324,19 +324,19 @@ create_background(window_t *window, image_info_t *image)
     bg->transparent = shape_window(window->xw, image, ShapeUnion, NULL);
     merge_shape(window->parent, window->xw, window->x, window->y);
 
-    list_push(widget_list, bg);
+    tclist_push(widget_list, bg);
 
     if(window->background) {
 	free(window->background);
     }
     window->background = bg;
 
-    list_push(window->widgets, bg);
+    tclist_push(window->widgets, bg);
 
     bg->ondrag = bg_ondrag;
     bg->drag_begin = bg_drag_begin;
     bg->drag_end = bg_drag_end;
-    list_push(click_list, bg);
+    tclist_push(click_list, bg);
 
     return (xtk_widget_t *) bg;
 }
