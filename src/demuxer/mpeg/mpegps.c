@@ -66,6 +66,8 @@ mpegpes_packet(url_t *u, int pedantic)
 	    } else if(zc >= 2 && scode == 1){
 		break;
 	    } else if(scode < 0){
+		tc2_print("MPEGPS", TC2_PRINT_DEBUG, "zc=%i, scode=%x\n",
+			  zc, scode);
 		return NULL;
 	    } else {
 		zc = 0;
@@ -73,6 +75,8 @@ mpegpes_packet(url_t *u, int pedantic)
 	} while(!scode || i--);
 
 	if(zc < 2 || scode != 1){
+	    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "zc=%i, scode=%x\n",
+		      zc, scode);
 	    return NULL;
 	}
 
@@ -118,9 +122,9 @@ mpegpes_packet(url_t *u, int pedantic)
 	    mpegpes_header(pes, pes->hdr, 6);
 	    pes->size = pklen - (pes->data - pes->hdr);
 	    if(pes->stream_id == PRIVATE_STREAM_1){
-		pes->stream_id = *pes->data++;
-		pes->data += 3;
-		pes->size -= 4;
+		pes->stream_id = *pes->data;
+/* 		pes->data += 3; */
+/* 		pes->size -= 4; */
 	    }
 	} else if(stream_id == DVD_PESID){
 	    pes = malloc(sizeof(*pes));
@@ -167,7 +171,14 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	    mpegpes_free(mp);
 	if(!(mp = mpegpes_packet(s->stream, 0)))
 	    return NULL;
-	if(mp->stream_id == DVD_PESID){
+	if((mp->stream_id & 0xf8) == 0x80){
+	    mp->data += 4;
+	    mp->size -= 4;
+	} else if((mp->stream_id & 0xf8) == 0xa0){
+	    int aup = htob_16(unaligned16(mp->data + 2)) + 4;
+	    mp->data += aup;
+	    mp->size -= aup;
+	} else if(mp->stream_id == DVD_PESID){
 	    dvd_event_t *de = (dvd_event_t *) mp->data;
 	    switch(de->type){
 	    case DVD_PTSSKIP:
@@ -425,7 +436,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 	    if((pk->stream_id & 0xe0) == 0xc0 ||
 	       (pk->stream_id & 0xf0) == 0xe0 ||
-	       (pk->stream_id & 0xf8) == 0x80){
+	       (pk->stream_id & 0xf8) == 0x80 ||
+	       (pk->stream_id & 0xf8) == 0xa0){
 		if(s->imap[pk->stream_id] < 0){
 		    if(ms->n_streams == ns){
 			ns *= 2;
@@ -441,15 +453,29 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		    tc2_print("MPEGPS", TC2_PRINT_DEBUG,
 			      "found stream id %02x\n", pk->stream_id);
 
-		    if(pk->stream_id & 0x20){
+		    if((pk->stream_id & 0xf0) == 0xe0){
 			sp->stream_type = STREAM_TYPE_VIDEO;
 			sp->common.codec = "video/mpeg";
-		    } else if(pk->stream_id & 0x40){
+		    } else if((pk->stream_id & 0xe0) == 0xc0){
 			sp->stream_type = STREAM_TYPE_AUDIO;
 			sp->common.codec = "audio/mpeg";
-		    } else {
+		    } else if((pk->stream_id & 0xf8) == 0x80){
 			sp->stream_type = STREAM_TYPE_AUDIO;
 			sp->common.codec = "audio/ac3";
+		    } else if((pk->stream_id & 0xf8) == 0xa0){
+			sp->stream_type = STREAM_TYPE_AUDIO;
+			sp->common.codec = "audio/pcm-s16le";
+			if((pk->data[5] & 0x30) == 0){
+			    sp->audio.sample_rate = 48000;
+			} else if((pk->data[5] & 0x30) == 1){
+			    sp->audio.sample_rate = 96000;
+			} else {
+			    tc2_print("MPEGPS", TC2_PRINT_WARNING,
+				      "unknown PCM sample rate %i",
+				      pk->data[5] & 0x30);
+			    sp->audio.sample_rate = 48000;
+			}
+			sp->audio.channels = (pk->data[5] & 0x7) + 1;
 		    }
 		    sp->common.index = ms->n_streams++;
 		    sp++;
