@@ -46,7 +46,7 @@
 
 struct stream_shared {
     int sid;
-    int as, vs;
+    int as, vs, ss;
     uint64_t starttime, endtime, playtime;
     tcconf_section_t *conf, *profile;
     tchash_table_t *filters;
@@ -147,6 +147,9 @@ new_pipe(stream_shared_t *sh, muxed_stream_t *ms, stream_t *s)
     case STREAM_TYPE_AUDIO:
 	pr = tcconf_getsection(sh->profile, "audio");
 	break;
+    case STREAM_TYPE_SUBTITLE:
+	pr = tcconf_getsection(sh->profile, "subtitle");
+	break;
     }
 
     if(!pr)
@@ -243,11 +246,23 @@ use_stream(stream_shared_t *sh, int s, int t)
 	c = "audio/stream";
     else if(t == STREAM_TYPE_VIDEO)
 	c = "video/stream";
+    else if(t == STREAM_TYPE_SUBTITLE)
+	c = "subtitle/stream";
     else
 	return 0;
 
-    if(tcconf_getvalue(sh->conf, c, ""))
-	return (t == STREAM_TYPE_VIDEO? sh->vs: sh->as) < 0;
+    if(tcconf_getvalue(sh->conf, c, "")){
+	switch(t){
+	case STREAM_TYPE_VIDEO:
+	    return sh->vs < 0;
+	case STREAM_TYPE_AUDIO:
+	    return sh->as < 0;
+	case STREAM_TYPE_SUBTITLE:
+	    return 0;
+	default:
+	    return 0;
+	}
+    }
 
     while(tcconf_nextvalue(sh->conf, c, &cs, "%i", &ss) > 0)
 	if(ss == s)
@@ -288,6 +303,8 @@ add_stream(stream_player_t *sp, int s)
 	sh->vs = sid;
     } else if(sp->ms->streams[s].stream_type == STREAM_TYPE_AUDIO){
 	sh->as = sid;
+    } else if(sp->ms->streams[s].stream_type == STREAM_TYPE_SUBTITLE){
+	sh->ss = sid;
     }
 
     tc2_print("STREAM", TC2_PRINT_DEBUG,
@@ -663,12 +680,13 @@ s_start(tcvp_pipe_t *tp)
 	pthread_cond_wait(&sp->cond, &sp->lock);
 
     for(i = 0; i < sp->nstreams; i++){
-	tc2_print("STREAM", TC2_PRINT_DEBUG, "starting player %i\n", i);
 	if(sp->streams[i].probe == PROBE_OK &&
-	   sp->streams[i].end && sp->streams[i].end->start)
+	   sp->streams[i].end && sp->streams[i].end->start){
+	    tc2_print("STREAM", TC2_PRINT_DEBUG, "starting player %i\n", i);
 	    sp->streams[i].end->start(sp->streams[i].end);
+	    tc2_print("STREAM", TC2_PRINT_DEBUG, "started player %i\n", i);
+	}
 	sp->streams[i].run = 1;
-	tc2_print("STREAM", TC2_PRINT_DEBUG, "started player %i\n", i);
     }
     pthread_mutex_unlock(&sp->lock);
 
@@ -831,6 +849,7 @@ new_shared(tcconf_section_t *profile, tcconf_section_t *conf,
     pthread_cond_init(&sh->cond, NULL);
     sh->vs = -1;
     sh->as = -1;
+    sh->ss = -1;
     sh->starttime = -1LL;
     sh->endtime = -1LL;
     sh->playtime = -1LL;
