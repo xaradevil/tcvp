@@ -238,7 +238,7 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     ao = calloc(1, sizeof(*ao));
     ao->pcm = pcm;
     ao->timer = timer;
-    if(tcvp_driver_audio_alsa_conf_pcm_timer){
+    if(tcvp_driver_audio_alsa_conf_pcm_timer && !timer->have_driver){
 	ao->tmdrivers[PCM] = open_timer(270000, pcm);
 	ao->tmdrivers[SYSTEM] = open_timer(270000, NULL);
 	if(ao->tmdrivers[PCM])
