@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
@@ -69,6 +70,7 @@ get_cookie(u_char *cookie)
 	    ret = -1;
 	fclose(cf);
     } else if((cf = fopen(ck, "w"))){
+	fchmod(fileno(cf), S_IRUSR | S_IWUSR);
 	RAND_pseudo_bytes(cookie, COOKIE_SIZE);
 	if(fwrite(cookie, 1, COOKIE_SIZE, cf) != COOKIE_SIZE)
 	    ret = -1;
@@ -107,6 +109,8 @@ rm_event(void *p)
 
 /* 	    fprintf(stderr, "REMOTE: sending %s, %i bytes\n", se, size); */
 	    while((cl = tclist_next(rm->clients, &li))){
+		if(!cl->auth)
+		    continue;
 		if(send(cl->socket, &s, 4, MSG_MORE | MSG_NOSIGNAL) < 0 ||
 		   send(cl->socket, se, size, MSG_NOSIGNAL) < 0){
 		    fprintf(stderr, "REMOTE: error sending %s\n", se);
