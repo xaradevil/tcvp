@@ -145,6 +145,9 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     x264_param_default(&x4->params);
     x4->buf = malloc(X4_BUFSIZE);
 
+    tcconf_getvalue(cs, "cabac", "%i", &x4->params.b_cabac);
+    tcconf_getvalue(cs, "qp", "%i", &x4->params.i_qp_constant);
+
     p->format = *s;
     p->format.common.codec = "video/h264";
     p->private = x4;
