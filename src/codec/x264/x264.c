@@ -146,8 +146,8 @@ x4_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     x4->params.i_csp = X264_CSP_I420;
     x4->params.vui.i_sar_width = s->video.height * s->video.aspect.num;
     x4->params.vui.i_sar_height = s->video.width * s->video.aspect.den;
-    x4->params.f_fps =
-	(float) s->video.frame_rate.num / s->video.frame_rate.den;
+    x4->params.i_fps_num = s->video.frame_rate.num;
+    x4->params.i_fps_den = s->video.frame_rate.den;
 
     x4->enc = x264_encoder_open(&x4->params);
     if(!x4->enc)
