@@ -40,6 +40,8 @@ typedef struct mp3_file {
     int hb;
     int fsize;
     int (*parse_header)(u_char *, mp3_frame_t *);
+    int xtime;
+    u_char *xing;
     char *tag;
 } mp3_file_t;
 
@@ -178,7 +180,8 @@ mp3_getparams(muxed_stream_t *ms)
     if(hdrok < 2)
 	return -1;
 
-    mf->stream.audio.bit_rate = fr.bitrate;
+    if(!mf->stream.audio.bit_rate)
+	mf->stream.audio.bit_rate = fr.bitrate;
     mf->stream.audio.codec = codecs[fr.layer];
     mf->stream.audio.sample_rate = fr.sample_rate;
     if(fr.bitrate && !ms->time)
@@ -196,14 +199,20 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
     if(!mf->stream.audio.bit_rate)
 	return -1LL;
 
-    pos = time * mf->stream.audio.bit_rate / (27 * 8000000);
+    if(mf->xing){
+	int xi = 100 * time / ms->time;
+	pos = mf->xing[xi] * mf->size / 256;
+	time = ms->time * xi / 100;
+    } else {
+	pos = time * mf->stream.audio.bit_rate / (27 * 8000000);
+    }
 
     if(pos > mf->size)
 	return -1LL;
 
     mf->file->seek(mf->file, mf->start + pos, SEEK_SET);
     if(!mp3_getparams(ms))
-	if(mf->stream.audio.bit_rate)
+	if(mf->stream.audio.bit_rate && !mf->xtime)
 	    time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
 
     mf->samples = time / 27000000 * mf->stream.audio.sample_rate;
@@ -281,13 +290,15 @@ mp3_packet(muxed_stream_t *ms, int str)
 	    br = mf->sbr / mf->bytes;
 	    if(br != mf->stream.audio.bit_rate){
 		mf->stream.audio.bit_rate = br;
-		ms->time = 27 * 8000000LL * mf->size / br;
+		if(!mf->xtime){
+		    ms->time = 27 * 8000000LL * mf->size / br;
+		    tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
+		}
 #ifdef DEBUG
 		fprintf(stderr, "%s: bitrate %i [%u] %lli s @%llx\n",
 			mf->tag, fr.bitrate, br, ms->time / 27000000,
 			mf->file->tell(mf->file) - size + (f - mp->data));
 #endif
-		tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
 	    }
 	    f += fr.size;
 	    bh = 0;
@@ -319,7 +330,57 @@ mp3_free(void *p)
     eventq_delete(mf->qs);
     if(mf->file)
 	mf->file->close(mf->file);
+    if(mf->xing)
+	free(mf->xing);
     free(mf);
+}
+
+#define XING_SIZE 512
+
+static int
+xing_header(muxed_stream_t *ms)
+{
+    mp3_file_t *mf = ms->private;
+    u_char x[XING_SIZE], *xp;
+    int i, flags;
+    uint64_t fp = mf->file->tell(mf->file);
+
+    if(mf->file->read(x, 1, XING_SIZE, mf->file) < XING_SIZE)
+	return -1;
+
+    mf->file->seek(mf->file, fp, SEEK_SET);
+
+    for(i = 0; i < XING_SIZE; i++)
+	if(!strncmp(x + i, "Xing", 4))
+	    break;
+
+    if(i == XING_SIZE)
+	return -1;
+
+    xp = x + i + 4;
+    flags = xp[3];
+    xp += 4;
+
+    if(flags & 0x1){
+	int frames = (xp[0] << 24) + (xp[1] << 16) + (xp[2] << 8) + xp[3];
+	uint64_t samples = 1152 * frames;
+	ms->time = 27000000 * samples / mf->stream.audio.sample_rate;
+	mf->stream.audio.samples = samples;
+	mf->stream.audio.bit_rate =
+	    mf->size * 8 * mf->stream.audio.sample_rate / samples;
+	mf->xtime = 1;
+	xp += 4;
+    }
+
+    if(flags & 0x2)
+	xp += 4;
+
+    if(flags & 0x4){
+	mf->xing = malloc(100);
+	memcpy(mf->xing, xp, 100);
+    }
+
+    return 0;
 }
 
 extern muxed_stream_t *
@@ -371,6 +432,12 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     ms->next_packet = mp3_packet;
     ms->seek = mp3_seek;
+    ms->used_streams = &mf->used;
+
+    mf->start = f->tell(f);
+    mf->size -= mf->start;
+
+    xing_header(ms);
 
     tcconf_getvalue(cs, "qname", "%s", &qname);
     qn = alloca(strlen(qname) + 8);
@@ -379,10 +446,6 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     eventq_attach(mf->qs, qn, EVENTQ_SEND);
     free(qname);
 
-    mf->start = f->tell(f);
-    mf->size -= mf->start;
-
-    ms->used_streams = &mf->used;
 
     return ms;
 }
