@@ -19,3 +19,4 @@
 8	string			8SVX		audio/x-aiff	
 4	string			moov		video/quicktime
 4	string			mdat		video/quicktime
+0	string			YUV4MPEG2	video/x-yuv4mpeg
