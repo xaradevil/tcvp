@@ -61,6 +61,7 @@ typedef struct stream_play {
     struct sp_stream {
 	tcvp_pipe_t *pipe, *end;
 	tclist_t *packets;
+	uint64_t starttime;
 	int probe;
 	pthread_t th;
 	struct stream_play *sp;
@@ -258,6 +259,7 @@ add_stream(stream_player_t *sp, int s)
     sp->streams[s].packets = tclist_new(TC_LOCK_NONE);
     sp->streams[s].probe = PROBE_AGAIN;
     sp->streams[s].sp = sp;
+    sp->streams[s].starttime = -1LL;
 
     sp->ms->used_streams[s] = 1;
     sp->nbuf++;
@@ -364,11 +366,15 @@ play_stream(void *p)
 	    break;
 	}
 
-	if(str->pipe->input(str->pipe, pk))
+	if(str->pipe->input(str->pipe, pk)){
+	    tc2_print("STREAM", TC2_PRINT_ERROR,
+		      "stream %i pipeline error\n", six);
 	    break;
+	}
     }
 
-    tc2_print("STREAM", TC2_PRINT_DEBUG, "stream %i end\n", six);
+    tc2_print("STREAM", TC2_PRINT_DEBUG,
+	      "stream %i %s\n", six, sp->state == STOP? "stopped": "end");
 
     pk = tcallocz(sizeof(*pk));
     pk->stream = sp->smap[six];
@@ -440,13 +446,20 @@ read_stream(void *p)
 	    }
 	    pthread_mutex_unlock(&sh->lock);
 
-	    if(pk->flags & TCVP_PKT_FLAG_PTS &&
-	       pk->pts > sh->endtime){
-		tc2_print("STREAM", TC2_PRINT_DEBUG,
-			  "stream %i end time reached\n", pk->stream);
-		tcfree(pk);
-		pk = NULL;
-		sp->ms->used_streams[ps] = 0;
+	    if(pk->flags & TCVP_PKT_FLAG_PTS){
+		if(pk->pts > sh->endtime){
+		    tc2_print("STREAM", TC2_PRINT_DEBUG,
+			      "stream %i end time reached\n", pk->stream);
+		    tcfree(pk);
+		    pk = NULL;
+		    sp->ms->used_streams[ps] = 0;
+		} else if(str->starttime == -1LL){
+		    tc2_print("STREAM", TC2_PRINT_DEBUG,
+			      "stream %i start %llu\n",
+			      pk->stream, pk->pts / 27);
+		    sp->ms->streams[ps].common.start_time = pk->pts;
+		    str->starttime = pk->pts;
+		}
 	    }
 
 	    switch(str->probe){
