@@ -1,4 +1,4 @@
-AC_INIT([TCVP], [0.1.5])
+AC_INIT([TCVP], [0.1.6])
 AC_CONFIG_SRCDIR([interfaces/stream.tc2])
 AM_INIT_AUTOMAKE([dist-bzip2])
 
