@@ -314,6 +314,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		s->start_time = mp.adaptation_field.pcr;
 	    }
 
+#if 0
 	    if((s->stream->flags & URL_FLAG_STREAMED) &&
 	       s->timer && *s->timer){
 		uint64_t pcr = mp.adaptation_field.pcr - 27000000 * 5;
@@ -324,6 +325,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		    (*s->timer)->reset(*s->timer, time);
 		}
 	    }
+#endif
 	}
     } while(!pk);
 
