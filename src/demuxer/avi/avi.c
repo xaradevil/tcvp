@@ -285,6 +285,7 @@ avi_packet(muxed_stream_t *ms, int stream)
     if(!(pk = list_shift(af->packets[stream])) && !af->eof){
 	do {
 	    char *buf;
+	    size_t pos = ftell(af->file);
 
 	    if(!get4c(tag, af->file))
 		break;
@@ -297,7 +298,8 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    }
 
 	    if(!(isxdigit(tag[0]) && isxdigit(tag[1]))){
-		fprintf(stderr, "%s\n", tag);
+		fprintf(stderr, "%02x%02x%02x%02x:%s %8x %16lx\n",
+			tag[0], tag[1], tag[2], tag[3], tag, size, pos);
 		af->eof = 1;
 		break;
 	    }
