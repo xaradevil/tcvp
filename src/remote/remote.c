@@ -457,6 +457,7 @@ rm_init(char *p)
     get_event("TCVP_PL_ADDLIST", CONTROL);
     get_event("TCVP_PL_REMOVE", CONTROL);
     get_event("TCVP_PL_SHUFFLE", CONTROL);
+    get_event("TCVP_PL_FLAGS", CONTROL);
     get_event("TCVP_STATE", STATUS);
     get_event("TCVP_OPEN", CONTROL);
     get_event("TCVP_START", CONTROL);
