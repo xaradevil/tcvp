@@ -24,6 +24,7 @@
 #include <tcstring.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <tcalloc.h>
 #include <dvdread/dvd_reader.h>
 #include <dvdread/ifo_read.h>
 #include <dvdread/nav_read.h>
@@ -261,7 +262,7 @@ dvd_close(url_t *u)
     DVDClose(d->dvd);
     free(d->buf);
     free(d);
-    free(u);
+    tcfree(u);
 
     return 0;
 }
@@ -391,7 +392,7 @@ dvd_open(char *url, char *mode)
     d->bufsize = url_dvd_conf_buffer * DVD_VIDEO_LB_LEN;
     d->buf = malloc(d->bufsize);
 
-    u = calloc(1, sizeof(*u));
+    u = tcallocz(sizeof(*u));
     u->read = dvd_read;
     u->seek = dvd_seek;
     u->tell = dvd_tell;
