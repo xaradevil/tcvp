@@ -390,7 +390,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	i++;
     }
 
-    i += !!tcconf_getvalue(sec, "color", "%s %d", &color, &alpha);
+    i += tcconf_getvalue(sec, "color", "%s %d", &color, &alpha) > 0;
 
     if(tcconf_getvalue(sec, "scroll_style", "%s", &stype_s) < 1)
 	stype_s = strdup("none");
