@@ -1,0 +1,11 @@
+module		tcvp
+name		"TCVP"
+version		0.1.0
+tc2version	0.4.0
+sources		tcvp.c
+postinit	tcvp_init
+shutdown	tcvp_stop
+import		"video"	"open"
+import		"video" "play"
+import		"output/audio" "open"
+require		"codec"
