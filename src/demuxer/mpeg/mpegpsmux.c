@@ -149,7 +149,7 @@ write_psm(u_char *d, mpegps_mux_t *psm, int size)
     el = d;
     d += 2;
 
-    for(i = 0; i < psm->nstreams; i++){
+    for(i = 0; i < psm->astreams; i++){
 	if(psm->streams[i].stream_id){
 	    *d++ = psm->streams[i].stream_type;
 	    if(psm->streams[i].stream_id == PRIVATE_STREAM_1)
@@ -308,6 +308,7 @@ pmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     psm->streams[s->common.index].str = s;
     psm->streams[s->common.index].stream_type = str_type->mpeg_stream_type;
+
     if(s->stream_type == STREAM_TYPE_VIDEO){
 	psm->streams[s->common.index].stream_id = psm->vid++;
 	psm->nvideo++;
