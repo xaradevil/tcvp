@@ -61,6 +61,7 @@ repaint_background(tcwidget_t *w)
 			    w->background.height, AllPlanes, ZPixmap);
 	} else {
 	    int tmp_x, tmp_y, tmp_w, tmp_h, xp, yp;
+	    Pixmap pmap;
 
 	    if(x<0) {
 		tmp_x = 0;
@@ -92,10 +93,18 @@ repaint_background(tcwidget_t *w)
 		tmp_h = w->background.height;
 	    }
 
-	    img = XGetImage(xd, root, tmp_x, tmp_y, tmp_w, tmp_h,
+	    pmap = XCreatePixmap(xd, xw, w->background.width,
+				 w->background.height, depth);
+
+	    XCopyArea(xd, root, pmap, bgc, tmp_x, tmp_y, tmp_w, tmp_h, xp, yp);
+	    img = XGetImage(xd, pmap, 0, 0, w->background.width,
+			    w->background.height,
 			    AllPlanes, ZPixmap);
+
 	    XSync(xd, False);
+	    XFreePixmap(xd, pmap);
 	}
+	XSync(xd, False);
 
 	alpha_render(*w->background.img->data, img->data, w->background.width,
 		     w->background.height, depth);
@@ -117,9 +126,7 @@ repaint_background(tcwidget_t *w)
 
 	XSync(xd, False);
 	XDestroyImage(img);
-	
     }
-
     return 0;
 }
 
