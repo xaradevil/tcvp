@@ -1,7 +1,7 @@
 #! /usr/bin/perl
 # -*- mmm-classes: here-doc -*-
 
-# Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+# Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -223,51 +223,6 @@ slider [
 END_TCCONF
 }
 
-# font utilities
-
-sub luminance {
-    0.212671 * $_[0] + 0.715160 * $_[1] + 0.072169 * $_[2];
-}
-
-sub text_properties {
-    my ($img, $x, $y, $h) = @_;
-    my ($i, $j, @c, $bl, $dl, $d, $md, @fg, @bg, $tt, $tb);
-    my $w = gimp_image_width($img);
-
-    $d = gimp_image_active_drawable($img);
-    @bg = gimp_drawable_get_pixel($d, $x, $y);
-
-    $md = 0;
-    $tt = -1;
-
-    for($j = 0; $j < $h; $j++){
-	my $rd = 0;
-	my (@rc, @rb);
-
-	@rb = gimp_drawable_get_pixel($d, $x, $j);
-	$bl = luminance(@rb);
-
-	for($i = 0; $i < $w; $i++){
-	    @c = gimp_drawable_get_pixel($d, $i, $j);
-	    $dl = abs(luminance(@c) - $bl);
-	    if($dl > $rd){
-		@rc = @c;
-		$rd = $dl;
-	    }
-	}
-	if($rd > 50){
-	    $tt = $j if $tt < 0;
-	    $tb = $j;
-	}
-	if($rd > $md){
-	    @fg = @rc;
-	    $md = $rd;
-	}
-    }
-
-    return (\@fg, \@bg, $tt, $tb);
-}
-
 # skin processing
 
 sub background {
@@ -344,79 +299,82 @@ sub balance {
 
 sub text {
     my $tx = load_image($text);
-    my ($fg, $bg) = text_properties($tx, 151, 2, 6);
-    my $color = sprintf "rgb:%02x/%02x/%02x", @$fg;
-
+    save_rect($tx, 0, 0, 155, 18, 'text.png');
     gimp_image_delete($tx);
 
     $skinconf .= <<END_TCCONF;
+text_font [
+	file 'text.png'
+	columns 31
+	rows 3
+	characters 'ABCDEFGHIJKLMNOPQRSTUVWXYZ"@@  0123456789 _:()- !_+\\/[]^&%.=£#   ?'
+]
 label [
 	position 112 26
 	size 153 8
-	font 'Arial:pixelsize=8:aspect=1.1'
-	color "$color" 255
+	bitmap : ../text_font [ ]
+	color 'rgb:ff/ff/ff' 255
 	text '\${title:u} - \${performer:u}'
-	scroll_style 2
+	scroll_style 'scroll'
 	align 'left'
 ]
 label [
 	position 111 43
 	size 15 8
-	font 'Arial:pixelsize=8:spacing=monospace:aspect=1.1'
-	color "$color" 255
+	bitmap : ../text_font [ ]
+	color 'rgb:ff/ff/ff' 255
 	text '\${audio_bitrate:-0}'
 	align 'left'
 ]
 label [
 	position 156 43
 	size 10 8
-	font 'Arial:pixelsize=8:spacing=monospace:aspect=1.1'
-	color "$color" 255
+	bitmap : ../text_font [ ]
+	color 'rgb:ff/ff/ff' 255
 	text '\${audio_samplerate:-0}'
 	align 'left'
 ]
 END_TCCONF
 
-    make_rect(30, 6, 0, 0, 27, 6, $bg, 'stimebg.png');
-
     $shadeconf .= <<END_TCCONF;
+text_font [
+	file 'text.png'
+	columns 31
+	rows 3
+	characters 'ABCDEFGHIJKLMNOPQRSTUVWXYZ"@@  0123456789 _:()- !_+\\/[]^&%.=£#   ?'
+]
 label [
-	position 130 4
-	size 30 6
-	font 'arial:pixelsize=8:spacing=monospace:aspect=1.1'
-	color '$color'
-	text '\${time} '
+	position 123 4
+	size 35 6
+	bitmap : ../text_font [ ]
+	color 'rgb:ff/ff/ff' 255
+	text '\${time:r/:/ }'
 	align 'right'
 	action 'toggle_time'
-	background 'stimebg.png'
 ]
 END_TCCONF
 }
 
 sub numbers {
     my $nb = load_image($numbers);
-    my ($fg, $bg, $tt, $tb) = text_properties($nb, 96, 6, 13);
-    my $color = sprintf "rgb:%02x/%02x/%02x", @$fg;
-
-    make_rect(65, 13, 0, 1, 63, 11, $bg, 'timebg.png');
-
+    save_rect($nb, 0, 0, 108, 13, 'numbers.png');
     gimp_image_delete($nb);
 
-    my $th = $tb - $tt + 1;
-    my $pxs = floor($th * 1.4);
-    my $asp = 1 + 0.9 / $pxs;
-
     $skinconf .= <<END_TCCONF;
+time_font [
+	file "numbers.png"
+	columns 12
+	rows 1
+	characters '0123456789 -'
+]
 label [
-	position 36 26
-	size 65 13
-	font 'arial:pixelsize=$pxs:aspect=$asp:weight=bold:spacing=monospace'
-	color "$color"
-	text '\${time:-    :  } '
-	scroll_style 1
+	position 34 26
+	size 63 13
+	bitmap : ../time_font [ ]
+	color 'rgb:ff/ff/ff' 255
+	text '\${time:-    :  }'
 	align 'right'
 	action 'toggle_time'
-	background 'timebg.png'
 ]
 END_TCCONF
 }
