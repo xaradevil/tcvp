@@ -138,7 +138,7 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    ret = PROBE_OK;
 	    break;
 	case STATE_INVALID:
-	    ret = PROBE_FAIL;
+	    ret = PROBE_AGAIN;
 	}
     } while(state != STATE_BUFFER && ret != PROBE_FAIL);
 
