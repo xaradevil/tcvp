@@ -190,6 +190,7 @@ tcl_init(char *p)
 	qs = eventq_new(NULL);
 	sprintf(qn, "%s/control", qname);
 	eventq_attach(qs, qn, EVENTQ_SEND);
+
 	te = tcvp_alloc_event(TCVP_PL_START);
 	eventq_send(qs, te);
 	tcfree(te);
