@@ -175,6 +175,7 @@ t_free(player_t *pl)
     eventq_delete(tp->qt);
     pthread_mutex_destroy(&tp->tmx);
     pthread_cond_destroy(&tp->tcd);
+    tcfree(tp->conf);
 
     free(tp);
     free(pl);
@@ -704,7 +705,7 @@ t_new(tcconf_section_t *cs)
     eventq_attach(tp->qt, qn, EVENTQ_SEND);
 
     pthread_create(&tp->th_event, NULL, t_event, pl);
-    tp->conf = cs;
+    tp->conf = tcref(cs);
 
     return pl;
 }
