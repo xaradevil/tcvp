@@ -123,8 +123,10 @@ alsa_play(tcvp_pipe_t *p, packet_t *pk)
 	    fprintf(stderr, "ALSA: xrun\n");
 	    snd_pcm_prepare(ao->pcm);
 	} else if(r < 0){
-	    fprintf(stderr, "ALSA: write error: %s\n", snd_strerror(r));
-	    return -1;
+	    if(snd_pcm_prepare(ao->pcm) < 0){
+		fprintf(stderr, "ALSA: write error: %s\n", snd_strerror(r));
+		return -1;
+	    }
 	}
 	if(r > 0){
 	    count -= r;
