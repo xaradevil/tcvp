@@ -480,6 +480,8 @@ tcl_stop(void)
 #define OPT_STOP 137
 #define OPT_CLEAR 138
 #define OPT_ATTR 139
+#define OPT_ROOT 140
+#define OPT_WINDOW 141
 
 static int
 parse_options(int argc, char **argv)
@@ -500,7 +502,9 @@ parse_options(int argc, char **argv)
 	{"repeat", no_argument, 0, 'r'},
 	{"norepeat", no_argument, 0, 'R'},
 	{"playlist", required_argument, 0, '@'},
-	{"fullscreen", required_argument, 0, 'f'},
+	{"fullscreen", no_argument, 0, 'f'},
+	{"root", no_argument, 0, OPT_ROOT },
+	{"window", required_argument, 0, OPT_WINDOW },
 	{"aspect", required_argument, 0, OPT_ASPECT},
 	{"output", required_argument, 0, 'o'},
 	{"profile", required_argument, 0, 'P'},
@@ -605,6 +609,12 @@ parse_options(int argc, char **argv)
 	case 'f':
 	    tcconf_setvalue(cf, "video/fullscreen", "%i", 1);
 	    break;
+
+	case OPT_ROOT:
+            optarg = "root";
+        case OPT_WINDOW:
+            tcconf_setvalue(cf, "video/window", "%s", optarg);
+            break;
 
 	case OPT_ASPECT: {
 	    float a;
