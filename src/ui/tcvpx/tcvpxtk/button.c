@@ -102,7 +102,9 @@ enter_button(xtk_widget_t *xw, void *xe)
     if(w->button.pressed) {
 	w->button.img = w->button.down_img;
     } else {
-	w->button.img = w->button.over_img;
+	if(w->button.over_img) {
+	    w->button.img = w->button.over_img;
+	}
     }
     repaint_button(xw);
     draw_widget(w);
@@ -155,7 +157,9 @@ create_button(window_t *window, int x, int y, image_info_t *bg,
 	btn->down_img = down_image;
 	emask |= ButtonPressMask | ButtonReleaseMask;
 	btn->press = press_button;
-	btn->release = release_button;
+	btn->release = release_button; 
+	btn->enter = enter_button;
+	btn->exit = exit_button;
     }
 
     btn->win = XCreateWindow(xd, window->xw, btn->x, btn->y,
