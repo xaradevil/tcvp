@@ -325,9 +325,6 @@ extern int
 parse_text(char *text, char *result, int len)
 {
     char *exp;
-    char *outptr = result, *inptr;
-    iconv_t ic;
-    size_t avail = len, insize;
 
     if(!text) {
 	result[0]=0;
@@ -338,15 +335,8 @@ parse_text(char *text, char *result, int len)
 
     exp = tcstrexp(text, "{", "}", ':', lookup_variable,
 		   NULL, TCSTREXP_ESCAPE);
-    inptr = exp;
-    insize = strlen(exp);
-
-    ic = iconv_open("UTF-8", "ISO_8859-1");
-    iconv(ic, NULL, NULL, &outptr, &avail);
-    iconv(ic, &inptr, &insize, &outptr, &avail);
-    if(avail >= 1) *outptr = '\0';
-    iconv_close(ic);
-
+    strncpy(result, exp, len);
+    result[len-1] = 0;
     free(exp);
 
     tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "parse_text: result=%s\n", result);
