@@ -43,6 +43,8 @@ typedef struct a52_decode {
     int ptsf;
 } a52_decode_t;
 
+#define min(a,b) ((a)<(b)?(a):(b))
+
 /* float to int convertion from a52dec by Aaron Holtzman and Michel
  * Lespinasse */
 static inline int16_t convert (int32_t i)
@@ -160,13 +162,55 @@ a52_free_pk(void *v)
     free(p->private);
 }
 
+static int
+decode_frame(tcvp_pipe_t *p, u_char *frame, int str)
+{
+    a52_decode_t *ad = p->private;
+    int i;
+
+    if(tcvp_codec_a52_conf_downmix)
+	ad->flags = A52_STEREO;
+
+    a52_frame(ad->state, frame, &ad->flags, &ad->level, ad->bias);
+    ad->flags &= ~A52_ADJUST_LEVEL;
+
+    for(i = 0; i < 6; i++){
+	int s;
+	packet_t *out;
+	int16_t *outbuf = malloc(6*256*sizeof(*outbuf));
+
+	a52_block(ad->state);
+	s = float_to_int(ad->out, outbuf, ad->flags);
+
+	out = tcallocdz(sizeof(*out), NULL, a52_free_pk);
+	out->type = TCVP_PKT_TYPE_DATA;
+	out->stream = str;
+	out->data = (u_char **) &out->private;
+	out->sizes = malloc(sizeof(*out->sizes));
+	out->sizes[0] = 256 * s * sizeof(*outbuf);
+	out->planes = 1;
+	out->private = outbuf;
+	out->flags = 0;
+	if(ad->ptsf){
+	    out->flags |= TCVP_PKT_FLAG_PTS;
+	    out->pts = ad->pts;
+	    ad->ptsf = 0;
+	}
+
+	p->next->input(p->next, out);
+    }
+
+    return 0;
+}
+
 extern int
 a52_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     a52_decode_t *ad = p->private;
+    int srate, brate;
     int psize;
     char *pdata;
-    int i;
+    int rs;
     int ret = 0;
 
     if(!pk->data){
@@ -180,76 +224,45 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
     if(pk->flags & TCVP_PKT_FLAG_PTS){
 	ad->pts = pk->pts;
 	ad->ptsf = 1;
+	if(ad->fpos)
+	    ad->pts -= 27000000LL * 1536 / p->format.audio.sample_rate;
     }
 
-    while(psize > 0){
-	if(ad->fsize > 0){
-	    int fs = ad->fsize - ad->fpos;
-	    if(fs > psize){
-		memcpy(ad->buf + ad->fpos, pdata, psize);
-		ad->fpos += psize;
-		break;
-	    } else {
-		memcpy(ad->buf + ad->fpos, pdata, fs);
-		psize -= fs;
-		pdata += fs;
-		ad->fpos += fs;
-	    }
-	} else {
-	    int srate, brate, size = 0, od;
-
-	    for(od = 0; od < psize - 7; od++){
-		if((size = a52_syncinfo(pdata + od, &ad->flags,
-					&srate, &brate)))
-		    break;
-	    }
-
-	    if(!size){
-		/* there was no sync info in this packet. this is
-		   really an error but we return success anyway to make
-		   some broken files playable. */
-		break;
-	    }
-
-	    psize -= od;
-	    pdata += od;
-	    ad->fsize = size;
-	    continue;
+    if(ad->fpos > 0){
+	if(ad->fpos < 7){
+	    rs = 7 - ad->fpos;
+	    memcpy(ad->buf + ad->fpos, pdata, rs);
+	    ad->fpos += rs;
+	    pdata += rs;
+	    psize -= rs;
 	}
+	if(!ad->fsize)
+	    ad->fsize = a52_syncinfo(ad->buf, &ad->flags, &srate, &brate);
+	rs = min(ad->fsize - ad->fpos, psize);
+	memcpy(ad->buf + ad->fpos, pdata, rs);
+	pdata += rs;
+	ad->fpos += rs;
+	psize -= rs;
 
-	if(tcvp_codec_a52_conf_downmix)
-	    ad->flags = A52_STEREO;
-	a52_frame(ad->state, ad->buf, &ad->flags, &ad->level, ad->bias);
-	ad->flags &= ~A52_ADJUST_LEVEL;
-
-	for(i = 0; i < 6; i++){
-	    int s;
-	    packet_t *out;
-	    int16_t *outbuf = malloc(6*256*sizeof(*outbuf));
-
-	    a52_block(ad->state);
-	    s = float_to_int(ad->out, outbuf, ad->flags);
-
-	    out = tcallocd(sizeof(*out), NULL, a52_free_pk);
-	    out->type = TCVP_PKT_TYPE_DATA;
-	    out->stream = pk->stream;
-	    out->data = (u_char **) &out->private;
-	    out->sizes = malloc(sizeof(*out->sizes));
-	    out->sizes[0] = 256 * s * sizeof(*outbuf);
-	    out->planes = 1;
-	    out->private = outbuf;
-	    out->flags = 0;
-	    if(ad->ptsf){
-		out->flags |= TCVP_PKT_FLAG_PTS;
-		out->pts = ad->pts;
-		ad->ptsf = 0;
-	    }
-
-	    p->next->input(p->next, out);
+	if(ad->fpos == ad->fsize){
+	    decode_frame(p, ad->buf, pk->stream);
+	    ad->fpos = 0;
+	    ad->fsize = 0;
 	}
+    }
 
-	ad->fpos = 0;
-	ad->fsize = 0;
+    while(psize > 6){
+	int fsize = a52_syncinfo(pdata, &ad->flags, &srate, &brate);
+	if(psize < fsize)
+	    break;
+	decode_frame(p, pdata, pk->stream);
+	pdata += fsize;
+	psize -= fsize;
+    }
+
+    if(psize > 0){
+	memcpy(ad->buf, pdata, psize);
+	ad->fpos = psize;
     }
 
     tcfree(pk);
