@@ -339,10 +339,12 @@ static char xval[] = {
 };
 
 static inline int
-valid_tag(char *t)
+valid_tag(char *t, int strict)
 {
     return (isxdigit(t[0]) || t[0] == ' ') && isxdigit(t[1]) &&
-	isalpha(t[2]) && isalpha(t[3]);
+	(strict? (t[2] == 'w' || t[2] == 'd') &&
+	 (t[3] > 'a' && t[3] < 'e'):
+	 (isalpha(t[2]) && isalpha(t[3])));
 }
 
 static inline int
@@ -383,7 +385,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 		break;
 	    }
 
-	    if(!valid_tag(tag)){
+	    if(!valid_tag(tag, scan)){
 		if(!scan)
 		    fprintf(stderr, "AVI[%i]: Bad packet header @ %08x\n",
 			    stream, pos);
@@ -398,7 +400,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 		    fseek(af->file, -68, SEEK_CUR);
 		    tried_bkup++;
 		    goto again;
-		} else if(scan < 128){
+		} else if(scan < 8192){
 		    fseek(af->file, -3, SEEK_CUR);
 		    scan++;
 		    goto again;
