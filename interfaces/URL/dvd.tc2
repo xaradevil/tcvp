@@ -11,3 +11,42 @@ Default angle.
 
 option buffer%i=4
 Buffer size in DVD sectors of 2048 bytes.
+
+option language%s="en"
+Default language for menus etc.
+
+include
+typedef struct dvd_functions {
+    void (*enable)(url_t *, int);
+    void (*button)(url_t *, int x, int y);
+    void (*menu)(url_t *);
+} dvd_functions_t;
+
+#define DVD_PESID 0xfc
+
+#define DVD_PTSSKIP   1
+#define DVD_FLUSH     2
+#define DVD_STILL     3
+#define DVD_AUDIO_ID  4
+
+typedef struct dvd_ptsskip {
+    int type;
+    int64_t offset;
+} dvd_ptsskip_t;
+
+typedef struct dvd_flush {
+    int type;
+    int drop;
+} dvd_flush_t;
+
+typedef struct dvd_audio_id {
+    int type;
+    int id;
+} dvd_audio_id_t;
+
+typedef union dvd_event {
+    int type;
+    dvd_ptsskip_t ptsskip;
+    dvd_flush_t flush;
+    dvd_audio_id_t audio;
+} dvd_event_t;
