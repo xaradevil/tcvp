@@ -107,7 +107,7 @@ alsa_flush(audio_driver_t *p, int drop)
 	if(ao->hwp)
 	    snd_pcm_drop(ao->pcm);
     } else {
-	while(snd_pcm_drain(ao->pcm) == -EAGAIN)
+	if(snd_pcm_drain(ao->pcm) == -EAGAIN)
 	    snd_pcm_wait(ao->pcm, 100);
 	if(ao->tmdrivers[SYSTEM]){
 	    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
