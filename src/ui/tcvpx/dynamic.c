@@ -17,14 +17,14 @@
 **/
 
 #include "tcvpx.h"
-#include <string.h>
+#include <tcstring.h>
 #include <ctype.h>
 
 hash_table *variable_hash;
 hash_table *widget_hash;
 
-static void*
-lookup_variable(char *key)
+static char *
+lookup_variable(char *key, void *p)
 {
     void *var = NULL;
 
@@ -292,7 +292,7 @@ parse_variable(char *text, void **result, void **def)
 	free(keys);
 	free(defaults);
     } else if(n == 1) {
-	*result = lookup_variable(keys[0]);
+	*result = lookup_variable(keys[0], NULL);
 	if(!*result && def) {
 	    if(defaults[0] && defaults[0][0] == '%' && defaults[0][1] == 'f') {
 		double *dp = malloc(sizeof(*dp));
@@ -313,78 +313,17 @@ parse_variable(char *text, void **result, void **def)
 extern int
 parse_text(char *text, char *result)
 {
-    char *foo, *src, *dst;
+    char *exp;
 
     if(!text) {
 	result[0]=0;
 	return 1;
     }
 
-    foo = src = strdup(text);
-    dst = result;
-
-    for(;;) {
-	char *tmp;
-	char *key;
-	char *default_text = NULL;
-	int upcase = 0, downcase = 0;
-	int l, i;
-
-	tmp = strstr(src, "${");
-	if(!tmp) break;
-
-	memcpy(dst, src, tmp-src);
-	dst += tmp-src;
-
-	src = key = tmp+2;
-
-	tmp = strchr(src, '}');
-	tmp[0]=0;
-	src = tmp+1;
-
-	tmp = strchr(key, ':');
-	if(tmp) {
-	    int f = 1;
-	    *tmp++ = 0;
-	    while(f && *tmp){
-		switch(*tmp++){
-		case 'u':
-		    upcase = 1;
-		    break;
-		case 'l':
-		    downcase = 1;
-		    break;
-		case '-':
-		    default_text = tmp;
-		    break;
-		}
-	    }
-	}
-
-	tmp = lookup_variable(key);
-
-	if(!tmp && default_text)
-	    tmp = default_text;
-
-	if(tmp) {
-	    l = strlen(tmp);
-	    if(upcase){
-		for(i = 0; i < l; i++)
-		    *dst++ = toupper(*tmp++);
-	    } else if(downcase){
-		for(i = 0; i < l; i++)
-		    *dst++ = tolower(*tmp++);
-	    } else {
-		memcpy(dst, tmp, l);
-		dst += l;
-	    }
-	}
-    }
-
-    memcpy(dst, src, strlen(src));
-    dst[strlen(src)] = 0;
-
-    free(foo);
+    exp = tcstrexp(text, "{", "}", ':', lookup_variable,
+		   NULL, TCSTREXP_ESCAPE);
+    strcpy(result, exp);
+    free(exp);
 
     return 0;
 }
