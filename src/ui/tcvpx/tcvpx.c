@@ -133,7 +133,7 @@ tcvpx_shdn(void)
 {
     tcvp_stop(NULL, NULL);
 
-    tcvp_send_event(qr, -1);
+    tcvp_event_send(qr, -1);
 
     xtk_shutdown_graphics();
 

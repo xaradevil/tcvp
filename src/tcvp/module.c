@@ -25,10 +25,3 @@ tcvp_init(char *p)
     init_core();
     return 0;
 }
-
-extern int
-tcvp_shdown(void)
-{
-    free_events();
-    return 0;
-}

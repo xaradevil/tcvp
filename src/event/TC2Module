@@ -1,0 +1,14 @@
+module		tcvp_event
+name		"TCVP/event"
+version		0.1.0
+tc2version	0.4.0
+sources		event.c
+postinit	event_init
+shutdown	event_free
+
+implement	"tcvp/event"	"register"	reg_event
+implement	"tcvp/event"	"send"		send_event
+implement	"tcvp/event"	"get"		get_event
+implement	"tcvp/event"	"delete"	del_event
+implement	"tcvp/event"	"alloc"		alloc_event
+import		"Eventq"	"send"

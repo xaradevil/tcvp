@@ -3,6 +3,7 @@ name		"TCVP/demux/stream"
 version		0.1.0
 tc2version	0.4.0
 sources		stream.c
+postinit	s_init
 implement	"stream"	"open"		s_open
 implement	"stream"	"next_packet"	s_next_packet
 implement	"stream" 	"play"		s_play
@@ -11,5 +12,7 @@ import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
 import		"Eventq"	"attach"
+import		"tcvp/event"		"send"
+import		"tcvp/event"		"get"
 option		buffer%i=4096
 option		max_probe%i=1024

@@ -14,9 +14,9 @@ import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 
 import		"tcvp"		"new"
-import		"tcvp"		"get_event"
-import		"tcvp"		"alloc_event"
-import		"tcvp"		"send_event"
+import		"tcvp/event"	"get"
+import		"tcvp/event"	"alloc"
+import		"tcvp/event"	"send"
 
 import		"image/png"	"read"
 

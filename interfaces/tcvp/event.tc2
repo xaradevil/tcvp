@@ -1,0 +1,11 @@
+symbol "register"	int (*%s)(char *name, tcvp_alloc_event_t)
+symbol "send"		int (*%s)(eventq_t q, int type, ...)
+symbol "get"		int (*%s)(char *name)
+symbol "delete"		int (*%s)(char *name)
+symbol "alloc"		void *(*%s)(int type, int size, tc_free_fn)
+require "Eventq"
+require "tcvp"
+include
+#include <stdarg.h>
+
+typedef void *(*tcvp_alloc_event_t)(int type, va_list);

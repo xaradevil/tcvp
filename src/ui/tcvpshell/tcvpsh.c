@@ -21,27 +21,26 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcvp_types.h>
-#include <tcvp_event.h>
 #include <tcvpsh_tc2.h>
 
 static player_t *pl;
 static eventq_t qs;
 
+static int TCVP_OPEN;
+static int TCVP_PAUSE;
+static int TCVP_CLOSE;
+
 static int
 tcvp_pause(char *p)
 {
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_PAUSE);
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_event_send(qs, TCVP_PAUSE);
     return 0;
 }
 
 static int
 tcvp_stop(char *p)
 {
-    tcvp_event_t *te = tcvp_alloc_event(TCVP_CLOSE);
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_event_send(qs, TCVP_CLOSE);
 
     return 0;
 }
@@ -49,10 +48,7 @@ tcvp_stop(char *p)
 static int
 tcvp_play(char *file)
 {
-    tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN, file);
-    te->file = file;
-    eventq_send(qs, te);
-    tcfree(te);
+    tcvp_event_send(qs, TCVP_OPEN, file);
 
     tcvp_pause(NULL);
 
@@ -73,6 +69,10 @@ tcvpsh_init(char *p)
 	pl = tcvp_new(cs);
 	tcconf_getvalue(cs, "qname", "%s", &qname);
     }
+
+    TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 
+    TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");
+    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
 
     qs = eventq_new(NULL);
     qn = alloca(strlen(qname) + 10);

@@ -3,7 +3,9 @@ name		"TCVP/playlist"
 version		0.1.0
 tc2version	0.4.0
 sources		playlist.c
+postinit	pl_init
 implement	"playlist"	"new"	pl_new
+
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
@@ -12,3 +14,9 @@ import		"Eventq"	"attach"
 import		"Eventq"	"detach"
 import		"URL"		"open"
 import		"URL"		"gets"
+import		"tcvp/event"	"register"
+import		"tcvp/event"	"send"
+import		"tcvp/event"	"get"
+import		"tcvp/event"	"delete"
+import		"tcvp/event"	"alloc"
+require		"tcvp"

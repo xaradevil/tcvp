@@ -1,12 +1,6 @@
 symbol "new"		player_t *(*%s)(tcconf_section_t *)
-symbol "register_event"	int (*%s)(char *name, tcvp_event_alloc_t)
-symbol "send_event"	int (*%s)(eventq_t q, int type, ...)
-symbol "get_event"	int (*%s)(char *name)
-symbol "delete_event"	int (*%s)(char *name)
-symbol "alloc_event"	void *(*%s)(int type, int size, tc_free_fn)
 include
 #include <stdint.h>
-#include <stdarg.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
 
@@ -24,8 +18,6 @@ struct player {
 typedef struct tcvp_event {
     int type;
 } tcvp_event_t;
-
-typedef void *(*tcvp_event_alloc_t)(int type, va_list);
 
 /* the core event types */
 
@@ -68,10 +60,3 @@ typedef struct tcvp_load_event {
     int type;
     muxed_stream_t *stream;
 } tcvp_load_event_t;
-
-typedef struct tcvp_pl_add_event {
-    int type;
-    char **names;
-    int n;
-    int pos;
-} tcvp_pl_add_event_t;

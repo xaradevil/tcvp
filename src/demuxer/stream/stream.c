@@ -25,8 +25,9 @@
 #include <tcalloc.h>
 #include <tclist.h>
 #include <tcvp_types.h>
-#include <tcvp_event.h>
 #include <stream_tc2.h>
+
+static int TCVP_STATE;
 
 extern muxed_stream_t *
 s_open(char *name, tcconf_section_t *cs, tcvp_timer_t **t)
@@ -227,11 +228,8 @@ play_stream(void *p)
 
     pthread_mutex_lock(&vp->mtx);
     vp->nstreams--;
-    if(vp->nstreams == 0){
-	tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_END);
-	eventq_send(vp->sq, te);
-	tcfree(te);
-    }
+    if(vp->nstreams == 0)
+	tcvp_event_send(vp->sq, TCVP_STATE, TCVP_STATE_END);
     pthread_cond_broadcast(&vp->cnd);
     pthread_mutex_unlock(&vp->mtx);
 
@@ -436,4 +434,12 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
     p->private = vp;
 
     return p;
+}
+
+extern int
+s_init(char *p)
+{
+    TCVP_STATE = tcvp_event_get("TCVP_STATE");
+
+    return 0;
 }

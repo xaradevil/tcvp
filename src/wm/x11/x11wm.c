@@ -27,7 +27,6 @@
 #include <semaphore.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
-#include <tcvp_event.h>
 #include <wm_x11_tc2.h>
 
 typedef struct x11_wm {
@@ -42,6 +41,10 @@ typedef struct x11_wm {
     int flags;
     eventq_t qs;
 } x11_wm_t;
+
+static int TCVP_PAUSE;
+static int TCVP_SEEK;
+static int TCVP_CLOSE;
 
 static void *
 x11_event(void *p)
@@ -99,27 +102,22 @@ x11_event(void *p)
 	}
 	case KeyPress: {
 	    int key = XLookupKeysym(&xe.xkey, 0);
-	    tcvp_event_t *te = NULL;
 
 	    switch(key){
 	    case XK_space:
-		te = tcvp_alloc_event(TCVP_PAUSE);
+		tcvp_event_send(xwm->qs, TCVP_PAUSE);
 		break;
 	    case XK_Up:
-		te = tcvp_alloc_event(TCVP_SEEK, 27 * 60000000LL,
-				      TCVP_SEEK_REL);
+		tcvp_event_send(xwm->qs, TCVP_SEEK, 27 * 60000000LL,
+				TCVP_SEEK_REL);
 		break;
 	    case XK_Down:
-		te = tcvp_alloc_event(TCVP_SEEK, -27 * 60000000LL,
-				      TCVP_SEEK_REL);
+		tcvp_event_send(xwm->qs, TCVP_SEEK, -27 * 60000000LL,
+				TCVP_SEEK_REL);
 		break;
 	    case XK_q:
-		te = tcvp_alloc_event(TCVP_CLOSE);
+		tcvp_event_send(xwm->qs, TCVP_CLOSE);
 		break;
-	    }
-	    if(te){
-		eventq_send(xwm->qs, te);
-		tcfree(te);
 	    }
 	    break;
 	}
@@ -269,5 +267,15 @@ x11_getwindow(window_manager_t *wm, Display **dpy, Window *win)
     x11_wm_t *xwm = wm->private;
     *dpy = xwm->dpy;
     *win = xwm->swin;
+    return 0;
+}
+
+extern int
+x11_init(char *p)
+{
+    TCVP_SEEK = tcvp_event_get("TCVP_SEEK");
+    TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");
+    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
+
     return 0;
 }

@@ -32,18 +32,18 @@ static int TCVP_STATE, TCVP_TIMER, TCVP_LOAD, TCVP_STREAM_INFO,
 extern int
 init_events(void)
 {
-    TCVP_STATE = tcvp_get_event("TCVP_STATE");
-    TCVP_TIMER = tcvp_get_event("TCVP_TIMER");
-    TCVP_LOAD = tcvp_get_event("TCVP_LOAD");
-    TCVP_STREAM_INFO = tcvp_get_event("TCVP_STREAM_INFO");
-    TCVP_PAUSE = tcvp_get_event("TCVP_PAUSE");
-    TCVP_SEEK = tcvp_get_event("TCVP_SEEK"); 
-    TCVP_CLOSE = tcvp_get_event("TCVP_CLOSE");
-    TCVP_PL_STOP = tcvp_get_event("TCVP_PL_STOP");
-    TCVP_PL_START = tcvp_get_event("TCVP_PL_START");
-    TCVP_PL_NEXT = tcvp_get_event("TCVP_PL_NEXT");
-    TCVP_PL_PREV = tcvp_get_event("TCVP_PL_PREV");
-    TCVP_PL_ADD = tcvp_get_event("TCVP_PL_ADD");
+    TCVP_STATE = tcvp_event_get("TCVP_STATE");
+    TCVP_TIMER = tcvp_event_get("TCVP_TIMER");
+    TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
+    TCVP_STREAM_INFO = tcvp_event_get("TCVP_STREAM_INFO");
+    TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");
+    TCVP_SEEK = tcvp_event_get("TCVP_SEEK"); 
+    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
+    TCVP_PL_STOP = tcvp_event_get("TCVP_PL_STOP");
+    TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
+    TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
+    TCVP_PL_PREV = tcvp_event_get("TCVP_PL_PREV");
+    TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
 
     return 0;
 }
@@ -155,7 +155,7 @@ tcvp_event(void *p)
 extern int
 tcvp_pause(xtk_widget_t *w, void *p)
 {
-    tcvp_send_event(qs, TCVP_PAUSE);
+    tcvp_event_send(qs, TCVP_PAUSE);
     return 0;
 }
 
@@ -163,8 +163,8 @@ tcvp_pause(xtk_widget_t *w, void *p)
 extern int
 tcvp_stop(xtk_widget_t *w, void *p)
 {
-    tcvp_send_event(qs, TCVP_PL_STOP);
-    tcvp_send_event(qs, TCVP_CLOSE);
+    tcvp_event_send(qs, TCVP_PL_STOP);
+    tcvp_event_send(qs, TCVP_CLOSE);
 
     return 0;
 }
@@ -177,10 +177,10 @@ tcvp_play(xtk_widget_t *w, void *p)
 	tcvp_pause(w, p);
     } else {
 	if(tcvpstate != TCVP_STATE_PLAYING) {
-	    tcvp_send_event(qs, TCVP_PL_START);
+	    tcvp_event_send(qs, TCVP_PL_START);
 	} else {
 	    tcvp_stop(w, p);
-	    tcvp_send_event(qs, TCVP_PL_START);
+	    tcvp_event_send(qs, TCVP_PL_START);
 	}
     }
 
@@ -191,7 +191,7 @@ tcvp_play(xtk_widget_t *w, void *p)
 extern int
 tcvp_next(xtk_widget_t *w, void *p)
 {
-    tcvp_send_event(qs, TCVP_PL_NEXT);
+    tcvp_event_send(qs, TCVP_PL_NEXT);
 
     return 0;
 }
@@ -200,7 +200,7 @@ tcvp_next(xtk_widget_t *w, void *p)
 extern int
 tcvp_previous(xtk_widget_t *w, void *p)
 {
-    tcvp_send_event(qs, TCVP_PL_PREV);
+    tcvp_event_send(qs, TCVP_PL_PREV);
 
     return 0;
 }
@@ -212,7 +212,7 @@ tcvp_seek(xtk_widget_t *w, void *p)
     double pos = *((double*)p);
     uint64_t time = s_length * pos * 27000000;
 
-    tcvp_send_event(qs, TCVP_SEEK, time, TCVP_SEEK_ABS);
+    tcvp_event_send(qs, TCVP_SEEK, time, TCVP_SEEK_ABS);
 
     return 0;
 }
@@ -224,7 +224,7 @@ tcvp_seek_rel(xtk_widget_t *w, void *p)
     char *d = ((widget_data_t *)w->data)->action_data;
     uint64_t time = strtol(d, NULL, 0) * 27000000;
 
-    tcvp_send_event(qs, TCVP_SEEK, time, TCVP_SEEK_REL);
+    tcvp_event_send(qs, TCVP_SEEK, time, TCVP_SEEK_REL);
 
     return 0;
 }
@@ -244,7 +244,7 @@ extern int
 tcvp_add_file(char *file)
 {
 /*     fprintf(stderr, "%s\n", file); */
-    tcvp_send_event(qs, TCVP_PL_ADD, &file, 1, -1);
+    tcvp_event_send(qs, TCVP_PL_ADD, &file, 1, -1);
 
     return 0;
 }

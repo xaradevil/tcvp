@@ -25,7 +25,6 @@
 #include <tcbyteswap.h>
 #include <pthread.h>
 #include <tcvp_types.h>
-#include <tcvp_event.h>
 #include <mp3_tc2.h>
 
 typedef struct mp3_file {
@@ -73,6 +72,8 @@ getss32(url_t *f)
     v = (v & 0x7f) | ((v & ~0xff) >> 1);
     return v;
 }
+
+static int TCVP_STREAM_INFO;
 
 #define ID3v2_FLAG_USYNC (1<<7)
 #define ID3v2_FLAG_EXTH  (1<<6)
@@ -454,9 +455,7 @@ mp3_packet(muxed_stream_t *ms, int str)
 #endif
 		mf->stream.audio.bit_rate = br;
 		ms->time = 27 * 8000000LL * mf->size / br;
-		tcvp_event_t *te = tcvp_alloc_event(TCVP_STREAM_INFO);
-		eventq_send(mf->qs, te);
-		tcfree(te);
+		tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
 	    }	    
 	}
     }
@@ -533,4 +532,12 @@ mp3_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
     ms->seek = mp3_seek;
 
     return ms;
+}
+
+extern int
+mp3_init(char *p)
+{
+    TCVP_STREAM_INFO = tcvp_event_get("TCVP_STREAM_INFO");
+
+    return 0;
 }

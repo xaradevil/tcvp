@@ -6,6 +6,8 @@ sources		tcvp.c
 postinit	tcl_init
 shutdown	tcl_stop
 import		"tcvp"		"new"
+import		"tcvp/event"	"get"
+import		"tcvp/event"	"send"
 import		"stream"	"validate"
 import		"Eventq"	"new"
 import		"Eventq"	"delete"

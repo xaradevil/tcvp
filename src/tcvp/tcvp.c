@@ -77,7 +77,7 @@ t_start(player_t *pl)
 	tp->timer->start(tp->timer);
 
     tp->state = TCVP_STATE_PLAYING;
-    send_event(tp->qs, TCVP_STATE, TCVP_STATE_PLAYING);
+    tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_PLAYING);
 
     return 0;
 }
@@ -100,7 +100,7 @@ t_stop(player_t *pl)
 	tp->vend->stop(tp->vend);
 
     tp->state = TCVP_STATE_STOPPED;
-    send_event(tp->qs, TCVP_STATE, TCVP_STATE_STOPPED);
+    tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_STOPPED);
 
     return 0;
 }
@@ -171,7 +171,7 @@ t_free(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
 
-    send_event(tp->qr, -1);
+    tcvp_event_send(tp->qr, -1);
     pthread_join(tp->th_event, NULL);
 
     t_close(pl);
@@ -244,7 +244,7 @@ st_ticker(void *p)
     pthread_mutex_lock(&tp->tmx);
     while(tp->state != TCVP_STATE_END){
 	time = tp->timer->read(tp->timer);
-	send_event(tp->qt, TCVP_TIMER, time);
+	tcvp_event_send(tp->qt, TCVP_TIMER, time);
 	tp->timer->wait(tp->timer, time + 27000000, &tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
@@ -529,7 +529,7 @@ t_open(player_t *pl, char *name)
 
     free(codecs);
 
-    send_event(tp->qs, TCVP_LOAD, stream);
+    tcvp_event_send(tp->qs, TCVP_LOAD, stream);
 
     return 0;
 
@@ -553,7 +553,7 @@ t_event(void *p)
 
 	if(te->type == TCVP_OPEN){
 	    if(t_open(pl, te->open.file) < 0)
-		send_event(tp->qs, TCVP_STATE, TCVP_STATE_ERROR);
+		tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_ERROR);
 	} else if(te->type == TCVP_START){
 	    t_start(pl);
 	} else if(te->type == TCVP_STOP){
@@ -579,7 +579,7 @@ static int
 q_cmd(player_t *pl, int cmd)
 {
     tcvp_player_t *tp = pl->private;
-    send_event(tp->qr, cmd);
+    tcvp_event_send(tp->qr, cmd);
     return 0;
 }
 
@@ -605,7 +605,7 @@ static int
 q_seek(player_t *pl, uint64_t pts)
 {
     tcvp_player_t *tp = pl->private;
-    send_event(tp->qr, TCVP_SEEK, pts, TCVP_SEEK_ABS);
+    tcvp_event_send(tp->qr, TCVP_SEEK, pts, TCVP_SEEK_ABS);
     return 0;
 }
 
@@ -655,15 +655,15 @@ t_new(tcconf_section_t *cs)
 extern int
 init_core(void)
 {
-    TCVP_OPEN = get_event("TCVP_OPEN"); 
-    TCVP_START = get_event("TCVP_START");
-    TCVP_STOP = get_event("TCVP_STOP"); 
-    TCVP_PAUSE = get_event("TCVP_PAUSE");
-    TCVP_SEEK = get_event("TCVP_SEEK"); 
-    TCVP_CLOSE = get_event("TCVP_CLOSE");
-    TCVP_STATE = get_event("TCVP_STATE");
-    TCVP_TIMER = get_event("TCVP_TIMER");
-    TCVP_LOAD = get_event("TCVP_LOAD");
+    TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 
+    TCVP_START = tcvp_event_get("TCVP_START");
+    TCVP_STOP = tcvp_event_get("TCVP_STOP"); 
+    TCVP_PAUSE = tcvp_event_get("TCVP_PAUSE");
+    TCVP_SEEK = tcvp_event_get("TCVP_SEEK"); 
+    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
+    TCVP_STATE = tcvp_event_get("TCVP_STATE");
+    TCVP_TIMER = tcvp_event_get("TCVP_TIMER");
+    TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
 
     return 0;
 }

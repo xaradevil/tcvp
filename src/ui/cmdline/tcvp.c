@@ -28,7 +28,6 @@
 #include <mcheck.h>
 #include <sys/time.h>
 #include <tcvp_types.h>
-#include <tcvp_event.h>
 #include <tcvp_tc2.h>
 
 static pthread_t check_thr, evt_thr, intr_thr;
@@ -45,6 +44,17 @@ static eventq_t qr, qs;
 static char *sel_ui;
 static playlist_t *pll;
 static int shuffle;
+
+static int TCVP_STATE;
+static int TCVP_LOAD;
+static int TCVP_PL_START;
+static int TCVP_PL_NEXT;
+
+typedef union tcvp_cl_event {
+    int type;
+    tcvp_state_event_t state;
+    tcvp_load_event_t load;
+} tcvp_cl_event_t;
 
 static void
 show_help(void)
@@ -79,9 +89,8 @@ tcl_event(void *p)
 {
     int r = 1;
     while(r){
-	tcvp_event_t *te = eventq_recv(qr);
-	switch(te->type){
-	case TCVP_STATE:
+	tcvp_cl_event_t *te = eventq_recv(qr);
+	if(te->type == TCVP_STATE){
 	    switch(te->state.state){
 	    case TCVP_STATE_ERROR:
 		printf("Error opening file.\n");
@@ -90,14 +99,11 @@ tcl_event(void *p)
 		tc2_request(TC2_UNLOAD_ALL, 0);
 		break;
 	    }
-	    break;
-	case TCVP_LOAD:
+	} else if(te->type == TCVP_LOAD){
 	    printf("Loaded \"%s\"\n",
 		   te->load.stream->title?: te->load.stream->file);
-	    break;
-	case -1:
+	} else if(te->type == -1){
 	    r = 0;
-	    break;
 	}
 	tcfree(te);
     }
@@ -113,7 +119,6 @@ tcl_intr(void *p)
 
     while(intr){
 	uint64_t t;
-	tcvp_event_t *te;
 
 	sem_wait(&psm);
 	if(!intr)
@@ -127,9 +132,7 @@ tcl_intr(void *p)
 
 	switch(ic){
 	case 0:
-	    te = tcvp_alloc_event(TCVP_PL_NEXT);
-	    eventq_send(qs, te);
-	    tcfree(te);
+	    tcvp_event_send(qs, TCVP_PL_NEXT);
 	    break;
 	case 1:
 	    tc2_request(TC2_UNLOAD_ALL, 0);
@@ -171,6 +174,11 @@ tcl_init(char *p)
 	return 0;
     }
 
+    TCVP_STATE = tcvp_event_get("TCVP_STATE");
+    TCVP_LOAD = tcvp_event_get("TCVP_LOAD");
+    TCVP_PL_START = tcvp_event_get("TCVP_PL_START");
+    TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
+
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
@@ -190,7 +198,6 @@ tcl_init(char *p)
     } else if(nfiles) {
 	char qn[strlen(qname)+9];
 	struct sigaction sa;
-	tcvp_event_t *te;
 
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
@@ -201,9 +208,7 @@ tcl_init(char *p)
 	sprintf(qn, "%s/control", qname);
 	eventq_attach(qs, qn, EVENTQ_SEND);
 
-	te = tcvp_alloc_event(TCVP_PL_START);
-	eventq_send(qs, te);
-	tcfree(te);
+	tcvp_event_send(qs, TCVP_PL_START);
 
 	sem_init(&psm, 0, 0);
 	sa.sa_handler = sigint;
@@ -234,9 +239,7 @@ tcl_stop(void)
 	pll->free(pll);
 
     if(qr){
-	tcvp_event_t *te = tcvp_alloc_event(-1);
-	eventq_send(qr, te);
-	tcfree(te);
+	tcvp_event_send(qr, -1);
 	pthread_join(evt_thr, NULL);
 
 	intr = 0;

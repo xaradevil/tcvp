@@ -4,15 +4,8 @@ version		0.1.0
 tc2version	0.4.0
 sources		tcvp.c event.c module.c tcvp_mod.h
 postinit	tcvp_init
-shutdown	tcvp_shdown
 
 implement	"tcvp"		"new"			t_new
-implement	"tcvp"		"register_event"	reg_event
-implement	"tcvp"		"send_event"		send_event
-implement	"tcvp"		"get_event"		get_event
-implement	"tcvp"		"delete_event"		del_event
-implement	"tcvp"		"alloc_event"		alloc_event
-
 import		"stream"	"open"
 import		"stream"	"play"
 import		"timer"		"new"
@@ -22,6 +15,11 @@ import		"Eventq"	"send"
 import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
+import		"tcvp/event"	"register"
+import		"tcvp/event"	"send"
+import		"tcvp/event"	"get"
+import		"tcvp/event"	"delete"
+import		"tcvp/event"	"alloc"
 require		"filter"
 
 option		default_profile%s="play"

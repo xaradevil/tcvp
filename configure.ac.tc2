@@ -10,8 +10,8 @@ AC_SUBST([CPPFLAGS], [-I\$\(top_srcdir\)/include])
 AC_SUBST([LDFLAGS], [-L\$\(top_builddir\)/lib])
 AC_CONFIG_FILES([Makefile
 		 interfaces/Makefile
-		 lib/Makefile
 		 src/Makefile
+		 src/event/Makefile
 		 src/demuxer/Makefile
 		 src/demuxer/audiofile/Makefile
 		 src/demuxer/avformat/Makefile

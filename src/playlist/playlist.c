@@ -24,7 +24,6 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <tcvp_types.h>
-#include <tcvp_event.h>
 #include <playlist_tc2.h>
 
 typedef struct tcvp_playlist {
@@ -37,10 +36,32 @@ typedef struct tcvp_playlist {
     pthread_mutex_t lock;
 } tcvp_playlist_t;
 
+typedef union tcvp_pl_event {
+    int type;
+    tcvp_state_event_t state;
+    tcvp_pl_add_event_t pl_add;
+    tcvp_pl_addlist_event_t pl_addlist;
+    tcvp_pl_remove_event_t pl_remove;
+    tcvp_pl_shuffle_event_t pl_shuffle;
+} tcvp_pl_event_t;
+
 #define STOPPED 0
 #define PLAYING 1
 
 #define min(a,b) ((a)<(b)?(a):(b))
+
+static int TCVP_STATE;
+static int TCVP_OPEN;
+static int TCVP_START;
+static int TCVP_CLOSE;
+static int TCVP_PL_START;
+static int TCVP_PL_STOP;
+static int TCVP_PL_NEXT;
+static int TCVP_PL_PREV;
+static int TCVP_PL_ADD;
+static int TCVP_PL_ADDLIST;
+static int TCVP_PL_REMOVE;
+static int TCVP_PL_SHUFFLE;
 
 static int
 pl_add(playlist_t *pl, char **files, int n, int p)
@@ -198,9 +219,6 @@ pl_shuffle(playlist_t *pl, int s, int n)
 static int
 pl_start(tcvp_playlist_t *tpl)
 {
-    tcvp_open_event_t *oe;
-    tcvp_event_t *te;
-
     if(!tpl->nf)
 	return -1;
 
@@ -209,17 +227,9 @@ pl_start(tcvp_playlist_t *tpl)
     if(tpl->cur >= tpl->nf)
 	tpl->cur = 0;
 
-    te = tcvp_alloc_event(TCVP_CLOSE);
-    eventq_send(tpl->sc, te);
-    tcfree(te);
-
-    oe = tcvp_alloc_event(TCVP_OPEN, tpl->files[tpl->cur]);
-    eventq_send(tpl->sc, oe);
-    tcfree(oe);
-
-    te = tcvp_alloc_event(TCVP_START);
-    eventq_send(tpl->sc, te);
-    tcfree(te);
+    tcvp_event_send(tpl->sc, TCVP_CLOSE);
+    tcvp_event_send(tpl->sc, TCVP_OPEN, tpl->files[tpl->cur]);
+    tcvp_event_send(tpl->sc, TCVP_START);
 
     pthread_mutex_unlock(&tpl->lock);
     return 0;
@@ -236,12 +246,8 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 
     if(c >= tpl->nf || c < 0){
 	if(tpl->state == PLAYING){
-	    tcvp_state_event_t *te;
 	    tpl->state = STOPPED;
-	    te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_PL_END);
-	    te->state = TCVP_STATE_PL_END;
-	    eventq_send(tpl->ss, te);
-	    tcfree(te);
+	    tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
 	}
 	goto out;
     }
@@ -267,9 +273,8 @@ pl_event(void *p)
     int run = 1;
 
     while(run){
-	tcvp_event_t *te = eventq_recv(tpl->qr);
-	switch(te->type){
-	case TCVP_STATE:
+	tcvp_pl_event_t *te = eventq_recv(tpl->qr);
+	if(te->type == TCVP_STATE){
 	    switch(te->state.state){
 	    case TCVP_STATE_ERROR:
 		tpl->state = PLAYING;
@@ -285,41 +290,23 @@ pl_event(void *p)
 		tpl->state = PLAYING;
 		break;
 	    }
-	    break;
-
-	case TCVP_PL_START:
+	} else if(te->type == TCVP_PL_START){
 	    pl_start(tpl);
-	    break;
-
-	case TCVP_PL_STOP:
+	} else if(te->type == TCVP_PL_STOP){
 	    tpl->state = STOPPED;
-	    break;
-
-	case TCVP_PL_NEXT:
+	} else if(te->type == TCVP_PL_NEXT){
 	    pl_next(tpl, 1);
-	    break;
-
-	case TCVP_PL_PREV:
+	} else if(te->type == TCVP_PL_PREV){
 	    pl_next(tpl, -1);
-	    break;
-
-	case TCVP_PL_ADD:
+	} else if(te->type == TCVP_PL_ADD){
 	    pl_add(pl, te->pl_add.names, te->pl_add.n, te->pl_add.pos);
-	    break;
-
-	case TCVP_PL_ADDLIST:
+	} else if(te->type == TCVP_PL_ADDLIST){
 	    pl_addlist(pl, te->pl_addlist.name, te->pl_addlist.pos);
-	    break;
-
-	case TCVP_PL_REMOVE:
+	} else if(te->type == TCVP_PL_REMOVE){
 	    pl_remove(pl, te->pl_remove.start, te->pl_remove.n);
-	    break;
-
-	case TCVP_PL_SHUFFLE:
+	} else if(te->type == TCVP_PL_SHUFFLE){
 	    pl_shuffle(pl, te->pl_shuffle.start, te->pl_shuffle.n);
-	    break;
-
-	case -1:
+	} else if(te->type == -1){
 	    run = 0;
 	    break;
 	}
@@ -333,12 +320,9 @@ static void
 pl_free(playlist_t *pl)
 {
     tcvp_playlist_t *tpl = pl->private;
-    tcvp_event_t *te;
     int i;
 
-    te = tcvp_alloc_event(-1);
-    eventq_send(tpl->qr, te);
-    tcfree(te);
+    tcvp_event_send(tpl->qr, -1);
     pthread_join(tpl->eth, NULL);
 
     eventq_delete(tpl->qr);
@@ -397,4 +381,92 @@ pl_new(tcconf_section_t *cs)
     pthread_create(&tpl->eth, NULL, pl_event, pl);
 
     return pl;
+}
+
+static void
+pl_free_add(void *p)
+{
+    tcvp_pl_add_event_t *te = p;
+    int i;
+
+    for(i = 0; i < te->n; i++)
+	free(te->names[i]);
+    free(te->names);
+}
+
+static void *
+pl_alloc_add(int t, va_list args)
+{
+    tcvp_pl_add_event_t *te = tcvp_event_alloc(t, sizeof(*te), pl_free_add);
+
+    char **n = va_arg(args, char **);
+    int i;
+    te->n = va_arg(args, int);
+    te->pos = va_arg(args, int);
+    te->names = malloc(te->n * sizeof(*te->names));
+    for(i = 0; i < te->n; i++)
+	te->names[i] = strdup(n[i]);
+
+    return te;
+}
+
+static void
+pl_free_addlist(void *p)
+{
+    tcvp_pl_addlist_event_t *te = p;
+
+    free(te->name);
+}
+
+static void *
+pl_alloc_addlist(int t, va_list args)
+{
+    tcvp_pl_addlist_event_t *te =
+	tcvp_event_alloc(t, sizeof(*te), pl_free_addlist);
+
+    te->name = strdup(va_arg(args, char *));
+    te->pos = va_arg(args, int);
+
+    return te;
+}
+
+static void *
+pl_alloc_remove(int t, va_list args)
+{
+    tcvp_pl_remove_event_t *te = tcvp_event_alloc(t, sizeof(*te), NULL);
+
+    te->start = va_arg(args, int);
+    te->n = va_arg(args, int);
+
+    return te;
+}
+
+static void *
+pl_alloc_shuffle(int t, va_list args)
+{
+    tcvp_pl_shuffle_event_t *te = tcvp_event_alloc(t, sizeof(*te), NULL);
+    te->start = va_arg(args, int);
+    te->n = va_arg(args, int);
+
+    return te;
+}
+
+extern int
+pl_init(char *p)
+{
+    TCVP_PL_START = tcvp_event_register("TCVP_PL_START", NULL);
+    TCVP_PL_STOP = tcvp_event_register("TCVP_PL_STOP", NULL);
+    TCVP_PL_NEXT = tcvp_event_register("TCVP_PL_NEXT", NULL);
+    TCVP_PL_PREV = tcvp_event_register("TCVP_PL_PREV", NULL);
+    TCVP_PL_ADD = tcvp_event_register("TCVP_PL_ADD", pl_alloc_add);
+    TCVP_PL_ADDLIST = tcvp_event_register("TCVP_PL_ADDLIST", pl_alloc_addlist);
+    TCVP_PL_REMOVE = tcvp_event_register("TCVP_PL_REMOVE", pl_alloc_remove);
+    TCVP_PL_SHUFFLE = tcvp_event_register("TCVP_PL_SHUFFLE", pl_alloc_shuffle);
+
+    TCVP_STATE = tcvp_event_get("TCVP_STATE");
+    TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 
+    TCVP_START = tcvp_event_get("TCVP_START");
+    TCVP_CLOSE = tcvp_event_get("TCVP_CLOSE");
+
+    return 0;
 }
