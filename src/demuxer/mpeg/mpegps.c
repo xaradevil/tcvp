@@ -36,6 +36,7 @@ typedef struct mpegps_stream {
     url_t *stream;
     int *imap;
     int rate;
+    uint64_t time;
 } mpegps_stream_t;
 
 static mpegpes_packet_t *
@@ -94,7 +95,12 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	    if(pklen < 0)
 		return NULL;
 	    pes->size = pklen;
-	} else if(stream_id != PADDING_STREAM &&
+	} else if((stream_id & 0xe0) == 0xc0 ||
+		  (stream_id & 0xf0) == 0xe0 ||
+		  stream_id == PRIVATE_STREAM_1){
+#if 0
+	} else if(stream_id >= PRIVATE_STREAM_1 &&
+		  stream_id != PADDING_STREAM &&
 		  stream_id != PRIVATE_STREAM_2 &&
 		  stream_id != ECM_STREAM &&
 		  stream_id != EMM_STREAM &&
@@ -102,6 +108,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 		  stream_id != DSMCC_STREAM &&
 		  stream_id != H222_E_STREAM &&
 		  stream_id != SYSTEM_HEADER){
+#endif
 	    pes = malloc(sizeof(*pes));
 	    pes->hdr = malloc(pklen);
 	    pklen = s->stream->read(pes->hdr, 1, pklen, s->stream);
@@ -170,6 +177,7 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	pk->flags |= TCVP_PKT_FLAG_PTS;
 	if(mp->pts)
 	    s->rate = s->stream->tell(s->stream) * 90 / mp->pts;
+	s->time = mp->pts;
     }
 
     if(mp->flags & PES_FLAG_DTS){
@@ -184,35 +192,52 @@ static uint64_t
 mpegps_seek(muxed_stream_t *ms, uint64_t time)
 {
     mpegps_stream_t *s = ms->private;
-    int64_t p, st;
-    packet_t *pk = NULL;
-    int sm = SEEK_SET, c = 0;
+    mpegpes_packet_t *pk = NULL;
+    int c = 0;
+    int64_t p = 0, st = 0, bin = 0, d = 0;
 
-    p = time / 27000 * s->rate;
-
+    time /= 300;
 
     do {
-	if(s->stream->seek(s->stream, p, sm))
+	if(bin){
+	    if(time > st)
+		d = (int64_t) s->stream->size / bin;
+	    else
+		d = -(int64_t) s->stream->size / bin;
+	    p += d;
+	    bin <<= 1;
+	    if(bin <= 0)
+		break;
+	} else {
+	    p = time * s->rate / 90;
+	}
+
+	if(p > s->stream->size){
+	    p = s->stream->size / 2;
+	    bin = 4;
+	}
+
+	if(s->stream->seek(s->stream, p, SEEK_SET)){
+	    fprintf(stderr, "seek failed, p = %lli\n", p);
 	    return -1;
+	}
 
 	st = 0;
 
 	do {
-	    pk = mpegps_packet(ms, 0);
+	    pk = mpegpes_packet(s, 0);
 	    if(pk){
-		if(pk->flags & TCVP_PKT_FLAG_PTS)
+		if(pk->flags & PES_FLAG_PTS)
 		    st = pk->pts;
-		tcfree(pk);
+		mpegpes_free(pk);
 	    } else {
 		return -1;
 	    }
 	} while(!st);
+	s->rate = s->stream->tell(s->stream) * 90 / st;
+    } while(llabs(st - time) > 90000 && c++ < 512);
 
-	p = ((int64_t) time - st) / 27000 * s->rate;
-	sm = SEEK_CUR;
-    } while(llabs(st - time) > 27000000 && c++ < 64);
-
-    return st;
+    return st * 300;
 }
 
 static void
@@ -234,6 +259,8 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
     muxed_stream_t *ms;
     mpegps_stream_t *s;
     mpegpes_packet_t *pk = NULL;
+    uint64_t bt = 0;
+    int bc = 0;
     u_char *pm;
     int l, ns, pc = 0;
     stream_t *sp;
@@ -351,6 +378,23 @@ mpegps_open(char *name, tcconf_section_t *cs, tcvp_timer_t **tm)
 	    }
 	    mpegpes_free(pk);
 	}
+    }
+
+    if(!(s->stream->flags & URL_FLAG_STREAMED))
+	s->stream->seek(s->stream, s->stream->size / 8, SEEK_SET);
+
+    do {
+	if(!(pk = mpegpes_packet(s, 0)))
+	    break;
+	if(pk->flags & PES_FLAG_PTS)
+	    bt = pk->pts;
+	mpegpes_free(pk);
+    } while(bt < 90000 && bc++ < 256);
+
+    if(bt > 0){
+	uint64_t sp = s->stream->tell(s->stream);
+	s->rate = sp * 90 / bt;
+	ms->time = 300LL * s->stream->size / sp * bt;
     }
 
     s->stream->seek(s->stream, 0, SEEK_SET);
