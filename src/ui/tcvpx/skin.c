@@ -429,7 +429,6 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     w = xtk_widget_image_create(win, x, y, width, height);
     xtk_widget_image_set_image(w, load_image(skin->path, bg));
     xtk_widget_show(w);
-/* 	stype, align */
 
     register_textwidget(l, text);
     l->on_destroy = destroy_skinned_label;
@@ -654,6 +653,7 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
     }
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
+    xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
 
     create_ui(skin->window, skin, skin->config, NULL);
 
@@ -800,12 +800,11 @@ set_var(xtk_widget_t *w, void *p)
 static int
 set_text(xtk_widget_t *w, void *p)
 {
-/*     char *d = ((widget_data_t *)w->data)->action_data; */
+    char *d = ((widget_data_t *)w->data)->action_data;
 
-/*     if(d) { */
-/* 	fprintf(stderr, "set_text(%s) not yet implemented for " */
-/* 		"widget type %d.\n", d, w->widget_type); */
-/*     } */
+    if(d) {
+	fprintf(stderr, "set_text(%s) not yet implemented\n", d);
+    }
 
     return 0;
 }

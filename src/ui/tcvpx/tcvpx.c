@@ -77,14 +77,13 @@ tcvpx_init(char *p)
     init_skins();
     init_events();
 
-/*     xtk_window_set_dnd_cb(tcvp_add_file); */
-
     if((skin = load_skin(skinfile)) == NULL){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
 	return -1;
     }
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
+    xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n", skinfile);
