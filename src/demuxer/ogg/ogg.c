@@ -58,7 +58,7 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 	while(ogg_sync_pageout(&ost->oy, &og) != 1) {
 	    int l;
 	    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
-	    l = fread(buf, BUFFER_SIZE, 1, ost->f);
+	    l = fread(buf, 1, BUFFER_SIZE, ost->f);
 	    ogg_sync_wrote(&ost->oy, l);
 	    if(l==0){
 		return NULL;
