@@ -99,6 +99,7 @@ avf_free_packet(packet_t *p)
 {
     AVPacket *ap = p->private;
     av_free_packet(ap);
+    free(ap);
     free(p->sizes);
     free(p);
 }
@@ -108,41 +109,52 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 {
     avf_stream_t *as = ms->private;
     AVFormatContext *afc = as->afc;
-    AVPacket *apk;
-    packet_t *pk = NULL;
+    AVPacket *apk = NULL;
+    packet_t *pk;
 
-    if((pk = list_shift(as->packets[stream])))
-	return pk;
+    pthread_mutex_lock(&as->mtx);
 
-    apk = calloc(1, sizeof(*apk));
+    if(!(pk = list_shift(as->packets[stream]))){
+	int sx;
 
-    do {
-	int s;
+	apk = calloc(1, sizeof(*apk));
 
-	pthread_mutex_lock(&as->mtx);
-	s = av_read_packet(afc, apk);
-	pthread_mutex_unlock(&as->mtx);
+	do {
+	    int s;
 
-	if(s < 0){
-	    pk = NULL;
-	    break;
-	}
+	    s = av_read_packet(afc, apk);
+	    if(s < 0){
+		pk = NULL;
+		break;
+	    }
 
-	pk = malloc(sizeof(*pk));
-	pk->data = &apk->data;
-	pk->sizes = malloc(sizeof(size_t));
-	pk->sizes[0] = apk->size;
-	pk->planes = 1;
-	pk->pts = apk->pts;
-	pk->free = avf_free_packet;
-	pk->private = apk;
+	    sx = apk->stream_index;
 
-	if(apk->stream_index != stream && ms->used_streams[apk->stream_index])
-	    list_push(as->packets[apk->stream_index], pk);
-    } while(apk->stream_index != stream);
+	    if(!ms->used_streams[apk->stream_index]){
+		av_free_packet(apk);
+		continue;
+	    }
 
-    if(!pk)
-	free(apk);
+	    pk = malloc(sizeof(*pk));
+	    pk->data = &apk->data;
+	    pk->sizes = malloc(sizeof(size_t));
+	    pk->sizes[0] = apk->size;
+	    pk->planes = 1;
+	    pk->pts = apk->pts;
+	    pk->free = avf_free_packet;
+	    pk->private = apk;
+
+	    if(sx != stream){
+		list_push(as->packets[sx], pk);
+		apk = calloc(1, sizeof(*apk));
+	    }
+	} while(sx != stream);
+
+	if(!pk)
+	    free(apk);
+    }
+
+    pthread_mutex_unlock(&as->mtx);
 
     return pk;
 }
@@ -175,11 +187,15 @@ avf_open(char *name)
     avf_stream_t *as;
     int i;
 
-    if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0)
+    if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0){
+	fprintf(stderr, "Error opening %s\n", name);
 	return NULL;
+    }
 
-    if(av_find_stream_info(afc) != 0)
+    if(av_find_stream_info(afc) < 0){
+	fprintf(stderr, "Can't find stream info for %s\n", name);
 	return NULL;
+    }
 
     ms = malloc(sizeof(*ms));
     ms->n_streams = afc->nb_streams;
