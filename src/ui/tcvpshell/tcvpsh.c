@@ -23,7 +23,7 @@
 #include <tcvp_types.h>
 #include <tcvpsh_tc2.h>
 
-player_t *pl;
+static player_t *pl;
 static eventq_t qs;
 
 static int
