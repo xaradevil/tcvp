@@ -98,21 +98,14 @@ extern tcfraction_t frame_rates[16];
 #define STD_DESCRIPTOR                          17
 #define IBP_DESCRIPTOR                          18
 
+#define ISVIDEO(id) ((id & 0xf0) == 0xe0)
+#define ISMPEGAUDIO(id) ((id & 0xe0) == 0xc0)
+#define ISAC3(id) ((id & 0xf8) == 0x80)
+#define ISDTS(id) ((id & 0xf8) == 0x88)
+#define ISPCM(id) ((id & 0xf8) == 0xa0)
+#define ISSPU(id) ((id & 0xe0) == 0x20)
+
 #define min(a,b) ((a)<(b)?(a):(b))
-
-#define getuint(s)				\
-static inline uint##s##_t			\
-getu##s(url_t *f)				\
-{						\
-    uint##s##_t v;				\
-    f->read(&v, sizeof(v), 1, f);		\
-    v = htob_##s(v);				\
-    return v;					\
-}
-
-getuint(16)
-getuint(32)
-getuint(64)
 
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
 extern int stream_type2codec(int st);

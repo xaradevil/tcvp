@@ -56,7 +56,9 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 
     do {
 	uint32_t stream_id;
-	u_int scode = 0, pklen, zc = 0, i = pedantic? 3: 0x10000;
+	u_int scode = 0, zc = 0, i = pedantic? 3: 0x10000;
+	uint16_t pkl;
+	int pklen;
 
 	do {
 	    scode = url_getc(u);
@@ -107,7 +109,8 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	    continue;
 	}
 
-	pklen = getu16(u);
+	url_getu16b(u, &pkl);
+	pklen = pkl;
 
 	if(stream_id == PROGRAM_STREAM_MAP){
 	    pes = malloc(sizeof(*pes));
@@ -118,8 +121,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	    if(pklen < 0)
 		return NULL;
 	    pes->size = pklen;
-	} else if((stream_id & 0xe0) == 0xc0 ||
-		  (stream_id & 0xf0) == 0xe0 ||
+	} else if(ISVIDEO(stream_id) || ISMPEGAUDIO(stream_id) ||
 		  stream_id == PRIVATE_STREAM_1){
 	    pes = malloc(sizeof(*pes));
 	    pes->hdr = malloc(pklen);
@@ -180,16 +182,16 @@ mpegps_packet(muxed_stream_t *ms, int str)
 
 	sx = s->imap[mp->stream_id];
 
-	if((mp->stream_id & 0xf8) == 0x80){
+	if(ISAC3(mp->stream_id) || ISDTS(mp->stream_id)){
 	    mp->data += 4;
 	    mp->size -= 4;
-	} else if((mp->stream_id & 0xf8) == 0xa0){
+	} else if(ISPCM(mp->stream_id)){
 	    int aup = htob_16(unaligned16(mp->data + 2));
 	    mp->data += 7;
 	    mp->size -= 7;
 	    if(mp->flags & PES_FLAG_PTS)
 		mp->pts -= 27000000LL * aup / ms->streams[sx].common.bit_rate;
-	} else if((mp->stream_id & 0xe0) == 0x20){
+	} else if(ISSPU(mp->stream_id)){
 	    mp->data++;
 	    mp->size--;
 	} else if(mp->stream_id == DVD_PESID){
@@ -495,11 +497,9 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 	    break;
 	}
 
-	if((pk->stream_id & 0xe0) == 0xc0 ||
-	   (pk->stream_id & 0xf0) == 0xe0 ||
-	   (pk->stream_id & 0xf8) == 0x80 ||
-	   (pk->stream_id & 0xf8) == 0xa0 ||
-	   (pk->stream_id & 0xe0) == 0x20){
+	if(ISVIDEO(pk->stream_id) || ISMPEGAUDIO(pk->stream_id) ||
+	   ISAC3(pk->stream_id) || ISDTS(pk->stream_id) ||
+	   ISPCM(pk->stream_id) || ISSPU(pk->stream_id)){
 	    if(s->imap[pk->stream_id] < 0){
 		if(ms->n_streams == ns){
 		    ns *= 2;
@@ -515,16 +515,19 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 		tc2_print("MPEGPS", TC2_PRINT_DEBUG,
 			  "found stream id %02x\n", pk->stream_id);
 
-		if((pk->stream_id & 0xf0) == 0xe0){
+		if(ISVIDEO(pk->stream_id)){
 		    sp->stream_type = STREAM_TYPE_VIDEO;
 		    sp->common.codec = "video/mpeg";
-		} else if((pk->stream_id & 0xe0) == 0xc0){
+		} else if(ISMPEGAUDIO(pk->stream_id)){
 		    sp->stream_type = STREAM_TYPE_AUDIO;
 		    sp->common.codec = "audio/mpeg";
-		} else if((pk->stream_id & 0xf8) == 0x80){
+		} else if(ISAC3(pk->stream_id)){
 		    sp->stream_type = STREAM_TYPE_AUDIO;
 		    sp->common.codec = "audio/ac3";
-		} else if((pk->stream_id & 0xf8) == 0xa0){
+		} else if(ISDTS(pk->stream_id)){
+		    sp->stream_type = STREAM_TYPE_AUDIO;
+		    sp->common.codec = "audio/dts";
+		} else if(ISPCM(pk->stream_id)){
 		    sp->stream_type = STREAM_TYPE_AUDIO;
 		    sp->common.codec = "audio/pcm-s16be";
 		    if((pk->data[5] & 0x30) == 0){
@@ -540,7 +543,7 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 		    sp->audio.channels = (pk->data[5] & 0x7) + 1;
 		    sp->audio.bit_rate =
 			sp->audio.channels * sp->audio.sample_rate * 16;
-		} else if((pk->stream_id & 0xe0) == 0x20) {
+		} else if(ISSPU(pk->stream_id)) {
 		    sp->stream_type = STREAM_TYPE_SUBTITLE;
 		    sp->common.codec = "subtitle/dvd";
 		}
@@ -592,6 +595,8 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    s->imap[s->dvd_info->streams[i].common.index] = i;
 	    s->map[i] = s->dvd_info->streams[i].common.index;
 	    ms->streams[i].common.index = i;
+	    tc2_print("MPEGPS", TC2_PRINT_DEBUG, "map %x -> %i\n",
+		      s->map[i], i);
 	}
 	ms->time = s->dvd_info->index_unit * s->dvd_info->index_size;
     } else if(mpegps_findpsm(ms, ns)){
