@@ -362,23 +362,25 @@ extern url_t *
 cd_open(char *url, char *mode)
 {
     char *url_tmp = strdup(url);
-
-    char *s = strrchr(url_tmp, '.');
+    url_t *u = NULL;
 
     char *o = strrchr(url_tmp, '?');
     if(o)
 	*o++ = '\0';
 
+    char *s = strrchr(url_tmp, '.');
+
     if(s){
 	if(!strcmp(s, ".wav")){
-	    return track_open(url_tmp, mode, o);
+	    u = track_open(url_tmp, mode, o);
 	} else if(!strcmp(s, ".m3u")){
-	    return list_open(url_tmp, mode, o);
+	    u = list_open(url_tmp, mode, o);
 	}
     }
 
-    free(url_tmp);
+    if(!u)
+	tc2_print("CDDA", TC2_PRINT_ERROR, "unsupported URL: %s\n", url);
 
-    tc2_print("CDDA", TC2_PRINT_ERROR, "unsupported URL: %s\n", url);
-    return NULL;
+    free(url_tmp);
+    return u;
 }
