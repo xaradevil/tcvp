@@ -115,14 +115,16 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 
     ms = sopen(name, u, cs, t);
     if(ms){
-	char *a = tcattr_get(ms, "artist");
-	char *p = tcattr_get(ms, "performer");
+	char *a, *p;
 
 	tcattr_set(ms, "file", strdup(name), NULL, free);
 	cpattr(ms, u, "title");
 	cpattr(ms, u, "performer");
 	cpattr(ms, u, "artist");
 	cpattr(ms, u, "album");
+
+	a = tcattr_get(ms, "artist");
+	p = tcattr_get(ms, "performer");
 
 	if(!a && p)
 	    tcattr_set(ms, "artist", strdup(p), NULL, free);
