@@ -455,13 +455,13 @@ pl_add_deser(int type, u_char *event, int size)
 	u_char *m = memchr(nm, 0, size);
 	if(!m)
 	    break;
-	names[i] = nm;
+	names[i++] = nm;
 	m++;
 	size -= m - nm;
 	nm = m;
     }
 
-    return tcvp_event_new(type, names, n, pos);
+    return tcvp_event_new(type, names, i, pos);
 }
 
 static void
