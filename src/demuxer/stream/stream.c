@@ -369,14 +369,14 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
 	    } while(p == PROBE_AGAIN &&
 		    c++ < tcvp_demux_stream_conf_max_probe);
+	    if(li){
+		list_unlock(vp->streams[i].pq, li);
+		li = NULL;
+	    }
 	    if(p != PROBE_OK){
 		ms->used_streams[i] = 0;
 		freeq(vp, i);
 		list_destroy(vp->streams[i].pq, NULL);
-	    }
-	    if(li){
-		list_unlock(vp->streams[i].pq, li);
-		li = NULL;
 	    }
 	    codecs[i]->flush(codecs[i], 1);
 	}
@@ -427,8 +427,6 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
 	    vp->pipes[i] = out[i];
 	    pthread_create(&vp->threads[j], NULL, play_stream, th);
 	    j++;
-	} else {
-	    list_destroy(vp->streams[i].pq, NULL);
 	}
     }
 
