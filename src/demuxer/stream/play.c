@@ -236,20 +236,25 @@ pipe_end(tcvp_pipe_t *p)
 }
 
 static int
-use_stream(stream_shared_t *sh, int s, int t)
+use_stream(stream_shared_t *sh, int s, stream_t *str)
 {
+    int t = str->stream_type;
     void *cs = NULL;
     int ss, u = 0;
     char *c;
+    char *lang = NULL, *clang = NULL;
 
-    if(t == STREAM_TYPE_AUDIO)
+    if(t == STREAM_TYPE_AUDIO){
 	c = "audio/stream";
-    else if(t == STREAM_TYPE_VIDEO)
+	lang = str->audio.language;
+    } else if(t == STREAM_TYPE_VIDEO){
 	c = "video/stream";
-    else if(t == STREAM_TYPE_SUBTITLE)
+    } else if(t == STREAM_TYPE_SUBTITLE){
 	c = "subtitle/stream";
-    else
+	lang = str->subtitle.language;
+    } else {
 	return 0;
+    }
 
     if(tcconf_getvalue(sh->conf, c, "")){
 	switch(t){
@@ -264,9 +269,16 @@ use_stream(stream_shared_t *sh, int s, int t)
 	}
     }
 
-    while(tcconf_nextvalue(sh->conf, c, &cs, "%i", &ss) > 0)
-	if(ss == s)
-	    u = 1;
+    while(tcconf_nextvalue(sh->conf, c, &cs, "%i%s", &ss, &clang) > 0){
+	if(clang){
+	    if(lang && sh->ss < 0)
+		u = !strcmp(lang, clang);
+	    free(clang);
+	    clang = NULL;
+	} else {
+	    u = ss == s;
+	}
+    }
 
     return u;
 }
@@ -295,7 +307,7 @@ add_stream(stream_player_t *sp, int s)
 
     sp->smap[s] = sid;
 
-    if(!use_stream(sh, sid, sp->ms->streams[s].stream_type))
+    if(!use_stream(sh, sid, sp->ms->streams + s))
 	goto out;
     r = -2;
 
