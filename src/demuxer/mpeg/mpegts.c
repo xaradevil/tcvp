@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -21,9 +21,6 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
 **/
-
-#define _ISOC99_SOURCE
-#define _GNU_SOURCE
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -181,14 +178,14 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
     error = -1;					\
     skip++;					\
     goto next;					\
-} while(0);
+} while(0)
 
 #define check_length(l, start, len, m) do {			\
     if(l > start + len - s->tsp || l < 0){			\
 	tc2_print("MPEGTS", TC2_PRINT_WARNING, "PID %x:" m, l);	\
 	do_error();						\
     }								\
-} while(0);
+} while(0)
 
     do {
 	u_char *pkstart;
@@ -414,6 +411,8 @@ mpegts_packet(muxed_stream_t *ms, int str)
     return &pk->pk;
 }
 
+#define absdiff(a,b) ((a)>(b)?(a)-(b):(b)-(a))
+
 static uint64_t
 mpegts_seek(muxed_stream_t *ms, uint64_t time)
 {
@@ -453,7 +452,7 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 
 	p = ((int64_t)time - st) / 27000 * s->rate;
 	sm = SEEK_CUR;
-    } while(llabs(st - time) > 27000000 && c++ < 64);
+    } while(absdiff(st, time) > 27000000 && c++ < 64);
 
     return st;
 }
