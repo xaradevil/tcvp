@@ -138,8 +138,8 @@ static struct {
     char *name;
     uint32_t tag;
 } formats[] = {
-    { "yv12", 0x30323449 },	/* yv12/i420 swapped */
-    { "i420", 0x32315659 },
+    { "i420", 0x30323449 },
+    { "yv12", 0x32315659 },
     { "yuy2", 0x32595559 },
     { "yvyu", 0x55595659 },
     { "uyvy", 0x59565955 },
