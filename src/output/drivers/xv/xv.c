@@ -40,10 +40,6 @@
 #include <tcvp_types.h>
 #include <xv_tc2.h>
 
-#define YUY2 0x32595559
-#define YV12 0x32315659
-#define UYVY 0x59565955
-
 #define FRAMES 64
 
 typedef struct xv_window {
@@ -138,6 +134,21 @@ xv_close(video_driver_t *vd)
     return 0;
 }
 
+static struct {
+    char *name;
+    uint32_t tag;
+} formats[] = {
+    { "yv12", 0x30323449 },	/* yv12/i420 swapped */
+    { "i420", 0x32315659 },
+    { "yuy2", 0x32595559 },
+    { "yvyu", 0x55595659 },
+    { "uyvy", 0x59565955 },
+    { "rgb555", 0x35315652 },
+    { "rgb565", 0x36315652 }
+};
+
+#define NUMFORMATS (sizeof(formats) / sizeof(formats[0]))
+
 extern video_driver_t *
 xv_open(video_stream_t *vs, tcconf_section_t *cs)
 {
@@ -155,6 +166,26 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     window_manager_t *wm;
     char *display = NULL;
     float dasp = 0;
+    char *fmt;
+    uint32_t fmtid = 0;
+    int port = 0;
+
+    fmt = strstr(vs->codec, "raw-");
+    if(!fmt)
+	return NULL;
+    fmt += 4;
+
+    for(i = 0; i < NUMFORMATS; i++){
+	if(!strcmp(fmt, formats[i].name)){
+	    fmtid = formats[i].tag;
+	    break;
+	}
+    }
+
+    if(!fmtid){
+	tc2_print("XV", TC2_PRINT_ERROR, "unknown format '%s'\n", fmt);
+	return NULL;
+    }
 
     if(cs){
 	tcconf_getvalue(cs, "video/device", "%s", &display);
@@ -170,13 +201,35 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 	return NULL;
     }
 
-    XvQueryAdaptors(dpy, RootWindow(dpy, DefaultScreen(dpy)), &na, &xai);
-    if(!na){
+    if(XvQueryAdaptors(dpy, DefaultRootWindow(dpy), &na, &xai) != Success){
 	return NULL;
     }
 
+    for(i = 0; i < na && !port; i++){
+	int j;
+
+	for(j = 0; j < xai[i].num_ports && !port; j++){
+	    XvImageFormatValues *xif;
+	    int nf, k;
+
+	    xif = XvListImageFormats(dpy, xai[i].base_id + j, &nf);
+	    for(k = 0; k < nf; k++){
+		if(xif[k].id == fmtid){
+		    port = xai[i].base_id + j;
+		    break;
+		}
+	    }
+	    XFree(xif);
+	}
+    }
+
+    XvFreeAdaptorInfo(xai);
+
+    if(!port)
+	return NULL;
+
     xvw = calloc(1, sizeof(*xvw));
-    xvw->port = xai[0].base_id;
+    xvw->port = port;
     xvw->width = vs->width;
     xvw->height = vs->height;
     xvw->dw = vs->width;
@@ -184,8 +237,6 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     xvw->shm = malloc(frames * sizeof(*xvw->shm));
     xvw->images = malloc(frames * sizeof(*xvw->images));
     xvw->last_frame = -1;
-
-    XvFreeAdaptorInfo(xai);
 
     if(dasp > 0 || vs->aspect.num){
 	float asp = (float) vs->width / vs->height;
@@ -232,7 +283,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 	XvImage *xvi;
 	XShmSegmentInfo *shm = &xvw->shm[i];
 
-	xvi = XvShmCreateImage(dpy, xvw->port, YV12, NULL,
+	xvi = XvShmCreateImage(dpy, xvw->port, fmtid, NULL,
 			       vs->width, vs->height, shm);
 	shm->shmid = shmget(IPC_PRIVATE, xvi->data_size, IPC_CREAT | 0777);
 	shm->shmaddr = shmat(shm->shmid, 0, 0);
@@ -248,7 +299,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 
     vd = calloc(1, sizeof(*vd));
     vd->frames = frames;
-    vd->pixel_format = "yv12";
+    vd->pixel_format = fmt;
     vd->get_frame = xv_get;
     vd->show_frame = xv_show;
     vd->close = xv_close;
