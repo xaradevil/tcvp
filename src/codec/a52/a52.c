@@ -217,7 +217,8 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    continue;
 	}
 
-	ad->flags |= A52_ADJUST_LEVEL;
+	if(tcvp_codec_a52_conf_downmix)
+	    ad->flags = A52_STEREO;
 	a52_frame(ad->state, ad->buf, &ad->flags, &ad->level, ad->bias);
 	ad->flags &= ~A52_ADJUST_LEVEL;
 
