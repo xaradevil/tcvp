@@ -6,6 +6,8 @@ AC_ARG_WITH([ffmpeg-build],
     FFMPEGBLD=$with_ffmpeg_build, FFMPEGBLD=$FFMPEGSRC)
 if test ! "$FFMPEGSRC" -o ! "$FFMPEGBLD"; then
     AC_WARN([FFmpeg source and build directories not found.])
+else
+    DEMUXER_MODULES="$DEMUXER_MODULES avformat"
 fi
 AC_SUBST(FFMPEGSRC)
 AC_SUBST(FFMPEGBLD)

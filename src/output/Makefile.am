@@ -1,1 +1,1 @@
-SUBDIRS = alsa xv
+SUBDIRS = $(OUTPUT_MODULES)

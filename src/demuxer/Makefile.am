@@ -1,1 +1,1 @@
-SUBDIRS = avformat video
+SUBDIRS = $(DEMUXER_MODULES)

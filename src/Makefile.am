@@ -1,1 +1,1 @@
-SUBDIRS = codec demuxer output tcvp
+SUBDIRS = codec demuxer output $(SRC_MODULES)

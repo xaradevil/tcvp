@@ -1,1 +1,1 @@
-SUBDIRS = avcodec pcm
+SUBDIRS = $(CODEC_MODULES)
