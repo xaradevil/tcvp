@@ -76,6 +76,12 @@ oss_free(tcvp_pipe_t *p)
 }
 
 static int
+oss_flush(tcvp_pipe_t *p)
+{
+    return 0;
+}
+
+static int
 oss_play(tcvp_pipe_t *p, packet_t *pk)
 {
     oss_out_t *ao = p->private;
@@ -153,11 +159,12 @@ oss_open(audio_stream_t *as, char *device, timer__t **timer)
     pthread_mutex_init(&ao->mx, NULL);
     pthread_cond_init(&ao->cd, NULL);
 
-    tp = malloc(sizeof(*tp));
+    tp = calloc(1, sizeof(*tp));
     tp->input = oss_play;
     tp->start = oss_start;
     tp->stop = oss_stop;
     tp->free = oss_free;
+    tp->flush = oss_flush;
     tp->private = ao;
 
     return tp;
