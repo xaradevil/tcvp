@@ -3,6 +3,7 @@ version 0.2.0
 module src/codec/a52
 module src/codec/avcodec
 module src/codec/codec
+module src/codec/dts
 module src/codec/dvdsub
 module src/codec/faac
 module src/codec/faad

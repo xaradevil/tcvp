@@ -1,0 +1,16 @@
+module		dts
+name		"TCVP/codec/dts"
+version		0.1.0
+tc2version	0.6.0
+sources		dts.c
+TCVP {
+	filter "decoder/audio/dts" {
+		new dts_new
+		probe dts_probe
+		flush dts_flush
+		packet DATA dts_decode
+	}
+}
+
+option downmix%i=1
+Downmix to two channels
