@@ -1,5 +1,5 @@
 TCVP {
-    event TCVP_SEEK time%I how%i
+    event TCVP_SEEK time%I how%c
 }
 include
 #define TCVP_SEEK_ABS  0

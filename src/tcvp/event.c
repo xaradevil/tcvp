@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -31,51 +31,6 @@
 #include <tcendian.h>
 #include <tcvp_core_tc2.h>
 
-/* open */
-
-static void
-open_free(void *p)
-{
-    tcvp_open_event_t *te = p;
-    free(te->file);
-}
-
-extern void *
-open_alloc(int type, va_list args)
-{
-    tcvp_open_event_t *te = tcvp_event_alloc(type, sizeof(*te), open_free);
-    te->file = strdup(va_arg(args, char *));
-    return te;
-}
-
-extern u_char *
-open_ser(char *name, void *event, int *size)
-{
-    tcvp_open_event_t *te = event;
-    u_char *sb;
-    int s;
-
-    s = strlen(name) + strlen(te->file) + 2;
-    sb = malloc(s);
-    sprintf(sb, "%s%c%s", name, 0, te->file);
-    *size = s;
-
-    return sb;
-}
-
-extern void *
-open_deser(int type, u_char *event, int size)
-{
-    u_char *n = memchr(event, 0, size);
-
-    n++;
-
-    if(!memchr(n, 0, size - (n - event)))
-	return NULL;
-
-    return tcvp_event_new(type, n);
-}
-
 /* open_multi */
 
 static void
@@ -103,133 +58,6 @@ open_multi_alloc(int type, va_list args)
     for(i = 0; i < te->nfiles; i++)
 	te->files[i] = strdup(files[i]);
     return te;
-}
-
-/* seek */
-
-extern void *
-seek_alloc(int type, va_list args)
-{
-    tcvp_seek_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
-    te->time = va_arg(args, int64_t);
-    te->how = va_arg(args, int32_t);
-    return te;
-}
-
-extern u_char *
-seek_ser(char *name, void *event, int *size)
-{
-    tcvp_seek_event_t *te = event;
-    int s = strlen(name) + 1 + 9;
-    u_char *sb = malloc(s);
-    u_char *p = sb;
-
-    p += sprintf(sb, "%s", name);
-    p++;
-    st_unaligned64(htob_64(te->time), p);
-    p += 8;
-    *p = te->how;
-
-    *size = s;
-    return sb;
-}
-
-extern void *
-seek_deser(int type, u_char *event, int size)
-{
-    u_char *n = memchr(event, 0, size);
-    uint64_t time;
-    int how;
-
-    n++;
-
-    if(size - (n - event) < 9)
-	return NULL;
-
-    time = htob_64(unaligned64(n));
-    n += 8;
-    how = *n;
-
-    return tcvp_event_new(type, time, how);
-}
-
-/* timer */
-
-extern void *
-timer_alloc(int type, va_list args)
-{
-    tcvp_timer_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
-    te->time = va_arg(args, uint64_t);
-    return te;
-}
-
-extern u_char *
-timer_ser(char *name, void *event, int *size)
-{
-    tcvp_timer_event_t *te = event;
-    int s = strlen(name) + 1 + 8;
-    u_char *sb = malloc(s);
-    u_char *p = sb;
-
-    p += sprintf(sb, "%s", name);
-    p++;
-    st_unaligned64(htob_64(te->time), p);
-
-    *size = s;
-    return sb;
-}
-
-extern void *
-timer_deser(int type, u_char *event, int size)
-{
-    u_char *n = memchr(event, 0, size);
-    uint64_t time;
-
-    n++;
-    if(size - (n - event) < 8)
-	return NULL;
-
-    time = htob_64(unaligned64(n));
-    n += 8;
-
-    return tcvp_event_new(type, time);
-}
-
-/* state */
-
-extern void *
-state_alloc(int type, va_list args)
-{
-    tcvp_state_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
-    te->state = va_arg(args, int);
-    return te;
-}
-
-extern u_char *
-state_ser(char *name, void *event, int *size)
-{
-    tcvp_state_event_t *te = event;
-    int s = strlen(name) + 1 + 4;
-    u_char *sb = malloc(s);
-    u_char *p = sb;
-
-    p += sprintf(sb, "%s", name);
-    p++;
-    st_unaligned32(htob_32(te->state), p);
-
-    *size = s;
-    return sb;
-}
-
-extern void *
-state_deser(int type, u_char *event, int size)
-{
-    u_char *n = memchr(event, 0, size);
-    int state;
-
-    n++;
-    state = htob_32(unaligned32(n));
-    return tcvp_event_new(type, state);
 }
 
 /* load */
@@ -441,18 +269,4 @@ out:
     tcfree(ms);
     return te;
 #undef get32
-}
-
-/* button */
-
-extern void *
-button_alloc(int type, va_list args)
-{
-    tcvp_button_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
-    te->button = va_arg(args, int);
-    te->action = va_arg(args, int);
-    te->x = va_arg(args, int);
-    te->y = va_arg(args, int);
-
-    return te;
 }
