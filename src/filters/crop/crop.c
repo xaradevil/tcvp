@@ -38,12 +38,15 @@ crop_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     crop_t *c = p->private;
     video_stream_t *vs = &p->format.video;
-    double pa = 1.0;
+    tcfraction_t sar = { 1, 1 };
 
     p->format = *s;
 
-    if(vs->aspect.num)
-	pa = (double) vs->height * vs->aspect.num / vs->aspect.den / vs->width;
+    if(vs->aspect.num){
+	sar.num = vs->height * vs->aspect.num;
+	sar.den = vs->width * vs->aspect.den;
+	tcreduce(&sar);
+    }
 
     if(c->x >= 0){
 	if(c->x < vs->width)
@@ -100,8 +103,8 @@ crop_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(!(vs->width && vs->height))
 	return PROBE_FAIL;
 
-    vs->aspect.num = vs->width * pa;
-    vs->aspect.den = vs->height;
+    vs->aspect.num = vs->width * sar.num;
+    vs->aspect.den = vs->height * sar.den;
     tcreduce(&vs->aspect);
 
     return p->next->probe(p->next, pk, &p->format);
