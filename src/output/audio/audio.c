@@ -148,7 +148,7 @@ audio_input(tcvp_pipe_t *p, packet_t *pk)
     data = pk->data[0];
     pts = pk->flags & TCVP_PKT_FLAG_PTS;
 
-    while(count > 0){
+    while(count >= ao->ibpf){
 	int bs;
 
 	pthread_mutex_lock(&ao->mx);
