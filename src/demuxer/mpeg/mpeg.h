@@ -29,31 +29,6 @@
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
 
-typedef struct mpegts_packet {
-    int transport_error;
-    int unit_start;
-    int priority;
-    int pid;
-    int scrambling;
-    int adaptation;
-    int cont_counter;
-    struct adaptation_field {
-	int discontinuity;
-	int random_access;
-	int es_priority;
-	int pcr_flag;
-	int opcr_flag;
-	int splicing_point;
-	int transport_private;
-	int extension;
-	uint64_t pcr;
-	uint64_t opcr;
-	int splice_countdown;
-    } adaptation_field;
-    int data_length;
-    u_char *datap, data[188];
-} mpegts_packet_t;
-
 typedef struct mpegpes_packet {
     int stream_id;
     int flags;
@@ -72,7 +47,9 @@ typedef struct mpeg_stream_type {
     int stream_type;
     char *codec;
 } mpeg_stream_type_t;
+
 extern mpeg_stream_type_t mpeg_stream_types[];
+extern tcfraction_t frame_rates[16];
 
 #define MPEGTS_SYNC 0x47
 
@@ -97,6 +74,24 @@ extern mpeg_stream_type_t mpeg_stream_types[];
 #define ISO_14496_FLEXMUX_STREAM 0xfb
 #define PROGRAM_STREAM_DIRECTORY 0xff
 
+#define VIDEO_STREAM_DESCRIPTOR                  2
+#define AUDIO_STREAM_DESCRIPTOR                  3
+#define HIERARCHY_DESCRIPTOR                     4
+#define REGISTRATION_DESCRIPTOR                  5
+#define DATA_STREAM_ALIGNMENT_DESCRIPTOR         6
+#define TARGET_BACKGROUND_GRID_DESCRIPTOR        7
+#define VIDEO_WINDOW_DESCRIPTOR                  8
+#define CA_DESCRIPTOR                            9
+#define ISO_639_LANGUAGE_DESCRIPTOR             10
+#define SYSTEM_CLOCK_DESCRIPTOR                 11
+#define MULTIPLEX_BUFFER_UTILIZATION_DESCRIPTOR 12
+#define COPYRIGHT_DESCRIPTOR                    13
+#define MAXIMUM_BITRATE_DESCRIPTOR              14
+#define PRIVATE_DATA_INDICATOR_DESCRIPTOR       15
+#define SMOOTHING_BUFFER_DESCRIPTOR             16
+#define STD_DESCRIPTOR                          17
+#define IBP_DESCRIPTOR                          18
+
 #define min(a,b) ((a)<(b)?(a):(b))
 
 #define getuint(s)				\
@@ -116,6 +111,8 @@ getuint(64)
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
 extern int stream_type2codec(int st);
 extern mpeg_stream_type_t *mpeg_stream_type(char *codec);
+extern int mpeg_descriptor(stream_t *s, u_char *d);
+extern int write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size);
 extern int write_pes_header(u_char *p, int stream_id, int size,
 			    int flags, ...);
 extern uint32_t mpeg_crc32(const u_char *data, int len);

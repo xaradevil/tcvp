@@ -143,6 +143,24 @@ mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x81, 0xbd, STREAM_TYPE_AUDIO, "audio/ac3"   }
 };
 
+tcfraction_t frame_rates[16] = {
+    { 0,     0    },
+    { 24000, 1001 },
+    { 24,    1    },
+    { 25,    1    },
+    { 30000, 1001 },
+    { 30,    1    },
+    { 50,    1    },
+    { 60000, 1001 },
+    { 60,    1    }
+};
+
+tcfraction_t aspect_ratios[16] = {
+    [2] = { 4,   3   },
+    [3] = { 16,  9   },
+    [4] = { 221, 100 }
+};
+
 static int nstream_types =
     sizeof(mpeg_stream_types) / sizeof(mpeg_stream_types[0]);
 
@@ -156,6 +174,124 @@ mpeg_stream_type(char *codec)
 	    return &mpeg_stream_types[i];
 
     return NULL;
+}
+
+static int
+frame_rate_index(tcfraction_t *f)
+{
+    int i;
+
+    for(i = 0; i < 16; i++)
+	if(f->num == frame_rates[i].num &&
+	   f->den == frame_rates[i].den)
+	    return i;
+
+    return 0;
+}
+
+static int
+aspect_ratio_index(tcfraction_t *f)
+{
+    int i;
+
+    for(i = 0; i < 16; i++)
+	if(f->num == aspect_ratios[i].num &&
+	   f->den == aspect_ratios[i].den)
+	    return i;
+
+    return 0;
+}
+
+extern int
+mpeg_descriptor(stream_t *s, u_char *d)
+{
+    int tag = d[0];
+    int len = d[1];
+
+    switch(tag){
+    case VIDEO_STREAM_DESCRIPTOR:
+	s->video.frame_rate = frame_rates[(d[2] >> 3) & 0xf];
+	if(d[2] & 0x4)
+	    fprintf(stderr, "MPEG: MPEG 1 only\n");
+	if(d[2] & 0x2)
+	    fprintf(stderr, "MPEG: constrained parameter\n");
+	if(!(d[2] & 0x4)){
+	    fprintf(stderr, "MPEG: esc %i profile %i, level %i\n",
+		    d[3] >> 7, (d[3] >> 4) & 0x7, d[3] & 0xf);
+	}
+	break;
+
+    case AUDIO_STREAM_DESCRIPTOR:
+	break;
+
+    case TARGET_BACKGROUND_GRID_DESCRIPTOR: {
+	int n = htob_32(unaligned32(d + 2));
+	s->video.width = (n >> 18) & 0x3fff;
+	s->video.height = (n >> 4) & 0x3fff;
+
+	n &= 0xf;
+	if(n == 1){
+	    s->video.aspect.num = s->video.width;
+	    s->video.aspect.den = s->video.height;
+	    tcreduce(&s->video.aspect);
+	} else if(aspect_ratios[n].num){
+	    s->video.aspect = aspect_ratios[n];
+	}
+	break;
+    }
+    case ISO_639_LANGUAGE_DESCRIPTOR:
+	break;
+    }
+
+    return len;
+}
+
+extern int
+write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size)
+{
+    u_char *p = d;
+    int i;
+
+    switch(tag){
+    case VIDEO_STREAM_DESCRIPTOR:
+	if(size < 5)
+	    return 0;
+	i = frame_rate_index(&s->video.frame_rate);
+	if(!i)
+	    return 0;
+	*p++ = tag;
+	*p++ = 3;
+	*p++ = i << 3;
+	*p++ = 0x48;
+	*p++ = 0x5f;
+	return 5;
+
+    case TARGET_BACKGROUND_GRID_DESCRIPTOR:
+	if(size < 6)
+	    return 0;
+	if(!s->video.aspect.num){
+	    i = 1;
+	} else {
+	    i = aspect_ratio_index(&s->video.aspect);
+	    if(!i){
+		tcfraction_t f = { s->video.width, s->video.height };
+		tcreduce(&f);
+		if(f.num == s->video.aspect.num &&
+		   f.den == s->video.aspect.den)
+		    i = 1;
+	    }
+	}
+	if(!i)
+	    return 0;
+	*p++ = tag;
+	*p++ = 4;
+	st_unaligned32(htob_32((s->video.width << 18) |
+			       (s->video.height << 4) | i),
+		       p);
+	return 6;
+    }
+
+    return 0;
 }
 
 extern int
@@ -214,7 +350,7 @@ write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
 	*p++ = hdrl;
 
 	if(flags & PES_FLAG_PTS){
-	    *p++ = ((pts >> 29) & 0xe) | 0x21;
+	    *p++ = ((pts >> 29) & 0xe) | (flags & PES_FLAG_DTS? 0x31: 0x21);
 	    st_unaligned16(htob_16(((pts >> 14) & 0xfffe) | 1), p);
 	    p += 2;
 	    st_unaligned16(htob_16(((pts << 1) & 0xfffe) | 1), p);
@@ -222,7 +358,7 @@ write_pes_header(u_char *p, int stream_id, int size, int flags, ...)
 	}
 
 	if(flags & PES_FLAG_DTS){
-	    *p++ = ((dts >> 29) & 0xe) | 0x21;
+	    *p++ = ((dts >> 29) & 0xe) | 0x11;
 	    st_unaligned16(htob_16(((dts >> 14) & 0xfffe) | 1), p);
 	    p += 2;
 	    st_unaligned16(htob_16(((dts << 1) & 0xfffe) | 1), p);

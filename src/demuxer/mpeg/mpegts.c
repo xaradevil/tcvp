@@ -33,6 +33,31 @@
 
 #define MAX_PACKET_SIZE 0x8000
 
+typedef struct mpegts_packet {
+    int transport_error;
+    int unit_start;
+    int priority;
+    int pid;
+    int scrambling;
+    int adaptation;
+    int cont_counter;
+    struct adaptation_field {
+	int discontinuity;
+	int random_access;
+	int es_priority;
+	int pcr_flag;
+	int opcr_flag;
+	int splicing_point;
+	int transport_private;
+	int extension;
+	uint64_t pcr;
+	uint64_t opcr;
+	int splice_countdown;
+    } adaptation_field;
+    int data_length;
+    u_char *datap, data[188];
+} mpegts_packet_t;
+
 typedef struct mpegts_stream {
     url_t *stream;
     int bs, br;
@@ -296,10 +321,12 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    if(pes.flags & PES_FLAG_PTS){
 		tb->flags |= TCVP_PKT_FLAG_PTS;
 		tb->pts = pes.pts;
+/* 		fprintf(stderr, "MPEGTS: %i pts %lli\n", sx, pes.pts * 300); */
 	    }
 	    if(pes.flags & PES_FLAG_DTS){
 		tb->flags |= TCVP_PKT_FLAG_DTS;
 		tb->dts = pes.dts;
+/* 		fprintf(stderr, "MPEGTS: %i dts %lli\n", sx, pes.dts * 300); */
 	    }
 	    tb->start = 1;
 	}
@@ -336,9 +363,9 @@ static uint64_t
 mpegts_seek(muxed_stream_t *ms, uint64_t time)
 {
     mpegts_stream_t *s = ms->private;
-    int64_t p, st = 0;
+    int64_t p, st;
     packet_t *pk = NULL;
-    int i, sm = SEEK_SET;
+    int i, sm = SEEK_SET, c = 0;
 
     p = time / 27000 * s->rate;
 
@@ -356,6 +383,8 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 	    s->streams[i].cc = -1;
 	}
 
+	st = 0;
+
 	do {
 	    pk = mpegts_packet(ms, 0);
 	    if(pk){
@@ -367,9 +396,9 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 	    }
 	} while(!st);
 
-	p = (time - st) / 27000 * s->rate;
+	p = ((int64_t)time - st) / 27000 * s->rate;
 	sm = SEEK_CUR;
-    } while(llabs(st - time) > 27000000);
+    } while(llabs(st - time) > 27000000 && c++ < 64);
 
     return st;
 }
@@ -486,10 +515,21 @@ mpegts_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 	}
 	prg = htob_16(unaligned16(dp + 3));
 	pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
-	dp += 12 + pi_len;
+	dp += 12;
+
+	for(i = 0; i < pi_len;){
+	    int tag = dp[0];
+	    int tl = dp[1];
+
+	    fprintf(stderr, "MPEGTS: descriptor %i\n", tag);
+	    dp += tl + 2;
+	    i += tl + 2;
+	}
+
 	seclen -= 16 + pi_len;
 	for(i = 0; i < seclen;){
 	    int stype, epid, esil, sti;
+	    int j;
 
 	    if(ms->n_streams == ns){
 		ns *= 2;
@@ -497,24 +537,35 @@ mpegts_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 		sp = &ms->streams[ms->n_streams];
 	    }
 
+	    memset(sp, 0, sizeof(*sp));
+
 	    stype = dp[0];
 	    epid = htob_16(unaligned16(dp + 1)) & 0x1fff;
 	    esil = htob_16(unaligned16(dp + 3)) & 0xfff;
-	    dp += 5 + esil;
-	    i += 5 + esil;
+	    dp += 5;
+	    i += 5;
 
-	    s->imap[epid] = ms->n_streams;
+	    if((sti = stream_type2codec(stype)) >= 0){
+		sp->stream_type = mpeg_stream_types[sti].stream_type;
+		sp->common.codec = mpeg_stream_types[sti].codec;
+		sp->common.index = ms->n_streams;
+
+		for(j = 0; j < esil;){
+		    int tl = mpeg_descriptor(sp, dp);
+		    dp += tl + 2;
+		    j += tl + 2;
+		}
+
+		s->imap[epid] = ms->n_streams++;
+		sp++;
+	    } else {
+		dp += esil;
+	    }
+
+	    i += esil;
 
 	    fprintf(stderr, "MPEGTS: program %i => PID %x, type %x\n",
 		    prg, epid, stype);
-
-	    if((sti = stream_type2codec(stype)) >= 0){
-		memset(sp, 0, sizeof(*sp));
-		sp->stream_type = mpeg_stream_types[sti].stream_type;
-		sp->common.codec = mpeg_stream_types[sti].codec;
-		sp->common.index = ms->n_streams++;
-		sp++;
-	    }
 	}
 
 	n--;
