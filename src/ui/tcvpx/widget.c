@@ -19,7 +19,7 @@
 #include "tcvpx.h"
 #include <unistd.h>
 
-list *widget_list, *click_list, *sl_list, *drag_list;
+list *widget_list, *click_list, *sl_list, *drag_list, *skin_list;
 
 
 extern image_info_t*
@@ -83,8 +83,8 @@ extern int
 draw_widget(tcwidget_t *w)
 {
     if(mapped==1){
-	XCopyArea(xd, w->common.pixmap, w->common.win, bgc, 0, 0,
-		  w->common.width, w->common.height, 0, 0);
+	XCopyArea(xd, w->common.pixmap, w->common.win, w->common.skin->bgc,
+		  0, 0, w->common.width, w->common.height, 0, 0);
     }
     return 0;
 }
@@ -128,5 +128,43 @@ widget_onclick(tcwidget_t *p, XEvent *xe)
     if(p->common.enabled && p->common.action){
 	return p->common.action(p, NULL);
     }
+    return 0;
+}
+
+
+extern int
+widget_cmp(const void *p1, const void *p2)
+{
+    return p1-p2;
+}
+
+
+extern int
+destroy_widget(tcwidget_t *w)
+{
+    list_delete(widget_list, w, widget_cmp, NULL);
+
+    if(w->type == TCLABEL) {
+	list_delete(sl_list, w, widget_cmp, NULL);
+	list_delete(drag_list, w, widget_cmp, NULL);
+    }
+
+    if(w->common.action){
+	list_delete(click_list, w, widget_cmp, NULL);
+    }
+
+    if(w->common.win) {
+	XSelectInput(xd, w->common.win, 0);
+    }
+    XDestroyWindow(xd, w->common.win);
+    XFreePixmap(xd, w->common.pixmap);
+
+
+    if(w->common.destroy) {
+	w->common.destroy(w);
+    }
+
+    free(w);
+
     return 0;
 }

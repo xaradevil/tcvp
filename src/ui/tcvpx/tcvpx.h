@@ -29,8 +29,11 @@
 #define TCTIME_REMAINING 1
 
 
+int init_graphics();
 int create_window(skin_t *);
-int update_time(skin_t *skin);
+int destroy_window(skin_t *);
+int update_time();
+int update_title(char *title);
 
 void *x11_event(void *p);
 void *tcvp_event(void *p);
@@ -41,8 +44,6 @@ extern int mapped;
 extern int quit;
 extern Display *xd;
 extern int xs;
-extern Window xw;
-extern GC wgc, bgc;
 extern Pixmap root;
 extern int root_width;
 extern int root_height;

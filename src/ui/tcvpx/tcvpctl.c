@@ -25,12 +25,11 @@
 extern void *
 tcvp_event(void *p)
 {
-    int r = 1;
     skin_t *skin = p;
     muxed_stream_t *st = NULL;
     char *title;
 
-    while(r){
+    while(!quit){
 	tcvp_event_t *te = eventq_recv(qr);
 /* 	printf("%d\n", te->type); */
 	switch(te->type){
@@ -47,7 +46,7 @@ tcvp_event(void *p)
 	    s_time = te->timer.time/1000000;
 	    if(s_time > s_length)
 		s_length = s_time;
-	    update_time(skin);
+	    update_time();
 	    break;
 
 	case TCVP_LOAD:
@@ -74,10 +73,7 @@ tcvp_event(void *p)
 		    *ext = 0;
 	    }
 
-
-	    if(skin->title) {
-		change_label(skin->title, title);
-	    }
+	    update_title(title);
 
 	    /* fall through */
 
@@ -99,10 +95,6 @@ tcvp_event(void *p)
 		    disable_seek_bar(skin->seek_bar);
 		}
 	    }
-	    break;
-
-	case -1:
-	    r = 0;
 	    break;
 	}
 	tcfree(te);
@@ -187,9 +179,15 @@ tcvp_seek(tcwidget_t *w, void *p)
 extern int
 tcvp_close(tcwidget_t *w, void *p)
 {
+    quit = 1;
+    w->common.skin->enabled = 0;
+
     tcvp_stop(w, NULL);
 
     tc2_request(TC2_UNLOAD_ALL, 0);
+
+    XDestroyWindow(xd, w->common.skin->xw);
+    XSync(xd, False);
 
     return 0;
 }

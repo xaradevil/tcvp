@@ -23,38 +23,40 @@ extern int
 repaint_seek_bar(tcwidget_t *w)
 {
     if(mapped==1){
-	XImage *img;
-	int xp,yp;
+	if(w->label.skin->enabled == 1) {
+	    XImage *img;
+	    int xp,yp;
 
-	img = XGetImage(xd, w->seek_bar.skin->background->pixmap,
-			w->seek_bar.x, w->seek_bar.y,
-			w->seek_bar.width, w->seek_bar.height,
-			AllPlanes, ZPixmap);
-	alpha_render(*w->seek_bar.background->data, img->data,
-		     img->width, img->height, depth);
+	    img = XGetImage(xd, w->seek_bar.skin->background->pixmap,
+			    w->seek_bar.x, w->seek_bar.y,
+			    w->seek_bar.width, w->seek_bar.height,
+			    AllPlanes, ZPixmap);
+	    alpha_render(*w->seek_bar.background->data, img->data,
+			 img->width, img->height, depth);
 
-	if(w->seek_bar.enabled == 1){
-	    xp=w->seek_bar.start_x +
-		(w->seek_bar.position *
-		 (w->seek_bar.end_x - w->seek_bar.start_x)) - 
-		w->seek_bar.indicator->width/2;
-	    yp=w->seek_bar.start_y +
-		(w->seek_bar.position *
-		 (w->seek_bar.end_y - w->seek_bar.start_y)) -
-		w->seek_bar.indicator->height/2;
+	    if(w->seek_bar.enabled == 1){
+		xp=w->seek_bar.start_x +
+		    (w->seek_bar.position *
+		     (w->seek_bar.end_x - w->seek_bar.start_x)) - 
+		    w->seek_bar.indicator->width/2;
+		yp=w->seek_bar.start_y +
+		    (w->seek_bar.position *
+		     (w->seek_bar.end_y - w->seek_bar.start_y)) -
+		    w->seek_bar.indicator->height/2;
 
-	    alpha_render_part(*w->seek_bar.indicator->data, img->data,
-			      0, 0, xp, yp,
-			      w->seek_bar.indicator->width,
-			      w->seek_bar.indicator->height,
-			      w->seek_bar.width, w->seek_bar.height,
-			      depth);
+		alpha_render_part(*w->seek_bar.indicator->data, img->data,
+				  0, 0, xp, yp,
+				  w->seek_bar.indicator->width,
+				  w->seek_bar.indicator->height,
+				  w->seek_bar.width, w->seek_bar.height,
+				  depth);
+	    }
+
+	    XPutImage(xd, w->seek_bar.pixmap, w->background.skin->bgc, img,
+		      0, 0, 0, 0, w->seek_bar.width, w->seek_bar.height);
+	    XSync(xd, False);
+	    XDestroyImage(img);
 	}
-
-	XPutImage(xd, w->seek_bar.pixmap, bgc, img, 0, 0, 0, 0,
-		  w->seek_bar.width, w->seek_bar.height);
-	XSync(xd, False);
-	XDestroyImage(img);
     }
     return 0;
 }
@@ -127,6 +129,21 @@ seek_bar_onclick(tcwidget_t *w, XEvent *xe)
 }
 
 
+int
+destroy_seek_bar(tcwidget_t *w)
+{
+    free(*w->seek_bar.background->data);
+    free(w->seek_bar.background->data);
+    free(w->seek_bar.background);
+
+    free(*w->seek_bar.indicator->data);
+    free(w->seek_bar.indicator->data);
+    free(w->seek_bar.indicator);
+
+    return 0;
+}
+
+
 extern tcseek_bar_t*
 create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 		int ep_x, int ep_y, char *background, char *indicator,
@@ -142,6 +159,7 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
     sb->end_x = ep_x;
     sb->end_y = ep_y;
     sb->repaint = repaint_seek_bar;
+    sb->destroy = destroy_seek_bar;
     sb->skin = skin;
     sb->position = position;
     sb->background = load_image(skin->path, background);
@@ -150,11 +168,11 @@ create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
     sb->height = sb->background->height;
     sb->enabled = 1;
 
-    sb->win = XCreateWindow(xd, xw, sb->x, sb->y,
+    sb->win = XCreateWindow(xd, skin->xw, sb->x, sb->y,
 			     sb->width, sb->height,
 			     0, CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
-    sb->pixmap = XCreatePixmap(xd, xw, sb->width,
+    sb->pixmap = XCreatePixmap(xd, skin->xw, sb->width,
 				sb->height, depth);
 
     list_push(widget_list, sb);

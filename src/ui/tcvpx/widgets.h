@@ -37,7 +37,7 @@
 typedef union _tcwidget_t tcwidget_t;
 typedef int(*on_xevent_cb_t)(tcwidget_t *, XEvent *);
 typedef int(*action_cb_t)(tcwidget_t *, void *);
-typedef int(*repaint_cb_t)(tcwidget_t *);
+typedef int(*widget_cb_t)(tcwidget_t *);
 typedef struct _skin_t skin_t;
 
 #define WIDGET_COMMON				\
@@ -50,7 +50,8 @@ typedef struct _skin_t skin_t;
     on_xevent_cb_t ondrag;			\
     on_xevent_cb_t drag_end;			\
     action_cb_t action;				\
-    repaint_cb_t repaint;			\
+    widget_cb_t repaint;			\
+    widget_cb_t destroy;			\
     void *data;					\
     skin_t *skin;				\
     int x,y;					\
@@ -113,12 +114,14 @@ union _tcwidget_t {
     tcseek_bar_t seek_bar;
 };
 
-extern list *widget_list, *click_list, *sl_list, *drag_list;
+extern list *widget_list, *click_list, *sl_list, *drag_list, *skin_list;
 
 int widget_onclick(tcwidget_t *w, XEvent *xe);
 int draw_widget(tcwidget_t *w);
 int draw_widgets();
 int repaint_widgets();
+int destroy_widget(tcwidget_t *w);
+
 int alpha_render(unsigned char *src, unsigned char *dest, int width,
 		 int height, int depth);
 int alpha_render_part(unsigned char *src, unsigned char *dest,
@@ -146,5 +149,7 @@ tcseek_bar_t *create_seek_bar(skin_t *skin, int x, int y, int sp_x, int sp_y,
 			      double position, action_cb_t action);
 int enable_seek_bar(tcseek_bar_t *sb);
 int disable_seek_bar(tcseek_bar_t *sb);
+
+int widget_cmp(const void *, const void *);
 
 #endif /* _TCWIDGETS_H */

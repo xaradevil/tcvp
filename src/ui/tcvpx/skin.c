@@ -21,7 +21,10 @@
 #include <string.h>
 #include "tcvpctl.h"
 #include <X11/Xlib.h>
+#include "widgets.h"
 
+
+static int pl_visible = 0;
 
 extern skin_t*
 load_skin(char *skinconf)
@@ -53,6 +56,11 @@ load_skin(char *skinconf)
     if(i != 2) {
 	return NULL;
     }
+
+    skin->enabled = 1;
+    skin->widgets = list_new(TC_LOCK_SLOPPY);
+
+    list_push(skin_list, skin);
 
     return skin;
 }
@@ -154,62 +162,130 @@ create_skinned_seek_bar(skin_t *skin, conf_section *sec, double position,
 }
 
 
+static int
+tcvp_playlist(tcwidget_t *w, void *p)
+{
+    if(pl_visible == 0) {
+	char *plfile = alloca(strlen(w->common.skin->path) +
+			      strlen(w->common.skin->playlistfile) + 2);
+
+	sprintf(plfile, "%s/%s", w->common.skin->path,
+		w->common.skin->playlistfile);
+
+	skin_t *pl = load_skin(plfile);
+	create_window(pl);
+	create_ui(pl);
+
+	XMapWindow (xd, pl->xw);
+	XMapSubwindows(xd, pl->xw);
+
+	w->common.data = pl;
+
+	pl_visible = 1;
+    } else {
+	skin_t *pl = w->common.data;
+
+	destroy_window(pl);
+	pl_visible = 0;
+    }
+    return 0;
+}
+
+
 extern int
 create_ui(skin_t *skin)
 {
     conf_section *sec;
+    tcimage_button_t *w;
+
+    conf_getvalue(skin->config, "playlist", "%s", &skin->playlistfile);
 
     if((skin->background = create_skinned_background(skin, skin->config)) ==
        NULL) {
 	/* No background - No good */
 	return -1;
     }
+    list_push(skin->widgets, skin->background);
 
     sec = conf_getsection(skin->config, "buttons/previous");
     if(sec){
-	skin->playctl[0] = create_skinned_button(skin, sec, tcvp_previous);
+	w = create_skinned_button(skin, sec, tcvp_previous);
+	if(w){
+	    list_push(skin->widgets, w);
+	}
     }
 
     sec = conf_getsection(skin->config, "buttons/play");
     if(sec){
-	skin->playctl[1] = create_skinned_button(skin, sec, tcvp_play);
+	w = create_skinned_button(skin, sec, tcvp_play);
+	if(w){
+	    list_push(skin->widgets, w);
+	}
     }
 
     sec = conf_getsection(skin->config, "buttons/pause");
     if(sec){
-	skin->playctl[2] = create_skinned_button(skin, sec, tcvp_pause);
+	w = create_skinned_button(skin, sec, tcvp_pause);
+	if(w){
+	    list_push(skin->widgets, w);
+	}
     }
 
     sec = conf_getsection(skin->config, "buttons/stop");
     if(sec){
-	skin->playctl[3] = create_skinned_button(skin, sec, tcvp_stop);
+	w = create_skinned_button(skin, sec, tcvp_stop);
+	if(w){
+	    list_push(skin->widgets, w);
+	}
     }
 
     sec = conf_getsection(skin->config, "buttons/next");
     if(sec){
-	skin->playctl[4] = create_skinned_button(skin, sec, tcvp_next);
+	w = create_skinned_button(skin, sec, tcvp_next);
+	if(w){
+	    list_push(skin->widgets, w);
+	}
     }
 
     sec = conf_getsection(skin->config, "buttons/quit");
     if(sec){
-	skin->close = create_skinned_button(skin, sec, tcvp_close);
+	w = create_skinned_button(skin, sec, tcvp_close);
+	if(w){
+	    list_push(skin->widgets, w);
+	}
+    }
+    
+    sec = conf_getsection(skin->config, "buttons/playlist");
+    if(sec){
+	w = create_skinned_button(skin, sec, tcvp_playlist);
+	if(w){
+	    list_push(skin->widgets, w);
+	}
     }
 
     sec = conf_getsection(skin->config, "time");
     if(sec){
 	skin->time = create_skinned_label(skin, sec, "  0:00", toggle_time);
+	if(skin->time) {
+	    list_push(skin->widgets, skin->time);
+	}
     }
 
     sec = conf_getsection(skin->config, "title");
     if(sec){
 	skin->title = create_skinned_label(skin, sec, "", NULL);
+	if(skin->title) {
+	    list_push(skin->widgets, skin->title);
+	}
     }
 
     sec = conf_getsection(skin->config, "seek_bar");
     if(sec){
 	skin->seek_bar = create_skinned_seek_bar(skin, sec, 0, tcvp_seek);
+	if(skin->seek_bar) {
+	    list_push(skin->widgets, skin->seek_bar);
+	}
     }
 
     return 0;
 }
-

@@ -61,9 +61,23 @@ toggle_time(tcwidget_t *w, void *p)
     return 0;
 }
 
+extern int
+update_title(char *title)
+{
+    list_item *current=NULL;
+    skin_t *skin;
+
+    while((skin = list_next(skin_list, &current))!=NULL) {
+	if(skin->title) {
+	    change_label(skin->title, title);
+	}
+    }
+
+    return 0;
+}
 
 extern int
-update_time(skin_t *skin)
+update_time()
 {
     char text[8];
     int t = 0;
@@ -80,29 +94,36 @@ update_time(skin_t *skin)
 	}
     }
 
-    if(skin->seek_bar) {
-	if(s_length > 0){
-	    change_seek_bar(skin->seek_bar, (double)s_time/s_length);
-	} else {
-	    change_seek_bar(skin->seek_bar, 0);
-	}
+    list_item *current=NULL;
+    skin_t *skin;
+
+    while((skin = list_next(skin_list, &current))!=NULL) {
+	if(skin->title) {
+	    if(skin->seek_bar) {
+		if(s_length > 0){
+		    change_seek_bar(skin->seek_bar, (double)s_time/s_length);
+		} else {
+		    change_seek_bar(skin->seek_bar, 0);
+		}
+	    }
+
+	    if(skin->time){
+		char *spaces;
+		int m = t/60;
+		if(m < 10){
+		    spaces = "  ";
+		} else if(m >= 10 && m < 100){
+		    spaces = " ";
+		} else {
+		    spaces = "";
+		}
+
+		snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
+		change_label(skin->time, text);
+	    }
+    	}
     }
 
-    if(skin->time){
-	char *spaces;
-	int m = t/60;
-	if(m < 10){
-	    spaces = "  ";
-	} else if(m >= 10 && m < 100){
-	    spaces = " ";
-	} else {
-	    spaces = "";
-	}
-
-	snprintf(text, 8, "%s%c%d:%02d", spaces, sign, m, t%60);
-	change_label(skin->time, text);
-    }
-    
     return 0;
 }
 
@@ -144,6 +165,8 @@ tcvpx_init(char *p)
     sprintf(qn, "%s/timer", qname);
     eventq_attach(qr, qn, EVENTQ_RECV);
 
+    init_graphics();
+
     if((skin=load_skin(tcvp_ui_tcvpx_conf_skin)) == NULL){
 	fprintf(stderr, "Unable to load skin: \"%s\"\n",
 		tcvp_ui_tcvpx_conf_skin);
@@ -160,8 +183,8 @@ tcvpx_init(char *p)
 
     update_root(skin);
 
-    XMapWindow (xd, xw);
-    XMapSubwindows(xd, xw);
+    XMapWindow (xd, skin->xw);
+    XMapSubwindows(xd, skin->xw);
 
     update_time(skin);
     
@@ -183,11 +206,6 @@ extern int
 tcvpx_shdn(void)
 {
     tcvp_stop(NULL, NULL);
-
-    XDestroyWindow(xd, xw);
-    XSync(xd, False);
-
-    quit = 1;
 
     if(list_items(sl_list)>0) {
 	pthread_join(sth, NULL);

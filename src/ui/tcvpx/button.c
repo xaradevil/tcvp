@@ -19,10 +19,10 @@
 #include "tcvpx.h"
 
 
-extern int
+static int
 repaint_button(tcwidget_t *w)
 {
-    if(mapped==1){
+    if(mapped==1 && w->button.skin->enabled == 1){
 	XImage *img;
 	img = XGetImage(xd, w->button.skin->background->pixmap,
 			w->button.x, w->button.y,
@@ -30,11 +30,21 @@ repaint_button(tcwidget_t *w)
 			AllPlanes, ZPixmap);
 	alpha_render(*w->button.img->data, img->data, img->width,
 		     img->height, depth);
-	XPutImage(xd, w->button.pixmap, bgc, img, 0, 0, 0, 0,
-		  w->button.width, w->button.height);
+	XPutImage(xd, w->button.pixmap, w->background.skin->bgc, img,
+		  0, 0, 0, 0, w->button.width, w->button.height);
 	XSync(xd, False);
 	XDestroyImage(img);
     }
+    return 0;
+}
+
+
+static int
+destroy_button(tcwidget_t *w)
+{
+    free(*w->button.img->data);
+    free(w->button.img->data);
+    free(w->button.img);
     return 0;
 }
 
@@ -49,17 +59,18 @@ create_button(skin_t *skin, int x, int y, char *imagefile,
     btn->x = x;
     btn->y = y;
     btn->repaint = repaint_button;
+    btn->destroy = destroy_button;
     btn->skin = skin;
     btn->img = load_image(skin->path, imagefile);
     btn->width = btn->img->width;
     btn->height = btn->img->height;
     btn->enabled = 1;
 
-    btn->win = XCreateWindow(xd, xw, btn->x, btn->y,
+    btn->win = XCreateWindow(xd, skin->xw, btn->x, btn->y,
 			     btn->width, btn->height,
 			     0, CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
-    btn->pixmap = XCreatePixmap(xd, xw, btn->width,
+    btn->pixmap = XCreatePixmap(xd, skin->xw, btn->width,
 				btn->height, depth);
 
     list_push(widget_list, btn);

@@ -21,17 +21,21 @@
 
 #include "widgets.h"
 #include <tcconf.h>
+#include <tclist.h>
 
 struct _skin_t {
     tclabel_t *time, *title;
     tcbackground_t *background;
     tcseek_bar_t *seek_bar;
-    tcimage_button_t *close;
-    tcimage_button_t *playctl[5];
+    list *widgets;
+    Window xw;
+    GC wgc, bgc;
     int width, height;
     char *file;
     char *path;
     conf_section *config;
+    char *playlistfile;
+    int enabled;
 };
 
 skin_t* load_skin(char *skinfile);

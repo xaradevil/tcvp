@@ -36,7 +36,6 @@ int mapped=1;
 
 Display *xd;
 int xs;
-Window xw;
 GC wgc, bgc;
 Pixmap root;
 int root_width;
@@ -47,10 +46,9 @@ tcwidget_t *drag;
 extern void *
 x11_event(void *p)
 {
-    int run=1;
     skin_t *skin = p;
 
-    while(run){
+    while(!quit){
         XEvent xe;
 
         XNextEvent(xd, &xe);
@@ -123,14 +121,36 @@ x11_event(void *p)
 	case UnmapNotify:
 	    mapped = 0;
 	    break;
-
-	case DestroyNotify:
-	    run = 0;
-	    break;
 	}
     }
 
     return NULL;
+}
+
+
+extern int
+init_graphics()
+{
+    click_list = list_new(TC_LOCK_SLOPPY);
+    drag_list = list_new(TC_LOCK_SLOPPY);
+    widget_list = list_new(TC_LOCK_SLOPPY);
+    sl_list = list_new(TC_LOCK_SLOPPY);
+    skin_list = list_new(TC_LOCK_SLOPPY);
+
+    XInitThreads();
+    xd = XOpenDisplay(NULL);
+
+    XSetCloseDownMode (xd, DestroyAll);
+    xs = DefaultScreen (xd);
+
+    root_width = XDisplayWidth(xd,xs);
+    root_height = XDisplayHeight(xd,xs);
+    depth = DefaultDepth(xd, xs);
+
+    root = XCreatePixmap(xd, RootWindow(xd, xs), root_width,
+			 root_height, depth);
+
+    return 0;
 }
 
 
@@ -144,46 +164,29 @@ create_window(skin_t *skin)
     XTextProperty windowName;
     char *title = "TCVP";
 
-    click_list = list_new(TC_LOCK_SLOPPY);
-    drag_list = list_new(TC_LOCK_SLOPPY);
-    widget_list = list_new(TC_LOCK_SLOPPY);
-    sl_list = list_new(TC_LOCK_SLOPPY);
+    skin->xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
+			     skin->width, skin->height, 0,
+			     CopyFromParent, InputOutput,
+			     CopyFromParent, 0, 0);
 
-    XInitThreads();
-    xd = XOpenDisplay(NULL);
-
-    XSetCloseDownMode (xd, DestroyAll);
-    xs = DefaultScreen (xd);
-
-    root_width = XDisplayWidth(xd,xs);
-    root_height = XDisplayHeight(xd,xs);
-    depth = DefaultDepth(xd, xs);
-
-    xw = XCreateWindow (xd, RootWindow(xd, xs), 0, 0,
-			skin->width, skin->height, 0,
-			CopyFromParent, InputOutput,
-			CopyFromParent, 0, 0);
-
-    XSelectInput(xd, xw, ExposureMask | StructureNotifyMask);
+    XSelectInput(xd, skin->xw, ExposureMask | StructureNotifyMask);
 
     memset(&mwmhints, 0, sizeof(MWMHints));
     prop = XInternAtom(xd, "_MOTIF_WM_HINTS", False);
     mwmhints.flags = MWM_HINTS_DECORATIONS;
     mwmhints.decorations = 0;
   
-    XChangeProperty(xd, xw, prop, prop, 32, PropModeReplace,
+    XChangeProperty(xd, skin->xw, prop, prop, 32, PropModeReplace,
 		    (unsigned char *) &mwmhints,
 		    PROP_MWM_HINTS_ELEMENTS);
 
-    bgc = XCreateGC (xd, xw, 0, NULL);
-    XSetBackground(xd, bgc, 0x00000000);
-    XSetForeground(xd, bgc, 0xFFFFFFFF);
+    skin->bgc = XCreateGC (xd, skin->xw, 0, NULL);
+    XSetBackground(xd, skin->bgc, 0x00000000);
+    XSetForeground(xd, skin->bgc, 0xFFFFFFFF);
 
-    wgc = XCreateGC (xd, xw, 0, NULL);
-    XSetBackground(xd, bgc, 0xFFFFFFFF);
-    XSetForeground(xd, bgc, 0x00000000);
-
-    root = XCreatePixmap(xd, xw, root_width, root_height, depth);
+    skin->wgc = XCreateGC (xd, skin->xw, 0, NULL);
+    XSetBackground(xd, skin->bgc, 0xFFFFFFFF);
+    XSetForeground(xd, skin->bgc, 0x00000000);
 
     classhints = XAllocClassHint ();
     classhints->res_name = "TCVP";
@@ -197,13 +200,32 @@ create_window(skin_t *skin)
     sizehints->max_height = skin->height;
 
     XStringListToTextProperty (&title, 1, &windowName);
-    XSetWMProperties (xd, xw, &windowName, NULL, NULL,
+    XSetWMProperties (xd, skin->xw, &windowName, NULL, NULL,
 		      0, sizehints, NULL, classhints);
 
     XFree(sizehints);
     XFree(classhints);
 
     XSync(xd, False);
+
+    return 0;
+}
+
+
+extern int 
+destroy_window(skin_t *skin)
+{
+    tcwidget_t *w;
+
+    list_delete(skin_list, skin, widget_cmp, NULL);
+
+    while((w = list_pop(skin->widgets))!=NULL) {
+	destroy_widget(w);
+    }
+
+    list_destroy(skin->widgets, NULL);
+    free(skin->path);
+    free(skin);
 
     return 0;
 }

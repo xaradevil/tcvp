@@ -28,7 +28,8 @@ update_root(skin_t *skin)
 	XImage *img;
 	img = XGetImage(xd, RootWindow(xd, xs), 0, 0, root_width, 
 			root_height, AllPlanes, ZPixmap);
-	XPutImage(xd, root, bgc, img, 0, 0, 0, 0, root_width, root_height);
+	XPutImage(xd, root, skin->bgc, img, 0, 0, 0, 0, root_width,
+		  root_height);
 	XSync(xd, False);
 
 	XDestroyImage(img);
@@ -42,6 +43,7 @@ extern int
 repaint_background(tcwidget_t *w)
 {
     XImage *img;
+    GC bgc = w->background.skin->bgc;
 
     if(w->background.transparent){
 	XWindowAttributes wa;
@@ -94,7 +96,8 @@ repaint_background(tcwidget_t *w)
 		tmp_h = w->background.height;
 	    }
 
-	    pmap = XCreatePixmap(xd, xw, w->background.width,
+	    pmap = XCreatePixmap(xd, w->background.skin->xw,
+				 w->background.width,
 				 w->background.height, depth);
 
 	    XCopyArea(xd, root, pmap, bgc, tmp_x, tmp_y, tmp_w, tmp_h, xp, yp);
@@ -150,9 +153,9 @@ create_background(skin_t *skin, char *imagefile)
     bg->width = bg->img->width;
     bg->height = bg->img->height;
     bg->transparent = 0;
-    bg->pixmap = XCreatePixmap(xd, xw, bg->width,
+    bg->pixmap = XCreatePixmap(xd, skin->xw, bg->width,
 			       bg->height, depth);
-    bg->win = xw;
+    bg->win = skin->xw;
     bg->enabled = 1;
 
     data = calloc(bg->width * bg->height,1);
@@ -170,9 +173,9 @@ create_background(skin_t *skin, char *imagefile)
 	}
     }
 
-    maskp = XCreateBitmapFromData(xd, xw, data, bg->width, bg->height);
+    maskp = XCreateBitmapFromData(xd, skin->xw, data, bg->width, bg->height);
     free(data);
-    XShapeCombineMask(xd, xw, ShapeBounding, 0, 0, maskp, ShapeSet);
+    XShapeCombineMask(xd, skin->xw, ShapeBounding, 0, 0, maskp, ShapeSet);
     XSync(xd, False);
     XFreePixmap(xd, maskp);
 
