@@ -31,6 +31,8 @@
 typedef struct x11_wm {
     Display *dpy;
     Window win;
+    int width, height;
+    float aspect;
     wm_update_t update;
     void *cbd;
     pthread_t eth;
@@ -47,20 +49,38 @@ x11_event(void *p)
 
     while(run){
 	XEvent xe;
-	XConfigureEvent *xce = &xe.xconfigure;
 
 	XNextEvent(xwm->dpy, &xe);
 	switch(xe.type){
 	case ConfigureNotify: {
-	    xwm->update(xwm->cbd, WM_MOVE,
-			xce->x, xce->y, xce->width, xce->height);
+	    XWindowAttributes xwa;
+	    Window foo;
+	    GC gc = DefaultGC(xwm->dpy, DefaultScreen(xwm->dpy));
+	    int x, y, w, h;
+	    float wa;
+
+	    XGetWindowAttributes(xwm->dpy, xwm->win, &xwa);
+	    XSetForeground(xwm->dpy, gc, 0);
+	    XFillRectangle(xwm->dpy, xwm->win, gc,
+			   0, 0, xwa.width, xwa.height);
+	    XTranslateCoordinates(xwm->dpy, xwm->win, xwa.root, 0, 0,
+				  &x, &y, &foo);
+
+	    wa = (float) xwa.width / xwa.height;
+	    if(wa > xwm->aspect){
+		h = xwa.height;
+		w = h * xwm->aspect;
+		x += (xwa.width - w) / 2;
+	    } else {
+		w = xwa.width;
+		h = w / xwm->aspect;
+		y += (xwa.height - h) / 2;
+	    }
+	    xwm->update(xwm->cbd, WM_MOVE, x, y, w, h);
 	    break;
 	}
 	case MapNotify: {
-	    XWindowAttributes xwa;
-	    XGetWindowAttributes(xwm->dpy, xwm->win, &xwa);
-	    xwm->update(xwm->cbd, WM_SHOW,
-			xwa.x, xwa.y, xwa.width, xwa.height);
+	    xwm->update(xwm->cbd, WM_SHOW, 0, 0, 0, 0);
 	    break;
 	}
 	case UnmapNotify: {
@@ -113,6 +133,9 @@ x11_open(int width, int height, wm_update_t upd, void *cbd, conf_section *cs)
     xwm = calloc(1, sizeof(*xwm));
     xwm->dpy = dpy;
     xwm->win = win;
+    xwm->width = width;
+    xwm->height = height;
+    xwm->aspect = (float) width / height;
     xwm->update = upd;
     xwm->cbd = cbd;
 
