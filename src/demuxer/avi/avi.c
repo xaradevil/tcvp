@@ -386,7 +386,7 @@ avi_header(url_t *f)
     ms = tcallocd(sizeof(*ms), NULL, avi_free);
     memset(ms, 0, sizeof(*ms));
     af = calloc(1, sizeof(*af));
-    af->file = f;
+    af->file = tcref(f);
     pthread_mutex_init(&af->mx, NULL);
     ms->private = af;
     af->packets = list_new(TC_LOCK_NONE);
@@ -677,9 +677,14 @@ avi_packet(muxed_stream_t *ms, int stream)
 	return NULL;
 
     if(!valid_tag(tag, scan)){
-	if(!strcmp(tag, "LIST") || !strcmp(tag, "RIFF")){
-	    getu32(af->file); /* size */
-	    getu32(af->file); /* rec/movi/AVIX */
+	if(!strcmp(tag, "RIFF")){
+	    af->file->seek(af->file, 8, SEEK_CUR);
+	    goto again;
+	} else if(!strcmp(tag, "LIST")){
+	    int ls = getu32(af->file); /* size */
+	    get4c(tag, af->file);
+	    if(strcmp(tag, "rec ") && strcmp(tag, "movi"))
+		af->file->seek(af->file, ls - 4, SEEK_CUR);
 	    goto again;
 	} else if(!strcmp(tag, "JUNK") ||
 		  !strcmp(tag, "idx1") ||
@@ -742,6 +747,9 @@ avi_packet(muxed_stream_t *ms, int stream)
 	af->file->seek(af->file, -12, SEEK_CUR);
 	if(valid_tag(tag, 0) || !memcmp(tag, "rec ", 4)){
 	    tried_bkup++;
+	    goto again;
+	} else if(!memcmp(tag, "LIST", 4)){
+	    af->file->seek(af->file, 8, SEEK_CUR);
 	    goto again;
 	}
 	scan++;

@@ -262,7 +262,7 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     ogg_sync_init(&ost->oy);
 
-    ost->f=f;
+    ost->f = tcref(f);
 
     ms = tcallocd(sizeof(*ms), NULL, ogg_free);
     memset(ms, 0, sizeof(*ms));

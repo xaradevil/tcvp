@@ -129,7 +129,6 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
     if(version >= 0x0500 || version < 0x0300){
 	fprintf(stderr, "MP3: Unsupported ID3v2 tag version %i.%i.\n",
 		version >> 8, version & 0xff);
-	
 	goto err;
     }
 
@@ -169,7 +168,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 
 #ifdef DEBUG
 	char stag[5];
-	fprintf(stderr, "MP3: %s size=%i flags=%x\n",
+	fprintf(stderr, "MP3: %s size=%x flags=%x\n",
 		tag2str(stag, tag), fsize, fflags);
 #endif
 
@@ -289,7 +288,7 @@ id3v1_strdup(char *p, int s)
 extern int
 id3v1_tag(url_t *f, muxed_stream_t *ms)
 {
-    off_t pos = f->tell(f);
+    uint64_t pos = f->tell(f);
     char buf[128];
     int ts = 0;
 

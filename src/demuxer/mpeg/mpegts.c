@@ -441,7 +441,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     ms->seek = mpegts_seek;
 
     s = calloc(1, sizeof(*s));
-    s->stream = u;
+    s->stream = tcref(u);
     s->timer = tm;
     tcconf_getvalue(cs, "sync_timer", "%i", &s->synctime);
 
@@ -572,7 +572,6 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     return ms;
 
 err:
-    s->stream = NULL;
     tcfree(ms);
     return NULL;
 }

@@ -20,7 +20,7 @@ typedef struct mp3_file {
     url_t* file;
     stream_t stream;
     int used;
-    off_t start;
+    uint64_t start;
     size_t size;
     eventq_t qs;
     uint64_t sbr;
@@ -37,6 +37,8 @@ typedef struct mp3_frame {
     int sample_rate;
     int size;
 } mp3_frame_t;
+
+#define min(a, b) ((a)<(b)?(a):(b))
 
 static int TCVP_STREAM_INFO;
 
@@ -167,6 +169,9 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
 	if(mf->stream.audio.bit_rate)
 	    time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
 
+    mf->pts = time;
+    mf->fsize = 0;
+
     return time;
 }
 
@@ -204,6 +209,7 @@ mp3_packet(muxed_stream_t *ms, int str)
     mp->pk.pts = mf->pts;
 
     pos = mf->file->tell(mf->file);
+    size = min(size, mf->size - pos + mf->start);
     size = mf->file->read(mp->data, 1, size, mf->file);
     if(size <= 0){
 	tcfree(mp);
@@ -239,8 +245,8 @@ mp3_packet(muxed_stream_t *ms, int str)
 	    bh = 0;
 	} else {
 	    if(!bh++)
-		fprintf(stderr, "MP3: bad header %02x%02x @ %llx\n",
-			fh1, f[2], pos + (uint64_t) (f - mp->data));
+		fprintf(stderr, "MP3: bad header %02x%02x @ %llx %llx\n",
+			fh1, f[2], pos + (uint64_t) (f - mp->data), pos);
 	    f++;
 	}
     }
@@ -271,7 +277,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     muxed_stream_t *ms;
     mp3_file_t *mf;
     char *qname, *qn;
-    int ts;
+    int ts = 0;
 
     ms = tcallocd(sizeof(*ms), NULL, mp3_free);
     memset(ms, 0, sizeof(*ms));
@@ -282,18 +288,18 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     ms->streams = &mf->stream;
     ms->private = mf;
 
-    mf->file = f;
+    mf->file = tcref(f);
     mf->stream.stream_type = STREAM_TYPE_AUDIO;
     mf->size = f->size;
 
-    if((ts = id3v2_tag(f, ms)) < 0)
-	if(!f->flags & URL_FLAG_STREAMED)
-	    ts = id3v1_tag(f, ms);
+    id3v2_tag(f, ms);
+    if(!f->flags & URL_FLAG_STREAMED)
+	ts = id3v1_tag(f, ms);
+
     if(ts > 0)
 	mf->size -= ts;
 
     if(mp3_getparams(ms)){
-	mf->file = NULL;
 	tcfree(ms);
 	return NULL;
     }
@@ -306,6 +312,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     free(qname);
 
     mf->start = f->tell(f);
+    mf->size -= mf->start;
 
     ms->used_streams = &mf->used;
     ms->next_packet = mp3_packet;

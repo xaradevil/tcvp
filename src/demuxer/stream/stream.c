@@ -118,9 +118,10 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	    tcattr_set(ms, "artist", strdup(p), NULL, free);
 	if(a && !p)
 	    tcattr_set(ms, "performer", strdup(a), NULL, free);
-    } else {
-	u->close(u);
     }
+
+    tcfree(u);
+
     return ms;
 }
 

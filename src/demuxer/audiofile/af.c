@@ -142,7 +142,7 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     int sampleFormat, sampleWidth, byteOrder, fn=0;
 
     vf = af_virtual_file_new();
-    vf->closure = f;
+    vf->closure = tcref(f);
     vf->read = aff_read;
     vf->length = aff_length;
     vf->destroy = aff_destroy;
@@ -150,6 +150,10 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     vf->tell = aff_tell;
 
     aff = afOpenVirtualFile(vf, "r", AF_NULL_FILESETUP);
+    if(!aff){
+	af_virtual_file_destroy(vf);
+	return NULL;
+    }
 
     afGetSampleFormat(aff, AF_DEFAULT_TRACK, &sampleFormat, &sampleWidth);
     byteOrder = afGetByteOrder(aff, AF_DEFAULT_TRACK);

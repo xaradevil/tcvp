@@ -382,7 +382,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	ms->time = 300LL * u->size / sp * bt;
     }
 
-    s->stream = u;
+    s->stream = tcref(u);
     s->stream->seek(s->stream, 0, SEEK_SET);
     return ms;
 }
