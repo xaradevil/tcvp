@@ -38,6 +38,7 @@ typedef struct x4_enc {
     x264_t *enc;
     x264_picture_t pic;
     u_char *buf;
+    int pts_valid;
 } x4_enc_t;
 
 typedef struct x4_packet {
@@ -67,7 +68,10 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
 	x4->pic.img.i_stride[i] = pk->sizes[i];
     }
 
-    x4->pic.i_pts = pk->pts;
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
+	x4->pic.i_pts = pk->pts;
+	x4->pts_valid = 1;
+    }
     x4->pic.i_type = X264_TYPE_AUTO;
 
     if(x264_encoder_encode(x4->enc, &nal, &nnal, &x4->pic))
@@ -87,10 +91,13 @@ x4_encode(tcvp_pipe_t *p, packet_t *pk)
     ep->pk.data = &ep->data;
     ep->pk.sizes = &ep->size;
     ep->pk.planes = 1;
-    ep->pk.flags = TCVP_PKT_FLAG_PTS;
+    ep->pk.flags = 0;
+    if(x4->pts_valid){
+	ep->pk.flags |= TCVP_PKT_FLAG_PTS;
+	ep->pk.pts = x4->pic.i_pts;
+    }
     if(x4->pic.i_type == X264_TYPE_I)
 	ep->pk.flags |= TCVP_PKT_FLAG_KEY;
-    ep->pk.pts = x4->pic.i_pts;
     ep->data = x4->buf;
     ep->size = buf - x4->buf;
     p->next->input(p->next, &ep->pk);
