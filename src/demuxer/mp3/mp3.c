@@ -474,8 +474,8 @@ mp3_free(void *p)
     mp3_file_t *mf = ms->private;
 
     eventq_delete(mf->qs);
-
-    mf->file->close(mf->file);
+    if(mf->file)
+	mf->file->close(mf->file);
     free(mf);
 }
 
@@ -504,6 +504,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    id3v1_tag(ms);
 
     if(mp3_getparams(ms)){
+	mf->file = NULL;
 	tcfree(ms);
 	return NULL;
     }
