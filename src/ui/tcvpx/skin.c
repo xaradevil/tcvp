@@ -767,8 +767,8 @@ create_ui(window_t *win, skin_t *skin, tcconf_section_t *config,
     create_skinned_widget("box", create_skinned_box);
     create_skinned_widget("button", create_skinned_button);
     create_skinned_widget("label", create_skinned_label);
-/*     create_skinned_widget("state", create_skinned_state); */
-/*     create_skinned_widget("slider", create_skinned_seek_bar); */
+    create_skinned_widget("state", create_skinned_state);
+    create_skinned_widget("slider", create_skinned_seek_bar);
 
     lc = NULL;
     while((t = list_next(skin->templates, &lc))!=NULL) {
