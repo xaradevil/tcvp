@@ -151,14 +151,13 @@ rm_listen(void *p)
 	if(rm->ssock >= 0 && FD_ISSET(rm->ssock, &tmp)){
 	    struct sockaddr_in sa;
 	    int sl = sizeof(sa);
-	    char buf[256];
 	    int s;
 
 	    s = accept(rm->ssock, (struct sockaddr *) &sa, &sl);
 	    if(s < 0)
 		continue;
-	    fprintf(stderr, "REMOTE: connect from %s\n",
-		    inet_ntop(sa.sin_family, &sa.sin_addr, buf, sizeof(buf)));
+/* 	    fprintf(stderr, "REMOTE: connect from %s\n", */
+/* 		    inet_ntoa(sa.sin_addr)); */
 	    cl = malloc(sizeof(*cl));
 	    cl->socket = s;
 	    cl->addr = sa;
@@ -169,7 +168,7 @@ rm_listen(void *p)
 	while((cl = list_next(rm->clients, &li))){
 	    if(FD_ISSET(cl->socket, &tmp)){
 		if(read_event(rm, cl) < 0){
-		    fprintf(stderr, "REMOTE: read event failed\n");
+/* 		    fprintf(stderr, "REMOTE: read event failed\n"); */
 		    list_remove(rm->clients, li);
 		    FD_CLR(cl->socket, &rm->clf);
 		}
