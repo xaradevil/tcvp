@@ -28,7 +28,20 @@
 extern muxed_stream_t *
 s_open(char *name)
 {
-    stream_open_t sopen = tc2_get_symbol("video/mpeg", "open");
+    char *m;
+    char *ext;
+
+    ext=strrchr(name,'.')+1;
+    if(ext==(void *)1L)
+	return NULL;
+
+    if(strcmp(ext,"ogg")==0) {
+	m="audio/ogg";
+    } else {
+	m="video/mpeg";
+    }
+
+    stream_open_t sopen = tc2_get_symbol(m, "open");
     return sopen(name);
 }
 
