@@ -133,14 +133,6 @@ fullpath(char *file)
     return path;
 }
 
-static void
-sigint(int s)
-{
-    if(pthread_self() == intr_thr){
-	sem_post(&psm);
-    }
-}
-
 static void *
 tcl_event(void *p)
 {
@@ -168,6 +160,18 @@ tcl_event(void *p)
     return NULL;
 }
 
+/* There is a race condition here, but I don't care. */
+static int sig;
+
+static void
+sigint(int s)
+{
+    if(pthread_self() == intr_thr){
+	sig = s;
+	sem_post(&psm);
+    }
+}
+
 static void *
 tcl_intr(void *p)
 {
@@ -190,7 +194,7 @@ tcl_intr(void *p)
 
 	switch(ic){
 	case 0:
-	    if(!prl){
+	    if(sig == SIGINT && !prl){
 		tcvp_event_send(qs, TCVP_PL_NEXT);
 		break;
 	    }
@@ -375,6 +379,7 @@ tcl_init(char *p)
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
     sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
     intr = 1;
     pthread_create(&intr_thr, NULL, tcl_intr, NULL);
 
