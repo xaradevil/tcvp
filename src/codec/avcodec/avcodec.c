@@ -1,19 +1,7 @@
 /**
     Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    Licensed under the Open Software License version 2.0
 **/
 
 #include <stdlib.h>
@@ -42,9 +30,8 @@ typedef struct avc_codec {
     char *buf;
 
     /* video */
-    uint64_t pts, npts;
+    uint64_t pts;
     uint64_t ptsn, ptsd;
-    int bfc, pts_delay, ptsc;
     AVFrame *frame;
 
     int have_params;
@@ -130,9 +117,8 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	return 0;
     }
 
-    if(pk->flags & TCVP_PKT_FLAG_PTS && !vc->ptsc){
-	vc->npts = pk->pts * vc->ptsd;
-	vc->ptsc = vc->pts_delay;
+    if(pk->flags & TCVP_PKT_FLAG_PTS){
+	vc->pts = pk->pts * vc->ptsd;
     }
 
     while(insize > 0){
@@ -165,27 +151,14 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    }
 	    out->planes = i;
 
-	    if(vc->ptsc > 0 && --vc->ptsc == 0)
-		vc->pts = vc->npts;
-
 	    out->flags = TCVP_PKT_FLAG_PTS;
 	    out->pts = vc->pts / vc->ptsd;
 	    vc->pts += vc->ptsn;
 
 	    out->private = NULL;
 	    p->next->input(p->next, out);
-
-	    if(vc->frame->pict_type == FF_B_TYPE){
-		vc->bfc++;
-	    } else if(vc->bfc){
-		vc->pts_delay = vc->bfc + 1;
-		vc->bfc = 0;
-	    }
 	}
     }
-
-/*     if(!pk->sizes[0]) */
-/* 	vc->pts += vc->ptsn; */
 
     tcfree(pk);
 
@@ -393,7 +366,6 @@ avc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 	vc->ptsn = (uint64_t) 27000000 * s->video.frame_rate.den;
 	vc->ptsd = s->video.frame_rate.num?: 1;
 	vc->pts = 0;
-	vc->pts_delay = 1;
 	vc->frame = avcodec_alloc_frame();
 
 	p = tcallocdz(sizeof(*p), NULL, avc_free_vpipe);
