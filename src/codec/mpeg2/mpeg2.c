@@ -35,8 +35,7 @@ typedef struct mpeg_dec {
     mpeg2dec_t *mpeg2;
     const mpeg2_info_t *info;
     uint64_t pts;
-    uint64_t rpts[16];
-    int ptsc, flush;
+    int flush;
 } mpeg_dec_t;
 
 typedef struct mpeg_packet {
@@ -61,10 +60,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	mpd->info = mpeg2_info(mpd->mpeg2);
 
     if((pk->flags & TCVP_PKT_FLAG_PTS)){
-	mpd->rpts[mpd->ptsc] = pk->pts;
-	mpeg2_pts(mpd->mpeg2, mpd->ptsc);
-	if(++mpd->ptsc == 16)
-	    mpd->ptsc = 0;
+	mpeg2_tag_picture(mpd->mpeg2, pk->pts, pk->pts >> 32);
     }
 
     do {
@@ -94,8 +90,9 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		pic->sizes[1] = pic->sizes[0]/2;
 		pic->sizes[2] = pic->sizes[0]/2;
 
-		if(mpd->info->display_picture->flags & PIC_FLAG_PTS){
-		    mpd->pts = mpd->rpts[mpd->info->display_picture->pts];
+		if(mpd->info->display_picture->flags & PIC_FLAG_TAGS){
+		    mpd->pts = mpd->info->display_picture->tag |
+			(uint64_t) mpd->info->display_picture->tag2 << 32;
 		}
 
 		pic->pk.flags = TCVP_PKT_FLAG_PTS;
@@ -157,7 +154,6 @@ mpeg_flush(tcvp_pipe_t *p, int drop)
     if(drop){
 	mpd->flush = 1;
 	mpd->pts = 0;
-	memset(mpd->rpts, 0, sizeof(mpd->rpts));
     }
 
     return 0;
