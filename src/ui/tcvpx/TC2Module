@@ -56,6 +56,7 @@ import		"xtk/widget/slider"	"set_indicator_image"
 import		"xtk/widget/slider"	"set_indicator_image_hover"
 import		"xtk/widget/slider"	"set_indicator_image_pressed"
 import		"xtk/widget/slider"	"set_position"
+import		"xtk/widget/slider"	"set_scroll_direction"
 
 import		"xtk/widget/state"	"add_state"
 import		"xtk/widget/state"	"create"

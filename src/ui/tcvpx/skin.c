@@ -531,6 +531,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int x, y;
     int sp_x, sp_y;
     int ep_x, ep_y;
+    int xd, yd, sx, sy;
     char *bg, *indicator, *value, *ind_over = NULL, *ind_down = NULL;
     int i=0;
     char *action = NULL;
@@ -554,6 +555,8 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     tcconf_getvalue(sec, "action", "%s", &action);
     tcconf_getvalue(sec, "mouse_over", "%s", &ind_over);
     tcconf_getvalue(sec, "pressed", "%s", &ind_down);
+    tcconf_getvalue(sec, "scroll_direction", "%d %d %d %d", &xd, &yd,
+		    &sx, &sy);
 
     parse_variable(value, (void *)&position, (void *)&def);
     if(!position) {
@@ -580,6 +583,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     xtk_widget_slider_set_action(s, lookup_action);
     xtk_widget_slider_set_position(s, *position);
     xtk_widget_slider_set_bounds(s, sp_x, sp_y, ep_x, ep_y);
+    xtk_widget_slider_set_scroll_direction(s, xd, yd, sx, sy);
 
     img = load_image(skin->path, indicator);
     xtk_widget_slider_set_indicator_image(s, img);
