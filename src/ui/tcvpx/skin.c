@@ -558,8 +558,12 @@ static int
 tcvp_close_ui(xtk_widget_t *w, void *p)
 {
     skin_t *s = ((widget_data_t *)w->data)->skin;
+    window_t *win = w->window, *pw;
 
-    xtk_destroy_window(w->window);
+    while((pw = xtk_get_parent(win)))
+	win = pw;
+
+    xtk_destroy_window(win);
     free_skin(s);
 
     ui_count--;

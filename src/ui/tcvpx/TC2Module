@@ -50,6 +50,7 @@ import		"xtk"		"box_get_subwindow"
 import		"xtk"		"show_widget"
 import		"xtk"		"hide_widget"
 import		"xtk"		"get_screen_size"
+import		"xtk"		"get_parent"
 
 option		skin%s
 option		always_on_top%d=0

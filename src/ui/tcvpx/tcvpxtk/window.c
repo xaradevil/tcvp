@@ -647,6 +647,12 @@ destroy_window(window_t *window)
     return 0;
 }
 
+extern window_t *
+parent_window(window_t *w)
+{
+    return w->parent;
+}
+
 extern xtk_position_t*
 get_win_pos(window_t *win)
 {

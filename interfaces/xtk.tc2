@@ -36,6 +36,7 @@ symbol	"set_dnd_cb"		int (*%s)(int(*)(char *))
 
 symbol	"get_window_position"	xtk_position_t *(*%s)(window_t *window)
 symbol	"set_window_position"	int (*%s)(window_t *window, xtk_position_t *position)
+symbol	"get_parent"		window_t *(*%s)(window_t *)
 
 symbol	"show_widget"		int (*%s)(xtk_widget_t *w)
 symbol	"hide_widget"		int (*%s)(xtk_widget_t *w)
