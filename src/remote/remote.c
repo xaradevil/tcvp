@@ -92,6 +92,7 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
     u_char *buf, *p;
     int s;
     tcvp_event_t *te;
+    int ret = 0;
 
     if(read(cl->socket, &size, 4) < 4)
 	return -1;
@@ -103,8 +104,10 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 
     while(s > 0){
 	int r = read(cl->socket, p, s);
-	if(r < 0)
-	    return -1;
+	if(r < 0){
+	    ret = -1;
+	    goto end;
+	}
 	s -= r;
 	p += r;
     }
@@ -126,7 +129,9 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 	tcfree(te);
     }
 
-    return 0;
+end:
+    free(buf);
+    return ret;
 }
 
 static void *
@@ -284,6 +289,8 @@ rm_new(tcconf_section_t *cs)
 	list_push(rm->clients, cl);
 	rm->ssock = -1;
     } else {
+	int r = 1;
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &r, sizeof(r));
 	if(bind(sock, (struct sockaddr *) &rsa, sizeof(rsa)) < 0){
 	    fprintf(stderr, "REMOTE: bind failed: %m\n");
 	    return NULL;
@@ -330,6 +337,7 @@ rm_init(char *p)
     get_event("TCVP_CLOSE", CONTROL);
     get_event("TCVP_SEEK", CONTROL);
     get_event("TCVP_TIMER", TIMER);
+    get_event("TCVP_LOAD", STATUS);
 
     return 0;
 }
