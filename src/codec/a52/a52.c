@@ -250,9 +250,10 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     p->format = *s;
     p->format.stream_type = STREAM_TYPE_AUDIO;
-    p->format.common.codec = "audio/pcm-s16";
+    p->format.common.codec = "audio/pcm-s16le";
     p->format.audio.sample_rate = srate;
     p->format.audio.channels = 2;
+    p->format.audio.bit_rate = srate * 32;
 
     tcfree(pk);
 
