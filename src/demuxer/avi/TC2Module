@@ -6,3 +6,6 @@ sources		avi.c
 implement	"video/x-avi"	"open"		avi_open
 implement	"video/x-avi"	"close"		avi_close
 implement	"video/x-avi"	"next_packet"	avi_packet
+option		max_skip%i=16
+option		max_scan%i=2048
+option		backup%i=64

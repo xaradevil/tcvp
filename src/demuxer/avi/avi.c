@@ -24,7 +24,12 @@
 #include <tclist.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <sys/stat.h>
 #include <avi_tc2.h>
+
+#define max_skip tcvp_demux_avi_conf_max_skip
+#define max_scan tcvp_demux_avi_conf_max_scan
+#define backup tcvp_demux_avi_conf_backup
 
 #undef DEBUG
 
@@ -92,6 +97,11 @@ avi_header(FILE *f)
     char st[5] = {[4] = 0};
     int i;
     long movi_start = 0;
+    struct stat sst;
+    off_t fsize, pos;
+
+    fstat(fileno(f), &sst);
+    fsize = sst.st_size;
 
     if(fread(&tag, 4, 1, f) != 1)
 	return NULL;
@@ -114,9 +124,17 @@ avi_header(FILE *f)
     while(fread(&tag, 4, 1, f) == 1){
 	size = getu32(f);
 	size += size & 1;
+	pos = ftell(f);
+	*(uint32_t *)st = tag;
+
+	if(pos + size > fsize){
+	    fprintf(stderr,
+		    "AVI: Chunk '%s' exceeds file size.\n"
+		    "     Chunk size %i, remains %li of file\n",
+		    st, size, fsize - pos);
+	}
 
 #ifdef DEBUG
-	*(uint32_t *)st = tag;
 	fprintf(stderr, "%s:\n", st);
 #endif
 
@@ -284,9 +302,13 @@ avi_header(FILE *f)
 	}
 	case TAG('i','d','x','1'):{
 	    int idxoff;
-	    int idxl = size / sizeof(avi_index_t);
+	    int idxl = size / sizeof(avi_index_t), ix;
 	    af->index = calloc(idxl, sizeof(*af->index));
-	    idxl = fread(af->index, sizeof(avi_index_t), idxl, f);
+	    ix = fread(af->index, sizeof(avi_index_t), idxl, f);
+	    if(ix != idxl)
+		fprintf(stderr, "AVI: Short index. Expected %i, got %i.\n",
+			idxl, ix);
+	    idxl = ix;
 	    af->idxlen = idxl;
 	    idxoff = movi_start - af->index[0].offset;
 	    for(i = 0; i < idxl; i++){
@@ -353,20 +375,31 @@ tag2str(u_char *tag)
     return (xval[tag[0]] << 4) + xval[tag[1]];    
 }
 
+static char *
+strtag(u_char *tag, u_char *str)
+{
+    int i;
+    for(i = 0; i < 4; i++){
+	str[i] = isprint(tag[i])? tag[i]: '.';
+    }
+    str[4] = 0;
+    return str;
+}
+
 static packet_t *
 avi_packet(muxed_stream_t *ms, int stream)
 {
-    u_char tag[5] = {[4] = 0};
-    uint32_t size;
+    u_char tag[5] = {[4] = 0}, stag[5];
+    int32_t size;
     avi_file_t *af = ms->private;
     int str;
     packet_t *pk = NULL;
 
     pthread_mutex_lock(&af->mx);
 
-    if(!(pk = list_shift(af->packets[stream])) && !af->eof){
-	int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
+    if((stream < 0 || !(pk = list_shift(af->packets[stream]))) && !af->eof){
 	do {
+	    int tried_index = 0, tried_bkup = 0, skipped = 0, scan = 0;
 	    char *buf;
 	    size_t pos;
 
@@ -387,8 +420,10 @@ avi_packet(muxed_stream_t *ms, int stream)
 
 	    if(!valid_tag(tag, scan)){
 		if(!scan)
-		    fprintf(stderr, "AVI[%i]: Bad packet header @ %08lx\n",
-			    stream, pos);
+		    fprintf(stderr,
+			    "AVI: Bad chunk tag %02x%02x%02x%02x:%s @ %08lx\n",
+			    tag[0], tag[1], tag[2], tag[3],
+			    strtag(tag, stag), pos);
 		if(!tried_index && af->idxok > 256){
 		    fprintf(stderr, "AVI: Index => %08x\n",
 			    af->index[af->pkt].offset);
@@ -396,30 +431,43 @@ avi_packet(muxed_stream_t *ms, int stream)
 		    tried_index++;
 		    goto again;
 		} else if(!tried_bkup){
-		    fprintf(stderr, "AVI: Backing up 64 bytes.\n");
-		    fseek(af->file, -68, SEEK_CUR);
+		    fprintf(stderr, "AVI: Backing up %i bytes.\n", backup);
+		    fseek(af->file, -backup - 4, SEEK_CUR);
 		    tried_bkup++;
 		    goto again;
-		} else if(scan < 8192){
+		} else if(scan < max_scan){
 		    fseek(af->file, -3, SEEK_CUR);
 		    scan++;
 		    goto again;
-		} else if(skipped < 8 && af->idxok > 256){
-		    fprintf(stderr, "AVI: Skipping frame.\n");
-		    af->pkt++;
-		    fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
-		    skipped++;
-		    goto again;
+		} else if(skipped < max_skip && af->idxok > 256){
+		    if(!skipped)
+			fprintf(stderr, "AVI: Skipping chunk.\n");
+		    if(++af->pkt < af->idxlen){
+			fseek(af->file, af->index[af->pkt].offset, SEEK_SET);
+			skipped++;
+			goto again;
+		    }
 		}
 
-		fprintf(stderr, "AVI: Can't find valid packet.  Giving up.\n");
-		fprintf(stderr, "AVI: %02x%02x%02x%02x:%s @ %16lx\n",
-			tag[0], tag[1], tag[2], tag[3], tag, pos);
+		fprintf(stderr, "AVI: Can't find valid chunk tag.\n");
 		af->eof = 1;
 		break;
 	    }
 
-	    if(af->index){
+	    if(skipped)
+		fprintf(stderr, "AVI: Skipped %i chunks\n", skipped);
+
+	    if(scan)
+		fprintf(stderr, "AVI: Resuming @ %08lx\n", pos);
+
+	    size = getu32(af->file);
+	    if(size < 0){
+		fprintf(stderr, "AVI: Negative size @ %08lx\n", pos);
+		scan++;
+		goto again;
+	    }
+
+	    if(af->index && af->pkt < af->idxlen){
 		if(af->index[af->pkt].offset == pos){
 		    af->idxok++;
 		} else {
@@ -429,9 +477,14 @@ avi_packet(muxed_stream_t *ms, int stream)
 
 	    af->pkt++;
 
-	    size = getu32(af->file);
-
 	    str = tag2str(tag);
+	    if(str < 0 || str >= ms->n_streams){
+		fprintf(stderr, "AVI: Bad stream number %i @ %08lx\n",
+			str, pos);
+		scan++;
+		goto again;
+	    }
+
 	    if(!ms->used_streams[str]){
 		fseek(af->file, size + (size&1), SEEK_CUR);
 		continue;
@@ -451,7 +504,9 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    pk->pts = 0;
 	    pk->free = avi_free_packet;
 
-	    if(str != stream){
+	    if(stream < 0){
+		break;
+	    } else if(str != stream){
 		list_push(af->packets[str], pk);
 		pk = NULL;
 	    }
