@@ -209,10 +209,11 @@ do_decode(tcvp_pipe_t *p, packet_t *pk)
 
     while(!md->flush){
 	if(mad_frame_decode(&md->frame, &md->stream) < 0){
-	    if(MAD_RECOVERABLE(md->stream.error))
+	    if(MAD_RECOVERABLE(md->stream.error)){
 		continue;
-	    else
+	    } else {
 		break;
+	    }
 	}
 	mad_synth_frame(&md->synth, &md->frame);
 	if(md->ptsc > 0){
@@ -319,7 +320,7 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     p->format = *s;
-    p->format.audio.codec = "audio/pcm-s16le";
+    p->format.audio.codec = "audio/pcm-s16" TC2_ENDIAN;
     p->format.audio.sample_rate = mf.sample_rate;
     p->format.audio.channels = mf.channels;
     p->format.audio.bit_rate = mf.channels * mf.sample_rate * 16;
