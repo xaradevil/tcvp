@@ -1,6 +1,6 @@
 module		avcodec
 name		"TCVP/codec/avcodec"
-version		0.1.0
+version		0.1.1
 tc2version	0.4.0
 sources		avcodec.c encode.c avc.h
 postinit	avc_init

@@ -1,6 +1,6 @@
 module		ogg
 name		"TCVP/demux/ogg"
-version		0.1.1
+version		0.1.2
 tc2version	0.4.0
 sources		ogg.c oggwrite.c
 implement	"audio/x-ogg"	"open"	ogg_open

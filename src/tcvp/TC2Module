@@ -1,6 +1,6 @@
 module		tcvp_core
 name		"TCVP"
-version		0.1.2
+version		0.1.3
 tc2version	0.4.0
 sources		tcvp.c event.c module.c tcvp_mod.h
 postinit	tcvp_init

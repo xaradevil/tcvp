@@ -1,6 +1,6 @@
 module		audio
 name		"TCVP/output/audio"
-version		0.1.0
+version		0.1.1
 tc2version	0.4.0
 sources		audio.c conv.c audiomod.h
 postinit	a_init
