@@ -219,8 +219,8 @@ dvd_seek(url_t *u, int64_t offset, int how)
 	return -1;
 
     diff = np - d->pos;
-    if((diff > 0 && diff < d->bbytes - d->bpos) ||
-       (diff < 0 && -diff < d->bpos)){
+    if((diff > 0 && diff <= d->bbytes - d->bpos) ||
+       (diff < 0 && -diff <= d->bpos)){
 	d->bpos += diff;
     } else {
 	uint64_t block = np / DVD_VIDEO_LB_LEN + d->start_sector;
