@@ -60,7 +60,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
     const char *mg;
     char *m = NULL;
     url_t *u;
-    char *buf[magic_size];
+    char buf[magic_size];
     int mgs;
     demux_open_t sopen;
     muxed_stream_t *ms;
