@@ -156,13 +156,14 @@ mad_free_pk(void *p)
 #define OUT_PACKET_SIZE(c) (tcvp_codec_mad_conf_output_buffer * (c))
 
 static mad_packet_t *
-mad_alloc(int c)
+mad_alloc(int c, int s)
 {
     mad_packet_t *mp;
 
     mp = tcallocdz(sizeof(*mp), NULL, mad_free_pk);
     mp->data = malloc(OUT_PACKET_SIZE(c) * 2);
     mp->dp = mp->data;
+    mp->pk.stream = s;
     mp->pk.data = (u_char **) &mp->data;
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;
@@ -171,7 +172,7 @@ mad_alloc(int c)
 }
 
 static int
-output(tcvp_pipe_t *tp, struct mad_header const *header, struct mad_pcm *pcm)
+output(tcvp_pipe_t *tp, struct mad_pcm *pcm, int stream)
 {
     mad_dec_t *md = tp->private;
     unsigned int channels, samples;
@@ -183,7 +184,7 @@ output(tcvp_pipe_t *tp, struct mad_header const *header, struct mad_pcm *pcm)
     right = pcm->samples[1];
 
     if(!md->out)
-	md->out = mad_alloc(md->channels);
+	md->out = mad_alloc(md->channels, stream);
 
     while(samples--){
 	int sample;
@@ -199,7 +200,7 @@ output(tcvp_pipe_t *tp, struct mad_header const *header, struct mad_pcm *pcm)
 	if(md->out->dp - md->out->data == OUT_PACKET_SIZE(md->channels)){
 	    md->out->size = OUT_PACKET_SIZE(md->channels) * 2;
 	    tp->next->input(tp->next, &md->out->pk);
-	    md->out = mad_alloc(md->channels);
+	    md->out = mad_alloc(md->channels, stream);
 	}
     }
 
@@ -207,7 +208,7 @@ output(tcvp_pipe_t *tp, struct mad_header const *header, struct mad_pcm *pcm)
 }
 
 static int
-do_decode(tcvp_pipe_t *p)
+do_decode(tcvp_pipe_t *p, packet_t *pk)
 {
     mad_dec_t *md = p->private;
 
@@ -230,7 +231,7 @@ do_decode(tcvp_pipe_t *p)
 		md->out->pk.flags |= TCVP_PKT_FLAG_PTS;
 	    }
 	}
-	output(p, &md->frame.header, &md->synth.pcm);
+	output(p, &md->synth.pcm, pk->stream);
     }
 
     return md->stream.error;
@@ -249,7 +250,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 
     if(!pk->data){
 	if(md->bs)
-	    do_decode(p);
+	    do_decode(p, pk);
 
 	if(md->out && md->out->dp != md->out->data){
 	    md->out->size = (md->out->dp - md->out->data) * 2;
@@ -279,7 +280,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 	d += bs;
 
 	if(md->bs == md->bufsize){
-	    if(do_decode(p)){
+	    if(do_decode(p, pk)){
 		int rs = md->bs - (md->stream.this_frame - md->buf);
 		if(rs == md->bs){
 		    md->buf = realloc(md->buf, md->bufsize *= 2);
