@@ -23,6 +23,7 @@
 **/
 
 #define _LINUX_TIME_H 1
+#define _DEVICE_H_ 1
 
 #include <stdio.h>
 #include <string.h>
@@ -33,7 +34,7 @@
 #include <tcalloc.h>
 #include <sys/time.h>
 #include <sys/mman.h>
-#include <linux/videodev2.h>
+#include <linux/videodev.h>
 #include <v4l_tc2.h>
 
 typedef struct v4l {
