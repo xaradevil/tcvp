@@ -1,6 +1,6 @@
 module		tcvpx
 name		"TCVP/ui/tcvpx"
-version		0.1.2
+version		0.1.3
 tc2version	0.4.0
 sources		dynamic.c skin.c tcvpctl.c tcvpx.c tcvpx.h tcvpctl.h
 postinit	tcvpx_init

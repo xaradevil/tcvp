@@ -1,6 +1,6 @@
 module		avi
 name		"TCVP/demux/avi"
-version		0.1.1
+version		0.1.2
 tc2version	0.4.0
 sources		avi.c
 implement	"video/x-avi"		"open"	avi_open

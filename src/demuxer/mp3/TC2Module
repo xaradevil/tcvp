@@ -1,6 +1,6 @@
 module		mp3
 name		"TCVP/demux/mp3"
-version		0.1.3
+version		0.1.4
 tc2version	0.4.0
 sources		mp3.c mp3write.c id3.c id3.h
 postinit	mp3_init

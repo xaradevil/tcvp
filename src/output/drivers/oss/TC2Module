@@ -1,6 +1,6 @@
 module		oss
 name		"TCVP/driver/audio/oss"
-version		0.1.1
+version		0.1.2
 tc2version	0.4.0
 sources		oss.c
 implement	"driver/audio/oss"	"new"	oss_new
