@@ -593,6 +593,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    s->map[i] = s->dvd_info->streams[i].common.index;
 	    ms->streams[i].common.index = i;
 	}
+	ms->time = s->dvd_info->index_unit * s->dvd_info->index_size;
     } else if(mpegps_findpsm(ms, ns)){
 	u->seek(u, 0, SEEK_SET);
 	mpegps_findstreams(ms, ns);
