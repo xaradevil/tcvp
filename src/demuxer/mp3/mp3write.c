@@ -18,6 +18,8 @@
 
 typedef struct mp3_write {
     url_t *u;
+    char *tag;
+    int probed;
 } mp3_write_t;
 
 static int
@@ -41,9 +43,16 @@ mp3w_flush(tcvp_pipe_t *p, int drop)
 static int
 mp3w_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
+    mp3_write_t *mw = p->private;
+
+    if(mw->probed)
+	return PROBE_FAIL;
+
+    mw->probed = 1;
+
     p->format = *s;
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
-    p->format.common.codec = "mp3";
+    p->format.common.codec = mw->tag;
     return PROBE_OK;
 }
 
@@ -56,6 +65,15 @@ mp3w_free(void *p)
     free(mw);
 }
 
+static char *codecs[][2] = {
+    { "audio/mpeg", "mp3" },
+    { "audio/mp3", "mp3" },
+    { "audio/mp2", "mp3" },
+    { "audio/mp1", "mp3" },
+    { "audio/aac", "aac" },
+    { NULL, NULL }
+};
+
 extern tcvp_pipe_t *
 mp3w_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	 muxed_stream_t *ms)
@@ -64,8 +82,17 @@ mp3w_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     mp3_write_t *mw;
     char *url;
     url_t *u;
+    int i;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
+	return NULL;
+
+    for(i = 0; codecs[i][0]; i++){
+	if(!strcmp(s->common.codec, codecs[i][0]))
+	    break;
+    }
+
+    if(!codecs[i][0])
 	return NULL;
 
     if(!(u = url_open(url, "w")))
@@ -75,6 +102,7 @@ mp3w_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     mw = calloc(1, sizeof(*mw));
     mw->u = u;
+    mw->tag = codecs[i][1];
 
     p = tcallocdz(sizeof(*p), NULL, mp3w_free);
     p->input = mp3w_input;
