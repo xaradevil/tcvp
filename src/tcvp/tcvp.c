@@ -357,13 +357,7 @@ t_open(player_t *pl, char *name)
     int ac = -1, vc = -1;
     int start;
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
-    conf_section *prsec;
-
-    if(!(stream = stream_open(name, tp->conf, &tp->timer))){
-	return -1;
-    }
-
-    codecs = calloc(stream->n_streams, sizeof(*codecs));
+    conf_section *prsec, *dc;
 
     if(tp->conf){
 	if(conf_getvalue(tp->conf, "video/stream", "%i", &vc) > 0){
@@ -393,6 +387,17 @@ t_open(player_t *pl, char *name)
 
     tp->filters = hash_new(10, 0);
     free(profile);
+
+    dc = conf_getsection(prsec, "demux");
+    if(dc)
+	dc = conf_merge(NULL, dc);
+    dc = conf_merge(dc, tp->conf);
+    if(!(stream = stream_open(name, dc, &tp->timer))){
+	return -1;
+    }
+    tcfree(dc);
+
+    codecs = calloc(stream->n_streams, sizeof(*codecs));
 
     for(i = 0; i < stream->n_streams; i++){
 	stream_t *st = &stream->streams[i];
