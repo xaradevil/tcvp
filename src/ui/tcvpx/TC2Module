@@ -13,7 +13,7 @@ import		"Eventq"	"new"
 import		"Eventq"	"recv"
 import		"Eventq"	"send"
 
-import		"image/png"	"read"
+import		"image"		"read"
 
 import		"tcvp/event"	"alloc"
 import		"tcvp/event"	"get"
@@ -83,6 +83,8 @@ import		"xtk/window"		"set_dnd_callback"
 import		"xtk/window"		"set_position"
 import		"xtk/window"		"set_sticky"
 import		"xtk/window"		"show"
+
+import		"URL"			"open"
 
 option		always_on_top%d=0
 option		skin%s

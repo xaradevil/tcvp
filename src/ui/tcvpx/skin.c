@@ -52,31 +52,26 @@ typedef struct {
     } value;
 } parameter_t;
 
-extern image_info_t*
+extern image_t *
 load_image(char *skinpath, char *file)
 {
-    if(file) {
-	FILE *f;
+    image_params_t ip;
+    char fn[1024];
+    image_t *img;
+    url_t *u;
 
-	char fn[1024];
-	image_info_t *img;
+    if(!file)
+	return NULL;
 
-	snprintf(fn, 1023, "%s/%s", skinpath, file);
-	f = fopen(fn,"r");
-	if(f) {
-	    img = malloc(sizeof(image_info_t));
+    snprintf(fn, 1023, "%s/%s", skinpath, file);
+    u = url_open(fn, "r");
+    if(!u)
+	return NULL;
+    ip.pixel_type = IMAGE_COLOR_RGB | IMAGE_COLOR_ALPHA;
+    img = image_read(u, &ip);
+    u->close(u);
 
-	    img->flags = IMAGE_COLOR_TYPE | IMAGE_SWAP_ORDER;
-	    img->color_type = IMAGE_COLOR_TYPE_RGB_ALPHA;
-	    img->iodata = f;
-	    img->iofn = (vfs_fread_t)fread;
-	    image_png_read(img);
-	    fclose(f);
-
-	    return img;
-	}
-    }
-    return NULL;
+    return img;
 }
 
 extern int
@@ -224,25 +219,28 @@ create_skinned_background(xtk_widget_t *c, skin_t *skin,
 			  tcconf_section_t *sec, tchash_table_t *parameters)
 {
     char *file = NULL;
-    int i=0;
-    image_info_t *img = NULL;
+    int i = 0;
+    image_t *img = NULL;
     xtk_widget_t *w;
 
     i += tcconf_getvalue(sec, "background", "%s", &file);
     img = load_image(skin->path, file);
 
-    if(img!=NULL) i++;
+    if(img)
+	i++;
 
-    if(i != 2){
+    if(i != 2)
 	return NULL;
-    }
 
     w = xtk_widget_image_create(c, 0, 0, c->width, c->height);
     xtk_widget_image_set_image(w, img);
     xtk_widget_show(w);
 
     xtk_widget_container_set_shape(c, img);
+
     free(file);
+    tcfree(img);
+
     return (xtk_widget_t*)c;
 }
 
@@ -298,7 +296,7 @@ create_skinned_button(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
     int i=0;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *bt;
-    image_info_t *img;
+    image_t *img;
     int shaped = 0;
 
     i += tcconf_getvalue(sec, "action", "%s", &wd->action);
@@ -316,18 +314,29 @@ create_skinned_button(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
     wd->skin = skin;
 /*     tcconf_getvalue(sec, "background", "%s", &bg); */
 
-    img = load_image(skin->path, file);
-    bt = xtk_widget_button_create(c, x, y, img->width, img->height);
+    if(!(img = load_image(skin->path, file)))
+	return NULL;
+
+    bt = xtk_widget_button_create(c, x, y, img->params.width[0],
+				  img->params.height[0]);
     xtk_widget_button_set_image(bt, img);
-    if(shaped) xtk_widget_button_set_shape(bt, img);
+    if(shaped)
+	xtk_widget_button_set_shape(bt, img);
+    tcfree(img);
 
-    img = load_image(skin->path, of);
-    xtk_widget_button_set_hover_image(bt, img);
-    if(shaped) xtk_widget_button_set_hover_shape(bt, img);
+    if((img = load_image(skin->path, of))){
+	xtk_widget_button_set_hover_image(bt, img);
+	if(shaped)
+	    xtk_widget_button_set_hover_shape(bt, img);
+	tcfree(img);
+    }
 
-    img = load_image(skin->path, df);
-    xtk_widget_button_set_pressed_image(bt, img);
-    if(shaped) xtk_widget_button_set_pressed_shape(bt, img);
+    if((img = load_image(skin->path, df))){
+	xtk_widget_button_set_pressed_image(bt, img);
+	if(shaped)
+	    xtk_widget_button_set_pressed_shape(bt, img);
+	tcfree(img);
+    }
 
     xtk_widget_button_set_data(bt, wd);
     xtk_widget_button_set_action(bt, lookup_action);
@@ -481,7 +490,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     double *position = NULL, *def = NULL, p=0;
     xtk_widget_t *s;
     int disable = 0;
-    image_info_t *img;
+    image_t *img;
 
     i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
     i += tcconf_getvalue(sec, "start_position", "%d %d", &sp_x, &sp_y);
@@ -514,15 +523,29 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     wd->skin = skin;
 
     img = load_image(skin->path, bg);
-    s = xtk_widget_slider_create(win, x, y, img->width, img->height);
+    s = xtk_widget_slider_create(win, x, y, img->params.width[0],
+				 img->params.height[0]);
     xtk_widget_slider_set_image(s, img);
+    tcfree(img);
+
     xtk_widget_slider_set_data(s, wd);
     xtk_widget_slider_set_action(s, lookup_action);
     xtk_widget_slider_set_position(s, *position);
     xtk_widget_slider_set_bounds(s, sp_x, sp_y, ep_x, ep_y);
-    xtk_widget_slider_set_indicator_image(s, load_image(skin->path, indicator));
-    xtk_widget_slider_set_indicator_image_hover(s, load_image(skin->path, ind_over));
-    xtk_widget_slider_set_indicator_image_pressed(s, load_image(skin->path, ind_down));
+
+    img = load_image(skin->path, indicator);
+    xtk_widget_slider_set_indicator_image(s, img);
+    tcfree(img);
+
+    img = load_image(skin->path, ind_over);
+    xtk_widget_slider_set_indicator_image_hover(s, img);
+    if(img)
+	tcfree(img);
+
+    img = load_image(skin->path, ind_down);
+    xtk_widget_slider_set_indicator_image_pressed(s, img);
+    if(img)
+	tcfree(img);
 
     if(s) {
 	register_varwidget((xtk_widget_t *)s, wd->value);
@@ -556,7 +579,7 @@ create_skinned_state(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 {
     int x, y;
     int ns = 0;
-    image_info_t **imgs = NULL;
+    image_t **imgs = NULL;
     char **states = NULL;
     void *c = NULL;
     int i;
@@ -587,9 +610,11 @@ create_skinned_state(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     parse_text(wd->value, def_state, 512);
 
     if(ns > 0) {
-	s = xtk_widget_state_create(win, x, y, imgs[0]->width, imgs[0]->height);
+	s = xtk_widget_state_create(win, x, y, imgs[0]->params.width[0],
+				    imgs[0]->params.height[0]);
 	for(i=0; i<ns; i++) {
 	    xtk_widget_state_add_state(s, states[i], imgs[i]);
+	    tcfree(imgs[i]);
 	}
 	xtk_widget_state_set_state(s, def_state);
 
