@@ -216,12 +216,13 @@ id3v2_tag(muxed_stream_t *ms)
 	switch(tag){
 	case TAG('T','I','T','2'):
 	    data = id3v2_getframe(f, &dsize, fflags);
-	    ms->title = id3v2_gettext(data, dsize);
+	    tcattr_set(ms, "title", id3v2_gettext(data, dsize), NULL, free);
 	    free(data);
 	    break;
 	case TAG('T','P','E','1'):
 	    data = id3v2_getframe(f, &dsize, fflags);
-	    ms->performer = id3v2_gettext(data, dsize);
+	    tcattr_set(ms, "performer", id3v2_gettext(data, dsize),
+		       NULL, free);
 	    free(data);
 	    break;
 	}
@@ -262,10 +263,11 @@ id3v1_tag(muxed_stream_t *ms)
     f->seek(f, -128, SEEK_END);
     f->read(buf, 1, 128, f);
     if(!strncmp(buf, "TAG", 3)){
-	if(!ms->title)
-	    ms->title = id3v1_strdup(buf + 3, 30);
-	if(!ms->performer)
-	    ms->performer = id3v1_strdup(buf + 33, 30);
+	if(!tcattr_get(ms, "title"))
+	    tcattr_set(ms, "title", id3v1_strdup(buf + 3, 30), NULL, free);
+	if(!tcattr_get(ms, "performer"))
+	    tcattr_set(ms, "performer", id3v1_strdup(buf + 33, 30),
+		       NULL, free);
 	mf->size -= 128;
     }
 
@@ -471,13 +473,6 @@ mp3_free(void *p)
     muxed_stream_t *ms = p;
     mp3_file_t *mf = ms->private;
 
-    if(ms->file)
-	free(ms->file);
-    if(ms->title)
-	free(ms->title);
-    if(ms->performer)
-	free(ms->performer);
-
     eventq_delete(mf->qs);
 
     mf->file->close(mf->file);
@@ -498,7 +493,6 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     ms->n_streams = 1;
     ms->streams = &mf->stream;
-    ms->file = strdup(name);
     ms->private = mf;
 
     mf->file = f;

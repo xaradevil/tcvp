@@ -207,11 +207,6 @@ ogg_free(void *p)
 
     free(ms->streams);
     free(ms->used_streams);
-    free(ms->file);
-    if(ms->title)
-	free(ms->title);
-    if(ms->performer)
-	free(ms->performer);
 
     free(os);
 }
@@ -255,13 +250,15 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
 		tt[j] = tolower(t[j]);
 
 	    if(!strncmp(tt, "title", tl)){
-		ms->title = malloc(vl + 1);
-		strncpy(ms->title, v, vl);
-		ms->title[vl] = 0;
+		char *title = malloc(vl + 1);
+		strncpy(title, v, vl);
+		title[vl] = 0;
+		tcattr_set(ms, "title", title, NULL, free);
 	    } else if(!strncmp(tt, "artist", tl)){
-		ms->performer = malloc(vl + 1);
-		strncpy(ms->performer, v, vl);
-		ms->performer[vl] = 0;
+		char *performer = malloc(vl + 1);
+		strncpy(performer, v, vl);
+		performer[vl] = 0;
+		tcattr_set(ms, "performer", performer, NULL, free);
 	    }
 	}
     }
@@ -299,8 +296,6 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     if(!f->flags & URL_FLAG_STREAMED)
 	ms->streams[0].audio.samples = ogg_get_length(ms);
-
-    ms->file = strdup(name);
 
     f->seek(ost->f, 0, SEEK_SET);
     ogg_sync_reset(&ost->oy);

@@ -225,13 +225,16 @@ static void
 print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes)
 {
     int i;
+    char *file = tcattr_get(stream, "file");
+    char *performer = tcattr_get(stream, "performer");
+    char *title = tcattr_get(stream, "title");
 
-    if(stream->file)
-	printf("File:      %s\n", stream->file);
-    if(stream->performer)
-	printf("Performer: %s\n", stream->performer);
-    if(stream->title)
-	printf("Title:     %s\n", stream->title);
+    if(file)
+	printf("File:      %s\n", file);
+    if(performer)
+	printf("Performer: %s\n", performer);
+    if(title)
+	printf("Title:     %s\n", title);
     if(stream->time)
 	printf("Length:    %lli:%02lli\n", stream->time / 27000000 / 60,
 	       (stream->time / 27000000) % 60);
@@ -375,16 +378,16 @@ pipe_end(tcvp_pipe_t *p)
 static char *
 exp_stream(char *n, void *p)
 {
-    muxed_stream_t *ms = p;
+    char *v = tcattr_get(p, n);
 
-    if(!strcmp(n, "title"))
-	return ms->title;
-    else if(!strcmp(n, "performer") || !strcmp(n, "artist"))
-	return ms->performer;
-    else if(!strcmp(n, "file"))
-	return ms->file;
+    if(!v){
+	if(!strcmp(n, "artist"))
+	    v = tcattr_get(p, "performer");
+	else if(!strcmp(n, "performer"))
+	    v = tcattr_get(p, "artist");
+    }
 
-    return NULL;
+    return v;
 }
 
 static int

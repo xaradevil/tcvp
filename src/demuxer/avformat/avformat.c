@@ -149,7 +149,6 @@ avf_free(void *p)
 
     free(ms->streams);
     free(ms->used_streams);
-    free(ms->file);
 
     free(as);
 }
@@ -219,7 +218,6 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     as = calloc(1, sizeof(*as));
     as->afc = afc;
 
-    ms->file = strdup(name);
     ms->private = as;
 
     return ms;

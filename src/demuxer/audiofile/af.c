@@ -143,7 +143,6 @@ af_free(void *p)
     AFfilehandle aff = ms->private;
 
     afCloseFile(aff);
-    free(ms->file);
 }
 
 extern muxed_stream_t *
@@ -186,7 +185,6 @@ af_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = af_next_packet;
     ms->seek = af_seek;
-    ms->file = strdup(name);
     ms->private = aff;
 
     return ms;

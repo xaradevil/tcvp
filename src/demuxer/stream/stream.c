@@ -57,6 +57,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
     char *buf[magic_size];
     int mgs;
     demux_open_t sopen;
+    muxed_stream_t *ms;
 
     if(!(u = url_open(name, "r")))
 	return NULL;
@@ -72,7 +73,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	m = strdup(mg);
 	e = strcspn(m, " ;");
 	m[e] = 0;
-	if(strncmp(m, "audio/", 6) && strncmp(m, "video/", 0)){
+	if(strncmp(m, "audio/", 6) && strncmp(m, "video/", 6)){
 	    free(m);
 	    m = NULL;
 	}
@@ -100,7 +101,13 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	return NULL;
     
     free(m);
-    return sopen(name, u, cs, t);
+
+    ms = sopen(name, u, cs, t);
+    if(ms)
+	tcattr_set(ms, "file", strdup(name), NULL, free);
+    else
+	u->close(u);
+    return ms;
 }
 
 extern packet_t *

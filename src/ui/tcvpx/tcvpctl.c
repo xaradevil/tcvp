@@ -89,6 +89,7 @@ tcvp_event(void *p)
 
 	} else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
 	    if(te->type == TCVP_LOAD) {
+		char *title;
 		if(st)
 		    tcfree(st);
 		st = ((tcvp_load_event_t *)te)->stream;
@@ -96,23 +97,27 @@ tcvp_event(void *p)
 
 		s_length = 0;
 
-		if(st->title){
-		    change_text("title", st->title);
-		} else {
-		    char *title;
-		    char *ext;
-
-		    title = strrchr(st->file, '/');
-		    title = strdup(title? title + 1: st->file);
-		    ext = strrchr(title, '.');
-		    if(ext)
-			*ext = 0;
-
+		if((title = tcattr_get(st, "title"))){
 		    change_text("title", title);
-		    free(title);
+		} else {
+		    char *ext;
+		    char *file = tcattr_get(st, "file");
+
+		    if(file){
+			title = strrchr(file, '/');
+			title = strdup(title? title + 1: file);
+			ext = strrchr(title, '.');
+			if(ext)
+			    *ext = 0;
+
+			change_text("title", title);
+			free(title);
+		    } else {
+			change_text("title", NULL);
+		    }
 		}
 
-		change_text("performer", st->performer);
+		change_text("performer", tcattr_get(st, "performer"));
 	    }
 
 	    if(st) {

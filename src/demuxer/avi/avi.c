@@ -946,7 +946,6 @@ avi_free(void *p)
 
     free(ms->streams);
     free(ms->used_streams);
-    free(ms->file);
 
     list_destroy(af->packets, (tc_free_fn) avi_free_packet);
 
@@ -979,7 +978,6 @@ avi_open(char *file, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 	ms->next_packet = avi_packet;
 	ms->seek = avi_seek;
     }
-    ms->file = strdup(file);
 
     return ms;
 }

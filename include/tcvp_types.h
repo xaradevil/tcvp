@@ -95,7 +95,6 @@ struct muxed_stream {
     stream_t *streams;
     int *used_streams;
     uint64_t time;
-    char *file, *title, *performer;
     packet_t *(*next_packet)(muxed_stream_t *, int stream);
     uint64_t (*seek)(muxed_stream_t *, uint64_t);
     void *private;

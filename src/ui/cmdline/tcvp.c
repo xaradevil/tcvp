@@ -101,7 +101,8 @@ tcl_event(void *p)
 	    }
 	} else if(te->type == TCVP_LOAD){
 	    printf("Loaded \"%s\"\n",
-		   te->load.stream->title?: te->load.stream->file);
+		   (char *)(tcattr_get(te->load.stream, "title")?:
+			    tcattr_get(te->load.stream, "file")));
 	} else if(te->type == -1){
 	    r = 0;
 	}

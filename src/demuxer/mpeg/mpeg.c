@@ -104,12 +104,6 @@ mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 extern void
 mpeg_free(muxed_stream_t *ms)
 {
-    if(ms->file)
-	free(ms->file);
-    if(ms->title)
-	free(ms->title);
-    if(ms->performer)
-	free(ms->performer);
     if(ms->streams)
 	free(ms->streams);
     if(ms->used_streams)
@@ -127,7 +121,6 @@ mpeg_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *t)
     if(!ms)
 	return NULL;
 
-    ms->file = strdup(name);
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
 
     return ms;
