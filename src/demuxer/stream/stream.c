@@ -37,15 +37,15 @@ static magic_t file_magic;
 
 static int TCVP_STATE;
 
-static char *suffix_map[][2] = {
-    { ".ogg", "audio/x-ogg" },
-    { ".avi", "video/x-avi" },
-    { ".mp3", "audio/mpeg" },
-    { ".wav", "audio/x-wav" },
-    { ".mov", "video/quicktime" },
-    { ".mpg", "video/mpeg" },
-    { ".mpeg", "video/mpeg" },
-    { NULL, NULL }
+static char *suffix_map[][3] = {
+    { ".ogg", "audio/x-ogg", "mux/ogg" },
+    { ".avi", "video/x-avi", "mux/avi" },
+    { ".mp3", "audio/mpeg", "mux/mp3" },
+    { ".wav", "audio/x-wav", "mux/wav" },
+    { ".mov", "video/quicktime", "mux/quicktime" },
+    { ".mpg", "video/mpeg", "mux/mpeg-ps" },
+    { ".mpeg", "video/mpeg", "mux/mpeg-ps" },
+    { NULL, NULL, NULL }
 };
 
 static void
@@ -115,9 +115,19 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 
     ms = sopen(name, u, cs, t);
     if(ms){
+	char *a = tcattr_get(ms, "artist");
+	char *p = tcattr_get(ms, "performer");
+
 	tcattr_set(ms, "file", strdup(name), NULL, free);
 	cpattr(ms, u, "title");
 	cpattr(ms, u, "performer");
+	cpattr(ms, u, "artist");
+	cpattr(ms, u, "album");
+
+	if(!a && p)
+	    tcattr_set(ms, "artist", strdup(p), NULL, free);
+	if(a && !p)
+	    tcattr_set(ms, "performer", strdup(a), NULL, free);
     } else {
 	u->close(u);
     }
@@ -150,6 +160,34 @@ s_validate(char *name, tcconf_section_t *cs)
     return 0;
 }
 
+extern tcvp_pipe_t *
+s_open_mux(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
+	   muxed_stream_t *ms)
+{
+    mux_new_t mnew = NULL;
+    char *name, *sf;
+    char *m = NULL;
+
+    if(tcconf_getvalue(cs, "mux/url", "%s", &name) <= 0)
+	return NULL;
+
+    if((sf = strrchr(name, '.'))){
+	int i;
+	for(i = 0; suffix_map[i][0]; i++){
+	    if(!strcmp(sf, suffix_map[i][0])){
+		m = strdup(suffix_map[i][2]);
+		break;
+	    }
+	}
+    }
+
+    if(m)
+	mnew = tc2_get_symbol(m, "new");
+
+    free(name);
+    return mnew? mnew(s, cs, t, ms): NULL;
+}
+
 #define RUN     1
 #define PAUSE   2
 #define STOP    3
@@ -174,6 +212,7 @@ typedef struct s_play {
 	uint64_t pts;
 	int eof;
     } *streams;
+    uint64_t start_time, end_time;
 } s_play_t;
 
 typedef struct vp_thread {
@@ -289,8 +328,11 @@ play_stream(void *p)
 
     while(wait_pause(vp)){
 	pk = get_packet(vp, str);
-	if(!pk)
+	if(!pk || (pk->flags & TCVP_PKT_FLAG_PTS && pk->pts > vp->end_time)){
+	    if(pk)
+		tcfree(pk);
 	    break;
+	}
 	vp->pipes[str]->input(vp->pipes[str], pk);
     }
 
@@ -413,6 +455,7 @@ static int
 s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 {
     muxed_stream_t *ms = vp->stream;
+    uint64_t start_time = -1;
     int pcnt[ms->n_streams];
     int pstat[ms->n_streams];
     int stime[ms->n_streams];
@@ -457,12 +500,16 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 		if(!stime[st] && pk->flags & TCVP_PKT_FLAG_PTS){
 		    ms->streams[st].common.start_time = pk->pts;
 		    stime[st] = 1;
+		    if(pk->pts < start_time)
+			start_time = pk->pts;
 		}
 	    } else if(pstat[st] == PROBE_OK){
 		list_push(vp->streams[st].pq, pk);
 	    }
 	}
     }
+
+    vp->start_time = start_time;
 
     for(i = 0; i < ms->n_streams; i++){
 	if(pstat[i] != PROBE_OK){
@@ -484,6 +531,7 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
     s_play_t *vp;
     int i, j;
     char *qname, *qn;
+    int time;
 
     vp = calloc(1, sizeof(*vp));
     vp->stream = ms;
@@ -510,6 +558,15 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, tcconf_section_t *cs)
     s_probe(vp, out);
     pthread_create(&vp->rth, NULL, read_stream, vp);
     vp->state = PAUSE;
+
+    if(tcconf_getvalue(cs, "play_time", "%i", &time) > 0){
+	int start;
+	if(tcconf_getvalue(cs, "start_time", "%i", &start) > 0)
+	    time += start;
+	vp->end_time = vp->start_time + time * 27000000LL;
+    } else {
+	vp->end_time = -1;
+    }
 
     for(i = 0, j = 0; i < ms->n_streams; i++){
 	if(ms->used_streams[i]){

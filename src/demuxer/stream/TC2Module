@@ -9,6 +9,7 @@ implement	"stream"	"open"		s_open
 implement	"stream"	"next_packet"	s_next_packet
 implement	"stream" 	"play"		s_play
 implement	"stream" 	"validate"	s_validate
+implement	"mux"		"new"		s_open_mux
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
