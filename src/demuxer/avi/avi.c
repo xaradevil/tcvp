@@ -416,6 +416,10 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    } else if(!strcmp(tag, "idx1")){
 		af->eof = 1;
 		break;
+	    } else if(!strcmp(tag, "JUNK")){
+		size = getu32(af->file);
+		fseek(af->file, size, SEEK_CUR);
+		goto again;
 	    }
 
 	    if(!valid_tag(tag, scan)){
@@ -590,6 +594,11 @@ static char *vcodec_tags[][2] = {
     { "hfyu", "video/huffyuv" },
     { "CYUV", "video/cyuv" },
     { "cyuv", "video/cyuv" },
+    { "iv31", "video/indeo3" },
+    { "iv32", "video/indeo3" },
+    { "IV31", "video/indeo3" },
+    { "IV32", "video/indeo3" },
+    { "VP31", "video/vp3"},
     { NULL, NULL }
 };
 
