@@ -186,6 +186,14 @@ cd_seek(url_t *u, int64_t offset, int how)
 extern int
 cd_close(url_t *u)
 {
+    tcfree(u);
+    return 0;
+}
+
+static void
+cdda_free(void *p)
+{
+    url_t *u = p;
     cd_data_t *cdt = u->private;
 
     if(cdt->cdprn){
@@ -198,8 +206,6 @@ cd_close(url_t *u)
 	free(cdt->buffer);
     free(cdt->header);
     free(cdt);
-    tcfree(u);
-    return 0;
 }
 
 static url_t *
@@ -225,20 +231,12 @@ track_open(char *url, char *mode)
     if(track <= 0)
 	return NULL;
 
-    u = tcallocz(sizeof(*u));
-    u->read = cd_read;
-    u->write = NULL;
-    u->seek = cd_seek;
-    u->tell = cd_tell;
-    u->close = cd_close;
-
     cdt = calloc(sizeof(cd_data_t), 1);
 
     cdt->track = track;
     cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
     if(!cdt->drive){
 	free(cdt);
-	free(u);
 	return NULL;
     }
 
@@ -246,14 +244,12 @@ track_open(char *url, char *mode)
 
     if(cdda_open(cdt->drive) != 0) {
 	free(cdt);
-	free(u);
 	return NULL;
     }
 
     if(cdt->track > cdda_tracks(cdt->drive) || 
        cdda_track_audiop(cdt->drive, cdt->track) == 0) {
 	free(cdt);
-	free(u);
 	return NULL;
     }
 
@@ -286,6 +282,13 @@ track_open(char *url, char *mode)
     s.audio.sample_size = 16;
 
     cdt->header = mux_wav_header(&s, &cdt->header_length);
+
+    u = tcallocdz(sizeof(*u), NULL, cdda_free);
+    u->read = cd_read;
+    u->write = NULL;
+    u->seek = cd_seek;
+    u->tell = cd_tell;
+    u->close = cd_close;
 
     u->private = cdt;
     u->size = cdt->data_length;
@@ -330,7 +333,7 @@ list_open(char *url, char *mode)
     p = cdt->header;
 
     for(i = 1; i <= tracks; i++) {
-	if(cdda_track_audiop(cdt->drive, cdt->track) != 0) {
+	if(cdda_track_audiop(cdt->drive, cdt->track)) {
 	    p += sprintf(p, "cdda:/%d.wav\n", i);
 	}
     }
