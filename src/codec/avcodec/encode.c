@@ -134,8 +134,8 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
 #endif
     }
-    if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED)
-	ctx->flags |= CODEC_FLAG_INTERLACED_DCT;
+/*     if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED) */
+/* 	ctx->flags |= CODEC_FLAG_INTERLACED_DCT; */
     avcodec_open(ctx, enc->avc);
 
     return PROBE_OK;
@@ -307,3 +307,5 @@ avc_##cd##_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,	\
 avc_enc_new(mpeg4)
 avc_enc_new(mpeg2)
 avc_enc_new(mpeg)
+avc_enc_new(msmpeg4v3)
+avc_enc_new(msmpeg4v2)

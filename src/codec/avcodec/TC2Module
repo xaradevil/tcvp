@@ -67,4 +67,18 @@ TCVP {
 		probe avc_encvideo_probe
 		flush avc_encvid_flush
 	}
+
+	filter "encoder/video/msmpeg4v3" {
+		new avc_msmpeg4v3_enc_new
+		packet DATA avc_encvid
+		probe avc_encvideo_probe
+		flush avc_encvid_flush
+	}
+
+	filter "encoder/video/msmpeg4v2" {
+		new avc_msmpeg4v2_enc_new
+		packet DATA avc_encvid
+		probe avc_encvideo_probe
+		flush avc_encvid_flush
+	}
 }
