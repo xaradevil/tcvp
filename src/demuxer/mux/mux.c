@@ -37,8 +37,9 @@ typedef struct mux {
     int nstreams, tstreams;
     int waiting;
     struct {
-	uint64_t time;
+	int used;
 	int rate;
+	uint64_t time;
     } *streams;
     pthread_mutex_t lock;
     pthread_cond_t cond;
@@ -51,7 +52,7 @@ next_stream(mux_t *mx)
     int i, s = -1;
 
     for(i = 0; i < mx->tstreams; i++){
-	if(mx->streams[i].time < t){
+	if(mx->streams[i].used && mx->streams[i].time < t){
 	    t = mx->streams[i].time;
 	    s = i;
 	}
@@ -107,11 +108,27 @@ static int
 mux_probe(tcvp_pipe_t *tp, packet_t *pk, stream_t *s)
 {
     mux_t *mx = tp->private;
+    int ps;
 
     tc2_print("MUX", TC2_PRINT_DEBUG, "probe %i\n", pk->stream);
+
+    if(pk->stream >= mx->tstreams){
+	int ts = pk->stream + 1, ns = ts - mx->tstreams;
+	mx->streams = realloc(mx->streams, ts * sizeof(*mx->streams));
+	memset(mx->streams + mx->tstreams, 0, ns * sizeof(*mx->streams));
+	mx->tstreams = ts;
+    }
+
     if(s->common.bit_rate)
 	mx->streams[pk->stream].rate = 27000000LL * 8 / s->common.bit_rate;
-    return tp->next->probe(tp->next, pk, s);
+
+    ps = tp->next->probe(tp->next, pk, s);
+    if(ps == PROBE_OK)
+	mx->streams[pk->stream].used = 1;
+    else if(ps == PROBE_FAIL)
+	mx->nstreams--;
+
+    return ps;
 }
 
 static int
@@ -129,10 +146,7 @@ mux_ref(void *p)
 
     pthread_mutex_lock(&mx->lock);
     mx->nstreams++;
-    mx->tstreams++;
     tc2_print("MUX", TC2_PRINT_DEBUG, "ref, nstreams=%i\n", mx->nstreams);
-    mx->streams = realloc(mx->streams, mx->nstreams * sizeof(*mx->streams));
-    memset(mx->streams + mx->nstreams - 1, 0, sizeof(*mx->streams));
     pthread_mutex_unlock(&mx->lock);
 }
 
