@@ -182,7 +182,7 @@ tmx_output(void *p)
 		sched_yield();
 		pthread_mutex_lock(&tsm->lock);
 	    }
-	} else {
+	} else if(!tsm->realtime){
 	    while(tsm->bpos < tsm->bsize && tsm->running)
 		pthread_cond_wait(&tsm->cnd, &tsm->lock);
 	}
@@ -200,7 +200,7 @@ tmx_output(void *p)
 	}
 
 	bytes += tsm->bpos;
-	tsm->tbytes += tsm->bpos;
+	tsm->tbytes += tsm->bsize;
 	ebytes = bytes - (tsm->padbytes - pbase);
 	time = tsm->pcr - pcrb;
 	if(time > 27000000 / 10){
@@ -239,7 +239,8 @@ tmx_output(void *p)
 		tsm->bitrate;
 	}
 
-	if(tsm->out->write(tsm->outbuf, 1, tsm->bpos, tsm->out) != tsm->bpos)
+	if(tsm->bpos &&
+	   tsm->out->write(tsm->outbuf, 1, tsm->bpos, tsm->out) != tsm->bpos)
 	    tsm->running = 0;
 	tsm->bpos = 0;
 	tsm->psic -= op;
