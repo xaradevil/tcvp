@@ -11,3 +11,6 @@ TCVP {
 		packet DATA a52_decode
 	}
 }
+
+option downmix%i=1
+Downmix to two channels

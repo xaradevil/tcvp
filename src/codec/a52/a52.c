@@ -138,12 +138,12 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 	return 6;
     case A52_3F2R | A52_LFE:
 	for (i = 0; i < 256; i++) {
-	    s16[6*i] = convert (f[i+256]);
-	    s16[6*i+1] = convert (f[i+768]);
-	    s16[6*i+2] = convert (f[i+1024]);
-	    s16[6*i+3] = convert (f[i+1280]);
-	    s16[6*i+4] = convert (f[i+512]);
-	    s16[6*i+5] = convert (f[i]);
+	    s16[6*i] = convert (f[i]);
+	    s16[6*i+1] = convert (f[i+512]);
+	    s16[6*i+2] = convert (f[i+768]);
+	    s16[6*i+3] = convert (f[i+1024]);
+	    s16[6*i+4] = convert (f[i+256]);
+	    s16[6*i+5] = convert (f[i+1280]);
 	}
 	return 6;
     default:
@@ -196,10 +196,11 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 		ad->fpos += fs;
 	    }
 	} else {
-	    int flags, srate, brate, size = 0, od;
+	    int srate, brate, size = 0, od;
 
 	    for(od = 0; od < psize - 7; od++){
-		if((size = a52_syncinfo(pdata + od, &flags, &srate, &brate)))
+		if((size = a52_syncinfo(pdata + od, &ad->flags,
+					&srate, &brate)))
 		    break;
 	    }
 
@@ -216,6 +217,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    continue;
 	}
 
+	ad->flags |= A52_ADJUST_LEVEL;
 	a52_frame(ad->state, ad->buf, &ad->flags, &ad->level, ad->bias);
 	ad->flags &= ~A52_ADJUST_LEVEL;
 
@@ -258,6 +260,7 @@ extern int
 a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
     int flags, srate, bitrate, size = 0;
+    int channels;
     int od;
 
     for(od = 0; od < pk->sizes[0] - 7; od++){
@@ -271,12 +274,46 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     s->common.bit_rate = bitrate;
 
+    if(tcvp_codec_a52_conf_downmix){
+	channels = 2;
+    } else {
+	switch(flags & ~A52_ADJUST_LEVEL){
+	case A52_CHANNEL:
+	case A52_STEREO:
+	case A52_DOLBY:
+	    channels = 2;
+	    break;
+	case A52_2F2R:
+	    channels = 4;
+	    break;
+	case A52_MONO:
+	case A52_3F:
+	case A52_3F2R:
+	    channels = 5;
+	    break;
+	case A52_MONO | A52_LFE:
+	case A52_CHANNEL | A52_LFE:
+	case A52_STEREO | A52_LFE:
+	case A52_DOLBY | A52_LFE:
+	case A52_3F | A52_LFE:
+	case A52_2F2R | A52_LFE:
+	case A52_3F2R | A52_LFE:
+	    channels = 6;
+	    break;
+	default:
+	    tc2_print("A52", TC2_PRINT_ERROR, "invalid flags\n");
+	    return PROBE_FAIL;
+	}
+    }
+
+    tc2_print("A52", TC2_PRINT_DEBUG, "flags %x\n", flags);
+
     p->format = *s;
     p->format.stream_type = STREAM_TYPE_AUDIO;
     p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->format.audio.sample_rate = srate;
-    p->format.audio.channels = 2;
-    p->format.audio.bit_rate = srate * 32;
+    p->format.audio.channels = channels;
+    p->format.audio.bit_rate = srate * channels * 16;
 
     tcfree(pk);
 
@@ -315,7 +352,9 @@ a52_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     ad->out = a52_samples(ad->state);
     ad->level = 1;
     ad->bias = 384;
-    ad->flags = A52_STEREO | A52_ADJUST_LEVEL;
+    ad->flags = A52_ADJUST_LEVEL;
+    if(tcvp_codec_a52_conf_downmix)
+	ad->flags |= A52_STEREO;
 
     p->private = ad;
 
