@@ -233,7 +233,7 @@ x11_event(void *p)
 		xevent.xclient.message_type = XdndStatus;
 		xevent.xclient.format = 32;
 		xevent.xclient.data.l[0] = skin->xw;
-		xevent.xclient.data.l[1] = 1;
+		xevent.xclient.data.l[1] = 3;
 		xevent.xclient.data.l[2] = (skin->x << 16) | skin->y;
 		xevent.xclient.data.l[3] = (skin->width << 16) | skin->height;
 		xevent.xclient.data.l[4] = XdndActionPrivate;
