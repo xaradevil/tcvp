@@ -173,9 +173,11 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
 		    dvd_audio_id_t dai;
 		    tc2_print("DVD", TC2_PRINT_DEBUG, "audio stream change %x %x\n",
 			    asc->physical, asc->logical);
-		    dai.type = DVD_AUDIO_ID;
-		    dai.id = asc->logical & 0x80? asc->logical: 0x80;
-		    write_pes(d, &dai, sizeof(dai));
+		    if(asc->logical < 0x100 && asc->logical > 0){
+			dai.type = DVD_AUDIO_ID;
+			dai.id = asc->logical & 0x80? asc->logical: 0x80;
+			write_pes(d, &dai, sizeof(dai));
+		    }
 		    break;
 		}
 		case DVDNAV_CELL_CHANGE:
@@ -317,7 +319,7 @@ dvd_open(char *url, char *mode)
     dvd_functions_t *df;
     dvdnav_t *dvd;
     dvd_reader_t *dvdr = NULL;
-    ifo_handle_t *ifo = NULL;
+    ifo_handle_t *ifo = NULL, *ifoz;
     char *p, *tmp;
     dvd_t *d;
     url_t *u;
@@ -428,6 +430,16 @@ dvd_open(char *url, char *mode)
     df->menu = dvd_menu;
 
     dvdr = DVDOpen(device);
+    if(!dvdr)
+	goto err;
+
+    ifoz = ifoOpen(dvdr, 0);
+    if(!ifoz)
+	goto err;
+    title = ifoz->tt_srpt->title[title-1].title_set_nr;
+    tc2_print("DVD", TC2_PRINT_DEBUG, "VTS %i\n", title);
+    ifoClose(ifoz);
+
     ifo = ifoOpen(dvdr, title);
     if(ifo){
 	pgcit_t *pgcit = ifo->vts_pgcit;
@@ -438,8 +450,16 @@ dvd_open(char *url, char *mode)
 	vts_tmap_t *tmap;
 	int i;
 
+	tc2_print("DVD", TC2_PRINT_DEBUG, "nr_of_pgci_srp = %i\n",
+		  pgcit->nr_of_pgci_srp);
+
 	for(i = 0; i < 16; i++)
 	    df->spu_palette[i] = pgc->palette[i];
+
+	tc2_print("DVD", TC2_PRINT_DEBUG, "%i audio streams\n",
+		  vtsi->nr_of_vts_audio_streams);
+	tc2_print("DVD", TC2_PRINT_DEBUG, "%i spu streams\n",
+		  vtsi->nr_of_vts_subp_streams);
 
 	df->n_streams =
 	    1 + vtsi->nr_of_vts_audio_streams + vtsi->nr_of_vts_subp_streams;
