@@ -309,9 +309,10 @@ mpeg_flush(tcvp_pipe_t *p, int drop)
     mpeg_dec_t *mpd = p->private;
 
     if(drop){
-	mpeg2_reset(mpd->mpeg2, 1);
+	/* mpeg2_reset() apparently breaks seeking in some streams */
+/* 	mpeg2_reset(mpd->mpeg2, 1); */
 /* 	mpd->flush = 1; */
-	mpd->pts = 0;
+	mpd->pts = -1LL;
 	/* FIXME: the buffers should be flushed here, but the reference
 	   counting becomes a nightmare */
 /* 	mpeg_flush_bufs(mpd); */
