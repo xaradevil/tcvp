@@ -83,7 +83,7 @@ option		change_window_title%d=1
 option		xposition%d=-2
 option		yposition%d=-2
 option		*skinpath%s
-option		window_title%s="${title}${performer:+ - }${performer}"
+option		window_title%s="TCVP${title:+ (}${title}${performer:+ - }${performer}${title:+)}"
 
 TCVP {
 	module "tcvp/ui/tcvpx" {
