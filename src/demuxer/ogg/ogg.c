@@ -90,12 +90,12 @@ ogg_get_length(muxed_stream_t *ms)
 }
 
 static void
-ogg_free_packet(packet_t *p)
+ogg_free_packet(void *v)
 {
+    packet_t *p = v;
     free(p->data[0]);
     free(p->data);
     free(p->sizes);
-    free(p);
 }
 
 
@@ -125,7 +125,7 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 /*  	printf("%d\n",ogg_page_granulepos(&og)); */
     }
 
-    pk = malloc(sizeof(*pk));
+    pk = tcallocd(sizeof(*pk), NULL, ogg_free_packet);
     pk->stream = 0;
     pk->flags = 0;
     pk->data = malloc(sizeof(*pk->data));
@@ -135,7 +135,6 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     memcpy(pk->data[0]+sizeof(ogg_packet), op.packet, op.bytes);
     ((ogg_packet *)pk->data[0])->packet=pk->data[0]+sizeof(ogg_packet);
 
-    pk->free=ogg_free_packet;
     pk->sizes = malloc(sizeof(*pk->sizes));
     pk->sizes[0] = op.bytes+sizeof(ogg_packet);
     pk->planes = 1;

@@ -23,8 +23,8 @@
 #include <tctypes.h>
 #include <tcmath.h>
 
-typedef struct packet packet_t;
-struct packet {
+/* packet_t MUST be allocated with tcalloc */
+typedef struct packet {
     int stream;
     u_char **data;
     int *sizes;
@@ -32,9 +32,8 @@ struct packet {
     int x, y, w, h;		/* slice position */
     int flags;
     uint64_t pts, dts;
-    void (*free)(packet_t *);
     void *private;
-};
+} packet_t;
 
 #define TCVP_PKT_FLAG_PTS        0x1
 #define TCVP_PKT_FLAG_DTS        0x2

@@ -44,7 +44,6 @@ typedef struct mad_dec {
     struct mad_synth synth;
     pthread_mutex_t lock;
     int flush;
-    packet_t *in;
     mad_packet_t *out;
     int bs, pfs;
     int bufsize;
@@ -147,11 +146,10 @@ scale(mad_fixed_t sample)
 }
 
 static void
-mad_free_pk(packet_t *pk)
+mad_free_pk(void *p)
 {
-    mad_packet_t *mp = (mad_packet_t *) pk;
+    mad_packet_t *mp = (mad_packet_t *) p;
     free(mp->data);
-    free(mp);
 }
 
 #define OUT_PACKET_SIZE(c) (tcvp_codec_mad_conf_output_buffer * (c))
@@ -161,13 +159,12 @@ mad_alloc(int c)
 {
     mad_packet_t *mp;
 
-    mp = calloc(1, sizeof(*mp));
+    mp = tcallocdz(sizeof(*mp), NULL, mad_free_pk);
     mp->data = malloc(OUT_PACKET_SIZE(c) * 2);
     mp->dp = mp->data;
     mp->pk.data = (u_char **) &mp->data;
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;
-    mp->pk.free = mad_free_pk;
 
     return mp;
 }
@@ -245,15 +242,6 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     u_char *d;
     int size;
 
-    if(md->in){
-	packet_t *in;
-	pthread_mutex_lock(&md->lock);
-	in = md->in;
-	md->in = NULL;
-	pthread_mutex_unlock(&md->lock);
-	decode(p, in);
-    }
-
     md->flush = 0;
 
     pthread_mutex_lock(&md->lock);
@@ -311,7 +299,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 out:
     pthread_mutex_unlock(&md->lock);
     if(pk)
-	pk->free(pk);
+	tcfree(pk);
 
     return 0;
 }
@@ -331,7 +319,7 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     }
 
     if(ds <= 4){
-	pk->free(pk);
+	tcfree(pk);
 	return md->pc > tcvp_codec_mad_conf_probe_max? PROBE_FAIL: PROBE_AGAIN;
     }
 
@@ -341,7 +329,7 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     p->format.audio.channels = mf.channels;
     p->format.audio.bit_rate = mf.bitrate;
 
-    md->in = pk;
+    tcfree(pk);
 
     return p->next->probe(p->next, NULL, &p->format);
 }
@@ -354,9 +342,6 @@ mad_flush(tcvp_pipe_t *p, int drop)
     if(drop){
 	md->flush = 1;
 	pthread_mutex_lock(&md->lock);
-	if(md->in)
-	    md->in->free(md->in);
-	md->in = NULL;
 	if(md->out)
 	    mad_free_pk(&md->out->pk);
 	md->out = NULL;

@@ -248,11 +248,10 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 }
 
 static void
-mpegts_free_pk(packet_t *p)
+mpegts_free_pk(void *p)
 {
-    mpegts_pk_t *mp = (mpegts_pk_t *) p;
+    mpegts_pk_t *mp = p;
     free(mp->buf);
-    free(mp);
 }
 
 extern packet_t *
@@ -290,7 +289,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	if((mp.unit_start && tb->bpos) || tb->bpos > MAX_PACKET_SIZE){
 	    if(tb->start){
-		pk = malloc(sizeof(*pk));
+		pk = tcallocd(sizeof(*pk), NULL, mpegts_free_pk);
 		pk->pk.stream = sx;
 		pk->pk.data = &pk->data;
 		pk->data = tb->buf + tb->hlen;
@@ -303,7 +302,6 @@ mpegts_packet(muxed_stream_t *ms, int str)
 		    pk->pk.pts = tb->pts * 300;
 		if(tb->flags & TCVP_PKT_FLAG_DTS)
 		    pk->pk.dts = tb->dts * 300;
-		pk->pk.free = mpegts_free_pk;
 		tb->buf = malloc(0x10000);
 	    }
 	    tb->bpos = 0;
@@ -389,7 +387,7 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 	    if(pk){
 		if(pk->flags & TCVP_PKT_FLAG_PTS)
 		    st = pk->pts;
-		pk->free(pk);
+		tcfree(pk);
 	    } else {
 		return -1;
 	    }

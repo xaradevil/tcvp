@@ -319,7 +319,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	tsm->streams[pk->stream].dts = -1LL;
 	pthread_cond_broadcast(&tsm->cnd);
 	pthread_mutex_unlock(&tsm->lock);
-	pk->free(pk);
+	tcfree(pk);
 	return 0;
     }
 
@@ -495,7 +495,7 @@ tmx_input(tcvp_pipe_t *p, packet_t *pk)
 	pthread_mutex_unlock(&tsm->lock);
     }
 
-    pk->free(pk);
+    tcfree(pk);
 
     return 0;
 }

@@ -91,13 +91,13 @@ typedef struct {
 
 
 static void
-avf_free_packet(packet_t *p)
+avf_free_packet(void *v)
 {
+    packet_t *p = v;
     AVPacket *ap = p->private;
     av_free_packet(ap);
     free(ap);
     free(p->sizes);
-    free(p);
 }
 
 extern packet_t *
@@ -123,7 +123,7 @@ avf_next_packet(muxed_stream_t *ms, int stream)
 	    av_free_packet(apk);
     } while(!ms->used_streams[sx]);
 
-    pk = malloc(sizeof(*pk));
+    pk = tcallocd(sizeof(*pk), NULL, avf_free_packet);
     pk->stream = sx;
     pk->data = &apk->data;
     pk->sizes = malloc(sizeof(*pk->sizes));
@@ -131,7 +131,6 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     pk->planes = 1;
     pk->flags = 0;
     pk->pts = 0;
-    pk->free = avf_free_packet;
     pk->private = apk;
 
     if(!pk)

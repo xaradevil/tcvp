@@ -48,17 +48,13 @@ typedef struct avc_codec {
     AVFrame *frame;
 
     int have_params;
-    packet_t *in;		/* remaining data from probe */
-    char *inbuf;
-    size_t insize;
-    packet_t *out;		/* pending output from probe */
 } avc_codec_t;
 
 static void
-avc_free_packet(packet_t *p)
+avc_free_packet(void *v)
 {
+    packet_t *p = v;
     free(p->sizes);
-    free(p);
 }
 
 static int
@@ -69,17 +65,7 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
     char *inbuf;
     int insize;
 
-    if(ac->in){
-	packet_t *in = ac->in;
-	ac->in = NULL;
-	do_decaudio(p, in, probe);
-    }
-
-    if(ac->inbuf){
-	inbuf = ac->inbuf;
-	insize = ac->insize;
-	ac->inbuf = NULL;
-    } else if(pk->data){
+    if(pk->data){
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
     } else {
@@ -100,33 +86,24 @@ do_decaudio(tcvp_pipe_t *p, packet_t *pk, int probe)
 	insize -= l;
 
 	if(outsize > 0){
-	    out = malloc(sizeof(*out));
+	    if(probe){
+		ac->have_params = 1;
+		break;
+	    }
+
+	    out = tcallocd(sizeof(*out), NULL, avc_free_packet);
 	    out->data = (u_char **) &out->private;
 	    out->sizes = malloc(sizeof(*out->sizes));
 	    out->sizes[0] = outsize;
 	    out->planes = 1;
 	    out->pts = pk->pts;
 	    pk->pts = 0;
-	    out->free = avc_free_packet;
 	    out->private = ac->buf;
-	    if(!probe){
-		p->next->input(p->next, out);
-	    } else {
-		ac->have_params = 1;
-		ac->out = out;
-		if(insize){
-		    ac->inbuf = inbuf;
-		    ac->insize = insize;
-		    ac->in = pk;
-		} else {
-		    pk->free(pk);
-		}
-		return 0;
-	    }
+	    p->next->input(p->next, out);
 	}
     }
 
-    pk->free(pk);
+    tcfree(pk);
 
     return 0;
 }
@@ -145,17 +122,7 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
     char *inbuf;
     int insize;
 
-    if(vc->in){
-	packet_t *in = vc->in;
-	vc->in = NULL;
-	do_decvideo(p, in, probe);
-    }
-
-    if(vc->inbuf){
-	inbuf = vc->inbuf;
-	insize = vc->insize;
-	vc->inbuf = NULL;
-    } else if(pk->data){
+    if(pk->data){
 	inbuf = pk->data[0];
 	insize = pk->sizes[0];
     } else {
@@ -182,7 +149,12 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	if(gp){
 	    int i;
 
-	    out = malloc(sizeof(*out));
+	    if(probe){
+		vc->have_params = 1;
+		break;
+	    }
+
+	    out = tcallocd(sizeof(*out), NULL, avc_free_packet);
 	    out->stream = pk->stream;
 	    out->data = vc->frame->data;
 	    out->sizes = malloc(4 * sizeof(*out->sizes));
@@ -200,22 +172,9 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	    out->pts = vc->pts / vc->ptsd;
 	    vc->pts += vc->ptsn;
 
-	    out->free = avc_free_packet;
 	    out->private = NULL;
-	    if(!probe){
-		p->next->input(p->next, out);
-	    } else {
-		vc->have_params = 1;
-		vc->out = out;
-		if(insize){
-		    vc->inbuf = inbuf;
-		    vc->insize = insize;
-		    vc->in = pk;
-		} else {
-		    pk->free(pk);
-		}
-		return 0;
-	    }
+	    p->next->input(p->next, out);
+
 	    if(vc->frame->pict_type == FF_B_TYPE){
 		vc->bfc++;
 	    } else if(vc->bfc){
@@ -225,10 +184,10 @@ do_decvideo(tcvp_pipe_t *p, packet_t *pk, int probe)
 	}
     }
 
-    if(!pk->sizes[0])
-	vc->pts += vc->ptsn;
+/*     if(!pk->sizes[0]) */
+/* 	vc->pts += vc->ptsn; */
 
-    pk->free(pk);
+    tcfree(pk);
 
     return 0;
 }
@@ -273,8 +232,7 @@ avc_probe_audio(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	p->format = *s;
 	p->format.audio.sample_rate = ac->ctx->sample_rate;
 	p->format.audio.channels = ac->ctx->channels;
-	ret = p->next->probe(p->next, ac->out, &p->format);
-	ac->out = NULL;
+	ret = p->next->probe(p->next, NULL, &p->format);
     } else {
 	ret = PROBE_AGAIN;
     }
@@ -349,8 +307,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    p->format.video.aspect.den = vc->ctx->height;
 	    tcreduce(&p->format.video.aspect);
 	}
-	ret = p->next->probe(p->next, vc->out, &p->format);
-	vc->out = NULL;
+	ret = p->next->probe(p->next, NULL, &p->format);
     } else {
 	ret = PROBE_AGAIN;
     }
@@ -366,19 +323,8 @@ avc_flush(tcvp_pipe_t *p, int drop)
 {
     avc_codec_t *ac = p->private;
 
-    if(drop){
-	if(ac->in)
-	    ac->in->free(ac->in);
-	if(ac->out)
-	    ac->out->free(ac->out);
-
-	ac->in = NULL;
-	ac->out = NULL;
-	ac->inbuf = NULL;
-	ac->insize = 0;
-
+    if(drop)
 	avcodec_flush_buffers(ac->ctx);
-    }
 
     return p->next->flush(p->next, drop);
 }
@@ -402,9 +348,15 @@ avc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
     }
 
     avctx = avcodec_alloc_context();
-    avcodec_get_context_defaults(avctx);
     if(avc->capabilities & CODEC_CAP_TRUNCATED)
 	avctx->flags |= CODEC_FLAG_TRUNCATED;
+
+#define ctx_conf(n, f) conf_getvalue(cs, #n, "%"#f, &avctx->n)
+    ctx_conf(workaround_bugs, i);
+    ctx_conf(error_resilience, i);
+    ctx_conf(error_concealment, i);
+    ctx_conf(idct_algo, i);
+    ctx_conf(debug, i);
 
     switch(s->stream_type){
     case STREAM_TYPE_AUDIO:
@@ -430,9 +382,6 @@ avc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 	avctx->height = s->video.height;
 	avctx->frame_rate = s->video.frame_rate.num;
 	avctx->frame_rate_base = s->video.frame_rate.den;
-	avctx->workaround_bugs = 1;
-	avctx->error_resilience = 0; //FF_ER_COMPLIANT;
-	avctx->error_concealment = 3;
 
 	vc = calloc(1, sizeof(*vc));
 	vc->ctx = avctx;

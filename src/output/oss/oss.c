@@ -89,7 +89,7 @@ oss_play(tcvp_pipe_t *p, packet_t *pk)
     u_char *data;
 
     if(!pk->data){
-	pk->free(pk);
+	tcfree(pk);
 	return 0;
     }
 
@@ -111,7 +111,7 @@ oss_play(tcvp_pipe_t *p, packet_t *pk)
 	data += r;
     }
 
-    pk->free(pk);
+    tcfree(pk);
 
     return 0;
 }

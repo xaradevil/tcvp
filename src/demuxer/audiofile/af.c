@@ -86,12 +86,12 @@ aff_tell(AFvirtualfile *vfile)
 
 
 static void
-af_free_packet(packet_t *p)
+af_free_packet(void *v)
 {
+    packet_t *p = v;
     free(p->data[0]);
     free(p->data);
     free(p->sizes);
-    free(p);
 }
 
 extern packet_t *
@@ -102,7 +102,7 @@ af_next_packet(muxed_stream_t *ms, int stream)
     int i;
     float fs = afGetFrameSize(aff, AF_DEFAULT_TRACK, 0);
 
-    pk = malloc(sizeof(*pk));
+    pk = tcallocd(sizeof(*pk), NULL, af_free_packet);
     pk->stream = 0;
     pk->flags = 0;
     pk->data = malloc(sizeof(*pk->data));
@@ -115,7 +115,6 @@ af_next_packet(muxed_stream_t *ms, int stream)
 	return NULL;
     }
 
-    pk->free=af_free_packet;
     pk->sizes = malloc(sizeof(*pk->sizes));
     pk->sizes[0] = i*fs;
     pk->planes = 1;

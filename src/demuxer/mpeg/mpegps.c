@@ -134,11 +134,11 @@ mpegpes_free(mpegpes_packet_t *p)
 }
 
 static void
-mpegps_free_pk(packet_t *p)
+mpegps_free_pk(void *v)
 {
+    packet_t *p = v;
     mpegpes_packet_t *mp = p->private;
     mpegpes_free(mp);
-    free(p);
 }
 
 extern packet_t *
@@ -157,19 +157,19 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	sx = s->imap[mp->stream_id];
     } while(sx < 0 || !ms->used_streams[sx]);	
 
-    pk = malloc(sizeof(*pk));
+    pk = tcallocd(sizeof(*pk), NULL, mpegps_free_pk);
     pk->stream = sx;
     pk->data = &mp->data;
     pk->sizes = &mp->size;
     pk->planes = 1;
     pk->flags = 0;
-    pk->free = mpegps_free_pk;
     pk->private = mp;
 
     if(mp->flags & PES_FLAG_PTS){
 	pk->pts = mp->pts * 300;
 	pk->flags |= TCVP_PKT_FLAG_PTS;
-	s->rate = s->stream->tell(s->stream) * 90 / mp->pts;
+	if(mp->pts)
+	    s->rate = s->stream->tell(s->stream) * 90 / mp->pts;
     }
 
     if(mp->flags & PES_FLAG_DTS){
@@ -201,7 +201,7 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
 	    if(pk){
 		if(pk->flags & TCVP_PKT_FLAG_PTS)
 		    st = pk->pts;
-		pk->free(pk);
+		tcfree(pk);
 	    } else {
 		return -1;
 	    }

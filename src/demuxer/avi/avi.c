@@ -621,17 +621,16 @@ avi_header(url_t *f)
 }
 
 static void
-avi_free_packet(packet_t *p)
+avi_free_packet(void *p)
 {
-    avi_packet_t *ap = (avi_packet_t *) p;
+    avi_packet_t *ap = p;
     free(ap->buf);
-    free(p);
 }
 
 static avi_packet_t *
 avi_alloc_packet(size_t size)
 {
-    avi_packet_t *pk = malloc(sizeof(*pk));
+    avi_packet_t *pk = tcallocd(sizeof(*pk), NULL, avi_free_packet);
 
     pk->buf = malloc(size + 16);
     memset(pk->buf + size, 0, 16);
@@ -642,7 +641,6 @@ avi_alloc_packet(size_t size)
     pk->pk.sizes = &pk->size;
     pk->pk.sizes[0] = size;
     pk->pk.planes = 1;
-    pk->pk.free = avi_free_packet;
 
     return pk;
 }

@@ -151,7 +151,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 
     if(!pk->data){
 	v_qpts(vo, -1LL);
-	pk->free(pk);
+	tcfree(pk);
 	return 0;
     }
 
@@ -163,7 +163,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	pthread_mutex_unlock(&vo->smx);
 
 	if(!vo->framecnt || vo->state == STOP){
-	    pk->free(pk);
+	    tcfree(pk);
 	    return 0;
 	}
 
@@ -188,7 +188,7 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 	vo->drop = drops[i];
     }
 
-    pk->free(pk);
+    tcfree(pk);
 
     return 0;
 }

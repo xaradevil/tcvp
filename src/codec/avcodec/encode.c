@@ -42,12 +42,6 @@ typedef struct avc_encpacket {
     int size;
 } avc_encpacket_t;
 
-static void
-avc_free_encpacket(packet_t *p)
-{
-    free(p);
-}
-
 static int
 avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 {
@@ -68,14 +62,13 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 
     if((size = avcodec_encode_video(enc->ctx, enc->buf, ENCBUFSIZE, f)) > 0){
 /* 	fprintf(stderr, "%lli %lli\n", pk->pts, enc->ctx->coded_frame->pts); */
-	ep = calloc(1, sizeof(*ep));
+	ep = tcallocz(sizeof(*ep));
 	ep->pk.stream = pk->stream;
 	ep->pk.data = &ep->data;
 	ep->pk.sizes = &ep->size;
 	ep->pk.planes = 1;
 	ep->pk.flags = TCVP_PKT_FLAG_PTS;
 	ep->pk.pts = pk->pts;
-	ep->pk.free = avc_free_encpacket;
 	ep->data = enc->buf;
 	ep->size = size;
 	p->next->input(p->next, &ep->pk);

@@ -39,12 +39,6 @@ typedef struct mpeg_packet {
     int sizes[3];
 } mpeg_packet_t;
 
-static void
-mpeg_free_pk(packet_t *p)
-{
-    free(p);
-}
-
 static int
 mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 {
@@ -70,7 +64,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	state = mpeg2_parse(mpd->mpeg2);
 	if(state == STATE_SLICE || state == STATE_END){
 	    if(mpd->info->display_fbuf){
-		mpeg_packet_t *pic = malloc(sizeof(*pic));
+		mpeg_packet_t *pic = tcalloc(sizeof(*pic));
 		pic->pk.stream = pk->stream;
 		pic->pk.data = mpd->info->display_fbuf->buf;
 		pic->pk.planes = 3;
@@ -85,7 +79,6 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		pic->pk.flags = TCVP_PKT_FLAG_PTS;
 		pic->pk.pts = mpd->pts;
 		mpd->pts += mpd->info->sequence->frame_period;
-		pic->pk.free = mpeg_free_pk;
 		pic->pk.private = pic;
 		p->next->input(p->next, &pic->pk);
 	    }
@@ -101,7 +94,7 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 	}
     } while(state != STATE_BUFFER);
 
-    pk->free(pk);
+    tcfree(pk);
     return 0;
 }
 
@@ -140,7 +133,7 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	}
     } while(state != STATE_BUFFER && ret != PROBE_FAIL);
 
-    pk->free(pk);
+    tcfree(pk);
     return ret;
 }
 

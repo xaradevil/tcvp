@@ -114,7 +114,7 @@ freeq(s_play_t *vp, int i)
     packet_t *pk;
 
     while((pk = list_shift(vp->streams[i].pq))){
-	pk->free(pk);
+	tcfree(pk);
     }
 }
 
@@ -192,7 +192,7 @@ get_packet(s_play_t *vp, int s)
 {
     packet_t *p;
 
-    if(sem_trywait(&vp->streams[s].ps)){
+    if(!vp->streams[s].eof && sem_trywait(&vp->streams[s].ps)){
 	sem_post(&vp->rsm);
 	sem_wait(&vp->streams[s].ps);
     }
@@ -217,10 +217,9 @@ play_stream(void *p)
 	vp->pipes[str]->input(vp->pipes[str], pk);
     }
 
-    pk = malloc(sizeof(*pk));
+    pk = tcalloc(sizeof(*pk));
     pk->stream = str;
     pk->data = NULL;
-    pk->free = (typeof(pk->free)) free;
     vp->pipes[str]->input(vp->pipes[str], pk);
 
     if(vp->state != STOP)
@@ -343,22 +342,37 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 
     for(i = 0; i < ms->n_streams; i++){
 	if(ms->used_streams[i] && codecs[i]->probe){
+	    list_item *li = NULL;
 	    int p = PROBE_FAIL;
 	    int st = 0;
+	    int c = 0;
+
 	    do {
-		packet_t *pk = get_packet(vp, i);
+		packet_t *pk;
+
+		if(!li || list_islast(vp->streams[i].pq, li))
+		    sem_post(&vp->rsm);
+		sem_wait(&vp->streams[i].ps);
+		pk = list_next(vp->streams[i].pq, &li);
 		if(!pk || !pk->data){
 		    if(pk)
-			pk->free(pk);
+			tcfree(pk);
 		    break;
 		}
 		if(!st && pk->flags & TCVP_PKT_FLAG_PTS)
 		    ms->streams[i].common.start_time = pk->pts;
+		tcref(pk);
 		p = codecs[i]->probe(codecs[i], pk, &ms->streams[i]);
-	    } while(p == PROBE_AGAIN);
+	    } while(p == PROBE_AGAIN &&
+		    c++ < tcvp_demux_stream_conf_max_probe);
 	    if(p != PROBE_OK){
 		ms->used_streams[i] = 0;
 	    }
+	    if(li){
+		list_unlock(vp->streams[i].pq, li);
+		li = NULL;
+	    }
+	    codecs[i]->flush(codecs[i], 1);
 	}
     }
 

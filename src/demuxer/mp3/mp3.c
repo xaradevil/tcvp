@@ -409,11 +409,10 @@ typedef struct mp3_packet {
 } mp3_packet_t;
 
 static void
-mp3_free_pk(packet_t *p)
+mp3_free_pk(void *p)
 {
-    mp3_packet_t *mp = (mp3_packet_t *) p;
+    mp3_packet_t *mp = p;
     free(mp->data);
-    free(mp);
 }
 
 static packet_t *
@@ -425,13 +424,12 @@ mp3_packet(muxed_stream_t *ms, int str)
     int size = 1024;
     u_char *f;
 
-    mp = calloc(1, sizeof(*mp));
+    mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
     mp->data = malloc(size);
     mp->pk.stream = 0;
     mp->pk.data = &mp->data;
     mp->pk.sizes = &mp->size;
     mp->pk.planes = 1;
-    mp->pk.free = mp3_free_pk;
 
     size = mf->file->read(mp->data, 1, size, mf->file);
     if(size <= 0){

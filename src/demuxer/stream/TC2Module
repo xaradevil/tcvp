@@ -12,3 +12,4 @@ import		"Eventq"	"delete"
 import		"Eventq"	"send"
 import		"Eventq"	"attach"
 option		buffer%i=4096
+option		max_probe%i=1024

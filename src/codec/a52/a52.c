@@ -29,7 +29,6 @@
 typedef struct a52_decode {
     a52_state_t *state;
     sample_t *out;
-    packet_t *in;
     sample_t level, bias;
     int flags;
     char buf[3840];
@@ -148,11 +147,11 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 }
 
 static void
-a52_free_pk(packet_t *p)
+a52_free_pk(void *v)
 {
+    packet_t *p = v;
     free(p->sizes);
     free(p->private);
-    free(p);
 }
 
 static int
@@ -163,12 +162,6 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
     char *pdata;
     int i;
     int ret = 0;
-
-    if(ad->in){
-	packet_t *in = ad->in;
-	ad->in = NULL;
-	a52_decode(p, in);
-    }
 
     if(!pk->data){
 	p->next->input(p->next, pk);
@@ -226,12 +219,11 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    a52_block(ad->state);
 	    s = float_to_int(ad->out, outbuf, ad->flags);
 
-	    out = malloc(sizeof(*out));
+	    out = tcallocd(sizeof(*out), NULL, a52_free_pk);
 	    out->data = (u_char **) &out->private;
 	    out->sizes = malloc(sizeof(*out->sizes));
 	    out->sizes[0] = 256 * s * sizeof(*outbuf);
 	    out->planes = 1;
-	    out->free = a52_free_pk;
 	    out->private = outbuf;
 	    out->flags = 0;
 	    if(ad->ptsf){
@@ -247,7 +239,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	ad->fsize = 0;
     }
 
-    pk->free(pk);
+    tcfree(pk);
 
     return ret;
 }
@@ -255,7 +247,6 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 static int
 a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 {
-    a52_decode_t *ad = p->private;
     int flags, srate, bitrate, size = 0;
     int od;
 
@@ -273,7 +264,7 @@ a52_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     p->format.audio.sample_rate = srate;
     p->format.audio.channels = 2;
 
-    ad->in = pk;
+    tcfree(pk);
 
     return p->next->probe(p->next, NULL, &p->format);
 }
@@ -293,9 +284,9 @@ a52_flush(tcvp_pipe_t *p, int drop)
 {
     a52_decode_t *ad = p->private;
 
-    if(drop && ad->in){
-	ad->in->free(ad->in);
-	ad->in = NULL;
+    if(drop){
+	ad->fsize = 0;
+	ad->fpos = 0;
     }
 
     return p->next->flush(p->next, drop);

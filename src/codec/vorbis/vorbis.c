@@ -34,10 +34,10 @@ typedef struct {
 } VorbisContext_t;
 
 static void
-vorbis_free_packet(packet_t *p)
+vorbis_free_packet(void *v)
 {
+    packet_t *p = v;
     free(p->sizes);
-    free(p);
 }
 
 
@@ -95,18 +95,17 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
 	vorbis_synthesis_read(&vc->vd, samples);
     }
 
-    out = malloc(sizeof(*out));
+    out = tcallocd(sizeof(*out), NULL, vorbis_free_packet);
     out->data = (u_char **) &out->private;
     out->sizes = malloc(sizeof(*out->sizes));
     out->sizes[0] = total_bytes;
     out->planes = 1;
     out->flags = 0;
     out->pts = 0;
-    out->free = vorbis_free_packet;
     out->private = vc->buf;
     p->next->input(p->next, out);
 
-    pk->free(pk);
+    tcfree(pk);
 
     return 0;
 }
@@ -133,7 +132,7 @@ vorbis_read_header(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	    ret = p->next->probe(p->next, NULL, &p->format);
 	}
     }
-    pk->free(pk);
+    tcfree(pk);
     return ret;
 }
 
