@@ -81,32 +81,35 @@ static void
 show_help(void)
 {
     /* FIXME: better helpscreen */
-    printf("TCVP %s help\n"
-	   "   -h      --help                This text\n"
-	   "   -A dev  --audio-device=dev    Select audio device\n"
-	   "   -V dev  --video-device=dev    Select video device\n"
+    printf("TCVP " VERSION "\n\n"
+	   "usage: tcvp [options] [files]\n\n"
+	   "options:\n"
+	   "   -@ file --playlist=file       Load playlist from file\n"
 	   "   -a #    --audio-stream=#      Select audio stream\n"
-	   "   -v #    --video-stream=#      Select video stream\n"
+	   "   -A dev  --audio-device=dev    Select audio device\n"
 	   "   -C      --validate            Check file integrity\n"
+	   "   -D      --daemon              Fork into background\n"
+	   "   -f      --fullscreen          Fill entire screen\n"
+	   "   -h      --help                This text\n"
+	   "   -o file --output=file         Set output file\n"
 	   "   -s t    --seek=t              Seek t seconds at start\n"
 	   "   -t t    --time=t              Play t seconds\n"
 	   "   -u name --user-interface=name Select user interface\n"
-	   "   -z      --shuffle             Enable shuffle\n"
-	   "   -Z      --noshuffle           Disable shuffle\n"
-	   "   -@ file --playlist=file       Load playlist from file\n"
-	   "   -f      --fullscreen          Fill entire screen\n"
-	   "           --aspect=a[/b]        Force video aspect ratio\n"
-	   "           --skin=file           Select skin\n"
-	   "   -D      --daemon              Fork into background\n"
+	   "   -v #    --video-stream=#      Select video stream\n"
+	   "   -V dev  --video-device=dev    Select video device\n"
 	   "   -x name --module=name         Enable module\n"
 	   "   -X name --nomodule=name       Disable module\n"
-	   "           --play\n"
-	   "           --pause\n"
-	   "           --stop\n"
+	   "   -z      --shuffle             Enable shuffle\n"
+	   "   -Z      --noshuffle           Disable shuffle\n"
+	   "           --aspect=a[/b]        Force video aspect ratio\n"
+	   "           --clear               Clear playlist\n"
 	   "           --next\n"
+	   "           --pause\n"
+	   "           --play\n"
 	   "           --prev\n"
-	   "           --clear               Clear playlist\n", 
-	   VERSION);
+	   "           --skin=file           Select skin\n"
+	   "           --stop\n"
+	   "           --tc2-print=tag,level Set print level for tag\n");
 }
 
 static void
@@ -451,8 +454,7 @@ tcl_stop(void)
 }
 
 /* Identifiers for long-only options */
-#define OPT_TC2_DEBUG 128
-#define OPT_TC2_VERBOSE 129
+#define OPT_TC2_PRINT 128
 #define OPT_TRACE_MALLOC 130
 #define OPT_ASPECT 131
 #define OPT_SKIN 132
@@ -477,8 +479,7 @@ parse_options(int argc, char **argv)
 	{"seek", required_argument, 0, 's'},
 	{"time", required_argument, 0, 't'},
 	{"user-interface", required_argument, 0, 'u'},
-	{"tc2-debug", required_argument, 0, OPT_TC2_DEBUG},
-	{"tc2-verbose", required_argument, 0, OPT_TC2_VERBOSE},
+	{"tc2-print", required_argument, 0, OPT_TC2_PRINT},
 	{"shuffle", no_argument, 0, 'z'},
 	{"noshuffle", no_argument, 0, 'Z'},
 	{"playlist", required_argument, 0, '@'},
@@ -652,12 +653,13 @@ parse_options(int argc, char **argv)
 			    long_options[opt_index].name, optarg);
 	    break;
 
-	case OPT_TC2_DEBUG:
-	    tc2_debug(strtol(optarg, NULL, 0));
-	    break;
-
-	case OPT_TC2_VERBOSE:
-	    tc2_verbose(strtol(optarg, NULL, 0));
+	case OPT_TC2_PRINT:
+	    ot = strchr(optarg, ',');
+	    if(!ot)
+		break;
+	    *ot++ = 0;
+	    s = strtol(ot, NULL, 0);
+	    tc2_setprint(optarg, 0, s, "default");
 	    break;
 
 	case OPT_TRACE_MALLOC:
@@ -674,10 +676,14 @@ main(int argc, char **argv)
     int opt_num, i;
     char userconf[1024];
 
+    snprintf(userconf, 1024, "%s/.tcvp/tcvp.conf", getenv("HOME"));
+    tc2_add_config(TCVP_CONF);
+    tc2_add_config(userconf);
+    tc2_init();
+
     cf = tcconf_new(NULL);
 
     opt_num = parse_options(argc, argv);
-
     nfiles = argc - opt_num;
     files = argv + opt_num;
 
@@ -690,11 +696,6 @@ main(int argc, char **argv)
 	daemon(0, 0);
     sig_thr = pthread_self();
 
-    snprintf(userconf, 1024, "%s/.tcvp/tcvp.conf", getenv("HOME"));
-
-    tc2_add_config(TCVP_CONF);
-    tc2_add_config(userconf);
-    tc2_init();
     tc2_request(TC2_ADD_MODULE, 0, NULL, &MODULE_INFO);
     tc2_request(TC2_LOAD_MODULE, 0, MODULE_INFO.name, NULL);
     tc2_run();
