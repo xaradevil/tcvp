@@ -31,7 +31,7 @@ di_input(tcvp_pipe_t *p, packet_t *pk)
 {
     int i;
 
-    if(pk && (p->format.video.flags & TCVP_STREAM_FLAG_INTERLACED)){
+    if(pk->data && (p->format.video.flags & TCVP_STREAM_FLAG_INTERLACED)){
 	for(i = 0; i < pk->planes; i++)
 	    pk->sizes[i] *= 2;
     }
