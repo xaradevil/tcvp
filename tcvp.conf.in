@@ -12,6 +12,7 @@ TC2/interface {
 	priority "decoder/audio/ac3"	"TCVP/codec/a52"	5
 	priority "driver/timer"	 "TCVP/driver/audio/alsa"	5
 	priority "URL/dvd"		"TCVP/input/dvdnav"	5
+	priority "URL/pcm"		"TCVP/input/alsa"	5
 }
 
 # add Xv as default video driver

@@ -1,0 +1,10 @@
+module		ossrec
+name		"TCVP/input/oss"
+version		0.1.0
+tc2version	0.6.0
+sources		ossrec.c
+implement	"URL/pcm"	"open"	oss_open
+import		"URL/vheader"	"new"
+import		"mux/wav"	"header"
+option		device%s="/dev/dsp"
+option		timestamp%i=0
