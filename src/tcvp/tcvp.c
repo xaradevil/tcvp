@@ -261,13 +261,14 @@ t_seek(player_t *pl, int64_t time, int how)
 	} else {
 	    ntime = time;
 	}
-	tp->stream->seek(tp->stream, ntime);
-	tp->timer->reset(tp->timer, ntime);
-
-	if(tp->vcodec)
-	    tp->vcodec->flush(tp->vcodec, 1);
-	if(tp->acodec)
-	    tp->acodec->flush(tp->acodec, 1);
+	ntime = tp->stream->seek(tp->stream, ntime);
+	if(ntime != -1LL){
+	    tp->timer->reset(tp->timer, ntime);
+	    if(tp->vcodec)
+		tp->vcodec->flush(tp->vcodec, 1);
+	    if(tp->acodec)
+		tp->acodec->flush(tp->acodec, 1);
+	}
 	if(s == TCVP_STATE_PLAYING){
 	    tp->demux->start(tp->demux);
 	    t_start(pl);

@@ -84,7 +84,7 @@ struct muxed_stream {
     int *used_streams;
     packet_t *(*next_packet)(muxed_stream_t *, int stream);
     int (*close)(muxed_stream_t *);
-    int (*seek)(muxed_stream_t *, uint64_t);
+    uint64_t (*seek)(muxed_stream_t *, uint64_t);
     void *private;
 };
 
