@@ -778,6 +778,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	tried_bkup = 0;
 	scan = 0;
 	skipped = 0;
+	af->pkt++;
 	goto again;
     }
 
