@@ -188,8 +188,9 @@ destroy_widget(tcwidget_t *w)
 
 
 extern int
-show_widget(tcwidget_t *w)
+show_widget(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *) xw;
     XMapWindow(xd, w->common.win);
     if(w->type == TCBOX) {
 	show_window(w->box.subwindow);
@@ -200,8 +201,9 @@ show_widget(tcwidget_t *w)
 }
 
 extern int
-hide_widget(tcwidget_t *w)
+hide_widget(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *) xw;
     XUnmapWindow(xd, w->common.win);
     w->common.visible = 0;
 

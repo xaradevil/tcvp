@@ -273,7 +273,7 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
 }
 
 extern muxed_stream_t *
-ogg_open(char *name, conf_section *cs)
+ogg_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 {
     ogg_stream_t *ost;
     ogg_page og;

@@ -39,7 +39,7 @@ box_get_subwindow(xtk_widget_t *xw)
     return w->box.subwindow;
 }
 
-extern tcbox_t*
+extern xtk_widget_t*
 create_box(window_t *window, int x, int y, int width, int height,
 	   void *data)
 {
@@ -96,5 +96,5 @@ create_box(window_t *window, int x, int y, int width, int height,
 
     list_push(window->widgets, box);
 
-    return box;
+    return (xtk_widget_t *) box;
 }

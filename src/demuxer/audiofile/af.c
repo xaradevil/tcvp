@@ -148,7 +148,7 @@ af_free(void *p)
 }
 
 extern muxed_stream_t *
-af_open(char *name, conf_section *cs)
+af_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 {
     url_t *f;
     muxed_stream_t *ms;

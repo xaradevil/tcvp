@@ -69,8 +69,9 @@ destroy_state(xtk_widget_t *xw)
 
 
 extern int
-change_state(tcstate_t *st, char *state)
+change_state(xtk_widget_t *xst, char *state)
 {
+    tcstate_t *st = (tcstate_t *) xst;
     int i;
     for(i=0; i<st->num_states; i++) {
 	if(strcmp(st->states[i], state) == 0){
@@ -89,7 +90,7 @@ change_state(tcstate_t *st, char *state)
 }
 
 
-extern tcstate_t*
+extern xtk_widget_t*
 create_state(window_t *window, int x, int y, image_info_t *bg,
 	     int num_states, image_info_t **images, char **states,
 	     char *state, action_cb_t action, void *data)
@@ -127,7 +128,7 @@ create_state(window_t *window, int x, int y, image_info_t *bg,
     st->pixmap = XCreatePixmap(xd, window->xw, st->width,
 			       st->height, depth);
 
-    change_state(st, state);
+    change_state((xtk_widget_t *) st, state);
 
     emask = ExposureMask;
     list_push(widget_list, st);
@@ -142,5 +143,5 @@ create_state(window_t *window, int x, int y, image_info_t *bg,
 
     list_push(window->widgets, st);
 
-    return st;
+    return (xtk_widget_t *) st;
 }

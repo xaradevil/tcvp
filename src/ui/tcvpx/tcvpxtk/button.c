@@ -118,7 +118,7 @@ exit_button(xtk_widget_t *xw, void *xe)
 }
 
 
-extern tcimage_button_t*
+extern xtk_widget_t*
 create_button(window_t *window, int x, int y, image_info_t *bg,
 	      image_info_t *image, image_info_t *over_image,
 	      image_info_t *down_image, action_cb_t action, void *data)
@@ -177,5 +177,5 @@ create_button(window_t *window, int x, int y, image_info_t *bg,
 
     list_push(window->widgets, btn);
 
-    return btn;
+    return (xtk_widget_t *) btn;
 }

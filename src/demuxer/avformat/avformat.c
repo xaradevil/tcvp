@@ -157,7 +157,7 @@ avf_free(void *p)
 
 
 extern muxed_stream_t *
-avf_open(char *name, conf_section *cs)
+avf_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 {
     AVFormatContext *afc;
     muxed_stream_t *ms;

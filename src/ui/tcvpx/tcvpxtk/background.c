@@ -230,7 +230,7 @@ destroy_background(xtk_widget_t *xw)
 }
 
 
-extern tcbackground_t*
+extern xtk_widget_t*
 create_background(window_t *window, image_info_t *image)
 {
     char *data;
@@ -292,5 +292,5 @@ create_background(window_t *window, image_info_t *image)
 
     list_push(window->widgets, bg);
 
-    return bg;
+    return (xtk_widget_t *) bg;
 }

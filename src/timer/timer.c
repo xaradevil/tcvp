@@ -38,7 +38,7 @@ typedef struct sw_timer {
 #define STOP  3
 
 static int
-tm_wait(tcvp_timer_t *t, uint64_t time)
+tm_wait(tcvp_timer_t *t, uint64_t time, pthread_mutex_t *lock)
 {
     sw_timer_t *st = t->private;
     pthread_mutex_lock(&st->mx);
@@ -88,6 +88,7 @@ static int
 tm_intr(tcvp_timer_t *t)
 {
     tm_reset(t, -1);
+    return 0;
 }
 
 static void

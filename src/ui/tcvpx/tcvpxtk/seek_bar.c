@@ -66,8 +66,10 @@ repaint_seek_bar(xtk_widget_t *xw)
 
 
 extern int
-disable_seek_bar(tcseek_bar_t *w)
+disable_seek_bar(xtk_widget_t *xw)
 {
+    tcseek_bar_t *w = (tcseek_bar_t *) xw;
+
     if(w->enabled == 1) {
 	w->enabled = 0;
 	w->repaint((xtk_widget_t *) w);
@@ -80,8 +82,10 @@ disable_seek_bar(tcseek_bar_t *w)
 
 
 extern int
-enable_seek_bar(tcseek_bar_t *w)
+enable_seek_bar(xtk_widget_t *xw)
 {
+    tcseek_bar_t *w = (tcseek_bar_t *) xw;
+
     if(w->enabled == 0) {
 	w->enabled = 1;
 	w->repaint((xtk_widget_t *) w);
@@ -94,8 +98,10 @@ enable_seek_bar(tcseek_bar_t *w)
 
 
 extern int
-change_seek_bar(tcseek_bar_t *w, double position)
+change_seek_bar(xtk_widget_t *xw, double position)
 {
+    tcseek_bar_t *w = (tcseek_bar_t *) xw;
+
     if(w->enabled && (w->state & LABEL_DRAG) == 0) {
 	w->position = position;
 	w->repaint((xtk_widget_t *) w);
@@ -240,7 +246,7 @@ destroy_seek_bar(xtk_widget_t *xw)
 }
 
 
-extern tcseek_bar_t*
+extern xtk_widget_t*
 create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 		int ep_x, int ep_y, image_info_t *background,
 		image_info_t *indicator, image_info_t *over_image,
@@ -307,5 +313,5 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 
     list_push(window->widgets, sb);
 
-    return sb;
+    return (xtk_widget_t *) sb;
 }

@@ -94,8 +94,9 @@ alpha_render_text(unsigned char *src, unsigned char *dest, int width,
 
 
 extern int
-change_label(tclabel_t *txt, char *text)
+change_label(xtk_widget_t *xtxt, char *text)
 {
+    tclabel_t *txt = (tclabel_t *) xtxt;
     if(txt->window->enabled == 1) {
 	GC bgc = txt->window->bgc;
 	free(txt->text);
@@ -373,7 +374,7 @@ destroy_label(xtk_widget_t *xw)
 }
 
 
-extern tclabel_t*
+extern xtk_widget_t*
 create_label(window_t *window, int x, int y, int width, int height,
 	     int xoff, int yoff, image_info_t *bg, char *text, char *font,
 	     char *color, short alpha, int scroll, int align,
@@ -438,7 +439,7 @@ create_label(window_t *window, int x, int y, int width, int height,
 			     0, CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
 
-    change_label(txt, text);
+    change_label((xtk_widget_t *) txt, text);
 
     emask = ExposureMask;
     list_push(widget_list, txt);
@@ -461,5 +462,5 @@ create_label(window_t *window, int x, int y, int width, int height,
 
     list_push(window->widgets, txt);
 
-    return txt;
+    return (xtk_widget_t *) txt;
 }

@@ -850,7 +850,6 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 
     while(cfi){
 	avi_packet_t *pk = NULL;
-	uint32_t mask = 0;
 	int s;
 
 	if(!(pk = (avi_packet_t *) avi_packet(ms, -2)))
@@ -858,10 +857,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 
 	s = pk->pk.stream;
 
-/* 	if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO) */
-/* 	    mask = AVI_FLAG_KEYFRAME; */
-
-	if(time <= pk->pk.pts /* && (pk->flags & mask) == mask */){
+	if(time <= pk->pk.pts){
 	    if(!fi[s]){
 		fi[s] = 1;
 		cfi--;
@@ -963,7 +959,7 @@ avi_free(void *p)
 }
 
 extern muxed_stream_t *
-avi_open(char *file, conf_section *cs)
+avi_open(char *file, conf_section *cs, tcvp_timer_t **tm)
 {
     url_t *f;
     muxed_stream_t *ms;
