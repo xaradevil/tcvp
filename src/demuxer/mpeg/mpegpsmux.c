@@ -47,9 +47,11 @@ typedef struct mpegps_mux {
 	uint64_t dts;
 	stream_t *str;
 	int ac3id;
+	uint64_t last_pts;
     } *streams;
     int psm, syshdr;
     int vid, aid, ac3id;
+    int pts_interval;
 } mpegps_mux_t;
 
 static int
@@ -217,15 +219,18 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 	else
 	    dts = pk->pts;
 
+	if(dts - os->last_pts > psm->pts_interval){
+	    if(pk->flags & TCVP_PKT_FLAG_PTS)
+		pesflags |= PES_FLAG_PTS;
+	    if(pk->flags & TCVP_PKT_FLAG_DTS)
+		pesflags |= PES_FLAG_DTS;
+	    os->last_pts = dts;
+	}
+
 	os->dts = dts;
     } else {
 	dts = os->dts;
     }
-
-    if(pk->flags & TCVP_PKT_FLAG_PTS)
-	pesflags |= PES_FLAG_PTS;
-    if(pk->flags & TCVP_PKT_FLAG_DTS)
-	pesflags |= PES_FLAG_DTS;
 
     while(size > 0){
 	int hl, psize, pl;
@@ -291,6 +296,7 @@ pmx_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     psm->streams[s->common.index].str = s;
     psm->streams[s->common.index].stream_type = str_type->mpeg_stream_type;
+    psm->streams[s->common.index].last_pts = -1;
 
     if(s->stream_type == STREAM_TYPE_VIDEO){
 	psm->streams[s->common.index].stream_id = psm->vid++;
@@ -358,7 +364,13 @@ mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     psm->aid = 0xc0;
     psm->ac3id = 0x80;
     psm->pessize = tcvp_demux_mpeg_conf_pes_size;
+    psm->pts_interval = tcvp_demux_mpeg_conf_pts_interval;
+
     tcconf_getvalue(cs, "pes_size", "%i", &psm->pessize);
+    tcconf_getvalue(cs, "pts_interval", "%i", &psm->pts_interval);
+
+    psm->pts_interval *= 27000;
+
     if(!psm->pessize || psm->pessize > 0xfff2){
 	tc2_print("MPEGPS", TC2_PRINT_WARNING,
 		  "invalid pes_size %i, using default\n", psm->pessize);
