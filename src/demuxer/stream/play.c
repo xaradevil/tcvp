@@ -62,7 +62,7 @@ typedef struct stream_play {
 	tcvp_pipe_t *pipe, *end;
 	tclist_t *packets;
 	uint64_t starttime;
-	int probe;
+	int probe, nprobe;
 	pthread_t th;
 	struct stream_play *sp;
     } *streams;
@@ -529,7 +529,8 @@ read_stream(void *p)
 		sp->ms->streams[ps].common.index = pk->stream;
 		str->probe = str->pipe->probe(str->pipe, pk,
 					      sp->ms->streams + ps);
-		if(str->probe == PROBE_FAIL){
+		if(str->probe == PROBE_FAIL ||
+		   str->nprobe++ > tcvp_demux_stream_conf_max_probe){
 		    tc2_print("STREAM", TC2_PRINT_DEBUG,
 			      "stream %i failed probe\n", pk->stream);
 		    sp->fail++;
