@@ -290,19 +290,27 @@ mp3_getparams(muxed_stream_t *ms)
     mp3_frame_t fr;
     int i;
     off_t pos = f->tell(f);
-    u_char head[mf->header_size];
+    u_char head[MAX_HEADER_SIZE];
 
-    if(f->read(head, 1, mf->header_size, f) < mf->header_size)
+    if(f->read(head, 1, MAX_HEADER_SIZE, f) < mf->header_size)
 	return -1;
 
     for(i = 0; i < MAX_FRAME_SIZE; i++){
 	if(!all_headers(mf, head, &fr)){
-	    f->seek(f, pos + i, SEEK_SET);
-	    break;
+	    off_t pos2 = f->tell(f);
+	    u_char head2[MAX_HEADER_SIZE];
+	    f->seek(f, pos + i + fr.size, SEEK_SET);
+	    f->read(head2, 1, mf->header_size, f);
+	    if(!mf->parse_header(head2, &fr)){
+		f->seek(f, pos + i, SEEK_SET);
+		break;
+	    }
+	    f->seek(f, pos2, SEEK_SET);
+	    mf->parse_header = NULL;
 	}
 
-	memmove(head, head + 1, mf->header_size - 1);
-	if(f->read(head + mf->header_size - 1, 1, 1, f) != 1)
+	memmove(head, head + 1, MAX_HEADER_SIZE - 1);
+	if(f->read(head + MAX_HEADER_SIZE - 1, 1, 1, f) != 1)
 	    return -1;
     }
 
@@ -550,6 +558,8 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 	f->seek(f, 44, SEEK_SET);
     }
 
+    tc2_print("MP3", TC2_PRINT_DEBUG, "data start %x\n", f->tell(f));
+
     mf->header_size = MAX_HEADER_SIZE;
 
     if(mp3_getparams(ms)){
@@ -563,6 +573,8 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     mf->start = f->tell(f);
     mf->size -= mf->start;
+
+    tc2_print(mf->tag, TC2_PRINT_DEBUG, "data start %x\n", f->tell(f));
 
     xing_header(ms);
 
