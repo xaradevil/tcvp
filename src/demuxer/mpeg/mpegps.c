@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -482,7 +482,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->dvd_funcs = tcattr_get(u, "dvd");
     if(s->dvd_funcs){
 	char *qname, *qn;
-	tcconf_getvalue(cs, "qname", "%s", &qname);
+	qname = tcvp_event_get_qname(cs);
 	qn = alloca(strlen(qname) + 10);
 	s->qr = eventq_new(tcref);
 	sprintf(qn, "%s/control", qname);

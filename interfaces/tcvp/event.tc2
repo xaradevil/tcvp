@@ -6,6 +6,7 @@ symbol "delete"		int (*%s)(char *name)
 symbol "alloc"		void *(*%s)(int type, int size, tcfree_fn)
 symbol "serialize"	u_char *(*%s)(void *event, int *size)
 symbol "deserialize"	void *(*%s)(u_char *event, int size)
+symbol "get_qname"	char *(*%s)(tcconf_section_t *cf)
 require "Eventq"
 require "tcvp/core"
 include

@@ -14,4 +14,5 @@ implement	"tcvp/event"	"delete"	del_event
 implement	"tcvp/event"	"alloc"		alloc_event
 implement	"tcvp/event"	"serialize"	serialize_event
 implement	"tcvp/event"	"deserialize"	deserialize_event
+implement	"tcvp/event"	"get_qname"	get_qname
 import		"Eventq"	"send"

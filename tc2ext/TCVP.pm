@@ -1,4 +1,4 @@
-# Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+# Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -74,6 +74,7 @@ sub tc2module {
 	TC2::tc2_import('Eventq', 'delete');
 	TC2::tc2_import('tcvp/event', 'get');
 	TC2::tc2_import('tcvp/event', 'send');
+	TC2::tc2_import('tcvp/event', 'get_qname');
     } elsif (not $module and /event\s+(\w+)(?:\s+(\w+)\s+(\w+)\s+(\w+))?/) {
 	$events{$1} = { alloc => $2,
 			ser => $3,
@@ -249,7 +250,7 @@ END_C
 	    if ($$_{events}) {
 		print $fh <<END_C;
     char *qname, *qn;
-    tcconf_getvalue(p->conf, "qname", "%s", &qname);
+    qname = tcvp_event_get_qname(p->conf);
     qn = malloc(strlen(qname) + 10);
     p->qr = eventq_new(tcref);
 END_C

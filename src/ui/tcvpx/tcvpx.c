@@ -53,7 +53,7 @@ tcvpx_init(tcvp_module_t *tm)
        tcconf_getvalue(tx->conf, "force_ui", ""))
 	return -1;
 
-    tcconf_getvalue(tx->conf, "qname", "%s", &qname);
+    qname = tcvp_event_get_qname(tx->conf);
     tcconf_getvalue(tx->conf, "skin", "%s", &skinfile);
 
     qs = eventq_new(NULL);

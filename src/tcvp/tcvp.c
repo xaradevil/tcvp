@@ -527,8 +527,6 @@ te_query(tcvp_module_t *tm, tcvp_event_t *e)
     return 0;
 }
 
-static u_int plc;
-
 extern int
 t_init(tcvp_module_t *tm)
 {
@@ -538,7 +536,7 @@ t_init(tcvp_module_t *tm)
     if(!tcconf_getvalue(tp->conf, "features/core", ""))
 	return -1;
 
-    tcconf_getvalue(tp->conf, "qname", "%s", &qname);
+    qname = tcvp_event_get_qname(tp->conf);
     sprintf(qn, "%s/status", qname);
     eventq_attach(tp->qs, qn, EVENTQ_SEND);
 
@@ -546,6 +544,7 @@ t_init(tcvp_module_t *tm)
     eventq_attach(tp->qt, qn, EVENTQ_SEND);
 
     tcconf_setvalue(tp->conf, "features/core", "");
+    tcconf_setvalue(tp->conf, "features/local/core", "");
 
     free(qname);
     return 0;
@@ -555,16 +554,9 @@ extern int
 t_new(tcvp_module_t *tm, tcconf_section_t *cs)
 {
     tcvp_player_t *tp;
-    char *qname;
 
     tp = tcallocdz(sizeof(*tp), NULL, t_free);
     tp->state = TCVP_STATE_END;
-
-    if(tcconf_getvalue(cs, "qname", "%s", &qname) < 1){
-	qname = malloc(16);
-	sprintf(qname, "TCVP-%u", plc++);
-	tcconf_setvalue(cs, "qname", "%s", qname);
-    }
 
     tp->qs = eventq_new(NULL);
     tp->qt = eventq_new(NULL);
@@ -575,6 +567,5 @@ t_new(tcvp_module_t *tm, tcconf_section_t *cs)
     tp->conf = tcref(cs);
     tm->private = tp;
 
-    free(qname);
     return 0;
 }

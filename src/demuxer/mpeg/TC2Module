@@ -9,6 +9,7 @@ implement	"mux/mpeg-ts"	"new"		mpegts_new
 implement	"mux/mpeg-ps"	"new"		mpegps_new
 import		"tcvp/event"	"get"
 import		"tcvp/event"	"send"
+import		"tcvp/event"	"get_qname"
 import		"Eventq"	"new"
 import		"Eventq"	"attach"
 import		"Eventq"	"recv"

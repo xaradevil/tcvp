@@ -403,7 +403,7 @@ pl_init(tcvp_module_t *m)
     if(!tcconf_getvalue(tpl->conf, "features/playlist", ""))
 	return -1;
 
-    tcconf_getvalue(tpl->conf, "qname", "%s", &qname);
+    qname = tcvp_event_get_qname(tpl->conf);
     qn = alloca(strlen(qname) + 9);
 
     tpl->ss = eventq_new(NULL);
@@ -416,6 +416,7 @@ pl_init(tcvp_module_t *m)
     eventq_attach(tpl->ss, qn, EVENTQ_SEND);
 
     tcconf_setvalue(tpl->conf, "features/playlist", "");
+    tcconf_setvalue(tpl->conf, "features/local/playlist", "");
 
     free(qname);
     return 0;

@@ -183,7 +183,7 @@ read_event(tcvp_remote_t *rm, tcvp_remote_client_t *cl)
 	p += r;
     }
 
-/*     fprintf(stderr, "REMOTE: received %s\n", buf); */
+    tc2_print("REMOTE", TC2_PRINT_DEBUG, "received %s\n", buf);
 
     te = tcvp_event_deserialize(buf, size);
     if(te){
@@ -345,7 +345,7 @@ rm_start(tcvp_module_t *ad)
     tcvp_remote_t *rm = ad->private;
     char *qname, *qn;
 
-    tcconf_getvalue(rm->conf, "qname", "%s", &qname);
+    qname = tcvp_event_get_qname(rm->conf);
     qn = alloca(strlen(qname) + 9);
 
     rm->qr = eventq_new(tcref);
@@ -373,8 +373,6 @@ rm_start(tcvp_module_t *ad)
     pthread_create(&rm->lth, NULL, rm_listen, rm);
     return 0;
 }
-
-static int qnum;
 
 extern tcvp_module_t *
 rm_new(tcconf_section_t *cs)
@@ -408,8 +406,6 @@ rm_new(tcconf_section_t *cs)
 	if(read(sock, buf, 4) != 4 || memcmp(buf, "auth", 4))
 	    return NULL;
 
-	sprintf(buf, "TCVP/remote-%i", qnum++);
-	tcconf_setvalue(cs, "qname", "%s", buf);
 	FD_SET(sock, &rm->clf);
 	cl = calloc(1, sizeof(*cl));
 	cl->socket = sock;

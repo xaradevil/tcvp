@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -42,6 +42,21 @@ static tchash_table_t *event_types;
 static tcvp_event_type_t **event_tab;
 
 static int event_num;
+static int qnum;
+
+extern char *
+get_qname(tcconf_section_t *cf)
+{
+    char *qname;
+
+    if(tcconf_getvalue(cf, "qname", "%s", &qname) < 1){
+	qname = malloc(16);
+	snprintf(qname, 16, "TCVP-%i", qnum++);
+	tcconf_setvalue(cf, "qname", "%s", qname);
+    }
+
+    return qname;
+}
 
 static void *
 evt_alloc(int type, va_list args)

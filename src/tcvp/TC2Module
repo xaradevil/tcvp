@@ -11,6 +11,7 @@ import		"timer"		"new"
 import		"driver/timer"	"new"
 import		"tcvp/event"	"alloc"
 import		"tcvp/event"	"new"
+import		"tcvp/event"	"get_qname"
 require		"filter"
 
 TCVP {
