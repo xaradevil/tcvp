@@ -99,6 +99,7 @@ x11_event(void *p)
 	    xwm->update(xwm->cbd, WM_MOVE, x, y, w, h);
 	    break;
 	}
+	case Expose:
 	case MapNotify: {
 	    xwm->update(xwm->cbd, WM_SHOW, 0, 0, 0, 0);
 	    break;
@@ -297,8 +298,9 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     wm->private = xwm;
 
     XSelectInput(xwm->dpy, xwm->win,
-		 StructureNotifyMask | KeyPressMask |
+		 StructureNotifyMask | KeyPressMask | ExposureMask |
 		 ButtonPressMask | PointerMotionMask);
+    XSelectInput(xwm->dpy, xwm->swin, ExposureMask);
     XMapWindow(xwm->dpy, xwm->win);
     XMapSubwindows(xwm->dpy, xwm->win);
 
