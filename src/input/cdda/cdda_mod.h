@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -32,7 +32,6 @@ typedef struct {
     int header_length;
     int64_t pos;
     int64_t data_length;
-    int track;
     int first_sector;
     int last_sector;
     int current_sector;
@@ -40,6 +39,7 @@ typedef struct {
     int bufsize;
     int buffer_pos;
     int prn_stats[13];
+    char track[4];
 } cd_data_t;
 
 extern int cdda_freedb(url_t *u, cd_data_t *, int track);

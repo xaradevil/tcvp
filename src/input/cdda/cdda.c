@@ -234,7 +234,6 @@ track_open(char *url, char *mode)
 
     cdt = calloc(sizeof(cd_data_t), 1);
 
-    cdt->track = track;
     cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
     if(!cdt->drive){
 	free(cdt);
@@ -248,8 +247,8 @@ track_open(char *url, char *mode)
 	return NULL;
     }
 
-    if(cdt->track > cdda_tracks(cdt->drive) || 
-       cdda_track_audiop(cdt->drive, cdt->track) == 0) {
+    if(track > cdda_tracks(cdt->drive) || 
+       !cdda_track_audiop(cdt->drive, track)) {
 	free(cdt);
 	return NULL;
     }
@@ -258,8 +257,8 @@ track_open(char *url, char *mode)
     cdt->buffer = malloc(cdt->bufsize);
     cdt->buffer_pos = cdt->bufsize;
 
-    cdt->first_sector = cdda_track_firstsector(cdt->drive, cdt->track);
-    cdt->last_sector = cdda_track_lastsector(cdt->drive, cdt->track);
+    cdt->first_sector = cdda_track_firstsector(cdt->drive, track);
+    cdt->last_sector = cdda_track_lastsector(cdt->drive, track);
     cdt->current_sector = cdt->first_sector;
 
     if(paranoia){
@@ -298,6 +297,9 @@ track_open(char *url, char *mode)
 
     if(tcvp_input_cdda_conf_cddb)
 	cdda_freedb(vu, cdt, track);
+
+    snprintf(cdt->track, sizeof(cdt->track), "%i", track);
+    tcattr_set(vu, "track", cdt->track, NULL, NULL);
 
     return vu;
 }
