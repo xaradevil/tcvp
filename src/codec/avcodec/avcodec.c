@@ -295,7 +295,7 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     if(vc->have_params){
 	if(!s->video.frame_rate)
 	    s->video.frame_rate =
-		(double) vc->ctx->frame_rate / FRAME_RATE_BASE;
+		(double) vc->ctx->frame_rate / vc->ctx->frame_rate_base;
 	s->video.width = vc->ctx->width;
 	s->video.height = vc->ctx->height;
 	s->video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
@@ -352,7 +352,7 @@ avc_new(stream_t *s, int mode)
     case STREAM_TYPE_VIDEO:
 	avctx->width = s->video.width;
 	avctx->height = s->video.height;
-	avctx->frame_rate = s->video.frame_rate * FRAME_RATE_BASE;
+	avctx->frame_rate = s->video.frame_rate * DEFAULT_FRAME_RATE_BASE;
 	avctx->workaround_bugs = 0x3ff;
 	avctx->error_resilience = FF_ER_AGGRESSIVE;
 	avctx->error_concealment = 3;
