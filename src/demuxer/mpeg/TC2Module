@@ -19,3 +19,4 @@ import		"URL"		"getc"
 require		"URL/dvd"
 option		ts_delay_factor%f=2
 option		ts_rate_factor%f=2
+option		pes_size%i=0xfff2

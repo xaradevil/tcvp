@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -38,6 +38,7 @@
 typedef struct mpegps_mux {
     url_t *out;
     int bitrate;
+    int pessize;
     pthread_mutex_t lock;
     pthread_cond_t cnd;
     int nvideo, naudio;
@@ -189,6 +190,7 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 {
     mpegps_mux_t *psm = p->private;
     struct mpegps_output_stream *os;
+    int pesflags = 0;
     char *data;
     int size;
     uint64_t dts;
@@ -230,18 +232,18 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 	dts = os->dts;
     }
 
+    if(pk->flags & TCVP_PKT_FLAG_PTS)
+	pesflags |= PES_FLAG_PTS;
+    if(pk->flags & TCVP_PKT_FLAG_DTS)
+	pesflags |= PES_FLAG_DTS;
+
     while(size > 0){
-	int pesflags = 0;
-	int hl, psize = size, pl; /* FIXME: limit packet size */
+	int hl, psize, pl;
 	u_char hdr[1024];
 
-	pthread_mutex_lock(&psm->lock);
+	psize = min(size, psm->pessize);
 
-	if(pk->flags & TCVP_PKT_FLAG_PTS){
-	    pesflags |= PES_FLAG_PTS;
-	}
-	if(pk->flags & TCVP_PKT_FLAG_DTS)
-	    pesflags |= PES_FLAG_DTS;
+	pthread_mutex_lock(&psm->lock);
 
 	if(psm->psm){
 	    hl = write_psm(hdr, psm, 1024);
@@ -274,6 +276,7 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 
 	data += psize;
 	size -= psize;
+	pesflags = 0;
 
 	pthread_cond_broadcast(&psm->cnd);
 	pthread_mutex_unlock(&psm->lock);
@@ -373,6 +376,13 @@ mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     psm->vid = 0xe0;
     psm->aid = 0xc0;
     psm->ac3id = 0x80;
+    psm->pessize = tcvp_demux_mpeg_conf_pes_size;
+    tcconf_getvalue(cs, "pes_size", "%i", &psm->pessize);
+    if(!psm->pessize || psm->pessize > 0xfff2){
+	tc2_print("MPEGPS", TC2_PRINT_WARNING,
+		  "invalid pes_size %i, using default\n", psm->pessize);
+	psm->pessize = 0xfff2;
+    }
 
     p = tcallocdz(sizeof(*p), NULL, pmx_free);
     p->format.stream_type = STREAM_TYPE_MULTIPLEX;
