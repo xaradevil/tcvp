@@ -740,7 +740,6 @@ avi_packet(muxed_stream_t *ms, int stream)
 
     if(!(size & ~0x12)){
 	char tag[4];
-	fprintf(stderr, "AVI: [%i] chunk size %i @%08llx\n", str, size, pos);
 	af->file->seek(af->file, 8, SEEK_CUR);
 	if(!get4c(tag, af->file))
 	    return NULL;
