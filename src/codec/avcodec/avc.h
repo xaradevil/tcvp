@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -28,7 +28,22 @@
 #include <ffmpeg/avcodec.h>
 #include <tcvp_types.h>
 
+typedef struct avc_codec {
+    AVCodecContext *ctx;
+
+    /* audio */
+    char *buf;
+
+    /* video */
+    uint64_t pts;
+    uint64_t ptsn, ptsd;
+    AVFrame *frame;
+
+    int have_params;
+} avc_codec_t;
+
 extern enum CodecID avc_codec_id(char *);
 extern char *avc_codec_name(enum CodecID id);
+extern void avc_free_packet(void *);
 
 #endif
