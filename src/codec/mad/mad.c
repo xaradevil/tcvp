@@ -248,7 +248,7 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     d = pk->data[0];
     size = pk->sizes[0];
 
-    while(size > 0){
+    while(size > 0 && !md->flush){
 	int bs = min(size, MAD_BUFFER_SIZE - md->bs);
 	memcpy(md->buf + md->bs, d, bs);
 	md->bs += bs;
@@ -258,6 +258,10 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 	if(md->bs == MAD_BUFFER_SIZE){
 	    if(do_decode(p)){
 		int rs = md->bs - (md->stream.this_frame - md->buf);
+		if(rs == md->bs){
+		    fprintf(stderr, "MAD: nothing decoded\n");
+		    abort();
+		}
 		memmove(md->buf, md->stream.this_frame, rs);
 		md->bs = rs;
 	    } else {
