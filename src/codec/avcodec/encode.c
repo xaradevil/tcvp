@@ -93,7 +93,6 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     avc_encvid_t *enc = p->private;
     AVCodecContext *ctx = enc->ctx;
 
-    p->format = *s;
     p->format.common.codec = enc->codec;
     p->format.common.bit_rate = ctx->bit_rate;
 
