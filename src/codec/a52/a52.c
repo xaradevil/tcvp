@@ -155,6 +155,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
     int psize = pk->sizes[0];
     char *pdata = pk->data[0];
     int i;
+    int ret = 0;
 
     if(ad->in){
 	packet_t *in = ad->in;
@@ -168,7 +169,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 	    if(fs > psize){
 		memcpy(ad->buf + ad->fpos, pdata, psize);
 		ad->fpos += psize;
-		return 0;
+		break;
 	    } else {
 		memcpy(ad->buf + ad->fpos, pdata, fs);
 		psize -= fs;
@@ -183,8 +184,10 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 		    break;
 	    }
 
-	    if(!size)
-		return -1;
+	    if(!size){
+		ret = -1;
+		break;
+	    }
 
 	    psize -= od;
 	    pdata += od;
@@ -220,7 +223,7 @@ a52_decode(tcvp_pipe_t *p, packet_t *pk)
 
     pk->free(pk);
 
-    return 0;
+    return ret;
 }
 
 static int
