@@ -316,7 +316,7 @@ create_skinned_label(window_t *win, skin_t *skin, tcconf_section_t *sec,
 {
     int x, y;
     int width, height;
-    int xoff, yoff;
+    int xoff = 0, yoff = 0;
     char *font;
     char *color, *align_s;
     int alpha;
@@ -330,7 +330,7 @@ create_skinned_label(window_t *win, skin_t *skin, tcconf_section_t *sec,
     i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
 
     i += tcconf_getvalue(sec, "text", "%s", &text);
-    i += tcconf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
+/*     i += tcconf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff); */
     i += tcconf_getvalue(sec, "font", "%s", &font);
     if((j = tcconf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
 	alpha = 0xff;
@@ -356,7 +356,7 @@ create_skinned_label(window_t *win, skin_t *skin, tcconf_section_t *sec,
     }
     free(align_s);
 
-    if(i != 12){
+    if(i != 10){
 	return NULL;
     }
 
