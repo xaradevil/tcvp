@@ -28,10 +28,9 @@
 typedef struct mpeg_dec {
     mpeg2dec_t *mpeg2;
     const mpeg2_info_t *info;
-    uint64_t pts, npts;
-    int ptsc;
-    int pc;
-    int pts_delay;
+    uint64_t pts;
+    uint64_t rpts[16];
+    int ptsc, flush;
 } mpeg_dec_t;
 
 typedef struct mpeg_packet {
@@ -54,15 +53,26 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
     if(!mpd->info)
 	mpd->info = mpeg2_info(mpd->mpeg2);
 
-    if((pk->flags & TCVP_PKT_FLAG_PTS) && !mpd->ptsc){
-	mpd->npts = pk->pts;
-	mpd->ptsc = mpd->info->sequence->flags & SEQ_FLAG_LOW_DELAY? 1:
-	    mpd->pts_delay;
+    if((pk->flags & TCVP_PKT_FLAG_PTS)){
+	mpd->rpts[mpd->ptsc] = pk->pts;
+	mpeg2_pts(mpd->mpeg2, mpd->ptsc);
+	if(++mpd->ptsc == 16)
+	    mpd->ptsc = 0;
     }
 
     do {
 	state = mpeg2_parse(mpd->mpeg2);
 	if(state == STATE_SLICE || state == STATE_END){
+	    if(mpd->info->display_picture){
+		if(mpd->flush){
+		    if((mpd->info->display_picture->flags &
+			PIC_MASK_CODING_TYPE) != PIC_FLAG_CODING_TYPE_I)
+			continue;
+		    else
+			mpd->flush = 0;
+		}
+	    }
+
 	    if(mpd->info->display_fbuf){
 		mpeg_packet_t *pic = tcalloc(sizeof(*pic));
 		pic->pk.stream = pk->stream;
@@ -73,23 +83,15 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		pic->sizes[1] = pic->sizes[0]/2;
 		pic->sizes[2] = pic->sizes[0]/2;
 
-		if(mpd->ptsc > 0 && --mpd->ptsc == 0)
-		    mpd->pts = mpd->npts;
+		if(mpd->info->display_picture->flags & PIC_FLAG_PTS){
+		    mpd->pts = mpd->rpts[mpd->info->display_picture->pts];
+		}
 
 		pic->pk.flags = TCVP_PKT_FLAG_PTS;
 		pic->pk.pts = mpd->pts;
 		mpd->pts += mpd->info->sequence->frame_period;
 		pic->pk.private = pic;
 		p->next->input(p->next, &pic->pk);
-	    }
-	    if(mpd->info->current_picture){
-		if((mpd->info->current_picture->flags&PIC_MASK_CODING_TYPE) ==
-		   PIC_FLAG_CODING_TYPE_B){
-		    mpd->pc++;
-		} else if(mpd->pc){
-		    mpd->pts_delay = mpd->pc + 1;
-		    mpd->pc = 0;
-		}
 	    }
 	}
     } while(state != STATE_BUFFER);
@@ -140,6 +142,14 @@ mpeg_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 static int
 mpeg_flush(tcvp_pipe_t *p, int drop)
 {
+    mpeg_dec_t *mpd = p->private;
+
+    if(drop){
+	mpd->flush = 1;
+	mpd->pts = 0;
+	memset(mpd->rpts, 0, sizeof(mpd->rpts));
+    }
+
     return p->next->flush(p->next, drop);
 }
 
@@ -161,7 +171,6 @@ mpeg_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t **t)
 
     mpd = calloc(1, sizeof(*mpd));
     mpd->mpeg2 = mpeg2_init();
-    mpd->pts_delay = 1;
 
     p = tcallocdz(sizeof(*p), NULL, mpeg_free);
     p->format = *s;
