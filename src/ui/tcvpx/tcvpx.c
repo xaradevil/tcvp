@@ -298,7 +298,10 @@ tcvp_event(void *p)
 
 	case TCVP_LOAD:{
 	    char *title = strrchr(te->load.stream->file, '/')+1;
+	    char *ext = strrchr(te->load.stream->file, '.');
+	    if(title != NULL) *ext = 0;
 	    if(title == NULL) title = te->load.stream->file;
+	    
 	    change_label(skin->title, title);
 	    break;
 	}
