@@ -121,6 +121,7 @@ mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp2"   },
     { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp3"   },
     { 0x04, 0xc0, STREAM_TYPE_AUDIO, "audio/mpeg"  },
+    { 0x0f, 0xc0, STREAM_TYPE_AUDIO, "audio/aac"   },
     { 0x10, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg4" },
     { 0x1a, 0xe0, STREAM_TYPE_VIDEO, "video/h264"  },
     { 0x81, 0xbd, STREAM_TYPE_AUDIO, "audio/ac3"   }

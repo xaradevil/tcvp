@@ -33,6 +33,7 @@ static char *suffix_map[][3] = {
     { ".mov", "video/quicktime", "mux/quicktime" },
     { ".mpg", "video/mpeg", "mux/mpeg-ps" },
     { ".mpeg", "video/mpeg", "mux/mpeg-ps" },
+    { ".aac", "audio/x-aac", "mux/aac" },
     { NULL, NULL, NULL }
 };
 
