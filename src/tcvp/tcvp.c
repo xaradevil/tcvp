@@ -23,7 +23,6 @@
 #include <tcalloc.h>
 #include <tchash.h>
 #include <tcvp_types.h>
-#include <tcvp_event.h>
 #include <tcvp_core_tc2.h>
 
 typedef struct tcvp_player {
@@ -39,6 +38,26 @@ typedef struct tcvp_player {
     int open;
     hash_table *filters;
 } tcvp_player_t;
+
+typedef union tcvp_core_event {
+    int type;
+    tcvp_key_event_t key;
+    tcvp_open_event_t open;
+    tcvp_seek_event_t seek;
+    tcvp_timer_event_t timer;
+    tcvp_state_event_t state;
+    tcvp_load_event_t load;
+} tcvp_core_event_t;
+
+static int TCVP_OPEN;
+static int TCVP_START;
+static int TCVP_STOP;
+static int TCVP_PAUSE;
+static int TCVP_SEEK;
+static int TCVP_CLOSE;
+static int TCVP_STATE;
+static int TCVP_TIMER;
+static int TCVP_LOAD;
 
 static int
 t_start(player_t *pl)
@@ -58,9 +77,7 @@ t_start(player_t *pl)
 	tp->timer->start(tp->timer);
 
     tp->state = TCVP_STATE_PLAYING;
-    tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_PLAYING);
-    eventq_send(tp->qs, te);
-    tcfree(te);
+    send_event(tp->qs, TCVP_STATE, TCVP_STATE_PLAYING);
 
     return 0;
 }
@@ -83,9 +100,7 @@ t_stop(player_t *pl)
 	tp->vend->stop(tp->vend);
 
     tp->state = TCVP_STATE_STOPPED;
-    tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE, TCVP_STATE_STOPPED);
-    eventq_send(tp->qs, te);
-    tcfree(te);
+    send_event(tp->qs, TCVP_STATE, TCVP_STATE_STOPPED);
 
     return 0;
 }
@@ -155,11 +170,8 @@ static void
 t_free(player_t *pl)
 {
     tcvp_player_t *tp = pl->private;
-    tcvp_event_t *te;
 
-    te = tcvp_alloc_event(-1);
-    eventq_send(tp->qr, te);
-    tcfree(te);
+    send_event(tp->qr, -1);
     pthread_join(tp->th_event, NULL);
 
     t_close(pl);
@@ -232,9 +244,7 @@ st_ticker(void *p)
     pthread_mutex_lock(&tp->tmx);
     while(tp->state != TCVP_STATE_END){
 	time = tp->timer->read(tp->timer);
-	tcvp_timer_event_t *te = tcvp_alloc_event(TCVP_TIMER, time);
-	eventq_send(tp->qt, te);
-	tcfree(te);
+	send_event(tp->qt, TCVP_TIMER, time);
 	tp->timer->wait(tp->timer, time + 27000000, &tp->tmx);
     }
     pthread_mutex_unlock(&tp->tmx);
@@ -354,7 +364,6 @@ t_open(player_t *pl, char *name)
     tcvp_pipe_t *video = NULL, *audio = NULL;
     muxed_stream_t *stream = NULL;
     tcvp_player_t *tp = pl->private;
-    tcvp_load_event_t *te;
     int ac = -1, vc = -1;
     int start;
     char *profile = strdup(tcvp_conf_default_profile), prname[256];
@@ -520,9 +529,7 @@ t_open(player_t *pl, char *name)
 
     free(codecs);
 
-    te = tcvp_alloc_event(TCVP_LOAD, stream);
-    eventq_send(tp->qs, te);
-    tcfree(te);
+    send_event(tp->qs, TCVP_LOAD, stream);
 
     return 0;
 
@@ -542,43 +549,26 @@ t_event(void *p)
     int r = 1;
 
     while(r){
-	tcvp_event_t *te = eventq_recv(tp->qr);
-	switch(te->type){
-	case TCVP_OPEN:
-	    if(t_open(pl, te->open.file) < 0){
-		tcvp_state_event_t *te = tcvp_alloc_event(TCVP_STATE,
-							  TCVP_STATE_ERROR);
-		eventq_send(tp->qs, te);
-		tcfree(te);
-	    }		
-	    break;
+	tcvp_core_event_t *te = eventq_recv(tp->qr);
 
-	case TCVP_START:
+	if(te->type == TCVP_OPEN){
+	    if(t_open(pl, te->open.file) < 0)
+		send_event(tp->qs, TCVP_STATE, TCVP_STATE_ERROR);
+	} else if(te->type == TCVP_START){
 	    t_start(pl);
-	    break;
-
-	case TCVP_STOP:
+	} else if(te->type == TCVP_STOP){
 	    t_stop(pl);
-	    break;
-
-	case TCVP_PAUSE:
+	} else if(te->type == TCVP_PAUSE){
 	    if(tp->state == TCVP_STATE_PLAYING)
 		t_stop(pl);
 	    else if(tp->state == TCVP_STATE_STOPPED)
 		t_start(pl);
-	    break;
-
-	case TCVP_SEEK:
+	} else if(te->type == TCVP_SEEK){
 	    t_seek(pl, te->seek.time, te->seek.how);
-	    break;
-
-	case TCVP_CLOSE:
+	} else if(te->type == TCVP_CLOSE){
 	    t_close(pl);
-	    break;
-
-	case -1:
+	} else if(te->type == -1){
 	    r = 0;
-	    break;
 	}
 	tcfree(te);
     }
@@ -589,9 +579,7 @@ static int
 q_cmd(player_t *pl, int cmd)
 {
     tcvp_player_t *tp = pl->private;
-    tcvp_event_t *te = tcvp_alloc_event(cmd);
-    eventq_send(tp->qr, te);
-    tcfree(te);
+    send_event(tp->qr, cmd);
     return 0;
 }
 
@@ -617,9 +605,7 @@ static int
 q_seek(player_t *pl, uint64_t pts)
 {
     tcvp_player_t *tp = pl->private;
-    tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, pts, TCVP_SEEK_ABS);
-    eventq_send(tp->qr, se);
-    tcfree(se);
+    send_event(tp->qr, TCVP_SEEK, pts, TCVP_SEEK_ABS);
     return 0;
 }
 
@@ -664,4 +650,20 @@ t_new(tcconf_section_t *cs)
     tp->conf = cs;
 
     return pl;
+}
+
+extern int
+init_core(void)
+{
+    TCVP_OPEN = get_event("TCVP_OPEN"); 
+    TCVP_START = get_event("TCVP_START");
+    TCVP_STOP = get_event("TCVP_STOP"); 
+    TCVP_PAUSE = get_event("TCVP_PAUSE");
+    TCVP_SEEK = get_event("TCVP_SEEK"); 
+    TCVP_CLOSE = get_event("TCVP_CLOSE");
+    TCVP_STATE = get_event("TCVP_STATE");
+    TCVP_TIMER = get_event("TCVP_TIMER");
+    TCVP_LOAD = get_event("TCVP_LOAD");
+
+    return 0;
 }

@@ -1,6 +1,13 @@
-symbol "new"  player_t *(*%s)(tcconf_section_t *)
+symbol "new"		player_t *(*%s)(tcconf_section_t *)
+symbol "register_event"	int (*%s)(char *name, tcvp_event_alloc_t)
+symbol "send_event"	int (*%s)(eventq_t q, int type, ...)
+symbol "get_event"	int (*%s)(char *name)
+symbol "delete_event"	int (*%s)(char *name)
 include
 #include <stdint.h>
+#include <stdarg.h>
+#include <tcalloc.h>
+#include <tcvp_types.h>
 
 typedef struct player player_t;
 struct player {
@@ -12,3 +19,58 @@ struct player {
     void (*free)(player_t *);
     void *private;
 };
+
+typedef struct tcvp_event {
+    int type;
+} tcvp_event_t;
+
+typedef void *(*tcvp_event_alloc_t)(int type, va_list);
+
+/* the core event types */
+
+typedef struct tcvp_key_event {
+    int type;
+    char *key;
+} tcvp_key_event_t;
+
+typedef struct tcvp_open_event {
+    int type;
+    char *file;
+} tcvp_open_event_t;
+
+typedef struct tcvp_seek_event {
+    int type;
+    int64_t time;
+    int how;
+} tcvp_seek_event_t;
+
+#define TCVP_SEEK_ABS  0
+#define TCVP_SEEK_REL  1
+
+typedef struct tcvp_timer_event {
+    int type;
+    uint64_t time;
+} tcvp_timer_event_t;
+
+typedef struct tcvp_state_event {
+    int type;
+    int state;
+} tcvp_state_event_t;
+
+#define TCVP_STATE_PLAYING 0
+#define TCVP_STATE_END     1
+#define TCVP_STATE_ERROR   2
+#define TCVP_STATE_STOPPED 3
+#define TCVP_STATE_PL_END  4
+
+typedef struct tcvp_load_event {
+    int type;
+    muxed_stream_t *stream;
+} tcvp_load_event_t;
+
+typedef struct tcvp_pl_add_event {
+    int type;
+    char **names;
+    int n;
+    int pos;
+} tcvp_pl_add_event_t;
