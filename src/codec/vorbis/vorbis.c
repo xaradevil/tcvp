@@ -89,7 +89,7 @@ vorbis_decode(tcvp_pipe_t *p, packet_t *pk)
 
     out = malloc(sizeof(*out));
     out->data = (u_char **) &out->private;
-    out->sizes = malloc(sizeof(size_t));
+    out->sizes = malloc(sizeof(*out->sizes));
     out->sizes[0] = total_bytes;
     out->planes = 1;
     out->pts = 0;
