@@ -63,6 +63,7 @@ di_new(stream_t *s, conf_section *cs, timer__t *t)
     tcvp_pipe_t *p;
 
     p = tcallocz(sizeof(*p));
+    p->format = *s;
     p->input = di_input;
     p->probe = di_probe;
     p->flush = di_flush;

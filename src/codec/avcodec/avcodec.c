@@ -308,23 +308,39 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     avc_codec_t *vc = p->private;
     int ret;
 
-    if(do_decvideo(p, pk, 1) < 0)
-	return PROBE_AGAIN;
-
-    if(vc->have_params){
+    if(!pk){
 	p->format = *s;
 	p->format.video.codec = "video/yuv-420";
-	p->format.video.frame_rate.num = vc->ctx->frame_rate;
-	p->format.video.frame_rate.den = vc->ctx->frame_rate_base;
+	ret = p->next->probe(p->next, NULL, &p->format);
+	goto out;
+    }
+
+    if(do_decvideo(p, pk, 1) < 0){
+	avcodec_flush_buffers(vc->ctx);
+	ret = PROBE_AGAIN;
+	goto out;
+    }
+
+    if(vc->have_params){
+	if(!vc->ctx->width){
+	    ret = PROBE_AGAIN;
+	    goto out;
+	}
+	p->format = *s;
+	p->format.video.codec = "video/yuv-420";
 	p->format.video.width = vc->ctx->width;
 	p->format.video.height = vc->ctx->height;
 	p->format.video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
 	if(vc->ctx->frame_rate){
 	    vc->ptsn = (uint64_t) 27000000 * vc->ctx->frame_rate_base;
 	    vc->ptsd = vc->ctx->frame_rate;
+	    p->format.video.frame_rate.num = vc->ctx->frame_rate;
+	    p->format.video.frame_rate.den = vc->ctx->frame_rate_base;
 	} else {
 	    vc->ptsn = 27000000;
 	    vc->ptsd = 25;
+	    p->format.video.frame_rate.num = 25;
+	    p->format.video.frame_rate.den = 1;
 	}
 	ret = p->next->probe(p->next, vc->out, &p->format);
 	vc->out = NULL;
@@ -332,6 +348,9 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	ret = PROBE_AGAIN;
     }
 
+out:
+    if(ret != PROBE_OK)
+	avcodec_flush_buffers(vc->ctx);
     return ret;
 }
 
@@ -392,6 +411,8 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 	ac->buf = malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE);
 
 	p = tcallocdz(sizeof(*p), NULL, avc_free_apipe);
+	p->format = *s;
+	p->format.video.codec = "audio/pcm-s16";
 	p->input = avc_decaudio;
 	p->probe = avc_probe_audio;
 	p->private = ac;
@@ -403,7 +424,7 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 	avctx->frame_rate = s->video.frame_rate.num;
 	avctx->frame_rate_base = s->video.frame_rate.den;
 	avctx->workaround_bugs = 1;
-	avctx->error_resilience = FF_ER_COMPLIANT;
+	avctx->error_resilience = 0; //FF_ER_COMPLIANT;
 	avctx->error_concealment = 3;
 
 	vc = calloc(1, sizeof(*vc));
@@ -415,10 +436,16 @@ avc_new(stream_t *s, conf_section *cs, timer__t **t)
 	vc->frame = avcodec_alloc_frame();
 
 	p = tcallocdz(sizeof(*p), NULL, avc_free_vpipe);
+	p->format = *s;
+	p->format.video.codec = "video/yuv-420";
 	p->input = avc_decvideo;
 	p->probe = avc_probe_video;
 	p->private = vc;
 	break;
+
+    default:
+	fprintf(stderr, "AVCODEC: unknown stream type %i\n", s->stream_type);
+	return NULL;
     }
 
     avctx->extradata = s->common.codec_data;

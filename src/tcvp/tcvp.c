@@ -302,7 +302,7 @@ new_pipe(tcvp_player_t *tp, stream_t *s, conf_section *p)
 	    if(!(fn = tc2_get_symbol(type, "new")))
 		break;
 
-	    if(!(pn = fn(s, tp->conf, &tp->timer)))
+	    if(!(pn = fn(pp? &pp->format: s, tp->conf, &tp->timer)))
 		break;
 
 	    if(id)

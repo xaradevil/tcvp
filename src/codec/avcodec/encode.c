@@ -92,22 +92,23 @@ avc_encvideo_probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 
     p->format = *s;
     p->format.common.codec = enc->codec;
+    p->format.common.bit_rate = 1500000;
 
-    ctx->bit_rate = 800000;
-    ctx->bit_rate_tolerance = 2000000;
-    ctx->me_method = ME_EPZS;
+    ctx->bit_rate = 1500000;
+    ctx->bit_rate_tolerance = 20000;
+    ctx->rc_max_rate = 1500000;
     ctx->frame_rate = s->video.frame_rate.num;
     ctx->frame_rate_base = s->video.frame_rate.den;
     ctx->width = s->video.width;
     ctx->height = s->video.height;
     ctx->qmin = 2;
     ctx->qmax = 31;
-    ctx->max_qdiff = 3;
+    ctx->mb_qmin = 2;
+    ctx->mb_qmax = 31;
+    ctx->max_qdiff = 4;
     ctx->max_b_frames = 0;
     if(s->video.aspect.num)
 	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
-    ctx->mb_qmin = 2;
-    ctx->mb_qmax = 31;
 
     avcodec_open(ctx, enc->avc);
 
@@ -133,12 +134,13 @@ avc_free_encvid(void *p)
 
     free(enc->buf);
     free(enc->frame);
-    avcodec_close(enc->ctx);
+    if(enc->ctx->codec)
+	avcodec_close(enc->ctx);
     free(enc);
 }
 
 static tcvp_pipe_t *
-avc_encvideo_new(char *codec)
+avc_encvideo_new(stream_t *s, char *codec)
 {
     enum CodecID cid;
     AVCodec *avc;
@@ -164,6 +166,8 @@ avc_encvideo_new(char *codec)
     enc->buf = malloc(ENCBUFSIZE);
 
     p = tcallocdz(sizeof(*p), NULL, avc_free_encvid);
+    p->format = *s;
+    p->format.common.codec = codec;
     p->input = avc_encvid;
     p->probe = avc_encvideo_probe;
     p->flush = avc_encvid_flush;
@@ -175,11 +179,11 @@ avc_encvideo_new(char *codec)
 extern tcvp_pipe_t *
 avc_mpeg4_enc_new(stream_t *s, conf_section *cs, timer__t *t)
 {
-    return avc_encvideo_new("video/mpeg4");
+    return avc_encvideo_new(s, "video/mpeg4");
 }
 
 extern tcvp_pipe_t *
 avc_mpeg_enc_new(stream_t *s, conf_section *cs, timer__t *t)
 {
-    return avc_encvideo_new("video/mpeg");
+    return avc_encvideo_new(s, "video/mpeg");
 }
