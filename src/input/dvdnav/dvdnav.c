@@ -529,10 +529,10 @@ dvd_open(char *url, char *mode)
     tcattr_set(u, "dvd", df, NULL, dvd_free_info);
 
   out:
-    if(dvdr)
-	DVDClose(dvdr);
     if(ifo)
 	ifoClose(ifo);
+    if(dvdr)
+	DVDClose(dvdr);
     free(url);
     return u;
 
