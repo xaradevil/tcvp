@@ -222,8 +222,8 @@ serialize_event(void *event, int *size)
 	return NULL;
 
     if(!event_tab[te->type]->serialize){
-	tc2_print("EVENT", TC2_PRINT_WARNING, "no serializer for %s\n",
-		event_tab[te->type]->name);
+	tc2_print("EVENT", TC2_PRINT_DEBUG, "no serializer for %s\n",
+		  event_tab[te->type]->name);
 	return NULL;
     }
 
