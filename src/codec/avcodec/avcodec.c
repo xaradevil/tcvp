@@ -461,6 +461,7 @@ avc_new(stream_t *s, conf_section *cs, tcvp_timer_t **t)
 static const char *codec_names[][2] = {
     { (char *) CODEC_ID_NONE, "" }, 
     { (char *) CODEC_ID_MPEG1VIDEO, "video/mpeg" },
+    { (char *) CODEC_ID_MPEG1VIDEO, "video/mpeg2" },
     { (char *) CODEC_ID_H263, "video/h263" },
     { (char *) CODEC_ID_RV10, "video/rv10" },
     { (char *) CODEC_ID_MP2, "audio/mp2" },

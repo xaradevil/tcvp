@@ -133,7 +133,7 @@ mpeg_open(char *name, conf_section *cs, tcvp_timer_t **t)
 
 mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x01, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg"  },
-    { 0x02, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg"  },
+    { 0x02, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg2" },
     { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mpeg"  },
     { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp2"   },
     { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp3"   },

@@ -33,4 +33,5 @@ implement	"decoder/video/svq3"	"new"	avc_new
 implement	"decoder/video/indeo3"	"new"	avc_new
 
 implement	"encoder/video/mpeg"	"new"	avc_mpeg_enc_new
+implement	"encoder/video/mpeg2"	"new"	avc_mpeg2_enc_new
 implement	"encoder/video/mpeg4"	"new"	avc_mpeg4_enc_new

@@ -5,4 +5,5 @@ tc2version	0.4.0
 sources		mpeg2.c
 postinit	mpeg_init
 implement	"decoder/video/mpeg"	"new"	mpeg_new
+implement	"decoder/video/mpeg2"	"new"	mpeg_new
 option		accel%i=0x80000000
