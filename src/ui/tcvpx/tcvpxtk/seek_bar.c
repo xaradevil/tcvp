@@ -186,7 +186,10 @@ release_sb(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
     if(w->seek_bar.indicator == w->seek_bar.down_img) {
-	w->seek_bar.indicator = w->seek_bar.over_img;
+	if(w->seek_bar.over_img)
+	    w->seek_bar.indicator = w->seek_bar.over_img;
+	else
+	    w->seek_bar.indicator = w->seek_bar.standard_img;
     }
     repaint_seek_bar(xw);
     draw_widget(w);

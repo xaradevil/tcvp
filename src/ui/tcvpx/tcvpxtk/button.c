@@ -83,7 +83,10 @@ release_button(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
     if(w->button.img == w->button.down_img) {
-	w->button.img = w->button.over_img;
+	if(w->button.over_img)
+	    w->button.img = w->button.over_img;
+	else
+	    w->button.img = w->button.bgimg;
     }
     repaint_button(xw);
     draw_widget(w);
