@@ -242,6 +242,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     sprintf(qn, "%s/control", qname);
     xwm->qs = eventq_new(NULL);
     eventq_attach(xwm->qs, qn, EVENTQ_SEND);
+    free(qname);
 
     wm = malloc(sizeof(*wm));
     wm->close = x11_close;
@@ -255,6 +256,9 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 	x11_fullscreen(xwm);
 
     pthread_create(&xwm->eth, NULL, x11_event, xwm);
+
+    if(display)
+	free(display);
 
     return wm;
 }

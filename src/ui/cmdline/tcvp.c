@@ -42,7 +42,6 @@ static conf_section *cf;
 static int validate;
 static player_t *pl;
 static eventq_t qr, qs;
-static char *qname;
 static char *sel_ui;
 static playlist_t *pll;
 static int shuffle;
@@ -163,6 +162,7 @@ tcl_check(void *p)
 extern int
 tcl_init(char *p)
 {
+    char *qname;
     pl = tcvp_new(cf);
     conf_getvalue(cf, "qname", "%s", &qname);
 
@@ -217,6 +217,7 @@ tcl_init(char *p)
 	tc2_request(TC2_UNLOAD_ALL, 0);
     }
 
+    free(qname);
     return 0;
 }
 

@@ -286,6 +286,7 @@ create_skinned_background(window_t *win, skin_t *skin, conf_section *sec,
 {
     char *file;
     int i=0;
+    xtk_widget_t *w;
 
     i += conf_getvalue(sec, "background", "%s", &file);
 
@@ -293,7 +294,9 @@ create_skinned_background(window_t *win, skin_t *skin, conf_section *sec,
 	return NULL;
     }
 
-    return(xtk_create_background(win, load_image(skin->path, file)));
+    w = xtk_create_background(win, load_image(skin->path, file));
+    free(file);
+    return w;
 }
 
 
@@ -340,7 +343,9 @@ create_skinned_box(window_t *win, skin_t *skin, conf_section *sec,
 static int
 destroy_skinned_button(xtk_widget_t *w)
 {
-    free(w->data);
+    widget_data_t *wd = (widget_data_t*)w->data;
+    free(wd->action);
+    free(wd);
     return 0;
 }
 
@@ -373,6 +378,11 @@ create_skinned_button(window_t *win, skin_t *skin, conf_section *sec,
 			   load_image(skin->path, df), lookup_action, wd);
     bt->ondestroy = destroy_skinned_button;
 
+    free(file);
+    free(of);
+    free(df);
+    free(bg);
+
     return bt;
 }
 
@@ -382,6 +392,8 @@ destroy_skinned_label(xtk_widget_t *w)
 {
     widget_data_t *wd = (widget_data_t*)w->data;
     unregister_textwidget(w, wd->value);
+    free(wd->value);
+    free(wd->action);
     free(wd);
     return 0;
 }
@@ -420,7 +432,7 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec,
     i += j;
     if((j = conf_getvalue(sec, "align", "%s", &align_s))<1){
 	j = 1;
-	align_s = "left";
+	align_s = strdup("left");
     }
     i += j;
     if(strcasecmp(align_s, "left") == 0) {
@@ -430,6 +442,7 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec,
     } else {
 	align = TCLABELCENTER;
     }
+    free(align_s);
 
     if(i != 12){
 	return NULL;
@@ -452,6 +465,9 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec,
     register_textwidget(l, text);
     l->ondestroy = destroy_skinned_label;
     free(default_text);
+    free(color);
+    free(font);
+    free(bg);
 
     return l;
 }
@@ -462,6 +478,8 @@ destroy_skinned_seek_bar(xtk_widget_t *w)
 {
     widget_data_t *wd = (widget_data_t*)w->data;
     unregister_varwidget(w, wd->value);
+    free(wd->value);
+    free(wd->action);
     free(wd);
     return 0;
 }
@@ -521,6 +539,11 @@ create_skinned_seek_bar(window_t *win, skin_t *skin, conf_section *sec,
     s->ondestroy = destroy_skinned_seek_bar;
     if(disable) xtk_disable_seek_bar(s);
 
+    free(ind_over);
+    free(ind_down);
+    free(indicator);
+    free(bg);
+
     return s;
 }
 
@@ -530,6 +553,8 @@ destroy_skinned_state(xtk_widget_t *w)
 {
     widget_data_t *wd = (widget_data_t*)w->data;
     unregister_textwidget(w, wd->value);
+    free(wd->value);
+    free(wd->action);
     free(wd);
     return 0;
 }
@@ -546,6 +571,7 @@ create_skinned_state(window_t *win, skin_t *skin, conf_section *sec,
     int i;
     char *img, *st, def_state[512], *bg = NULL;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
+    xtk_widget_t *s = NULL;
 
     i = conf_getvalue(sec, "position", "%d %d", &x, &y);
     i += conf_getvalue(sec, "value", "%s", &wd->value);
@@ -553,14 +579,14 @@ create_skinned_state(window_t *win, skin_t *skin, conf_section *sec,
 	return NULL;
     }
 
-    for(i = conf_nextvalue(sec, "image", &c, "%s %s", &st, &img); c;
-	i = conf_nextvalue(sec, "image", &c, "%s %s", &st, &img)){
+    while(i = conf_nextvalue(sec, "image", &c, "%s %s", &st, &img), c){
 	if(i == 2) {
 	    imgs = realloc(imgs, sizeof(*imgs)*(ns+1));
 	    states = realloc(states, sizeof(*states)*(ns+1));
 	    imgs[ns] = load_image(skin->path, img);
 	    states[ns] = st;
 	    ns++;
+	    free(img);
 	}
     }
 
@@ -571,18 +597,22 @@ create_skinned_state(window_t *win, skin_t *skin, conf_section *sec,
     parse_text(wd->value, def_state);
 
     if(ns > 0) {
-	xtk_widget_t *s;
-
 	s = xtk_create_state(win, x, y, load_image(skin->path, bg),
 			     ns, imgs, states, def_state, lookup_action, wd);
 	register_textwidget((xtk_widget_t *)s, wd->value);
 	s->ondestroy = destroy_skinned_state;
-	free(imgs);
-	free(states);
-	return s;
-    } else {
-	return NULL;
     }
+
+    free(bg);
+    if(imgs)
+	free(imgs);
+    if(states){
+	for(i = 0; i < ns; i++)
+	    free(states[i]);
+	free(states);
+    }
+
+    return s;
 }
     
 
@@ -699,7 +729,10 @@ create_template(window_t *win, skin_t *skin, conf_section *config,
 		    name);						\
 	} else {							\
 	    conf_getvalue(sec, "id", "%s", &id);			\
-	    if(id) hash_replace(skin->id_hash, id, w);			\
+	    if(id){							\
+		hash_replace(skin->id_hash, id, w);			\
+		free(id);						\
+	    }								\
 	    conf_getvalue(sec, "enabled", "%d", &e);			\
 	    if(e != 0) xtk_show_widget(w);				\
 	}								\

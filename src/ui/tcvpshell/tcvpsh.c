@@ -67,7 +67,7 @@ tcvpsh_init(char *p)
     char *qname, *qn;
 
     if(p){
-	qname = p;
+	qname = strdup(p);
     } else {
 	conf_section *cs = conf_new(NULL);
 	pl = tcvp_new(cs);
@@ -78,6 +78,7 @@ tcvpsh_init(char *p)
     qn = alloca(strlen(qname) + 10);
     sprintf(qn, "%s/control", qname);
     eventq_attach(qs, qn, EVENTQ_SEND);
+    free(qname);
 
     play_cmd = malloc(sizeof(command));
     play_cmd->name = strdup("play");

@@ -44,7 +44,7 @@ tcvpx_init(char *p)
     skin_t *skin;
 
     if(p){
-        qname = p;
+        qname = strdup(p);
     } else {
 	conf_section *cs = conf_new(NULL);
 	pl = tcvp_new(cs);
@@ -61,6 +61,7 @@ tcvpx_init(char *p)
     eventq_attach(qr, qn, EVENTQ_RECV);
     sprintf(qn, "%s/timer", qname);
     eventq_attach(qr, qn, EVENTQ_RECV);
+    free(qname);
 
     init_dynamic();
     init_skins();

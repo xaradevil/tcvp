@@ -130,7 +130,7 @@ oss_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
 	conf_getvalue(cs, "audio/device", "%s", &device);
 
     if(!device)
-	device = "/dev/dsp";
+	device = strdup("/dev/dsp");
 
     if((dsp = open(device, O_WRONLY)) < 0){
 	perror(device);
@@ -176,6 +176,8 @@ oss_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     tp->stop = oss_stop;
     tp->flush = oss_flush;
     tp->private = ao;
+
+    free(device);
 
     return tp;
 }

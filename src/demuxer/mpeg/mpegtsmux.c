@@ -597,5 +597,7 @@ mpegts_new(stream_t *s, conf_section *cs, timer__t **t)
     p->flush = tmx_flush;
     p->private = tsm;
 
+    free(url);
+
     return p;
 }

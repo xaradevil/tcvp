@@ -219,8 +219,10 @@ alsa_play(void *p)
 	while((!ao->bbytes || ao->state == PAUSE) && ao->state != STOP)
 	    pthread_cond_wait(&ao->cd, &ao->mx);
 
-	if(ao->state == STOP)
+	if(ao->state == STOP){
+	    pthread_mutex_unlock(&ao->mx);
 	    break;
+	}
 
 	count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->bpf;
 	r = snd_pcm_writei(ao->pcm, ao->tail, count);
@@ -265,7 +267,7 @@ alsa_play(void *p)
 	} else if(r == -EAGAIN){
 	    pthread_mutex_unlock(&ao->mx);
 	    snd_pcm_wait(ao->pcm, 1000);
-	} else if(r < 0){
+	} else {
 	    if((r = snd_pcm_prepare(ao->pcm)) < 0){
 		fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
 		break;
@@ -276,8 +278,6 @@ alsa_play(void *p)
 	    tm_settimer(ao->timer, SYSTEM);
 	}
     }
-
-    pthread_mutex_unlock(&ao->mx);
 
     return NULL;
 }
@@ -344,7 +344,7 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     tcvp_pipe_t *tp;
     alsa_out_t *ao;
     snd_pcm_t *pcm;
-    char *device = tcvp_output_alsa_conf_device;
+    char *device = strdup(tcvp_output_alsa_conf_device);
 
     if(cs)
 	conf_getvalue(cs, "audio/device", "%s", &device);
@@ -375,5 +375,6 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     tp->probe = alsa_probe;
     tp->private = ao;
 
+    free(device);
     return tp;
 }

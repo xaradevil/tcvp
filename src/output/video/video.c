@@ -281,6 +281,7 @@ v_free(void *p)
 
     if(vo->pts)
 	free(vo->pts);
+    tcfree(vo->conf);
     free(vo);
 }
 
@@ -343,7 +344,7 @@ v_open(stream_t *s, conf_section *cs, timer__t **timer)
     vo->state = PAUSE;
     vo->drop = drops[0];
     vo->tmp = timer;
-    vo->conf = cs;
+    vo->conf = tcref(cs);
     pthread_create(&vo->thr, NULL, v_play, vo);
 
     pipe = tcallocdz(sizeof(*pipe), NULL, v_free);

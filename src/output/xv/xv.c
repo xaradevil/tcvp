@@ -226,5 +226,8 @@ xv_open(video_stream_t *vs, conf_section *cs)
     vd->close = xv_close;
     vd->private = xvw;
 
+    if(display)
+	free(display);
+
     return vd;
 }

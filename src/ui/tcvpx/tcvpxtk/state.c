@@ -54,6 +54,7 @@ destroy_state(xtk_widget_t *xw)
     for(i=0; i<w->state.num_states; i++) {
 	image_free(w->state.images[i]);
 	free(w->state.images[i]);
+	free(w->state.states[i]);
     }
 
     if(w->state.background) {
@@ -111,7 +112,7 @@ create_state(window_t *window, int x, int y, image_info_t *bg,
     
     for(i=0; i<num_states; i++) {
 /* 	fprintf(stderr, "%s -> %s\n", states[i], imagefiles[i]); */
-	st->states[i] = states[i];
+	st->states[i] = strdup(states[i]);
 	st->images[i] = images[i];
     }
 

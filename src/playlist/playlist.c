@@ -382,6 +382,8 @@ pl_new(conf_section *cs)
     eventq_attach(tpl->qr, qn, EVENTQ_RECV);
     eventq_attach(tpl->ss, qn, EVENTQ_SEND);
 
+    free(qname);
+
     pl = calloc(1, sizeof(*pl));
     pl->add = pl_add;
     pl->addlist = pl_addlist;

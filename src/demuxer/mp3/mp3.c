@@ -526,6 +526,7 @@ mp3_open(char *name, conf_section *cs)
     mf->qs = eventq_new(tcref);
     sprintf(qn, "%s/status", qname);
     eventq_attach(mf->qs, qn, EVENTQ_SEND);
+    free(qname);
 
     mf->start = f->tell(f);
 

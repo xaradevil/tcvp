@@ -368,6 +368,7 @@ destroy_label(xtk_widget_t *xw)
 
     free(w->label.text);
     free(w->label.font);
+    free(w->label.colorname);
     return 0;
 }
 
@@ -404,7 +405,7 @@ create_label(window_t *window, int x, int y, int width, int height,
     txt->destroy = destroy_label;
     txt->window = window;
     txt->font = strdup(font);
-    txt->colorname = color;
+    txt->colorname = strdup(color);
     txt->color = c;
     txt->alpha = alpha;
     txt->xoff = xoff;
