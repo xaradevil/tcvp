@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -301,6 +301,7 @@ dvd_free_info(void *p)
 {
     dvd_functions_t *df = p;
     free(df->streams);
+    free(df->index);
 }
 
 extern url_t *
@@ -416,6 +417,8 @@ dvd_open(char *url, char *mode)
 	vtsi_mat_t *vtsi = ifo->vtsi_mat;
 	video_attr_t *vattr = &vtsi->vtsm_video_attr;
 	pgc_t *pgc = pgcit->pgci_srp[0].pgc;
+	vts_tmapt_t *tmapt = ifo->vts_tmapt;
+	vts_tmap_t *tmap;
 	int i;
 
 	for(i = 0; i < 16; i++)
@@ -424,6 +427,8 @@ dvd_open(char *url, char *mode)
 	df->n_streams =
 	    1 + vtsi->nr_of_vts_audio_streams + vtsi->nr_of_vts_subp_streams;
 	df->streams = calloc(df->n_streams, sizeof(*df->streams));
+
+	/* video stream */
 	df->streams[0].stream_type = STREAM_TYPE_VIDEO;
 	df->streams[0].common.index = 0xe0;
 	df->streams[0].common.codec =
@@ -452,6 +457,7 @@ dvd_open(char *url, char *mode)
 	    break;
 	}
 
+	/* audio streams */
 	for(i = 0; i < vtsi->nr_of_vts_audio_streams; i++){
 	    audio_attr_t *ast = vtsi->vts_audio_attr + i;
 	    stream_t *st = df->streams + i + 1;
@@ -484,6 +490,7 @@ dvd_open(char *url, char *mode)
 	    }
 	}
 
+	/* subtitle streams */
 	for(i = 0; i < vtsi->nr_of_vts_subp_streams; i++){
 	    subp_attr_t *sst = vtsi->vts_subp_attr + i;
 	    stream_t *st = df->streams + i + 1 + vtsi->nr_of_vts_audio_streams;
@@ -494,6 +501,14 @@ dvd_open(char *url, char *mode)
 	    st->common.codec_data_size = sizeof(df->spu_palette);
 	    st->subtitle.language[0] = sst->lang_code >> 8;
 	    st->subtitle.language[1] = sst->lang_code & 0xff;
+	}
+
+	tmap = tmapt->tmap;
+	df->index_unit = tmap->tmu * 27000000ULL;
+	df->index_size = tmap->nr_of_entries;
+	df->index = calloc(df->index_size, sizeof(*df->index));
+	for(i = 0; i < tmap->nr_of_entries; i++){
+	    df->index[i] = (tmap->map_ent[i] & 0x7fffffff) * DVD_SECTOR_SIZE;
 	}
     }
 

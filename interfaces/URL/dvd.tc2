@@ -25,6 +25,9 @@ typedef struct dvd_functions {
     int n_streams;
     stream_t *streams;
     uint32_t spu_palette[16];
+    uint64_t index_unit;
+    uint32_t index_size;
+    uint64_t *index;
 } dvd_functions_t;
 
 #define DVD_PESID 0xfc
