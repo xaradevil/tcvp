@@ -303,8 +303,14 @@ epl_state(tcvp_module_t *p, tcvp_event_t *e)
 
     switch(te->state){
     case TCVP_STATE_ERROR:
-	tpl->state = PLAYING;
-	pl_next(tpl, 1);
+	if(tcvp_playlist_conf_stop_on_error){
+	    tpl->state = STOPPED;
+	    tcvp_event_send(tpl->sc, TCVP_CLOSE);
+	    pl_next(tpl, 0);
+	} else {
+	    tpl->state = PLAYING;
+	    pl_next(tpl, 1);
+	}
 	break;
 
     case TCVP_STATE_END:

@@ -40,3 +40,5 @@ TCVP {
 	event TCVP_PL_NEXT	NULL NULL NULL
 	event TCVP_PL_PREV	NULL NULL NULL
 }
+
+option		stop_on_error%i=0
