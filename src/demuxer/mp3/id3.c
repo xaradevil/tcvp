@@ -253,7 +253,7 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
     if(tagsize <= 10)
 	return 0;
 
-    tag = malloc(tagsize);
+    tag = malloc(tagsize + 4);
     p = tag;
 
     p += sprintf(tag, "ID3%c%c%c", 4, 0, 0);
