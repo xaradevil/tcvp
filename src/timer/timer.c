@@ -149,7 +149,7 @@ timer_new(int res)
     timer__t *tm;
     sw_timer_t *st;
 
-    st = malloc(sizeof(*st));
+    st = calloc(1, sizeof(*st));
     st->time = 0;
     st->res = res;
     pthread_mutex_init(&st->mx, NULL);
@@ -158,7 +158,7 @@ timer_new(int res)
 
     pthread_create(&st->th, NULL, timer_run, st);
 
-    tm = malloc(sizeof(*tm));
+    tm = calloc(1, sizeof(*tm));
     tm->start = tm_start;
     tm->stop = tm_stop;
     tm->wait = tm_wait;
