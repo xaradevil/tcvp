@@ -94,11 +94,11 @@ v_play(void *p)
 
 	vo->driver->show_frame(vo->driver, vo->tail);
 
-	sem_post(&vo->hsem);
-
 	if(++vo->tail == vo->driver->frames){
 	    vo->tail = 0;
 	}
+
+	sem_post(&vo->hsem);
     }
 
     return NULL;
@@ -119,11 +119,11 @@ v_put(tcvp_pipe_t *p, packet_t *pk)
 
     vo->pts[vo->head] = pk->pts;
 
-    sem_post(&vo->tsem);
-
     if(++vo->head == vo->driver->frames){
 	vo->head = 0;
     }
+
+    sem_post(&vo->tsem);
 
     pk->free(pk);
 
@@ -182,6 +182,9 @@ v_free(tcvp_pipe_t *p)
     vo->timer->interrupt(vo->timer);
     pthread_join(vo->thr, NULL);
 
+    vo->tail = vo->head;
+    sem_post(&vo->hsem);
+
     vo->driver->close(vo->driver);
 
     pthread_mutex_destroy(&vo->smx);
@@ -196,7 +199,7 @@ v_free(tcvp_pipe_t *p)
     return 0;
 }
 
-static color_conv_t conv_table[4][4] = {
+static color_conv_t conv_table[PIXEL_FORMATS+1][PIXEL_FORMATS+1] = {
     [PIXEL_FORMAT_I420][PIXEL_FORMAT_YV12] = i420_yv12,
     [PIXEL_FORMAT_YV12][PIXEL_FORMAT_I420] = yv12_i420,
     [PIXEL_FORMAT_I420][PIXEL_FORMAT_YUY2] = i420_yuy2,
@@ -241,7 +244,7 @@ v_open(video_stream_t *vs, char *device, timer__t *timer)
     vo->pts = malloc(vd->frames * sizeof(*vo->pts));
     vo->head = 0;
     vo->tail = 0;
-    sem_init(&vo->hsem, 0, vd->frames);
+    sem_init(&vo->hsem, 0, vd->frames-1);
     sem_init(&vo->tsem, 0, 0);
     pthread_mutex_init(&vo->smx, NULL);
     pthread_cond_init(&vo->scd, NULL);

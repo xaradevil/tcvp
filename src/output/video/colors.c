@@ -72,20 +72,27 @@ i420_yuy2(int height, const u_char **in, int *istride,
     }
 }
 
-extern void
-i420_yv12(int height, const u_char **in, int *istride,
-	  u_char **out, int *ostride)
-{
-    const char *src[] = {in[0], in[2], in[1]};
-    int i, j;
+#define copy_plane(i, ip, d) do {		\
+    for(j = 0; j < height / d; j++){		\
+	memcpy(out[i] + j * ostride[i],		\
+	       in[ip] + j * istride[i],		\
+	       min(istride[i], ostride[i]));	\
+    }						\
+} while(0)
 
-    for(i = 0; i < 3; i++){
-	for(j = 0; j < height / (i? 2: 1); j++){
-	    memcpy(out[i] + j * ostride[i],
-		   src[i] + j * istride[i],
-		   min(istride[i], ostride[i]));
-	}
-    }
+#define copy_planar(fin, fout, p0, p1, p2, d0, d1, d2)		\
+extern void							\
+fin##_##fout(int height, const u_char **in, int *istride,	\
+	     u_char **out, int *ostride)			\
+{								\
+    int j;							\
+    copy_plane(0, p0, d0);					\
+    copy_plane(1, p1, d1);					\
+    copy_plane(2, p2, d2);					\
 }
 
-extern void yv12_i420()__attribute__((alias("i420_yv12")));
+#define alias(f1, f2) f1() __attribute__((alias(#f2)))
+
+copy_planar(yv12, yv12, 0, 1, 2, 1, 2, 2)
+copy_planar(i420, yv12, 0, 2, 1, 1, 2, 2)
+alias(void yv12_i420, i420_yv12);
