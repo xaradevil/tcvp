@@ -364,7 +364,7 @@ avc_new(stream_t *s, int mode)
 
 	vc = calloc(1, sizeof(*vc));
 	vc->ctx = avctx;
-	vc->ptsn = 1000000 * s->video.frame_rate.den;
+	vc->ptsn = (uint64_t) 1000000 * s->video.frame_rate.den;
 	vc->ptsd = s->video.frame_rate.num;
 	vc->pts = 0;
 	vc->frame = avcodec_alloc_frame();
