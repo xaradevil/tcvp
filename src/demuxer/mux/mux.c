@@ -113,23 +113,24 @@ static int
 mux_probe(tcvp_pipe_t *tp, tcvp_data_packet_t *pk, stream_t *s)
 {
     mux_t *mx = tp->private;
+    int idx = s->common.index;
     int ps;
 
-    tc2_print("MUX", TC2_PRINT_DEBUG, "probe %i\n", pk->stream);
+    tc2_print("MUX", TC2_PRINT_DEBUG, "probe %i\n", idx);
 
-    if(pk->stream >= mx->tstreams){
-	int ts = pk->stream + 1, ns = ts - mx->tstreams;
+    if(idx >= mx->tstreams){
+	int ts = idx + 1, ns = ts - mx->tstreams;
 	mx->streams = realloc(mx->streams, ts * sizeof(*mx->streams));
 	memset(mx->streams + mx->tstreams, 0, ns * sizeof(*mx->streams));
 	mx->tstreams = ts;
     }
 
     if(s->common.bit_rate)
-	mx->streams[pk->stream].rate = 27000000LL * 8 / s->common.bit_rate;
+	mx->streams[idx].rate = 27000000LL * 8 / s->common.bit_rate;
 
     ps = tp->next->probe(tp->next, pk, s);
     if(ps == PROBE_OK){
-	mx->streams[pk->stream].used = 1;
+	mx->streams[idx].used = 1;
 	mx->nstreams++;
     }
 
