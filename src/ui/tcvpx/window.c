@@ -251,8 +251,8 @@ wm_set_property(skin_t *skin, char *atom, int enabled)
     xa_prop = XInternAtom(xd, atom, False);
     xa_wm_state = XInternAtom(xd, "_NET_WM_STATE", False);
 
+    memset(&xev, 0, sizeof(xev));
     xev.type = ClientMessage;
-    xev.xclient.type = ClientMessage;
     xev.xclient.window = skin->xw;
     xev.xclient.message_type = xa_wm_state;
     xev.xclient.format = 32;
@@ -274,25 +274,26 @@ wm_set_sticky(skin_t *skin, int enabled)
 	Atom xa_wm_desktop;
 	XEvent xev;
 
-	int desktop = -1;
+	long desktop = 0xffffffffUL;
 	Atom xa_cardinal, xa_current_desktop;
 	Atom r_type;
 	int r_format, ret;
 	unsigned long count, bytes_remain;
 	unsigned char *p = NULL;
 
-	wm_set_property(skin, "_NET_WM_STATE_STICKY", 1);
+	wm_set_property(skin, "_NET_WM_STATE_STICKY", enabled);
 
 	if(enabled <= 0) {
 	    xa_cardinal = XInternAtom(xd, "CARDINAL", True);
 	    xa_current_desktop = XInternAtom(xd, "_NET_CURRENT_DESKTOP", True);
 
-	    ret = XGetWindowProperty(xd, RootWindow(xd, xs), xa_current_desktop,
+	    ret = XGetWindowProperty(xd, RootWindow(xd, xs),
+				     xa_current_desktop,
 				     0, 1, False, xa_current_desktop, &r_type,
 				     &r_format, &count, &bytes_remain, &p);
 
-	    if(ret == Success && p && r_type == xa_cardinal && r_format == 32 &&
-	       count == 1) {
+	    if(ret == Success && p && r_type == xa_cardinal &&
+	       r_format == 32 && count == 1) {
 		desktop = *(long *)p;
 	    } else {
 		desktop = 0;
@@ -301,15 +302,15 @@ wm_set_sticky(skin_t *skin, int enabled)
 
 	xa_wm_desktop = XInternAtom(xd, "_NET_WM_DESKTOP", False);
 
+	memset(&xev, 0, sizeof(xev));
 	xev.type = ClientMessage;
-	xev.xclient.type = ClientMessage;
 	xev.xclient.window = skin->xw;
 	xev.xclient.message_type = xa_wm_desktop;
 	xev.xclient.format = 32;
 	xev.xclient.data.l[0] = desktop;
 
 	XSendEvent(xd, RootWindow(xd, xs), False,
-		   SubstructureNotifyMask, (XEvent *) & xev);
+		   SubstructureNotifyMask, &xev);
     }
 
     return 0;
