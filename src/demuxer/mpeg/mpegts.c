@@ -511,12 +511,13 @@ mpegts_free(void *p)
 }
 
 static int
-ispmt(int *pat, int np, int pid){
+ispmt(int *pat, int np, mpegts_packet_t *mp){
     int i;
     for(i = 0; i < np; i++){
-	if(pat[2*i+1] == pid){
+	if(pat[2*i+1] == mp->pid){
 	    int r = pat[2*i];
-	    pat[2*i] = -1;
+	    if(mp->unit_start)
+		pat[2*i] = -1;
 	    return r;
 	}
     }
@@ -531,9 +532,13 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     mpegts_packet_t mp;
     int seclen, ptr;
     u_char *dp;
-    int *pat;
+    int *pat = NULL;
     int i, n, ns, np;
     stream_t *sp;
+    int pmtpid = 0;
+    u_char *pmt = NULL;
+    int pmtsize = 0;
+    int pmtpos = 0;
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
     ms->next_packet = mpegts_packet;
@@ -580,7 +585,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	pat[2*i] = 1;
 	pat[2*i+1] = htob_16(unaligned16(dp + 2)) & 0x1fff;
 	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i => PMT pid %x\n",
-		  htob_16(unaligned16(dp)), pat[i+1]);
+		  htob_16(unaligned16(dp)), pat[2*i+1]);
 	dp += 4;
     }
 
@@ -591,22 +596,52 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     sp = ms->streams;
 
     while(n){
-	int pi_len, prg, ip, pcrpid;
+	int pi_len, prg, ip = 0, pcrpid;
 	uint32_t crc, ccrc;
+	int dsize;
 
 	do {
 	    if(mpegts_read_packet(s, &mp) < 0)
 		goto err;
-	} while(!(ip = ispmt(pat, np, mp.pid)));
+	} while((pmtpid && mp.pid != pmtpid) ||
+		!(ip = ispmt(pat, np, &mp)));
 
-	if(ip < 0)
+	if(ip < 0 && !pmtpos)
 	    break;
 
-	if(mp.data[0] > mp.data_length - 4)
-	    goto err;
-	dp = mp.data + mp.data[0] + 1;
+	if(!pmtpos && !mp.unit_start)
+	    continue;
+
+	if(mp.unit_start){
+	    if(mp.data[0] > mp.data_length - 4)
+		goto err;
+
+	    dp = mp.data + mp.data[0] + 1;
+	    pmtsize = (htob_16(unaligned16(dp + 1)) & 0xfff) + 4;
+	    pmt = malloc(pmtsize);
+	    pmtpos = 0;
+	    pmtpid = mp.pid;
+	    dsize = min(pmtsize, mp.data_length - mp.data[0] - 1);
+
+	    tc2_print("MPEGTS", TC2_PRINT_DEBUG,
+		      "reading PMT PID %x, size %#x\n", pmtpid, pmtsize);
+	} else {
+	    dp = mp.data;
+	    dsize = min(pmtsize - pmtpos, mp.data_length);
+	}
+
+	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "got %x bytes from PMT\n", dsize);
+	memcpy(pmt + pmtpos, dp, dsize);
+	pmtpos += dsize;
+
+	if(pmtpos < pmtsize)
+	    continue;
+
+	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "got PMT, %x bytes\n", pmtpos);
+
+	dp = pmt;
 	seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
-	if(seclen > mp.data_length - mp.data[0] - 4 || seclen < 13)
+	if(seclen > pmtsize - 4 || seclen < 13)
 	    goto err;
 	crc = htob_32(unaligned32(dp + seclen - 1));
 
@@ -690,6 +725,10 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	if(i != seclen)
 	    goto err;
 
+	free(pmt);
+	pmt = NULL;
+	pmtpid = 0;
+	pmtpos = 0;
 	n--;
     }
 
@@ -704,10 +743,13 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     if(!u->seek(u, 0, SEEK_SET))
 	s->tsnbuf = 0;
 
+  out:
     free(pat);
+    free(pmt);
     return ms;
 
-err:
+  err:
     tcfree(ms);
-    return NULL;
+    ms = NULL;
+    goto out;
 }
