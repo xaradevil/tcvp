@@ -81,6 +81,14 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		if(mpd->ptsc > 0 && --mpd->ptsc == 0)
 		    mpd->pts = mpd->npts;
 
+		pic->pk.flags = TCVP_PKT_FLAG_PTS;
+		pic->pk.pts = mpd->pts / 27;
+		mpd->pts += mpd->info->sequence->frame_period;
+		pic->pk.free = mpeg_free_pk;
+		pic->pk.private = pic;
+		p->next->input(p->next, &pic->pk);
+	    }
+	    if(mpd->info->current_picture){
 		if((mpd->info->current_picture->flags&PIC_MASK_CODING_TYPE) ==
 		   PIC_FLAG_CODING_TYPE_B){
 		    mpd->pc++;
@@ -88,13 +96,6 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		    mpd->pts_delay = mpd->pc + 1;
 		    mpd->pc = 0;
 		}
-
-		pic->pk.flags = TCVP_PKT_FLAG_PTS;
-		pic->pk.pts = mpd->pts / 27;
-		mpd->pts += mpd->info->sequence->frame_period;
-		pic->pk.free = mpeg_free_pk;
-		pic->pk.private = pic;
-		p->next->input(p->next, &pic->pk);
 	    }
 	}
     } while(state != -1);
