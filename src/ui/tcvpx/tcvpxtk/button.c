@@ -59,6 +59,9 @@ destroy_button(xtk_widget_t *xw)
 	free_btimg(w->button.over_img);
     if(w->button.down_img)
 	free_btimg(w->button.down_img);
+    if(w->button.background)
+	free_btimg(w->button.background);
+
     return 0;
 }
 

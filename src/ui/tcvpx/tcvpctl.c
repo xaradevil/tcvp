@@ -104,18 +104,16 @@ tcvp_event(void *p)
 		    if(st->used_streams[i]) {
 			stream_t *s = &st->streams[i];
 			if(s->stream_type == STREAM_TYPE_VIDEO) {
-			    char *buf = malloc(10);
-			    buf = malloc(10);
+			    char buf[10];
 			    sprintf(buf, "%.3f",
 				    (double)s->video.frame_rate.num /
 				    s->video.frame_rate.den);
 			    change_text("video_framerate", buf);
 			} else if(s->stream_type == STREAM_TYPE_AUDIO) {
-			    char *buf = malloc(10);
+			    char buf[10];
 			    sprintf(buf, "%d", s->audio.bit_rate/1000);
 			    change_text("audio_bitrate", buf);
 			    
-			    buf = malloc(10);
 			    sprintf(buf, "%.1f",
 				    (double)s->audio.sample_rate/1000);
 			    change_text("audio_samplerate", buf);

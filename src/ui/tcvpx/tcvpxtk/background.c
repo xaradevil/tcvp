@@ -221,9 +221,10 @@ static int
 destroy_background(xtk_widget_t *xw)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
-    free(*w->background.img->data);
-    free(w->background.img->data);
+
+    image_free(w->background.img);
     free(w->background.img);
+
     w->background.window->background = NULL;
     return 0;
 }

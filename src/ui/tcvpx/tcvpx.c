@@ -128,6 +128,7 @@ tcvpx_shdn(void)
     eventq_delete(qs);
     eventq_delete(qr);
 
+#undef free
     if(pl)
 	pl->free(pl);
 

@@ -173,12 +173,6 @@ create_skinned_background(window_t *win, skin_t *skin, conf_section *sec)
     return(xtk_create_background(win, load_image(skin->path, file)));
 }
 
-static int
-destroy_skinned_button(xtk_widget_t *w)
-{
-    free(w->data);
-    return 0;
-}
 
 static xtk_widget_t*
 create_skinned_box(window_t *win, skin_t *skin, conf_section *sec)
@@ -200,6 +194,13 @@ create_skinned_box(window_t *win, skin_t *skin, conf_section *sec)
     return w;
 }
 
+
+static int
+destroy_skinned_button(xtk_widget_t *w)
+{
+    free(w->data);
+    return 0;
+}
 
 static xtk_widget_t*
 create_skinned_button(window_t *win, skin_t *skin, conf_section *sec)

@@ -52,9 +52,13 @@ destroy_state(xtk_widget_t *xw)
     int i;
 
     for(i=0; i<w->state.num_states; i++) {
-	free(*w->state.images[i]->data);
-	free(w->state.images[i]->data);
+	image_free(w->state.images[i]);
 	free(w->state.images[i]);
+    }
+
+    if(w->state.background) {
+	image_free(w->state.background);
+	free(w->state.background);
     }
 
     free(w->state.states);

@@ -141,12 +141,10 @@ destroy_seek_bar(xtk_widget_t *xw)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
 
-    free(*w->seek_bar.background->data);
-    free(w->seek_bar.background->data);
+    image_free(w->seek_bar.background);
     free(w->seek_bar.background);
 
-    free(*w->seek_bar.indicator->data);
-    free(w->seek_bar.indicator->data);
+    image_free(w->seek_bar.indicator);
     free(w->seek_bar.indicator);
 
     return 0;
