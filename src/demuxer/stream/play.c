@@ -282,6 +282,8 @@ del_stream(stream_player_t *sp, int s)
     int ss = sp->smap[s];
     struct sp_stream *str = sp->streams + s;
 
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "deleting stream %i\n", s);
+
     if(ss == sh->vs)
 	sh->vs = -1;
     else if(ss == sh->as)
@@ -372,6 +374,8 @@ play_stream(void *p)
     pk = tcallocz(sizeof(*pk));
     pk->stream = sp->smap[six];
     pk->data = NULL;
+    if(str->end->start)
+	str->end->start(str->end);
     str->pipe->input(str->pipe, pk);
     str->pipe->flush(str->pipe, sp->state == STOP);
 
@@ -470,6 +474,8 @@ read_stream(void *p)
 	}
     }
 
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "read_stream done\n");
+
     return NULL;
 }
 
@@ -519,6 +525,8 @@ s_flush(tcvp_pipe_t *tp, int drop)
     packet_t *pk;
     int i;
 
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "flushing, drop=%i\n", drop);
+
     for(i = 0; i < sp->nstreams; i++){
 	while((pk = tclist_shift(sp->streams[i].packets)))
 	    tcfree(pk);
@@ -528,6 +536,7 @@ s_flush(tcvp_pipe_t *tp, int drop)
 	    sp->nbuf++;
     }
 
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "flush complete\n", drop);
     return 0;
 }
 
