@@ -134,8 +134,14 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     apk = calloc(1, sizeof(*apk));
 
     do {
-	if(av_read_packet(afc, apk) < 0){
-	    pk = NULL;
+	int rp;
+#if LIBAVFORMAT_BUILD < 4610
+	rp = av_read_packet(afc, apk);
+#else
+	rp = av_read_frame(afc, apk);
+#endif
+	if(rp < 0){
+	    free(apk);
 	    return NULL;
 	}
 
@@ -152,11 +158,19 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     pk->sizes[0] = apk->size;
     pk->planes = 1;
     pk->flags = 0;
-    pk->pts = 0;
+    if(apk->pts != AV_NOPTS_VALUE){
+	pk->flags |= TCVP_PKT_FLAG_PTS;
+	pk->pts = apk->pts * 27000000 / AV_TIME_BASE;
+	tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] pts %lli\n",
+		  sx, apk->pts);
+    }
+#if LIBAVFORMAT_BUILD >= 4610
+    if(apk->dts != AV_NOPTS_VALUE){
+	pk->flags |= TCVP_PKT_FLAG_DTS;
+	pk->dts = apk->dts * 27000000 / AV_TIME_BASE;
+    }
+#endif
     pk->private = apk;
-
-    if(!pk)
-	free(apk);
 
     return pk;
 }
