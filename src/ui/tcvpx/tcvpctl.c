@@ -15,7 +15,7 @@ int s_length;
 static int show_time = TCTIME_ELAPSED;
 static int TCVP_STATE, TCVP_TIMER, TCVP_LOAD, TCVP_STREAM_INFO,
     TCVP_PAUSE, TCVP_SEEK, TCVP_CLOSE, TCVP_PL_STOP, TCVP_PL_START,
-    TCVP_PL_NEXT, TCVP_PL_PREV, TCVP_PL_ADD;
+    TCVP_PL_NEXT, TCVP_PL_PREV, TCVP_PL_ADD, TCVP_PL_ADDLIST;
 
 extern int
 init_events(void)
@@ -32,6 +32,7 @@ init_events(void)
     TCVP_PL_NEXT = tcvp_event_get("TCVP_PL_NEXT");
     TCVP_PL_PREV = tcvp_event_get("TCVP_PL_PREV");
     TCVP_PL_ADD = tcvp_event_get("TCVP_PL_ADD");
+    TCVP_PL_ADDLIST = tcvp_event_get("TCVP_PL_ADDLIST");
 
     return 0;
 }
@@ -240,7 +241,12 @@ extern int
 tcvp_add_file(char *file)
 {
 /*     fprintf(stderr, "%s\n", file); */
-    tcvp_event_send(qs, TCVP_PL_ADD, &file, 1, -1);
+    char *s = strrchr(file, '.');
+    if(s && !strcasecmp(s, ".m3u")){
+	tcvp_event_send(qs, TCVP_PL_ADDLIST, file, -1);	
+    } else {
+	tcvp_event_send(qs, TCVP_PL_ADD, &file, 1, -1);
+    }
 
     return 0;
 }
