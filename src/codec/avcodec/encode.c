@@ -74,6 +74,8 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
 	p->next->input(p->next, &ep->pk);
     }
 
+    tcfree(pk);
+
     return 0;
 }
 
