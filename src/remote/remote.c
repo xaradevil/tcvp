@@ -382,8 +382,11 @@ rm_new(tcconf_section_t *cs)
     tcvp_remote_t *rm;
     tcvp_module_t *ad;
     int sock;
-    int port = htons(tcvp_remote_conf_port);
+    int port = tcvp_remote_conf_port;
     struct sockaddr_in rsa;
+
+    tcconf_getvalue(cs, "remote/port", "%i", &port);
+    port = htons(port);
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0)
