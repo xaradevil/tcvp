@@ -577,6 +577,35 @@ pl_alloc_remove(int t, va_list args)
     return te;
 }
 
+static u_char *
+remove_ser(char *name, void *event, int *size)
+{
+    tcvp_pl_remove_event_t *te = event;
+    int s = strlen(name) + 1 + 8;
+    u_char *sb = malloc(s);
+    u_char *p = sb;
+
+    p += sprintf(sb, "%s", name) + 1;
+    st_unaligned32(htob_32(te->start), p);
+    st_unaligned32(htob_32(te->n), p + 4);
+
+    *size = s;
+    return sb;
+}
+
+static void *
+remove_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    int start, nf;
+
+    n++;
+    start = htob_32(unaligned32(n));
+    nf = htob_32(unaligned32(n + 4));
+
+    return tcvp_event_new(type, start, nf);
+}
+
 static void *
 pl_alloc_shuffle(int t, va_list args)
 {
@@ -624,7 +653,7 @@ pl_init(char *p)
     TCVP_PL_ADDLIST = tcvp_event_register("TCVP_PL_ADDLIST", pl_alloc_addlist,
 					  pl_addlist_ser, pl_addlist_deser);
     TCVP_PL_REMOVE = tcvp_event_register("TCVP_PL_REMOVE", pl_alloc_remove,
-					 NULL, NULL);
+					 remove_ser, remove_deser);
     TCVP_PL_SHUFFLE = tcvp_event_register("TCVP_PL_SHUFFLE", pl_alloc_shuffle,
 					  shuffle_ser, shuffle_deser);
 
