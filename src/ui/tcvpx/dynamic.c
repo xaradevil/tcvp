@@ -35,7 +35,7 @@ lookup_variable(char *key, void *p)
 {
     void *var = NULL;
 
-    tchash_find(variable_hash, key, &var);
+    tchash_find(variable_hash, key, -1, &var);
 
     return var;
 }
@@ -48,13 +48,13 @@ change_variable(char *key, void *data)
     char buf[1024];
     void *tmp = NULL;
 
-    tchash_delete(variable_hash, key, &tmp);
+    tchash_delete(variable_hash, key, -1, &tmp);
     if(tmp) free(tmp);
 
-    tchash_search(variable_hash, key, data, NULL);
+    tchash_search(variable_hash, key, -1, data, NULL);
 
     sprintf(buf, "var:%s", key);
-    tchash_find(widget_hash, buf, &lst);
+    tchash_find(widget_hash, buf, -1, &lst);
 
     if(lst) {
 	xtk_widget_t *w;
@@ -87,24 +87,25 @@ change_text(char *key, char *text)
     char buf[1024];
     void *tmp = NULL;
 
-    tchash_delete(variable_hash, key, &tmp);
+    tchash_delete(variable_hash, key, -1, &tmp);
     if(tmp) free(tmp);
 
     if(text) {
-	tchash_search(variable_hash, key, strdup(text), NULL);
+	tchash_search(variable_hash, key, -1, strdup(text), NULL);
     }
 
     sprintf(buf, "text:%s", key);
-    tchash_find(widget_hash, buf, &lst);
+    tchash_find(widget_hash, buf, -1, &lst);
+
+    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "change_text '%s' '%s' '%s' %p\n", key, buf, text, lst);
 
     if(lst) {
 	xtk_widget_t *w;
-
 	while((w = tclist_next(lst, &current))!=NULL) {
 	    widget_data_t *ad = w->data;
 	    parse_text(ad->value, buf, 1024);
 	    xtk_widget_label_set_text(w, buf);
-/* 		xtk_state_set(w, buf); */
+	    xtk_widget_state_set_state(w, buf);
 	}
     }
 
@@ -171,11 +172,15 @@ static int
 register_key(char *key, xtk_widget_t *w)
 {
     tclist_t *lst = NULL;
-    tchash_find(widget_hash, key, &lst);
+
+    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "register_key %s\n", key);
+
+    tchash_find(widget_hash, key, -1, &lst);
 
     if(!lst) {
+	tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "key: %s not yet registered\n", key);
 	lst = tclist_new(TC_LOCK_SLOPPY);
-	tchash_search(widget_hash, key, lst, NULL);
+	tchash_search(widget_hash, key, -1, lst, NULL);
     }
 
     tclist_push(lst, w);
@@ -193,7 +198,7 @@ static int
 unregister_key(char *key, xtk_widget_t *w)
 {
     tclist_t *lst = NULL;
-    tchash_find(widget_hash, key, &lst);
+    tchash_find(widget_hash, key, -1, &lst);
 
     if(lst) {
 	tclist_delete(lst, w, ptr_cmp, NULL);
@@ -328,7 +333,7 @@ parse_text(char *text, char *result, int len)
 	return 1;
     }
 
-    tc2_print("tcvpx", 10, "parse_text: text=%s\n", text);
+    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "parse_text: text=%s\n", text);
 
     exp = tcstrexp(text, "{", "}", ':', lookup_variable,
 		   NULL, TCSTREXP_ESCAPE);
@@ -343,7 +348,7 @@ parse_text(char *text, char *result, int len)
 
     free(exp);
 
-    tc2_print("tcvpx", 10, "parse_text: result=%s\n", result);
+    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "parse_text: result=%s\n", result);
 
     return 0;
 }
@@ -351,8 +356,8 @@ parse_text(char *text, char *result, int len)
 extern int
 init_dynamic(void)
 {
-    variable_hash = tchash_new(10, 0);
-    widget_hash = tchash_new(10, 0);
+    variable_hash = tchash_new(10, 0, 0);
+    widget_hash = tchash_new(10, 0, 0);
 
     return 0;
 }

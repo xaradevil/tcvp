@@ -67,6 +67,12 @@ import		"xtk/widget/slider"	"set_indicator_image_hover"
 import		"xtk/widget/slider"	"set_indicator_image_pressed"
 import		"xtk/widget/slider"	"set_position"
 
+import		"xtk/widget/state"	"add_state"
+import		"xtk/widget/state"	"create"
+import		"xtk/widget/state"	"set_action"
+import		"xtk/widget/state"	"set_data"
+import		"xtk/widget/state"	"set_state"
+
 import		"xtk/window"		"create"
 import		"xtk/window"		"destroy"
 import		"xtk/window"		"get_position"
