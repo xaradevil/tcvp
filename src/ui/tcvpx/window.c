@@ -228,10 +228,8 @@ x11_event(void *p)
 	}
 
 	case ClientMessage:
-/* 	    fprintf(stderr, "%d\n", xe.xclient.message_type); */
 	    if(xe.xclient.message_type == XdndEnter) {
 /* 		fprintf(stderr, "enter\n"); */
-
 
 	    } else if(xe.xclient.message_type == XdndPosition) {
 		XEvent xevent;
@@ -248,7 +246,7 @@ x11_event(void *p)
 		xevent.xclient.data.l[1] = 1;
 		xevent.xclient.data.l[2] = (skin->x << 16) | skin->y;
 		xevent.xclient.data.l[3] = (skin->width << 16) | skin->height;
-
+		xevent.xclient.data.l[4] = xe.xclient.data.l[4]
 		XSendEvent(xd, xe.xclient.window, 0, 0, &xevent);
 
 	    } else if(xe.xclient.message_type == XdndDrop) {
