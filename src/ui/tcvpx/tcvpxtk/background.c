@@ -299,11 +299,7 @@ bg_drag_end(xtk_widget_t *xw, void *xe)
 extern xtk_widget_t*
 create_background(window_t *window, image_info_t *image)
 {
-    char *data;
-    Pixmap maskp;
-    int x, y;
     tcbackground_t *bg;
-    int w8;
 
     if(!image) return NULL;
 
@@ -325,31 +321,8 @@ create_background(window_t *window, image_info_t *image)
     bg->win = window->xw;
     bg->enabled = 1;
 
-    w8 = ((bg->width + 7) & ~7) / 8;
-    data = calloc(bg->width * bg->height, 1);
-    for(y=0; y<bg->height; y++){
-	for(x=0; x<bg->width; x+=8){
-	    int i, d=0;
-	    for(i=0;i<8 && x+i<bg->width;i++){
-		d |= (bg->img->data[y][(x+i)*4+3]==0)?0:1<<i;
-		if(bg->img->data[y][(x+i)*4+3]>0 &&
-		   bg->img->data[y][(x+i)*4+3]<255){
-		    bg->transparent = 1;
-		}
-	    }
-	    data[x/8+y*w8] = d;
-	}
-    }
-
-    if(!window->subwindow) {
-	maskp = XCreateBitmapFromData(xd, window->xw, data, bg->width,
-				      bg->height);
-	XShapeCombineMask(xd, window->xw, ShapeBounding, 0, 0, maskp,
-			  ShapeSet);
-	XSync(xd, False);
-	XFreePixmap(xd, maskp);
-    }
-    free(data);
+    bg->transparent = shape_window(window->xw, image);
+    merge_shape(window->parent, window->xw, window->x, window->y);
 
     list_push(widget_list, bg);
 

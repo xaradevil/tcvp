@@ -278,6 +278,7 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 			     CopyFromParent, 0, 0);
     sb->pixmap = XCreatePixmap(xd, window->xw, sb->width,
 				sb->height, depth);
+    merge_shape(window, sb->win, x, y);
 
     emask = ExposureMask;
     list_push(widget_list, sb);

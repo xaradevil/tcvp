@@ -566,6 +566,7 @@ create_window(char *title, int width, int height)
     list_push(window_list, window);
 
     window->enabled = 1;
+    clear_shape(window->xw);
 
     return window;
 }
@@ -670,4 +671,62 @@ get_screen_size()
     s->w = root_width;
     s->h = root_height;
     return s;
+}
+
+
+extern int
+clear_shape(Window w)
+{
+    XShapeCombineShape(xd, w, ShapeBounding, 0, 0, w,
+		       ShapeBounding, ShapeSubtract);
+    return 0;
+}
+
+extern int
+shape_window(Window w, image_info_t *im)
+{
+    int transparent = 0;
+    Pixmap maskp;
+    char *data;
+    int x, y;
+    int w8;
+
+    w8 = ((im->width + 7) & ~7) / 8;
+    data = calloc(1, im->width * im->height);
+    for(y = 0; y < im->height; y++){
+	for(x = 0; x < im->width; x += 8){
+	    int i, d = 0;
+	    for(i = 0; i < 8 && x + i < im->width; i++){
+		d |= (!!im->data[y][(x + i) * 4 + 3]) << i;
+		if(im->data[y][(x + i) * 4 + 3] > 0 &&
+		   im->data[y][(x + i) * 4 + 3] < 255){
+		    transparent = 1;
+		}
+	    }
+	    data[x / 8 + y * w8] = d;
+	}
+    }
+
+    maskp = XCreateBitmapFromData(xd, w, data, im->width, im->height);
+    XShapeCombineMask(xd, w, ShapeBounding, 0, 0, maskp, ShapeUnion);
+    XSync(xd, False);
+    XFreePixmap(xd, maskp);
+    free(data);
+
+    return transparent;
+}
+
+extern int
+merge_shape(window_t *d, Window s, int x, int y)
+{
+    while(d){
+	XShapeCombineShape(xd, d->xw, ShapeBounding, x, y, s,
+			   ShapeBounding, ShapeUnion);
+	s = d->xw;
+	x = d->x;
+	y = d->y;
+	d = d->parent;
+    }
+
+    return 0;
 }

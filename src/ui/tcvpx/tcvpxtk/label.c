@@ -370,6 +370,7 @@ create_label(window_t *window, int x, int y, int width, int height,
 			     txt->width, txt->height,
 			     0, CopyFromParent, InputOutput,
 			     CopyFromParent, 0, 0);
+    merge_shape(window, txt->win, x, y);
 
     change_label((xtk_widget_t *) txt, text);
 

@@ -99,14 +99,8 @@ create_state(window_t *window, int x, int y, image_info_t *bg,
     st->images = malloc(num_states * sizeof(*st->images));
     st->data = data;
     
-    for(i=0; i<num_states; i++) {
-/* 	fprintf(stderr, "%s -> %s\n", states[i], imagefiles[i]); */
-	st->states[i] = strdup(states[i]);
-	st->images[i] = images[i];
-    }
-
-    st->width = st->images[0]->width;
-    st->height = st->images[0]->height;
+    st->width = images[0]->width;
+    st->height = images[0]->height;
     st->enabled = 1;
 
     st->win = XCreateWindow(xd, window->xw, st->x, st->y,
@@ -115,7 +109,16 @@ create_state(window_t *window, int x, int y, image_info_t *bg,
 			    CopyFromParent, 0, 0);
     st->pixmap = XCreatePixmap(xd, window->xw, st->width,
 			       st->height, depth);
+    clear_shape(st->win);
 
+    for(i=0; i<num_states; i++) {
+/* 	fprintf(stderr, "%s -> %s\n", states[i], imagefiles[i]); */
+	st->states[i] = strdup(states[i]);
+	st->images[i] = images[i];
+	shape_window(st->win, images[i]);
+    }
+
+    merge_shape(window, st->win, x, y);
     change_state((xtk_widget_t *) st, state);
 
     emask = ExposureMask;

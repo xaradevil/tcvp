@@ -50,6 +50,7 @@ create_box(window_t *window, int x, int y, int width, int height,
 			     CopyFromParent, 0, 0);
     box->pixmap = XCreatePixmap(xd, window->xw, box->width,
 				box->height, depth);
+    clear_shape(box->win);
 
     box->subwindow = calloc(sizeof(*box->subwindow), 1);
     box->subwindow->xw = box->win;

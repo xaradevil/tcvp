@@ -178,4 +178,8 @@ int widget_cmp(const void *, const void *);
 void *x11_event(void *p);
 void *scroll_labels(void *p);
 
+extern int shape_window(Window w, image_info_t *im);
+extern int merge_shape(window_t *d, Window s, int x, int y);
+extern int clear_shape(Window w);
+
 #endif /* _TCWIDGETS_H */
