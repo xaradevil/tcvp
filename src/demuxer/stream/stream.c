@@ -530,6 +530,12 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 
 	    if(!pstat[st] || pstat[st] == PROBE_AGAIN){
 		tcref(pk);
+		if(!stime[st] && pk->flags & TCVP_PKT_FLAG_PTS){
+		    ms->streams[st].common.start_time = pk->pts;
+		    stime[st] = 1;
+		    if(pk->pts < start_time)
+			start_time = pk->pts;
+		}
 		ps = codecs[ci]->probe(codecs[ci], pk, &ms->streams[st]);
 		pcnt[st]++;
 		pstat[st] = ps;
@@ -542,12 +548,6 @@ s_probe(s_play_t *vp, muxed_stream_t *ms, int msi, tcvp_pipe_t **codecs)
 		} else {
 		    tclist_push(vp->streams[ci].pq, pk);
 		    vp->streams[ci].str = ms;
-		}
-		if(!stime[st] && pk->flags & TCVP_PKT_FLAG_PTS){
-		    ms->streams[st].common.start_time = pk->pts;
-		    stime[st] = 1;
-		    if(pk->pts < start_time)
-			start_time = pk->pts;
 		}
 	    } else if(pstat[st] == PROBE_OK){
 		tclist_push(vp->streams[st].pq, pk);
