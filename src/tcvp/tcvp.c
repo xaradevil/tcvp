@@ -147,10 +147,7 @@ t_free(player_t *pl)
     tcvp_player_t *tp = pl->private;
     tcvp_event_t *te;
 
-    pthread_mutex_lock(&tp->tmx);
-    while(tp->open)
-	pthread_cond_wait(&tp->tcd, &tp->tmx);
-    pthread_mutex_unlock(&tp->tmx);
+    t_close(pl);
 
     te = tcvp_alloc_event(-1);
     eventq_send(tp->qr, te);

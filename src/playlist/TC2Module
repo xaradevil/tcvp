@@ -1,17 +1,12 @@
-program		tcvp
-name		"TCVP/ui/cmdline"
+module		playlist
+name		"TCVP/playlist"
 version		0.1.0
 tc2version	0.4.0
-sources		tcvp.c
-postinit	tcl_init
-shutdown	tcl_stop
-import		"tcvp"		"new"
-import		"stream"	"validate"
+sources		playlist.c
+implement	"playlist"	"new"	pl_new
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
 import		"Eventq"	"recv"
 import		"Eventq"	"attach"
 import		"Eventq"	"detach"
-import		"playlist"	"new"
-option		ui%s

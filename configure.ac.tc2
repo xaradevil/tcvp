@@ -32,6 +32,7 @@ AC_CONFIG_FILES([Makefile
 		 src/output/oss/Makefile
 		 src/output/video/Makefile
 		 src/output/xv/Makefile
+		 src/playlist/Makefile
 		 src/tcvp/Makefile
 		 src/timer/Makefile
 		 src/ui/Makefile

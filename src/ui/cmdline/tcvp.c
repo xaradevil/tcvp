@@ -29,7 +29,7 @@
 #include <tcvp_event.h>
 #include <tcvp_tc2.h>
 
-static pthread_t play_thr, evt_thr;
+static pthread_t check_thr, evt_thr;
 
 static int nfiles;
 static char **files;
@@ -41,6 +41,7 @@ static player_t *pl;
 static eventq_t qr;
 static char *qname;
 static char *sel_ui;
+static playlist_t *pll;
 
 static void
 show_help(void)
@@ -79,8 +80,10 @@ tcl_event(void *p)
 	    switch(te->state.state){
 	    case TCVP_STATE_ERROR:
 		printf("Error opening file.\n");
-	    case TCVP_STATE_END:
-		sem_post(&psm);
+		break;
+	    case TCVP_STATE_PL_END:
+		tc2_request(TC2_UNLOAD_ALL, 0);
+		break;
 	    }
 	    break;
 	case TCVP_LOAD:
@@ -97,37 +100,12 @@ tcl_event(void *p)
 }
 
 static void *
-tcl_play(void *p)
+tcl_check(void *p)
 {
-    eventq_t qs = eventq_new(NULL);
-    char qn[strlen(qname)+10];
     int i;
 
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(qs, qn, EVENTQ_SEND);
-    sem_init(&psm, 0, 0);
-
-    for(i = 0; i < nfiles; i++){
-	intr = 0;
-
-	if(validate){
-	    stream_validate(files[i], cf);
-	} else {
-	    tcvp_open_event_t *te = tcvp_alloc_event(TCVP_OPEN);
-	    te->file = files[i];
-	    eventq_send(qs, te);
-	    tcfree(te);
-
-	    pl->start(pl);
-	    sem_wait(&psm);
-	    pl->close(pl);
-	    if(intr){
-		sem_wait(&psm);
-	    }
-	}
-    }
-
-    eventq_delete(qs);
+    for(i = 0; i < nfiles; i++)
+	stream_validate(files[i], cf);
 
     tc2_request(TC2_UNLOAD_MODULE, 0, MODULE_INFO.name);
     return NULL;
@@ -136,14 +114,18 @@ tcl_play(void *p)
 extern int
 tcl_init(char *p)
 {
-    int i;
     pl = tcvp_new(cf);
     conf_getvalue(cf, "qname", "%s", &qname);
+
+    if(validate){
+	pthread_create(&check_thr, NULL, tcl_check, NULL);
+	return 0;
+    }
 
     if(!sel_ui)
 	sel_ui = tcvp_ui_cmdline_conf_ui;
 
-    if(!validate && !sel_ui){
+    if(!sel_ui){
 	struct sigaction sa;
 	sa.sa_handler = sigint;
 	sigemptyset(&sa.sa_mask);
@@ -151,37 +133,32 @@ tcl_init(char *p)
 	sigaction(SIGINT, &sa, NULL);
     }
 
+    pll = playlist_new(cf);
+    pll->add(pll, files, nfiles, 0);
+
     if(sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
-	int len = 0;
-	char *tmp;
-	char *opt;
-
-	for(i = 0; i < nfiles; i++){
-	    len += strlen(files[i])+1;
-	}
-	opt = calloc(len + strlen(qname) + 2, 1);
-	tmp = opt;
-
-	strcpy(tmp, qname);
-	tmp += strlen(qname) + 1;
-
-	for(i = 0; i < nfiles; i++){
-	    strcpy(tmp, files[i]);
-	    tmp += strlen(files[i]) + 1;
-	}
-
 	sprintf(ui, "TCVP/ui/%s", sel_ui);
-	tc2_request(TC2_LOAD_MODULE, 1, ui, opt);
+	tc2_request(TC2_LOAD_MODULE, 1, ui, qname);
 	tc2_request(TC2_ADD_DEPENDENCY, 1, ui);
 	tc2_request(TC2_UNLOAD_MODULE, 1, ui);
     } else if(nfiles) {
-	char qn[strlen(qname)+8];
+	char qn[strlen(qname)+9];
+	tcvp_event_t *te;
+	eventq_t qs;
+
 	qr = eventq_new(tcref);
 	sprintf(qn, "%s/status", qname);
 	eventq_attach(qr, qn, EVENTQ_RECV);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
-	pthread_create(&play_thr, NULL, tcl_play, NULL);
+
+	qs = eventq_new(NULL);
+	sprintf(qn, "%s/control", qname);
+	eventq_attach(qs, qn, EVENTQ_SEND);
+	te = tcvp_alloc_event(TCVP_PL_START);
+	eventq_send(qs, te);
+	tcfree(qs);
+	eventq_delete(qs);
     } else {
 	show_help();
 	tc2_request(TC2_UNLOAD_ALL, 0);
@@ -193,7 +170,8 @@ tcl_init(char *p)
 extern int
 tcl_stop(void)
 {
-    pthread_join(play_thr, NULL);
+    if(validate)
+	pthread_join(check_thr, NULL);
 
     if(qr){
 	tcvp_event_t *te = tcvp_alloc_event(-1);
@@ -203,6 +181,7 @@ tcl_stop(void)
     }
 
     pl->free(pl);
+    pll->free(pll);
 
     return 0;
 }
