@@ -104,20 +104,22 @@ create_skinned_label(skin_t *skin, conf_section *sec, char *text,
     char *color;
     int alpha;
     int stype;
-    int i=0;
+    int i=0, j;
 
     i += conf_getvalue(sec, "position", "%d %d", &x, &y);
     i += conf_getvalue(sec, "size", "%d %d", &w, &h);
     i += conf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
     i += conf_getvalue(sec, "font", "%s", &font);
-    if((i += conf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
+    if((j = conf_getvalue(sec, "color", "%s %d", &color, &alpha))==1){
 	alpha = 0xff;
-	i++;
+	j++;
     }
-    if((i += conf_getvalue(sec, "scroll_style", "%d", &stype))==0){
+    i += j;
+    if((j = conf_getvalue(sec, "scroll_style", "%d", &stype))==0){
 	stype = 1;
-	i++;
+	j++;
     }
+    i += j;
 
     if(i != 10){
 	return NULL;
