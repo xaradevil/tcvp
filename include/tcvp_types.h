@@ -119,8 +119,9 @@ struct tcvp_pipe {
     void *private;
 };
 
-#define PROBE_OK    1
-#define PROBE_FAIL  2
-#define PROBE_AGAIN 3
+#define PROBE_OK      1
+#define PROBE_FAIL    2
+#define PROBE_AGAIN   3
+#define PROBE_DISCARD 4
 
 #endif

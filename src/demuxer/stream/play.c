@@ -366,6 +366,24 @@ del_stream(stream_player_t *sp, int s)
 }
 
 static int
+flush_stream(struct sp_stream *str, int drop)
+{
+    packet_t *pk;
+
+    if(!str->packets)
+	return 0;
+
+    if(drop)
+	while((pk = tclist_shift(str->packets)))
+	    tcfree(pk);
+
+    if(str->pipe)
+	str->pipe->flush(str->pipe, drop);
+
+    return 0;
+}
+
+static int
 waitplay(stream_player_t *sp, int s)
 {
     struct sp_stream *sps = sp->streams + s;
@@ -523,6 +541,7 @@ read_stream(void *p)
 
 	    switch(str->probe){
 	    case PROBE_AGAIN:
+	    case PROBE_DISCARD:
 		tc2_print("STREAM", TC2_PRINT_DEBUG, "probing stream %i\n",
 			  pk->stream);
 		tcref(pk);
@@ -543,6 +562,10 @@ read_stream(void *p)
 		    pthread_create(&str->th, NULL, play_stream, str);
 		    if(str->end->start)
 			str->end->start(str->end);
+		} else if(str->probe == PROBE_DISCARD){
+		    flush_stream(str, 1);
+		    tcfree(pk);
+		    break;
 		}
 	    case PROBE_OK:
 		pthread_mutex_lock(&sp->lock);
@@ -607,18 +630,12 @@ static int
 s_flush(tcvp_pipe_t *tp, int drop)
 {
     stream_player_t *sp = tp->private;
-    packet_t *pk;
     int i;
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "flushing, drop=%i\n", drop);
 
     for(i = 0; i < sp->nstreams; i++){
-	if(!sp->streams[i].packets)
-	    continue;
-	while((pk = tclist_shift(sp->streams[i].packets)))
-	    tcfree(pk);
-	if(sp->streams[i].pipe)
-	    sp->streams[i].pipe->flush(sp->streams[i].pipe, drop);
+	flush_stream(sp->streams + i, drop);
 	if(sp->streams[i].probe == PROBE_OK)
 	    sp->nbuf |= 1 << i;
     }
