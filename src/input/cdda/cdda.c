@@ -333,7 +333,7 @@ list_open(char *url, char *mode)
     p = cdt->header;
 
     for(i = 1; i <= tracks; i++) {
-	if(cdda_track_audiop(cdt->drive, cdt->track)) {
+	if(cdda_track_audiop(cdt->drive, i)) {
 	    p += sprintf(p, "cdda:/%d.wav\n", i);
 	}
     }
