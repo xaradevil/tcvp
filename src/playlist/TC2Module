@@ -33,4 +33,8 @@ TCVP {
 	event TCVP_PL_ADDLIST	pl_alloc_addlist pl_addlist_ser pl_addlist_deser
 	event TCVP_PL_REMOVE	pl_alloc_remove remove_ser remove_deser
 	event TCVP_PL_SHUFFLE	pl_alloc_shuffle shuffle_ser shuffle_deser
+	event TCVP_PL_START	NULL NULL NULL
+	event TCVP_PL_STOP	NULL NULL NULL
+	event TCVP_PL_NEXT	NULL NULL NULL
+	event TCVP_PL_PREV	NULL NULL NULL
 }
