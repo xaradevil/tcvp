@@ -237,18 +237,21 @@ use_stream(stream_shared_t *sh, int s, stream_t *str)
 {
     int t = str->stream_type;
     void *cs = NULL;
-    int ss, u = 0;
+    int ss, u = 0, shs;
     char *c;
     char *lang = NULL, *clang = NULL;
 
     if(t == STREAM_TYPE_AUDIO){
 	c = "audio/stream";
 	lang = str->audio.language;
+	shs = sh->as;
     } else if(t == STREAM_TYPE_VIDEO){
 	c = "video/stream";
+	shs = sh->vs;
     } else if(t == STREAM_TYPE_SUBTITLE){
 	c = "subtitle/stream";
 	lang = str->subtitle.language;
+	shs = sh->ss;
     } else {
 	return 0;
     }
@@ -268,7 +271,7 @@ use_stream(stream_shared_t *sh, int s, stream_t *str)
 
     while(tcconf_nextvalue(sh->conf, c, &cs, "%i%s", &ss, &clang) > 0){
 	if(clang){
-	    if(lang && sh->ss < 0)
+	    if(lang && shs < 0)
 		u = !strcmp(lang, clang);
 	    free(clang);
 	    clang = NULL;
