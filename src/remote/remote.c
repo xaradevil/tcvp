@@ -334,6 +334,7 @@ rm_init(char *p)
     get_event("TCVP_OPEN", CONTROL); 
     get_event("TCVP_START", CONTROL);
     get_event("TCVP_PAUSE", CONTROL);
+    get_event("TCVP_STOP", CONTROL);
     get_event("TCVP_CLOSE", CONTROL);
     get_event("TCVP_SEEK", CONTROL);
     get_event("TCVP_TIMER", TIMER);
