@@ -7,3 +7,6 @@ implement	"driver/audio/alsa"	"new"	alsa_new
 implement	"driver/timer"		"new"	alsa_timer_new
 implement	"driver/timer/alsa"	"new"	alsa_timer_new
 option		device%s="default"
+Default playback device.
+option		pcm_timer%i=1
+Use sound card as master timer.
