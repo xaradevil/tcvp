@@ -236,8 +236,8 @@ alsa_play(void *p)
 		    dt = tm > t? tm - t: t - tm;
 		    if(dt > tcvp_output_alsa_conf_pts_threshold){
 			ao->timer->reset(ao->timer, t);
-			fprintf(stderr, "ALSA: pts = %llu, t = %llu, dt = %5lli\n",
-				ao->ptsq[ao->pqt].pts, t, t - tm);
+/* 			fprintf(stderr, "ALSA: pts = %llu, t = %llu, dt = %5lli\n", */
+/* 				ao->ptsq[ao->pqt].pts, t, t - tm); */
 		    }
 		    while(ao->ptsq[ao->pqt].bp < ao->tail && ao->pqc){
 			if(++ao->pqt == ptsqsize)

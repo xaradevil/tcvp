@@ -74,7 +74,7 @@ static void *
 v_play(void *p)
 {
     video_out_t *vo = p;
-    int64_t lpts = 0, dt, dpts, lt = 0, tm, dpt;
+/*     int64_t lpts = 0, dt, dpts, lt = 0, tm, dpt; */
 
     while(vo->state != STOP){
 	pthread_mutex_lock(&vo->smx);
@@ -88,14 +88,14 @@ v_play(void *p)
 	if(vo->pts[vo->tail] == -1LL)
 	    break;
 
-	dpts = vo->pts[vo->tail] - lpts;
-	lpts = vo->pts[vo->tail];
-	tm = vo->timer->read(vo->timer);
-	dt = tm - lt;
-	lt = tm;
-	dpt = vo->pts[vo->tail] - tm;
+/* 	dpts = vo->pts[vo->tail] - lpts; */
+/* 	lpts = vo->pts[vo->tail]; */
+/* 	tm = vo->timer->read(vo->timer); */
+/* 	dt = tm - lt; */
+/* 	lt = tm; */
+/* 	dpt = vo->pts[vo->tail] - tm; */
 
-	fprintf(stderr, "VO: pts = %llu, dt = %lli, t = %llu pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt, tm, dpt, vo->frames);
+/* 	fprintf(stderr, "VO: pts = %llu, dt = %lli, t = %llu pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt, tm, dpt, vo->frames); */
 
 	if(vo->timer->wait(vo->timer, vo->pts[vo->tail]) < 0)
 	    continue;

@@ -273,13 +273,9 @@ decode(tcvp_pipe_t *p, packet_t *pk)
     d = pk->data[0];
     size = pk->sizes[0];
 
-    if(pk->pts){
-	if(md->ptsc <= 0){
-	    md->npts = pk->pts;
-	    md->ptsc = md->bs;
-	} else {
-	    fprintf(stderr, "MAD: lost pts %llu\n", pk->pts);
-	}
+    if(pk->pts && md->ptsc <= 0){
+	md->npts = pk->pts;
+	md->ptsc = md->bs;
     }
 
     while(size > 0 && !md->flush){
