@@ -187,6 +187,17 @@ avf_free(void *p)
     free(as);
 }
 
+static uint64_t
+avf_seek(muxed_stream_t *ms, uint64_t time)
+{
+    avf_stream_t *as = ms->private;
+    int64_t avtime = AV_TIME_BASE * time / 27000000LL;
+
+    if(av_seek_frame(as->afc, -1, avtime, AVSEEK_FLAG_BACKWARD) < 0)
+	return -1;
+
+    return time;
+}
 
 extern muxed_stream_t *
 avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
@@ -261,8 +272,12 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 	ms->streams[i].common.index = i;
     }
+
+    ms->time = 27000000LL * afc->duration / AV_TIME_BASE;
+
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = avf_next_packet;
+    ms->seek = avf_seek;
 
     as = calloc(1, sizeof(*as));
     as->afc = afc;
