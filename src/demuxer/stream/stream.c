@@ -199,16 +199,15 @@ read_stream(void *p)
 	}
 
 	if(!(pk = ms->next_packet(ms, s))){
+	    for(i = 0; i < ms->n_streams; i++)
+		if(ms->used_streams[i])
+		    qpk(vp, NULL, i);
 	    vp->eof = 1;
 	    continue;
 	}
 
 	qpk(vp, pk, pk->stream);
     }
-
-    for(i = 0; i < ms->n_streams; i++)
-	if(ms->used_streams[i])
-	    qpk(vp, NULL, i);
 
     return NULL;
 }
