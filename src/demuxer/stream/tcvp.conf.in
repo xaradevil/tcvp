@@ -11,5 +11,5 @@ suffix '.au'	'audio/basic'		'au'
 suffix '.aiff'	'audio/x-aiff'		'aiff'
 suffix '.jpg'	NULL			'jpeg'
 suffix '.h264'	'video/x-h264'		'raw'
-suffix '.ac3'	'audio/ac3'		NULL
-suffix '.a52'	'audio/ac3'		NULL
+suffix '.ac3'	'audio/ac3'		'ac3'
+suffix '.a52'	'audio/ac3'		'ac3'

@@ -83,12 +83,17 @@ mp3w_free(void *p)
     free(mw);
 }
 
-static char *codecs[][2] = {
-    { "audio/mpeg", "mp3" },
-    { "audio/mp3", "mp3" },
-    { "audio/mp2", "mp3" },
-    { "audio/mp1", "mp3" },
-    { "audio/aac", "aac" },
+static struct {
+    char *codec;
+    char *tag;
+    int id3;
+} codecs[] = {
+    { "audio/mpeg", "mp3", 1 },
+    { "audio/mp3", "mp3", 1 },
+    { "audio/mp2", "mp3", 1 },
+    { "audio/mp1", "mp3", 1 },
+    { "audio/aac", "aac", 1 },
+    { "audio/ac3", "ac3", 0 },
     { NULL, NULL }
 };
 
@@ -105,22 +110,23 @@ mp3w_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
 	return NULL;
 
-    for(i = 0; codecs[i][0]; i++){
-	if(!strcmp(s->common.codec, codecs[i][0]))
+    for(i = 0; codecs[i].codec; i++){
+	if(!strcmp(s->common.codec, codecs[i].codec))
 	    break;
     }
 
-    if(!codecs[i][0])
+    if(!codecs[i].codec)
 	return NULL;
 
     if(!(u = url_open(url, "w")))
 	return NULL;
 
-    id3v2_write_tag(u, ms);
+    if(codecs[i].id3)
+	id3v2_write_tag(u, ms);
 
     mw = calloc(1, sizeof(*mw));
     mw->u = u;
-    mw->tag = codecs[i][1];
+    mw->tag = codecs[i].tag;
 
     p = tcallocdz(sizeof(*p), NULL, mp3w_free);
     p->input = mp3w_input;

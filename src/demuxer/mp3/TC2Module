@@ -9,6 +9,7 @@ implement	"audio/x-aac"	"open"		mp3_open
 implement	"audio/ac3"	"open"		mp3_open
 implement	"mux/mp3"	"new"		mp3w_new
 implement	"mux/aac"	"new"		mp3w_new
+implement	"mux/ac3"	"new"		mp3w_new
 import		"Eventq"	"new"
 import		"Eventq"	"delete"
 import		"Eventq"	"send"
