@@ -79,6 +79,8 @@ avc_encvid(tcvp_pipe_t *p, packet_t *pk)
     else
 	f->pict_type = 0;
 
+    f->top_field_first = !!(pk->flags & TCVP_PKT_FLAG_TOPFIELDFIRST);
+
     if((size = avcodec_encode_video(enc->ctx, enc->buf, ENCBUFSIZE, f)) > 0){
 	if(enc->stats){
 	    enc->stats->write(enc->ctx->stats_out, 1,
