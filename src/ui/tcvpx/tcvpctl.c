@@ -44,6 +44,8 @@ tcvp_event(void *p)
 
 	case TCVP_TIMER:
 	    s_time = te->timer.time/1000000;
+	    if(s_time > s_length)
+		s_length = s_time;
 	    update_time(skin);
 	    break;
 
