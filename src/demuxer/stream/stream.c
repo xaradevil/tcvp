@@ -183,12 +183,12 @@ s_free(tcvp_pipe_t *p)
     pthread_mutex_lock(&vp->mtx);
     while(vp->flushing)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
+    pthread_mutex_unlock(&vp->mtx);
+
     free(vp->pipes);
     free(vp->threads);
     free(vp);
     free(p);
-
-    pthread_mutex_unlock(&vp->mtx);
 
     return 0;
 }
