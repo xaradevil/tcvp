@@ -205,6 +205,7 @@ avf_open(char *name, conf_section *cs)
     }
 
     ms = tcallocd(sizeof(*ms), NULL, avf_free);
+    memset(ms, 0, sizeof(*ms));
     ms->n_streams = afc->nb_streams;
     ms->streams = malloc(ms->n_streams * sizeof(stream_t));
     for(i = 0; i < ms->n_streams; i++){
