@@ -695,7 +695,8 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 	seclen -= 13 + pi_len;
 	for(i = 0; i < seclen - 4;){
-	    int stype, epid, esil, sti;
+	    mpeg_stream_type_t *mst;
+	    int stype, epid, esil;
 	    int j;
 
 	    if(ms->n_streams == ns){
@@ -715,9 +716,12 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    if(esil > seclen - i)
 		goto err;
 
-	    if((sti = stream_type2codec(stype)) >= 0){
-		sp->stream_type = mpeg_stream_types[sti].stream_type;
-		sp->common.codec = mpeg_stream_types[sti].codec;
+	    if((mst = mpeg_stream_type_id(stype)) != NULL){
+		if(!strncmp(mst->codec, "video/", 6))
+		    sp->stream_type = STREAM_TYPE_VIDEO;
+		else
+		    sp->stream_type = STREAM_TYPE_AUDIO;
+		sp->common.codec = mst->codec;
 		sp->common.index = ms->n_streams;
 		sp->common.start_time = -1;
 		sp->common.flags = TCVP_STREAM_FLAG_TRUNCATED;

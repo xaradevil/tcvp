@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -44,11 +44,9 @@ typedef struct mpegpes_packet {
 typedef struct mpeg_stream_type {
     int mpeg_stream_type;
     int stream_id_base;
-    int stream_type;
     char *codec;
 } mpeg_stream_type_t;
 
-extern mpeg_stream_type_t mpeg_stream_types[];
 extern tcfraction_t frame_rates[16];
 
 #define MPEGTS_SYNC 0x47
@@ -102,7 +100,7 @@ extern tcfraction_t frame_rates[16];
 #define min(a,b) ((a)<(b)?(a):(b))
 
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
-extern int stream_type2codec(int st);
+extern mpeg_stream_type_t *mpeg_stream_type_id(int st);
 extern mpeg_stream_type_t *mpeg_stream_type(char *codec);
 extern int mpeg_descriptor(stream_t *s, u_char *d);
 extern int write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size);

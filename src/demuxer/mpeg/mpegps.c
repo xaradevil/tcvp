@@ -440,7 +440,7 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 	u_int stype = *pm++;
 	u_int sid = *pm++;
 	u_int il = htob_16(unaligned16(pm));
-	int sti;
+	mpeg_stream_type_t *mst;
 
 	pm += 2;
 
@@ -453,10 +453,13 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 	s->imap[sid] = ms->n_streams;
 	s->map[ms->n_streams] = sid;
 
-	if((sti = stream_type2codec(stype)) >= 0){
+	if((mst = mpeg_stream_type_id(stype)) != NULL){
 	    memset(sp, 0, sizeof(*sp));
-	    sp->stream_type = mpeg_stream_types[sti].stream_type;
-	    sp->common.codec = mpeg_stream_types[sti].codec;
+	    if(!strncmp(mst->codec, "video/", 6))
+		sp->stream_type = STREAM_TYPE_VIDEO;
+	    else
+		sp->stream_type = STREAM_TYPE_AUDIO;
+	    sp->common.codec = mst->codec;
 	    sp->common.index = ms->n_streams++;
 	    sp->common.start_time = -1;
 

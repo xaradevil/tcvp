@@ -23,8 +23,6 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tclist.h>
@@ -132,20 +130,20 @@ mpeg_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *t)
     return ms;
 }
 
-mpeg_stream_type_t mpeg_stream_types[] = {
-    { 0x01, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg"  },
-    { 0x02, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg2" },
-    { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mpeg"  },
-    { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp2"   },
-    { 0x03, 0xc0, STREAM_TYPE_AUDIO, "audio/mp3"   },
-    { 0x04, 0xc0, STREAM_TYPE_AUDIO, "audio/mpeg"  },
-    { 0x0f, 0xc0, STREAM_TYPE_AUDIO, "audio/aac"   },
-    { 0x10, 0xe0, STREAM_TYPE_VIDEO, "video/mpeg4" },
-    { 0x1b, 0xe0, STREAM_TYPE_VIDEO, "video/h264"  },
-    { 0x81, 0xbd, STREAM_TYPE_AUDIO, "audio/ac3"   }
+static mpeg_stream_type_t mpeg_stream_types[] = {
+    { 0x01, 0xe0, "video/mpeg"  },
+    { 0x02, 0xe0, "video/mpeg2" },
+    { 0x03, 0xc0, "audio/mpeg"  },
+    { 0x03, 0xc0, "audio/mp2"   },
+    { 0x03, 0xc0, "audio/mp3"   },
+    { 0x04, 0xc0, "audio/mpeg"  },
+    { 0x0f, 0xc0, "audio/aac"   },
+    { 0x10, 0xe0, "video/mpeg4" },
+    { 0x1b, 0xe0, "video/h264"  },
+    { 0x81, 0xbd, "audio/ac3"   }
 };
 
-tcfraction_t frame_rates[16] = {
+static tcfraction_t frame_rates[16] = {
     { 0,     0    },
     { 24000, 1001 },
     { 24,    1    },
@@ -157,7 +155,7 @@ tcfraction_t frame_rates[16] = {
     { 60,    1    }
 };
 
-tcfraction_t aspect_ratios[16] = {
+static tcfraction_t aspect_ratios[16] = {
     [2] = { 4,   3   },
     [3] = { 16,  9   },
     [4] = { 221, 100 }
@@ -174,6 +172,11 @@ mpeg_stream_type(char *codec)
     for(i = 0; i < nstream_types; i++)
 	if(!strcmp(codec, mpeg_stream_types[i].codec))
 	    return &mpeg_stream_types[i];
+
+    for(i = 0; i < tcvp_demux_mpeg_conf_private_type_count; i++)
+	if(!strcmp(codec, tcvp_demux_mpeg_conf_private_type[i].codec))
+	    return (mpeg_stream_type_t *)
+		tcvp_demux_mpeg_conf_private_type + i;
 
     return NULL;
 }
@@ -311,16 +314,21 @@ write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size)
     return 0;
 }
 
-extern int
-stream_type2codec(int st)
+extern mpeg_stream_type_t *
+mpeg_stream_type_id(int st)
 {
     int i;
 
     for(i = 0; i < nstream_types; i++)
 	if(mpeg_stream_types[i].mpeg_stream_type == st)
-	    return i;
+	    return mpeg_stream_types + i;
 
-    return -1;
+    for(i = 0; i < tcvp_demux_mpeg_conf_private_type_count; i++)
+	if(tcvp_demux_mpeg_conf_private_type[i].id == st)
+	    return (mpeg_stream_type_t *)
+		tcvp_demux_mpeg_conf_private_type + i;
+
+    return NULL;
 }
 
 extern int
