@@ -81,15 +81,15 @@ show_help(void)
 	   "   -f      --fullscreen          Fill entire screen\n"
 	   "           --aspect=a[/b]        Force video aspect ratio\n"
 	   "           --skin=file           Select skin\n"
-	   "   -D      --daemon              Fork into background.\n"
-	   "   -x name --addon=name          Enable addon.\n"
-	   "   -X name --noaddon=name        Disable addon.\n"
+	   "   -D      --daemon              Fork into background\n"
+	   "   -x name --addon=name          Enable addon\n"
+	   "   -X name --noaddon=name        Disable addon\n"
 	   "           --play\n"
 	   "           --pause\n"
 	   "           --stop\n"
 	   "           --next\n"
 	   "           --prev\n"
-	   "           --clear\n"
+	   "           --clear               Clear playlist\n"
 	);
 }
 
