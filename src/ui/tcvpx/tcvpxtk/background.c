@@ -81,8 +81,9 @@ update_root(window_t *window)
 
 
 extern int
-repaint_background(tcwidget_t *w)
+repaint_background(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     XImage *img;
     GC bgc = w->background.window->bgc;
 
@@ -183,8 +184,9 @@ repaint_background(tcwidget_t *w)
 
 
 static int
-destroy_background(tcwidget_t *w)
+destroy_background(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     free(*w->background.img->data);
     free(w->background.img->data);
     free(w->background.img);

@@ -20,8 +20,9 @@
 
 
 extern int
-repaint_seek_bar(tcwidget_t *w)
+repaint_seek_bar(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     if(w->state.window->mapped==1){
 	if(w->label.window->enabled == 1) {
 	    XImage *img;
@@ -66,7 +67,7 @@ extern int
 disable_seek_bar(tcseek_bar_t *w)
 {
     w->enabled = 0;
-    w->repaint((tcwidget_t *) w);
+    w->repaint((xtk_widget_t *) w);
     draw_widget((tcwidget_t *) w);
     XSync(xd, False);
 
@@ -78,7 +79,7 @@ extern int
 enable_seek_bar(tcseek_bar_t *w)
 {
     w->enabled = 1;
-    w->repaint((tcwidget_t *) w);
+    w->repaint((xtk_widget_t *) w);
     draw_widget((tcwidget_t *) w);
     XSync(xd, False);
 
@@ -91,7 +92,7 @@ change_seek_bar(tcseek_bar_t *w, double position)
 {
     if(w->enabled) {
 	w->position = position;
-	w->repaint((tcwidget_t *) w);
+	w->repaint((xtk_widget_t *) w);
 	draw_widget((tcwidget_t *) w);
 	XSync(xd, False);
     }
@@ -101,8 +102,10 @@ change_seek_bar(tcseek_bar_t *w, double position)
 
 
 extern int
-seek_bar_onclick(tcwidget_t *w, void *xe)
+seek_bar_onclick(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
+
     int xc = ((XEvent *)xe)->xbutton.x;
     int yc = ((XEvent *)xe)->xbutton.y;
     int xl = w->seek_bar.end_x - w->seek_bar.start_x;
@@ -124,14 +127,16 @@ seek_bar_onclick(tcwidget_t *w, void *xe)
 
 /*     fprintf(stderr, "seek bar clicked (%d,%d)->%f\n", x, y, pos); */
 
-    w->seek_bar.action(w, &pos);
+    w->seek_bar.action((xtk_widget_t *)w, &pos);
     return 0;
 }
 
 
 int
-destroy_seek_bar(tcwidget_t *w)
+destroy_seek_bar(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
+
     free(*w->seek_bar.background->data);
     free(w->seek_bar.background->data);
     free(w->seek_bar.background);

@@ -20,8 +20,10 @@
 #include <string.h>
 
 static int
-repaint_state(tcwidget_t *w)
+repaint_state(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
+
     if(w->state.window->mapped==1 && w->state.window->enabled == 1){
 	XImage *img;
 	img = XGetImage(xd, w->state.window->background->pixmap,
@@ -40,8 +42,9 @@ repaint_state(tcwidget_t *w)
 
 
 static int
-destroy_state(tcwidget_t *w)
+destroy_state(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     int i;
 
     for(i=0; i<w->state.num_states; i++) {
@@ -68,7 +71,7 @@ change_state(tcstate_t *st, char *state)
     }
 
     if(st->window->mapped==1){
-	st->repaint((tcwidget_t *) st);
+	st->repaint((xtk_widget_t *) st);
 	draw_widget((tcwidget_t *) st);
 	XSync(xd, False);
     }

@@ -139,7 +139,7 @@ load_skin(char *skinconf)
 }
 
 
-static tcbackground_t*
+static xtk_widget_t*
 create_skinned_background(skin_t *skin, conf_section *sec)
 {
     char *file;
@@ -155,7 +155,7 @@ create_skinned_background(skin_t *skin, conf_section *sec)
 }
 
 
-static tcimage_button_t*
+static xtk_widget_t*
 create_skinned_button(skin_t *skin, conf_section *sec)
 {
     char *file, *of = NULL, *df = NULL;
@@ -190,7 +190,7 @@ destroy_skinned_label(xtk_widget_t *w)
     return 0;
 }
 
-static tclabel_t*
+static xtk_widget_t*
 create_skinned_label(skin_t *skin, conf_section *sec)
 {
     int x, y;
@@ -236,7 +236,7 @@ create_skinned_label(skin_t *skin, conf_section *sec)
     l = xtk_create_label(skin->window, x, y, w, h, xoff, yoff, default_text,
 			 font, color, alpha, stype, lookup_action, ad);
 
-    register_textwidget((tcwidget_t *)l, text);
+    register_textwidget(l, text);
     l->ondestroy = destroy_skinned_label;
 
     return l;
@@ -251,7 +251,7 @@ destroy_skinned_seek_bar(xtk_widget_t *w)
     return 0;
 }
 
-static tcseek_bar_t*
+static xtk_widget_t*
 create_skinned_seek_bar(skin_t *skin, conf_section *sec)
 {
     int x, y;
@@ -277,7 +277,7 @@ create_skinned_seek_bar(skin_t *skin, conf_section *sec)
 
     conf_getvalue(sec, "action", "%s", &action);
 
-    parse_variable(value, &position);
+    parse_variable(value, (void *)&position);
     if(!position) {
 	position = &p;	
     }

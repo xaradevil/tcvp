@@ -88,13 +88,13 @@ x11_event(void *p)
 	{
 	    if(drag){
 		if(drag->common.drag_end){
-		    drag->common.drag_end(drag, &xe);
+		    drag->common.drag_end((xtk_widget_t *) drag, &xe);
 		    drag = NULL;
 		}
 	    }
 	    if(pbt) {
 		if(pbt->common.release){
-		    pbt->common.release(pbt, &xe);
+		    pbt->common.release((xtk_widget_t *) pbt, &xe);
 		}
 	    }
 	    break;
@@ -104,7 +104,7 @@ x11_event(void *p)
 	{
 	    if(drag){
 		if(drag->common.ondrag){
-		    drag->common.ondrag(drag, &xe);
+		    drag->common.ondrag((xtk_widget_t *) drag, &xe);
 		}
 	    }
 	    break;
@@ -118,14 +118,14 @@ x11_event(void *p)
 	    while((w = list_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
 		    if(w->common.enabled && w->common.onclick){
-			w->common.onclick(w, &xe);
+			w->common.onclick((xtk_widget_t *) w, &xe);
 		    }
 		}
 	    }
 	    while((w = list_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
 		    if(w->common.enabled && w->common.press){
-			w->common.press(w, &xe);
+			w->common.press((xtk_widget_t *) w, &xe);
 			pbt = w;
 		    }
 		}
@@ -136,7 +136,7 @@ x11_event(void *p)
 		    if(w->common.enabled) {
 			drag = w;
 			if(w->common.drag_begin){
-			    w->common.drag_begin(w, &xe);
+			    w->common.drag_begin((xtk_widget_t *) w, &xe);
 			}
 		    }
 		}
@@ -153,7 +153,7 @@ x11_event(void *p)
 	    while((w = list_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
 		    if(w->common.enter){
-			w->common.enter(w, &xe);
+			w->common.enter((xtk_widget_t *) w, &xe);
 		    }
 		}
 	    }
@@ -169,7 +169,7 @@ x11_event(void *p)
 	    while((w = list_next(click_list, &current))!=NULL) {
 		if(xe.xbutton.window == w->common.win){
 		    if(w->common.exit){
-			w->common.exit(w, &xe);
+			w->common.exit((xtk_widget_t *) w, &xe);
 		    }
 		}
 	    }
@@ -425,6 +425,28 @@ init_graphics()
 
     pthread_create(&xth, NULL, x11_event, NULL);
     pthread_create(&sth, NULL, scroll_labels, NULL);
+
+    return 0;
+}
+
+
+extern int
+shdn_graphics()
+{
+    quit = 1;
+
+    /* Get some events, should be done in a better way */
+    Window xw = XCreateWindow(xd, RootWindow(xd, xs), 0, 0,
+			      1, 1, 0, CopyFromParent, InputOutput,
+			      CopyFromParent, 0, 0);
+    XSelectInput(xd, xw, StructureNotifyMask);
+    XDestroyWindow(xd, xw);
+    XSync(xd, False);
+
+    pthread_join(xth, NULL);
+    pthread_join(sth, NULL);
+
+    XCloseDisplay(xd);
 
     return 0;
 }

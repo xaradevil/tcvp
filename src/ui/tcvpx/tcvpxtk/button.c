@@ -20,8 +20,9 @@
 
 
 static int
-repaint_button(tcwidget_t *w)
+repaint_button(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     if(w->button.window->mapped==1 && w->button.window->enabled == 1){
 	XImage *img;
 	img = XGetImage(xd, w->button.window->background->pixmap,
@@ -40,8 +41,9 @@ repaint_button(tcwidget_t *w)
 
 
 static int
-destroy_button(tcwidget_t *w)
+destroy_button(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     free(*w->button.img->data);
     free(w->button.img->data);
     free(w->button.img);
@@ -50,40 +52,44 @@ destroy_button(tcwidget_t *w)
 
 
 static int
-press_button(tcwidget_t *w, void *xe)
+press_button(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     w->button.img = w->button.down_img;
-    repaint_button(w);
+    repaint_button(xw);
     draw_widget(w);
     return 0;
 }
 
 
 static int
-release_button(tcwidget_t *w, void *xe)
+release_button(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     w->button.img = w->button.bgimg;
-    repaint_button(w);
+    repaint_button(xw);
     draw_widget(w);
     return 0;
 }
 
 
 static int
-enter_button(tcwidget_t *w, void *xe)
+enter_button(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     w->button.img = w->button.over_img;
-    repaint_button(w);
+    repaint_button(xw);
     draw_widget(w);
     return 0;
 }
 
 
 static int
-exit_button(tcwidget_t *w, void *xe)
+exit_button(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     w->button.img = w->button.bgimg;
-    repaint_button(w);
+    repaint_button(xw);
     draw_widget(w);
     return 0;
 }

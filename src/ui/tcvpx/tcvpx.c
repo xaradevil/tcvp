@@ -105,10 +105,9 @@ tcvpx_shdn(void)
 {
     tcvp_stop(NULL, NULL);
 
-    /* FIXME: join event thread */
-/*     pthread_join(eth, NULL); */
+    xtk_shutdown_graphics();
 
-/*     XCloseDisplay(xd); */
+    pthread_join(eth, NULL);
 
     eventq_delete(qs);
 

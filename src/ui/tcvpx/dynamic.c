@@ -58,7 +58,7 @@ change_variable(char *key, void *data)
 	    case TCSEEKBAR:
 	    {
 		double pos = (tmp)?*((double *)tmp):0;
-		xtk_change_seek_bar((tcseek_bar_t*)w, pos);
+		xtk_change_seek_bar(w, pos);
 		break;
 	    }
 	    }
@@ -92,10 +92,10 @@ change_text(char *key, char *text)
 	    parse_text(ad->data, buf);
 	    switch(w->type) {
 	    case TCLABEL:
-		xtk_change_label((tclabel_t*)w, buf);
+		xtk_change_label(w, buf);
 		break;
 	    case TCSTATE:
-		xtk_change_state((tcstate_t*)w, buf);
+		xtk_change_state(w, buf);
 		break;
 	    }
 	}

@@ -100,7 +100,7 @@ repaint_widgets()
 	if(win->mapped==1){
 	    list_item *current=NULL;
 	    while((w = list_next(win->widgets, &current))!=NULL) {
-		if(w->common.repaint) w->common.repaint(w);
+		if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
 	    }
 	}
     }
@@ -110,10 +110,11 @@ repaint_widgets()
 
 
 extern int
-widget_onclick(tcwidget_t *p, void *xe)
+widget_onclick(xtk_widget_t *p, void *xe)
 {
-    if(p->common.enabled && p->common.action){
-	return p->common.action(p, NULL);
+    tcwidget_t *w = (tcwidget_t *)p;
+    if(w->common.enabled && w->common.action){
+	return w->common.action(p, NULL);
     }
     return 0;
 }
@@ -145,14 +146,14 @@ destroy_widget(tcwidget_t *w)
     }
 
     if(w->common.ondestroy) {
-	w->common.ondestroy(w);
+	w->common.ondestroy((xtk_widget_t *) w);
     }
 
     XDestroyWindow(xd, w->common.win);
     XFreePixmap(xd, w->common.pixmap);
 
     if(w->common.destroy) {
-	w->common.destroy(w);
+	w->common.destroy((xtk_widget_t *) w);
     }
 
     free(w);

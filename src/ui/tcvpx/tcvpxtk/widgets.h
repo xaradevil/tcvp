@@ -31,6 +31,13 @@
 #define TCLABELPINGPONG   (1<<2)
 #define TCLABELMANUAL     (1<<3)
 
+typedef struct _tcbackground_t		tcbackground_t;
+typedef struct _tcseek_bar_t		tcseek_bar_t;
+typedef struct _tcimage_button_t	tcimage_button_t;
+typedef struct _tcstate_t		tcstate_t;
+typedef struct _tclabel_t		tclabel_t;
+typedef struct _tcwidget_common_t	tcwidget_common_t;
+typedef union _tcwidget_t		tcwidget_t;
 
 typedef int(*on_xevent_cb_t)(xtk_widget_t *, void *);
 
@@ -144,7 +151,7 @@ extern int root_height;
 extern int depth;
 extern int quit;
 
-int widget_onclick(tcwidget_t *w, void *xe);
+int widget_onclick(xtk_widget_t *w, void *xe);
 int draw_widget(tcwidget_t *w);
 int draw_widgets();
 int repaint_widgets();

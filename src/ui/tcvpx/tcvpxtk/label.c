@@ -36,7 +36,7 @@ scroll_labels(void *p)
 		    if(w->label.scrolling & TCLABELSCROLLING) {
 			w->label.s_pos++;
 			w->label.s_pos %= w->label.s_max;
-			if(w->common.repaint) w->common.repaint(w);
+			if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
 			draw_widget(w);
 			c = 1;
 		    } else if(w->label.scrolling & TCLABELPINGPONG) {
@@ -48,7 +48,7 @@ scroll_labels(void *p)
 			    w->label.s_dir = 1;
 			    w->label.s_pos = 0;
 			}
-			if(w->common.repaint) w->common.repaint(w);
+			if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
 			draw_widget(w);
 			c = 1;
 		    }
@@ -160,7 +160,7 @@ change_label(tclabel_t *txt, char *text)
 	}
 
 	if(txt->window->mapped==1){
-	    txt->repaint((tcwidget_t *) txt);
+	    txt->repaint((xtk_widget_t *) txt);
 	    draw_widget((tcwidget_t *) txt);
 	    XSync(xd, False);
 	}
@@ -170,8 +170,10 @@ change_label(tclabel_t *txt, char *text)
 
 
 extern int
-repaint_label(tcwidget_t *txt)
+repaint_label(xtk_widget_t *xw)
 {
+    tcwidget_t *txt = (tcwidget_t *)xw;
+
     GC bgc = txt->label.window->bgc;
 
     if(txt->label.window->mapped==1){
@@ -284,8 +286,9 @@ repaint_label(tcwidget_t *txt)
 
 
 static int
-label_ondrag(tcwidget_t *w, void *xe)
+label_ondrag(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     if(w->label.scrolling & TCLABELMANUAL) {
 	w->label.s_pos =  w->label.sdrag - (((XEvent *)xe)->xmotion.x -
 					    w->label.xdrag);
@@ -297,7 +300,7 @@ label_ondrag(tcwidget_t *w, void *xe)
 	    w->label.s_pos = 0;
 	}
 
-	w->label.repaint(w);
+	w->label.repaint((xtk_widget_t *)w);
 	draw_widget(w);
 	XSync(xd, False);
     }
@@ -307,8 +310,9 @@ label_ondrag(tcwidget_t *w, void *xe)
 
 
 static int
-label_drag_begin(tcwidget_t *w, void *xe)
+label_drag_begin(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     if((w->label.scrolling & TCLABELSTANDARD) == 0) {
 	w->label.scrolling |= TCLABELMANUAL;
 	w->label.xdrag = ((XEvent *)xe)->xbutton.x;
@@ -320,8 +324,9 @@ label_drag_begin(tcwidget_t *w, void *xe)
 
 
 static int
-label_drag_end(tcwidget_t *w, void *xe)
+label_drag_end(xtk_widget_t *xw, void *xe)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     if((w->label.scrolling & TCLABELSTANDARD) == 0) {
 	w->label.scrolling = w->label.scroll;
     }
@@ -331,8 +336,9 @@ label_drag_end(tcwidget_t *w, void *xe)
 
 
 static int
-destroy_label(tcwidget_t *w)
+destroy_label(xtk_widget_t *xw)
 {
+    tcwidget_t *w = (tcwidget_t *)xw;
     if((w->label.scroll & TCLABELSTANDARD)==0) {
 	list_delete(sl_list, w, widget_cmp, NULL);
 	list_delete(drag_list, w, widget_cmp, NULL);

@@ -17,6 +17,7 @@ implement	"xtk"	"disable_seek_bar"	disable_seek_bar
 implement	"xtk"	"create_state"		create_state
 implement	"xtk"	"change_state"		change_state
 implement	"xtk"	"init_graphics"		init_graphics
+implement	"xtk"	"shutdown_graphics"	shdn_graphics
 implement	"xtk"	"create_window"		create_window
 implement	"xtk"	"destroy_window"	destroy_window
 implement	"xtk"	"show_window"		show_window
