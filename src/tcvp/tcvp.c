@@ -28,12 +28,16 @@
 static tcvp_pipe_t *demux, *codec, *sound;
 static muxed_stream_t *stream;
 
-extern int
-tcvp_init(char *arg)
+static int tcvp_stop(char *p);
+
+static int
+tcvp_play(char *arg)
 {
     int i;
     char buf[64];
-    codec_new_t cnew;
+    codec_new_pipe_t cnew;
+
+    tcvp_stop(NULL);
 
     if((stream = video_open(arg)) == NULL)
 	return -1;
@@ -64,18 +68,18 @@ tcvp_init(char *arg)
     }
 
     if(i == stream->n_streams)
-	return 0;
+	return -1;
 
     stream->used_streams[i] = 1;
 
     sprintf(buf, "codec/%s", stream->streams[i].audio.codec);
-    if((cnew = tc2_get_symbol(buf, "new")) == NULL){
+    if((cnew = tc2_get_symbol(buf, "new_pipe")) == NULL){
 	fprintf(stderr, "TCVP: Can't load %s\n", buf);
-	return 0;
+	return -1;
     }
 
     sound = output_audio_open((audio_stream_t *)&stream->streams[i], NULL);
-    codec = cnew(sound);
+    codec = cnew(CODEC_MODE_DECODE, sound);
     demux = video_play(stream, &codec);
 
     demux->start(demux);
@@ -83,20 +87,81 @@ tcvp_init(char *arg)
     return 0;
 }
 
-extern int
-tcvp_stop(void)
+static int
+tcvp_pause(char *p)
 {
-    if(demux)
+    static int paused = 0;
+
+    if(!sound)
+	return -1;
+
+    if(paused ^= 1)
+	sound->stop(sound);
+    else
+	sound->start(sound);
+
+    return 0;
+}
+
+static int
+tcvp_stop(char *p)
+{
+    if(demux){
 	demux->free(demux);
+	demux = NULL;
+    }
 
-    if(codec)
+    if(codec){
 	codec->free(codec);
+	codec = NULL;
+    }
 
-    if(sound)
+    if(sound){
 	sound->free(sound);
+	sound = NULL;
+    }
 
-    if(stream)
+    if(stream){
 	stream->close(stream);
+	stream = NULL;
+    }
+
+    return 0;
+}
+
+static command *play_cmd, *pause_cmd, *stop_cmd;
+
+extern int
+tcvp_init(char *p)
+{
+    play_cmd = malloc(sizeof(command));
+    play_cmd->name = strdup("play");
+    play_cmd->cmd_fn = tcvp_play;
+    shell_register_command(play_cmd);
+
+    pause_cmd = malloc(sizeof(command));
+    pause_cmd->name = strdup("pause");
+    pause_cmd->cmd_fn = tcvp_pause;
+    shell_register_command(pause_cmd);
+
+    stop_cmd = malloc(sizeof(command));
+    stop_cmd->name = strdup("stop");
+    stop_cmd->cmd_fn = tcvp_stop;
+    shell_register_command(stop_cmd);
+
+    shell_register_prompt("TCVP$ ");
+
+    return 0;
+}
+
+extern int
+tcvp_shdn(void)
+{
+    tcvp_stop(NULL);
+    shell_unregister_command(play_cmd);
+    shell_unregister_command(pause_cmd);
+    shell_unregister_command(stop_cmd);
+    shell_unregister_prompt();
 
     return 0;
 }

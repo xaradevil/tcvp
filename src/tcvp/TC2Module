@@ -4,8 +4,12 @@ version		0.1.0
 tc2version	0.4.0
 sources		tcvp.c
 postinit	tcvp_init
-shutdown	tcvp_stop
+shutdown	tcvp_shdn
 import		"video"	"open"
 import		"video" "play"
 import		"output/audio" "open"
+import		"Shell" "register_command"
+import		"Shell" "unregister_command"
+import		"Shell" "register_prompt"
+import		"Shell" "unregister_prompt"
 require		"codec"
