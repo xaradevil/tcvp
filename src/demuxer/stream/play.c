@@ -324,7 +324,8 @@ add_stream(stream_player_t *sp, int s)
     sp->streams[s].starttime = -1LL;
 
     sp->ms->used_streams[s] = 1;
-    sp->nbuf |= 1 << s;
+    if(!(sp->ms->streams[s].common.flags & TCVP_STREAM_FLAG_NOBUFFER))
+	sp->nbuf |= 1 << s;
 
     r = 0;
 
@@ -387,8 +388,9 @@ del_stream(stream_player_t *sp, int s)
 }
 
 static int
-flush_stream(struct sp_stream *str, int drop)
+flush_stream(stream_player_t *sp, int sx, int drop)
 {
+    struct sp_stream *str = sp->streams + sx;
     packet_t *pk;
 
     if(!str->packets)
@@ -402,7 +404,8 @@ flush_stream(struct sp_stream *str, int drop)
 	str->pipe->flush(str->pipe, drop);
 
     if(str->probe == PROBE_OK)
-	str->sp->nbuf |= 1 << (str - str->sp->streams);
+	if(!(sp->ms->streams[sx].common.flags & TCVP_STREAM_FLAG_NOBUFFER))
+	    sp->nbuf |= 1 << sx;
 
     return 0;
 }
@@ -455,7 +458,9 @@ play_stream(void *p)
 	if((tclist_items(str->packets) < min_packets ||
 	    str->headtime - str->tailtime < buffertime) &&
 	   sp->ms->used_streams[six]){
-	    sp->nbuf |= 1 << six;
+	    if(!(sp->ms->streams[six].common.flags &
+		 TCVP_STREAM_FLAG_NOBUFFER))
+		sp->nbuf |= 1 << six;
 	    pthread_cond_broadcast(&sp->cond);
 	}
 	pthread_mutex_unlock(&sp->lock);
@@ -480,8 +485,8 @@ play_stream(void *p)
     pk->data = NULL;
     if(str->end->start)
 	str->end->start(str->end);
-    str->pipe->input(str->pipe, pk);
     str->pipe->flush(str->pipe, sp->state == STOP);
+    str->pipe->input(str->pipe, pk);
 
     del_stream(sp, six);
 
@@ -580,7 +585,7 @@ do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
 		str->end->start(str->end);
 	    pthread_mutex_unlock(&sp->lock);
 	} else if(str->probe == PROBE_DISCARD){
-	    flush_stream(str, 1);
+	    flush_stream(sp, ps, 1);
 	    tcfree(pk);
 	    break;
 	}
@@ -635,10 +640,9 @@ read_stream(void *p)
 	    if(tpk->flush.stream < 0){
 		int i;
 		for(i = 0; i < sp->nstreams; i++)
-		    flush_stream(sp->streams + i, tpk->flush.discard);
+		    flush_stream(sp, i, tpk->flush.discard);
 	    } else {
-		flush_stream(sp->streams + tpk->flush.stream,
-			     tpk->flush.discard);
+		flush_stream(sp, tpk->flush.stream, tpk->flush.discard);
 	    }
 	    tcfree(tpk);
 	    break;
@@ -743,7 +747,7 @@ s_flush(tcvp_pipe_t *tp, int drop)
     tc2_print("STREAM", TC2_PRINT_DEBUG, "flushing, drop=%i\n", drop);
 
     for(i = 0; i < sp->nstreams; i++){
-	flush_stream(sp->streams + i, drop);
+	flush_stream(sp, i, drop);
 /* 	if(sp->streams[i].probe == PROBE_OK) */
 /* 	    sp->nbuf |= 1 << i; */
     }
