@@ -183,6 +183,8 @@ END_C
     ${else}if(p->next){
 	return p->next->input(p->next, pk);
     }
+    tcfree(pk);
+    return 0;
 }
 
 static int
