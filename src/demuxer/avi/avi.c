@@ -274,11 +274,9 @@ avi_header(FILE *f)
 	    idxl = fread(af->index, sizeof(avi_index_t), idxl, f);
 	    af->idxlen = idxl;
 	    idxoff = movi_start - af->index[0].offset;
-	    fprintf(stderr, "AVI: idxoff = %x\n", idxoff);
 	    for(i = 0; i < idxl; i++){
 		af->index[i].offset += idxoff;
 	    }
-	    fprintf(stderr, "AVI: index[0] = %x\n", af->index[0].offset);
 	    break;
 	}
 	default:
