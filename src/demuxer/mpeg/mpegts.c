@@ -107,7 +107,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 		break;
 	}
 	if(sync != MPEGTS_SYNC){
-	    fprintf(stderr, "MPEGTS: can't find sync byte, @ %lx\n",
+	    fprintf(stderr, "MPEGTS: can't find sync byte, @ %llx\n",
 		    s->stream->tell(s->stream));
 	    return -1;
 	}
