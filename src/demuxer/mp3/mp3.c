@@ -358,6 +358,7 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
 typedef struct mp3_packet {
     packet_t pk;
     u_char *data;
+    u_char *buf;
     int size;
 } mp3_packet_t;
 
@@ -365,7 +366,7 @@ static void
 mp3_free_pk(void *p)
 {
     mp3_packet_t *mp = p;
-    free(mp->data);
+    free(mp->buf);
 }
 
 static mp3_packet_t *
@@ -388,6 +389,7 @@ read_packet(mp3_file_t *mf)
 
     mp = tcallocdz(sizeof(*mp), NULL, mp3_free_pk);
     mp->data = data;
+    mp->buf = data;
     mp->size = size;
     mp->pk.stream = 0;
     mp->pk.data = &mp->data;
