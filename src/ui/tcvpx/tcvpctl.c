@@ -222,8 +222,10 @@ tcvp_close(tcwidget_t *w, void *p)
 extern int
 tcvp_add_file(char *file)
 {
-    /* FIXME: add to playlist */
-    fprintf(stderr, "%s\n", file);
+/*     fprintf(stderr, "%s\n", file); */
+    tcvp_event_t *te = tcvp_alloc_event(TCVP_PL_ADD, &file, 1, -1);
+    eventq_send(qs, te);
+    tcfree(te);
 
     return 0;
 }
