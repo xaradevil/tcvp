@@ -1013,82 +1013,27 @@ avi_open(char *file, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     return ms;
 }
 
-static char *vcodec_tags[][2] = {
-    { "H263", "video/h263" },
-    { "I263", "video/h263i" },
-    { "MJPG", "video/mjpeg" },
-    { "DIVX", "video/mpeg4" },
-    { "divx", "video/mpeg4" },
-    { "DX50", "video/mpeg4" },
-    { "XVID", "video/mpeg4" },
-    { "xvid", "video/mpeg4" },
-    { "mp4s", "video/mpeg4" },
-    { "MP4S", "video/mpeg4" },
-    { "M4S2", "video/mpeg4" },
-    { "m4s2", "video/mpeg4" },
-    { "\x04\0\0\0", "video/mpeg4" },
-    { "DIV3", "video/msmpeg4v3" },
-    { "div3", "video/msmpeg4v3" },
-    { "MP43", "video/msmpeg4v3" },
-    { "MP42", "video/msmpeg4v2" },
-    { "MPG4", "video/msmpeg4v1" },
-    { "WMV1", "video/wmv1" },
-    { "dvsl", "video/dvvideo" },
-    { "dvsd", "video/dvvideo" },
-    { "DVSD", "video/dvvideo" },
-    { "dvhd", "video/dvvideo" },
-    { "mpg1", "video/mpeg" },
-    { "mpg2", "video/mpeg" },
-    { "PIM1", "video/mpeg" },
-    { "MJPG", "video/mjpeg" },
-    { "HFYU", "video/huffyuv" },
-    { "hfyu", "video/huffyuv" },
-    { "CYUV", "video/cyuv" },
-    { "cyuv", "video/cyuv" },
-    { "iv31", "video/indeo3" },
-    { "iv32", "video/indeo3" },
-    { "IV31", "video/indeo3" },
-    { "IV32", "video/indeo3" },
-    { "VP31", "video/vp3"},
-    { "cvid", "video/cinepak"},
-    { NULL, NULL }
-};
-
 static char *
 vtag2codec(char *tag)
 {
     int i;
 
-    for(i = 0; vcodec_tags[i][0]; i++){
-	if(!memcmp(tag, vcodec_tags[i][0], 4))
-	    return vcodec_tags[i][1];
+    for(i = 0; i < tcvp_demux_avi_conf_vtag_count; i++){
+	if(!memcmp(tag, tcvp_demux_avi_conf_vtag[i].tag, 4))
+	    return tcvp_demux_avi_conf_vtag[i].codec;
     }
 
     return NULL;
 }
-
-static char *acodec_ids[][2] = {
-    { (char*) 0x50, "audio/mp2" },
-    { (char*) 0x55, "audio/mp3" },
-    { (char*) 0x2000, "audio/ac3" },
-    { (char*) 0x01, "audio/pcm-s16le" },
-    { (char*) 0x06, "audio/pcm-alaw" },
-    { (char*) 0x07, "audio/pcm-ulaw" },
-    { (char*) 0x02, "audio/adpcm-ms" },
-    { (char*) 0x11, "audio/adpcm-ima-wav" },
-    { (char*) 0x160, "audio/wmav1" },
-    { (char*) 0x161, "audio/wmav2" },
-    { NULL, NULL },
-};
 
 static char *
 aid2codec(int id)
 {
     int i;
 
-    for(i = 0; acodec_ids[i][0]; i++){
-	if(id == (long) acodec_ids[i][0])
-	    return acodec_ids[i][1];
+    for(i = 0; tcvp_demux_avi_conf_atag_count; i++){
+	if(id == tcvp_demux_avi_conf_atag[i].tag)
+	    return tcvp_demux_avi_conf_atag[i].codec;
     }
 
     return NULL;
