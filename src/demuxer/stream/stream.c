@@ -89,14 +89,14 @@ typedef struct s_play {
     muxed_stream_t *stream;
     tcvp_pipe_t **pipes;
     int streams;
-    pthread_t *threads, rth;
+    pthread_t *threads;
     int state;
     int flushing;
     int waiting;
     pthread_mutex_t mtx;
     pthread_cond_t cnd;
     eventq_t sq;
-    packetq_t *pq;
+    list **pq;
     int eof;
 } s_play_t;
 
@@ -106,67 +106,25 @@ typedef struct vp_thread {
 } vp_thread_t;
 
 static void
-qpk(s_play_t *vp, packet_t *pk, int s)
-{
-    packetq_t *pq = vp->pq + s;
-
-    pthread_mutex_lock(&vp->mtx);
-
-    while(pq->count == QSIZE)
-	pthread_cond_wait(&vp->cnd, &vp->mtx);
-
-    pq->q[pq->head] = pk;
-    if(++pq->head == QSIZE)
-	pq->head = 0;
-    pq->count++;
-    pthread_cond_broadcast(&vp->cnd);
-
-    pthread_mutex_unlock(&vp->mtx);
-}
-
-static packet_t *
-dqp(s_play_t *vp, int s)
-{
-    packet_t *pk = NULL;
-    packetq_t *pq = vp->pq + s;
-
-    pthread_mutex_lock(&vp->mtx);
-    while(!pq->count)
-	pthread_cond_wait(&vp->cnd, &vp->mtx);
-
-    pk = pq->q[pq->tail];
-    if(++pq->tail == QSIZE)
-	pq->tail = 0;
-    pq->count--;
-    pthread_cond_broadcast(&vp->cnd);
-
-    pthread_mutex_unlock(&vp->mtx);
-
-    return pk;
-}
-
-static void
 freeq(s_play_t *vp, int i)
 {
-    while(vp->pq[i].count){
-	packet_t *pk = dqp(vp, i);
-	if(pk)
-	    pk->free(pk);
+    packet_t *pk;
+
+    while((pk = list_shift(vp->pq[i]))){
+	pk->free(pk);
     }
 }
 
-static void
-wait_pause(s_play_t *vp, int n, int eof)
+static int
+wait_pause(s_play_t *vp)
 {
     int w = 1;
     pthread_mutex_lock(&vp->mtx);
-    while((vp->state == PAUSE || (vp->eof && eof)) &&
-	  vp->waiting >= n){
+    while(vp->state == PAUSE && !vp->eof){
 	if(w){
 	    vp->waiting++;
 	    pthread_cond_broadcast(&vp->cnd);
 	    w = 0;
-	    n = 0;
 	}
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     }
@@ -175,52 +133,27 @@ wait_pause(s_play_t *vp, int n, int eof)
 	pthread_cond_broadcast(&vp->cnd);
     }
     pthread_mutex_unlock(&vp->mtx);
+
+    return vp->state != STOP && !vp->eof;
 }
 
-static void *
-read_stream(void *p)
+static packet_t *
+get_packet(s_play_t *vp, int s)
 {
-    s_play_t *vp = p;
-    muxed_stream_t *ms = vp->stream;
-    int i;
+    packet_t *p;
 
-    void qnull(void){
-	for(i = 0; i < ms->n_streams; i++){
-	    if(ms->used_streams[i]){
-		packet_t *pk = malloc(sizeof(*pk));
-		pk->stream = i;
-		pk->data = NULL;
-		pk->free = (typeof(pk->free)) free;
-		qpk(vp, pk, i);
-	    }
-	}
+    if((p = list_shift(vp->pq[s])))
+	return p;
+
+    pthread_mutex_lock(&vp->mtx);
+    if(!(p = list_shift(vp->pq[s]))){
+	while((p = vp->stream->next_packet(vp->stream, s)) &&
+	      p->stream != s)
+	    list_push(vp->pq[p->stream], p);
     }
+    pthread_mutex_unlock(&vp->mtx);
 
-    while(vp->state != STOP){
-	packet_t *pk;
-	int s;
-
-	wait_pause(vp, 0, 1);
-	if(vp->state == STOP)
-	    break;
-
-	for(i = 0, s = 0; i < ms->n_streams; i++){
-	    if(ms->used_streams[i] && vp->pq[i].count < vp->pq[s].count)
-		s = i;
-	}
-
-	if(!(pk = ms->next_packet(ms, s))){
-	    qnull();
-	    vp->eof = 1;
-	    continue;
-	}
-
-	qpk(vp, pk, pk->stream);
-    }
-
-    qnull();
-
-    return NULL;
+    return p;
 }
 
 static void *
@@ -230,14 +163,18 @@ play_stream(void *p)
     s_play_t *vp = vt->vp;
     int str = vt->stream;
     packet_t *pk;
-    int c;
 
-    do {
-	wait_pause(vp, 1, 0);
-	pk = dqp(vp, str);
-	c = !!pk->data;
+    while(wait_pause(vp)){
+	pk = get_packet(vp, str);
+	if(!pk){
+	    pk = malloc(sizeof(*pk));
+	    pk->stream = str;
+	    pk->data = NULL;
+	    pk->free = (typeof(pk->free)) free;
+	    vp->eof = 1;
+	}
 	vp->pipes[str]->input(vp->pipes[str], pk);
-    } while(c);
+    }
 
     if(vp->state != STOP)
 	vp->pipes[str]->flush(vp->pipes[str], 0);
@@ -276,7 +213,7 @@ stop(tcvp_pipe_t *p)
 
     pthread_mutex_lock(&vp->mtx);
     vp->state = PAUSE;
-    while(vp->waiting < vp->streams + 1)
+    while(vp->waiting < vp->streams)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
 
@@ -320,20 +257,19 @@ s_free(void *p)
     int i, j;
 
     stop(tp);
+    vp->state = STOP;
     s_flush(tp, 1);
     pthread_mutex_lock(&vp->mtx);
-    vp->state = STOP;
     pthread_cond_broadcast(&vp->cnd);
     while(vp->streams > 0)
 	pthread_cond_wait(&vp->cnd, &vp->mtx);
     pthread_mutex_unlock(&vp->mtx);
 
-    pthread_join(vp->rth, NULL);
     for(i = 0, j = 0; i < vp->stream->n_streams; i++){
 	if(vp->stream->used_streams[i]){
 	    pthread_join(vp->threads[j], NULL);
 	    freeq(vp, i);
-	    free(vp->pq[i].q);
+	    list_destroy(vp->pq[i], NULL);
 	    j++;
 	}
     }
@@ -360,7 +296,7 @@ s_probe(s_play_t *vp, tcvp_pipe_t **codecs)
 	if(ms->used_streams[i] && codecs[i]->probe){
 	    int p = PROBE_FAIL;
 	    do {
-		packet_t *pk = dqp(vp, i);
+		packet_t *pk = get_packet(vp, i);
 		if(!pk->data){
 		    pk->free(pk);
 		    break;
@@ -400,9 +336,8 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
     eventq_attach(vp->sq, qn, EVENTQ_SEND);
 
     for(i = 0; i < ms->n_streams; i++)
-	vp->pq[i].q = malloc(QSIZE * sizeof(*vp->pq->q));
+	vp->pq[i] = list_new(TC_LOCK_NONE);
 
-    pthread_create(&vp->rth, NULL, read_stream, vp);
     s_probe(vp, out);
     vp->state = PAUSE;
 
@@ -415,7 +350,7 @@ s_play(muxed_stream_t *ms, tcvp_pipe_t **out, conf_section *cs)
 	    pthread_create(&vp->threads[j], NULL, play_stream, th);
 	    j++;
 	} else {
-	    free(vp->pq[i].q);
+	    list_destroy(vp->pq[i], NULL);
 	}
     }
 
