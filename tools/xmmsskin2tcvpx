@@ -40,8 +40,8 @@ if(-d $skin){
 	$err = system "bunzip2 -c $skin | tar xf - -C $sd";
     } elsif ($skin =~ /\.tar$/) {
 	$err = system "tar xf $skin -C $sd";
-    } elsif ($skin =~ /\.zip$/) {
-	$err = system "unzip -qq -d $sd $skin";
+    } elsif ($skin =~ /\.zip$|\.wsz/) {
+	$err = system "unzip -L -qq -d $sd $skin";
     }
 
     $err and die "Error unpacking skin.\n";
@@ -150,8 +150,8 @@ sub create_slider {
     my $hpy = floor($h / 2);
 
     save_rect($img, $bx, $by, $w, $h, $bg);
-    save_rect($img, $nx, $ny, $hw, $hh, $hn);
-    save_rect($img, $px, $py, $hw, $hh, $hp);
+    save_rect($img, $nx, $ny, $hw, $hh, $hn) if $hw;
+    save_rect($img, $px, $py, $hw, $hh, $hp) if $hw;
 
     $$conf .= <<END_TCCONF;
 slider [
@@ -435,7 +435,7 @@ Gimp::on_net {
     $cbuttons and cbuttons;
     $posbar and posbar;
     $volume and volume;
-    $balance and balance;
+#    $balance and balance;
     $numbers and numbers;
     $playpause and playpause;
     $monostereo and monostereo;
