@@ -107,7 +107,7 @@ x11_event(void *p)
 		while((w = list_next(click_list, &current))!=NULL) {
 		    if(xe.xbutton.window == w->common.win){
 			if(cbt == w) {
-			    w->common.onclick((xtk_widget_t *) w, &xe);
+			    cbt->common.onclick((xtk_widget_t *) w, &xe);
 			    cbt = NULL;
 			}
 		    }
@@ -429,7 +429,6 @@ extern int
 init_graphics()
 {
     click_list = list_new(TC_LOCK_SLOPPY);
-    drag_list = list_new(TC_LOCK_SLOPPY);
     widget_list = list_new(TC_LOCK_SLOPPY);
     sl_list = list_new(TC_LOCK_SLOPPY);
     window_list = list_new(TC_LOCK_SLOPPY);
@@ -473,7 +472,6 @@ shdn_graphics()
     XCloseDisplay(xd);
 
     list_destroy(click_list, NULL);
-    list_destroy(drag_list, NULL);
     list_destroy(widget_list, NULL);
     list_destroy(sl_list, NULL);
     list_destroy(window_list, NULL);

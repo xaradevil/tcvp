@@ -65,7 +65,7 @@ tcvpx_init(char *p)
     eventq_attach(qr, qn, EVENTQ_RECV);
 
     init_dynamic();
-    register_actions();
+    init_skins();
     xtk_init_graphics();
     xtk_set_dnd_cb(tcvp_add_file);
 
@@ -122,7 +122,7 @@ tcvpx_shdn(void)
 
     pthread_join(eth, NULL);
 
-    cleanup_actions();
+    cleanup_skins();
     free_dynamic();
 
     eventq_delete(qs);

@@ -149,8 +149,10 @@ change_label(tclabel_t *txt, char *text)
 			   txt->yoff, txt->text,
 			   strlen(txt->text));
 	} else {
-	    if(txt->scroll & TCLABELSTANDARD){
+	    if(txt->align == TCLABELLEFT) {
 		txt->s_pos = 0;
+	    } else if(txt->align == TCLABELRIGHT) {
+		txt->s_pos = txt->width - xgi.width;
 	    } else {
 		txt->s_pos = (txt->width - txt->s_width)/2;
 	    }
@@ -353,7 +355,6 @@ destroy_label(xtk_widget_t *xw)
     tcwidget_t *w = (tcwidget_t *)xw;
     if((w->label.scroll & TCLABELSTANDARD)==0) {
 	list_delete(sl_list, w, widget_cmp, NULL);
-	list_delete(drag_list, w, widget_cmp, NULL);
     }
 
     if(w->label.xftdraw) XftDrawDestroy(w->label.xftdraw);
@@ -374,8 +375,8 @@ destroy_label(xtk_widget_t *xw)
 extern tclabel_t*
 create_label(window_t *window, int x, int y, int width, int height,
 	     int xoff, int yoff, image_info_t *bg, char *text, char *font,
-	     char *color, short alpha, int scroll, action_cb_t action,
-	     void *data)
+	     char *color, short alpha, int scroll, int align,
+	     action_cb_t action, void *data)
 {
     long emask;
     XColor xc;
@@ -409,6 +410,7 @@ create_label(window_t *window, int x, int y, int width, int height,
     txt->xoff = xoff;
     txt->yoff = yoff;
     txt->background = bg;
+    txt->align = align;
     txt->scroll = scroll;
     txt->s_pos = 0;
     txt->s_max = 0;
@@ -424,8 +426,7 @@ create_label(window_t *window, int x, int y, int width, int height,
     txt->xftfont = XftFontOpenName(xd, xs, font);
 
     if(txt->xftfont==NULL){
-	fprintf(stderr, "font \"%s\" not found\n",
-		txt->font);
+	fprintf(stderr, "font \"%s\" not found\n", txt->font);
 	return NULL;
     }
 
@@ -449,7 +450,6 @@ create_label(window_t *window, int x, int y, int width, int height,
     }
     if((txt->scroll & TCLABELSTANDARD)==0) {
 	list_push(sl_list, txt);
-	list_push(drag_list, txt);
 	txt->ondrag = label_ondrag;
 	txt->drag_begin = label_drag_begin;
 	txt->drag_end = label_drag_end;

@@ -31,3 +31,5 @@ implement	"xtk"	"get_window_position"	get_win_pos
 implement	"xtk"	"set_window_position"	set_win_pos
 implement	"xtk"	"create_box"		create_box
 implement	"xtk"	"box_get_subwindow"	box_get_subwindow
+implement	"xtk"	"show_widget"		show_widget
+implement	"xtk"	"hide_widget"		hide_widget

@@ -1,7 +1,8 @@
 
-A small description on what the directives in a skin config file are.
+A small description of the syntax of skin config files.
 
 ---
+
 
 name
 
@@ -10,7 +11,9 @@ the name of the skin
 example:
 name "my great skin"
 
+
 ---
+
 
 size
 
@@ -19,7 +22,9 @@ the size of the window
 example:
 size 200 20
 
+
 ---
+
 
 background
 
@@ -30,36 +35,45 @@ window.
 example:
 background "background.png"
 
+
 ---
 
-buttons
 
-A list of buttons available in the skin.
+button
 
-image	  A png image painted on the button.
-position  The position of the button, relative to the upper left
-	  corner of the window.
+A button
 
-The possible button types are:
-previous, play, pause, stop, next, quit
+action         The action performed when pressing the button
+image	       A png image painted on the button.
+mouse_over     A png image painted on the button when the poniter is over.
+mouse_pressed  A png image painted on the button when pressed.
+position       The position of the button, relative to the upper left
+	       corner of the window.
+action_data    Data passed to the action handler.
+
+The possible actions are:
+   previous, play, pause, stop, next, close_ui, open_ui, replace_ui,
+   toggle_time, seek
 
 example:
-buttons {
-	previous {
-		image "previous.png"
-		position 42 17
-	}
-	quit {
-		image "close.png"
-		position 47 11
-	}
-}
+button [
+	action "previous"
+	image "previous.png"
+	position 42 17
+]
+button [
+	action "close_ui"
+	image "close.png"
+	position 47 11
+]
+
 
 ---
 
-title
 
-The title of the currently playing stream.
+label
+
+A text label.
 
 position     The position of the title, relative to the upper left
 	     corner of the window.
@@ -78,38 +92,24 @@ scroll_style If the text is bigger than the widget size, the text can
 	     2  - Ordinary scrolling
 	     4  - Scroll back and forward in a pingpong way
 	     No scroll_style parameter means "Do not scroll".
+text	     The text on the label. 
 
 example:
-title {
+label [
 	position 10 10
 	size 150 10
 	text_offset 0 7
 	font "arial:pixelsize=10"
 	color "NavyBlue" 42
 	scroll_style 4
-}
+	text "${title} - ${performer}"
+]
+
 
 ---
 
-time
 
-The elapsed/remaining time of the current stream.
-
-Parameters are the same as in the title widget.
-
-example:
-time {
-	position 10 1
-	size 42 8
-	text_offset 0 7
-	font "courier:pixelsize=10"
-	color "rgb:00/30/60" 0xc0
-	scroll_style 1
-}
-
----
-
-seek_bar
+slider
 
 A bar used for showing and setting the current stream position
 
@@ -117,25 +117,27 @@ position	  The position of the seek bar, relative to the upper
 		  left corner of the window.
 background_image  A png image painted on the bar background.
 indicator_image	  A png image painted on the indicator.
-start_position	  Where the center of the indicator is when the
-		  seekbar is at zero.
-end_position	  Where the center of the indicator is when the
-		  seekbar is at maximum.
+start_position	  Where the center of the indicator is, when the
+		  seekbar is at its minimum.
+end_position	  Where the center of the indicator is, when the
+		  seekbar is at its maximum.
 
 Notes
 The indicator must never get outside of the background.
 The seek bar must either be vertical or horizontal, not diagonal.
 
 example:
-seek_bar {
+slider [
 	position 110 0
 	background_image "seekbg.png"
 	indicator_image "seekindicator.png"
 	start_position 3 5
 	end_position 72 5
-}
+]
+
 
 ---
+
 
 state
 
@@ -151,10 +153,11 @@ Current possible states are:
   pause
 
 example:
-state {
+state [
       position 10 10
       image "play" "playing.png"
       image "stop" "stopped.png"
-}
+]
+
 
 ---

@@ -29,11 +29,6 @@
 #include <dmalloc.h>
 #endif
 
-#define TCLABELSTANDARD   (1<<0)
-#define TCLABELSCROLLING  (1<<1)
-#define TCLABELPINGPONG   (1<<2)
-#define TCLABELMANUAL     (1<<3)
-
 typedef struct _tcbackground_t		tcbackground_t;
 typedef struct _tcbox_t			tcbox_t;
 typedef struct _tcseek_bar_t		tcseek_bar_t;
@@ -51,7 +46,6 @@ typedef int(*on_xevent_cb_t)(xtk_widget_t *, void *);
     Pixmap pixmap;				\
     Window win;					\
     int x,y;					\
-    int enabled;				\
     image_info_t *background;			\
     on_xevent_cb_t onclick;			\
     on_xevent_cb_t onpress;			\
@@ -84,9 +78,13 @@ struct _tcbox_t{
 struct _tcseek_bar_t{
     WIDGET_COMMON_XTK;
     image_info_t *indicator;
+    image_info_t *standard_img;
+    image_info_t *over_img;
+    image_info_t *down_img;
     int start_x, start_y;
     int end_x, end_y;
     double position;    
+    int state;
 };
 
 struct _tcimage_button_t{
@@ -118,6 +116,7 @@ struct _tclabel_t{
     int xoff, yoff;
     int text_width;
     char *text;
+    int align;
     int scroll;
     int scrolling;
     int s_width;
@@ -156,7 +155,7 @@ struct _window_t {
     void *data;
 };
 
-extern list *widget_list, *click_list, *sl_list, *drag_list, *window_list;
+extern list *widget_list, *click_list, *sl_list, *window_list;
 extern Display *xd;
 extern int xs;
 extern Pixmap root;

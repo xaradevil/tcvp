@@ -27,6 +27,10 @@ static int tcvp_close_ui(xtk_widget_t *w, void *p);
 static int tcvp_replace_ui(xtk_widget_t *w, void *p);
 static int tcvp_sticky(xtk_widget_t *w, void *p);
 static int tcvp_on_top(xtk_widget_t *w, void *p);
+static int set_var(xtk_widget_t *w, void *p);
+static int set_text(xtk_widget_t *w, void *p);
+static int enable_widgets(xtk_widget_t *w, void *p);
+static int disable_widgets(xtk_widget_t *w, void *p);
 
 int ui_count = 1;
 hash_table *action_hash;
@@ -59,7 +63,7 @@ load_image(char *skinpath, char *file)
 }
 
 extern int
-register_actions(void)
+init_skins(void)
 {
     typedef struct {
 	char *name;
@@ -80,6 +84,10 @@ register_actions(void)
 	{"seek_relative", tcvp_seek_rel},
 	{"on_top", tcvp_on_top},
 	{"sticky", tcvp_sticky},
+	{"set_variable", set_var},
+	{"set_text", set_text},
+	{"enable_widgets", enable_widgets},
+	{"disable_widgets", disable_widgets},
 	{NULL, NULL}
     };
     int i;
@@ -94,7 +102,7 @@ register_actions(void)
 }
 
 extern void
-cleanup_actions(void)
+cleanup_skins(void)
 {
     hash_destroy(action_hash, NULL);
 }
@@ -103,13 +111,46 @@ extern int
 lookup_action(xtk_widget_t *w, void *p)
 {
     action_cb_t acb = NULL;
-    action_data_t *ad = (action_data_t*)w->data;
+    widget_data_t *wd = (widget_data_t*)w->data;
+    char *ac_c, *c;
 
-    if(ad->action != NULL) {
-	hash_find(action_hash, ad->action, &acb);
-	if(acb) {
-	    acb(w, p);
+    if(wd->action) {
+	ac_c = c = strdup(wd->action);
+
+	while(c != NULL) {
+	    char *next, *param;
+
+	    param = strchr(c, '(');
+	    next = strchr(c, ',');
+
+	    if(param < next || (!next && param)) {
+		char *tmp;
+		param[0] = 0;
+		wd->action_data = param+1;
+		tmp = strchr(param+1, ')');
+		if(tmp) {
+		    tmp[0] = 0;
+		} else {
+		    fprintf(stderr, "Syntax error in skin config file\n");
+		}
+	    }
+
+	    if(next) {
+		next[0] = 0;
+		next++;
+	    }
+
+	    hash_find(action_hash, c, &acb);
+	    if(acb) {
+/* 		fprintf(stderr, "Action: \"%s(%s)\"\n", c, wd->action_data); */
+		acb(w, p);
+	    } else {
+		fprintf(stderr, "Action: \"%s\" not implemented\n", c);
+	    }
+	    c = next;
 	}
+
+	free(ac_c);
     }
 
     return 0;
@@ -147,6 +188,8 @@ load_skin(char *skinconf)
 	return NULL;
     }
 
+    skin->id_hash = hash_new(10, 0);
+
     return skin;
 }
 
@@ -155,6 +198,7 @@ free_skin(skin_t *skin)
 {
     free(skin->path);
     conf_free(skin->config);
+    hash_destroy(skin->id_hash, NULL);
     free(skin);
 }
 
@@ -174,11 +218,19 @@ create_skinned_background(window_t *win, skin_t *skin, conf_section *sec)
 }
 
 
+static int
+destroy_skinned_box(xtk_widget_t *w)
+{
+    free(w->data);
+    return 0;
+}
+
 static xtk_widget_t*
 create_skinned_box(window_t *win, skin_t *skin, conf_section *sec)
 {
     int x, y, width, height;
     int i=0;
+    widget_data_t *wd = calloc(sizeof(*wd), 1);
 
     i += conf_getvalue(sec, "position", "%d %d", &x, &y);
     i += conf_getvalue(sec, "size", "%d %d", &width, &height);
@@ -187,7 +239,8 @@ create_skinned_box(window_t *win, skin_t *skin, conf_section *sec)
 	return NULL;
     }
 
-    xtk_widget_t *w = xtk_create_box(win, x, y, width, height, NULL);
+    xtk_widget_t *w = xtk_create_box(win, x, y, width, height, wd);
+    w->ondestroy = destroy_skinned_box;
 
     create_ui(xtk_box_get_subwindow(w), skin, sec);
 
@@ -208,10 +261,10 @@ create_skinned_button(window_t *win, skin_t *skin, conf_section *sec)
     char *file, *of = NULL, *df = NULL, *bg = NULL;
     int x, y;
     int i=0;
-    action_data_t *ad = calloc(sizeof(*ad), 1);
+    widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *bt;
 
-    i += conf_getvalue(sec, "action", "%s", &ad->action);
+    i += conf_getvalue(sec, "action", "%s", &wd->action);
     i += conf_getvalue(sec, "image", "%s", &file);
     i += conf_getvalue(sec, "position", "%d %d", &x, &y);
 
@@ -221,15 +274,15 @@ create_skinned_button(window_t *win, skin_t *skin, conf_section *sec)
 
     conf_getvalue(sec, "mouse_over", "%s", &of);
     conf_getvalue(sec, "pressed", "%s", &df);
-    conf_getvalue(sec, "action_data", "%s", &ad->data);
-    ad->skin = skin;
+    wd->skin = skin;
     conf_getvalue(sec, "background", "%s", &bg);
 
     bt = xtk_create_button(win, x, y, load_image(skin->path, bg),
 			   load_image(skin->path, file),
 			   load_image(skin->path, of),
-			   load_image(skin->path, df), lookup_action, ad);
+			   load_image(skin->path, df), lookup_action, wd);
     bt->ondestroy = destroy_skinned_button;
+
     return bt;
 }
 
@@ -237,9 +290,9 @@ create_skinned_button(window_t *win, skin_t *skin, conf_section *sec)
 static int
 destroy_skinned_label(xtk_widget_t *w)
 {
-    action_data_t *ad = (action_data_t*)w->data;
-    unregister_textwidget(w, ad->data);
-    free(ad);
+    widget_data_t *wd = (widget_data_t*)w->data;
+    unregister_textwidget(w, wd->value);
+    free(wd);
     return 0;
 }
 
@@ -250,12 +303,12 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec)
     int w, h;
     int xoff, yoff;
     char *font;
-    char *color;
+    char *color, *align_s;
     int alpha;
-    int stype;
+    int stype, align;
     int i=0, j;
     char *action = NULL, *bg = NULL, *text, *default_text;
-    action_data_t *ad = calloc(sizeof(*ad), 1);
+    widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *l;
 
     i += conf_getvalue(sec, "position", "%d %d", &x, &y);
@@ -273,8 +326,20 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec)
 	j = 1;
     }
     i += j;
+    if((j = conf_getvalue(sec, "align", "%s", &align_s))<1){
+	j = 1;
+	align_s = "left";
+    }
+    i += j;
+    if(strcasecmp(align_s, "left") == 0) {
+	align = TCLABELLEFT;
+    } else if(strcasecmp(align_s, "right") == 0) {
+	align = TCLABELRIGHT;
+    } else {
+	align = TCLABELCENTER;
+    }
 
-    if(i != 11){
+    if(i != 12){
 	return NULL;
     }
 
@@ -284,12 +349,13 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec)
     default_text = malloc(1024);
     parse_text(text, default_text);
 
-    ad->action = action;
-    ad->data = text;
-    ad->skin = skin;
+    wd->action = action;
+    wd->value = text;
+    wd->skin = skin;
     l = xtk_create_label(win, x, y, w, h, xoff, yoff,
 			 load_image(skin->path, bg), default_text,
-			 font, color, alpha, stype, lookup_action, ad);
+			 font, color, alpha, stype, align,
+			 lookup_action, wd);
 
     register_textwidget(l, text);
     l->ondestroy = destroy_skinned_label;
@@ -302,9 +368,9 @@ create_skinned_label(window_t *win, skin_t *skin, conf_section *sec)
 static int
 destroy_skinned_seek_bar(xtk_widget_t *w)
 {
-    action_data_t *ad = (action_data_t*)w->data;
-    unregister_varwidget(w, ad->data);
-    free(ad);
+    widget_data_t *wd = (widget_data_t*)w->data;
+    unregister_varwidget(w, wd->value);
+    free(wd);
     return 0;
 }
 
@@ -314,12 +380,13 @@ create_skinned_seek_bar(window_t *win, skin_t *skin, conf_section *sec)
     int x, y;
     int sp_x, sp_y;
     int ep_x, ep_y;
-    char *bg, *indicator, *value;
+    char *bg, *indicator, *value, *ind_over = NULL, *ind_down = NULL;
     int i=0;
     char *action = NULL;
-    action_data_t *ad = calloc(sizeof(*ad), 1);
-    double *position = NULL, p=0;
+    widget_data_t *wd = calloc(sizeof(*wd), 1);
+    double *position = NULL, *def = NULL, p=0;
     xtk_widget_t *s;
+    int disable = 0;
 
     i += conf_getvalue(sec, "position", "%d %d", &x, &y);
     i += conf_getvalue(sec, "start_position", "%d %d", &sp_x, &sp_y);
@@ -333,22 +400,33 @@ create_skinned_seek_bar(window_t *win, skin_t *skin, conf_section *sec)
     }
 
     conf_getvalue(sec, "action", "%s", &action);
+    conf_getvalue(sec, "mouse_over", "%s", &ind_over);
+    conf_getvalue(sec, "pressed", "%s", &ind_down);
 
-    parse_variable(value, (void *)&position);
-    if(!position || *position < 0 || *position > 1) {
+    parse_variable(value, (void *)&position, (void *)&def);
+    if(!position) {
+	if(def) {
+	    p = *def;
+	    free(def);
+	}
 	position = &p;
+    } else if(*position < 0 || *position > 1) {
+	disable = 1;
     }
 
-    ad->action = action;
-    ad->data = value;
-    ad->skin = skin;
+    wd->action = action;
+    wd->value = value;
+    wd->skin = skin;
 
     s = xtk_create_seek_bar(win, x, y, sp_x, sp_y, ep_x, ep_y,
 			    load_image(skin->path, bg),
-			    load_image(skin->path, indicator), *position,
-			    lookup_action, ad);
-    register_varwidget((xtk_widget_t *)s, ad->data);
+			    load_image(skin->path, indicator),
+			    load_image(skin->path, ind_over),
+			    load_image(skin->path, ind_down),
+			    *position, lookup_action, wd);
+    register_varwidget((xtk_widget_t *)s, wd->value);
     s->ondestroy = destroy_skinned_seek_bar;
+    if(disable) xtk_disable_seek_bar(s);
 
     return s;
 }
@@ -357,9 +435,9 @@ create_skinned_seek_bar(window_t *win, skin_t *skin, conf_section *sec)
 static int
 destroy_skinned_state(xtk_widget_t *w)
 {
-    action_data_t *ad = (action_data_t*)w->data;
-    unregister_textwidget(w, ad->data);
-    free(ad);
+    widget_data_t *wd = (widget_data_t*)w->data;
+    unregister_textwidget(w, wd->value);
+    free(wd);
     return 0;
 }
 
@@ -373,10 +451,10 @@ create_skinned_state(window_t *win, skin_t *skin, conf_section *sec)
     void *c = NULL;
     int i;
     char *img, *st, def_state[512], *bg = NULL;
-    action_data_t *ad = calloc(sizeof(*ad), 1);
+    widget_data_t *wd = calloc(sizeof(*wd), 1);
 
     i = conf_getvalue(sec, "position", "%d %d", &x, &y);
-    i += conf_getvalue(sec, "value", "%s", &ad->data);
+    i += conf_getvalue(sec, "value", "%s", &wd->value);
     if (i != 3) {
 	return NULL;
     }
@@ -392,18 +470,18 @@ create_skinned_state(window_t *win, skin_t *skin, conf_section *sec)
 	}
     }
 
-    conf_getvalue(sec, "action", "%s", &ad->action);
-    ad->skin = skin;
+    conf_getvalue(sec, "action", "%s", &wd->action);
+    wd->skin = skin;
     conf_getvalue(sec, "background", "%s", &bg);
 
-    parse_text(ad->data, def_state);
+    parse_text(wd->value, def_state);
 
     if(ns > 0) {
 	xtk_widget_t *s;
 
 	s = xtk_create_state(win, x, y, load_image(skin->path, bg),
-			     ns, imgs, states, def_state, lookup_action, ad);
-	register_textwidget((xtk_widget_t *)s, ad->data);
+			     ns, imgs, states, def_state, lookup_action, wd);
+	register_textwidget((xtk_widget_t *)s, wd->value);
 	s->ondestroy = destroy_skinned_state;
 	free(imgs);
 	free(states);
@@ -419,7 +497,7 @@ tcvp_replace_ui(xtk_widget_t *w, void *p)
 {
     skin_t *s;
     if((s = tcvp_open_ui(w, p)) != NULL) {
-	skin_t *os = ((action_data_t *)w->data)->skin;
+	skin_t *os = ((widget_data_t *)w->data)->skin;
 	xtk_position_t *pos = xtk_get_window_position(os->window);
 	if(pos) {
 	    xtk_set_window_position(s->window, pos);
@@ -433,7 +511,7 @@ tcvp_replace_ui(xtk_widget_t *w, void *p)
 static int
 tcvp_close_ui(xtk_widget_t *w, void *p)
 {
-    skin_t *s = ((action_data_t *)w->data)->skin;
+    skin_t *s = ((widget_data_t *)w->data)->skin;
 
     xtk_destroy_window(w->window);
     free_skin(s);
@@ -450,8 +528,8 @@ static skin_t*
 tcvp_open_ui(xtk_widget_t *w, void *p)
 {
     char *buf;
-    char *uifile = ((action_data_t *)w->data)->data;
-    skin_t *s = ((action_data_t *)w->data)->skin;
+    char *uifile = ((widget_data_t *)w->data)->action_data;
+    skin_t *s = ((widget_data_t *)w->data)->skin;
 
     buf = malloc(strlen(uifile) + strlen(s->path) + 2);
     sprintf(buf, "%s/%s", s->path, uifile);
@@ -490,36 +568,73 @@ extern int
 create_ui(window_t *win, skin_t *skin, conf_section *config)
 {
     conf_section *sec;
-    void *w, *s;
+    void *s, *w;
 
-    w = create_skinned_background(win, skin, config);
-/*     if(w == NULL) { */
-/* 	return -1; */
-/*     } */
+    create_skinned_background(win, skin, config);
 
     for(s=NULL, sec = conf_nextsection(config, "box", &s);
 	sec != NULL; sec = conf_nextsection(config, "box", &s)) {
-	create_skinned_box(win, skin, sec);
+
+	char *id = NULL;
+	int e = 1;
+
+	w = create_skinned_box(win, skin, sec);
+	conf_getvalue(sec, "id", "%s", &id);
+	if(id) hash_replace(skin->id_hash, id, w);
+	conf_getvalue(sec, "enabled", "%d", &e);
+	if(e == 0) xtk_hide_widget(w);
     }
 
     for(s=NULL, sec = conf_nextsection(config, "button", &s);
 	sec != NULL; sec = conf_nextsection(config, "button", &s)) {
-	create_skinned_button(win, skin, sec);
+
+	char *id = NULL;
+	int e = 1;
+
+	w = create_skinned_button(win, skin, sec);
+	conf_getvalue(sec, "id", "%s", &id);
+	if(id) hash_replace(skin->id_hash, id, w);
+	conf_getvalue(sec, "enabled", "%d", &e);
+	if(e == 0) xtk_hide_widget(w);
     }
 
     for(s=NULL, sec = conf_nextsection(config, "label", &s);
 	sec != NULL; sec = conf_nextsection(config, "label", &s)) {
-	create_skinned_label(win, skin, sec);
+
+	char *id = NULL;
+	int e = 1;
+
+	w = create_skinned_label(win, skin, sec);
+	conf_getvalue(sec, "id", "%s", &id);
+	if(id) hash_replace(skin->id_hash, id, w);
+	conf_getvalue(sec, "enabled", "%d", &e);
+	if(e == 0) xtk_hide_widget(w);
     }
 
     for(s=NULL, sec = conf_nextsection(config, "state", &s);
 	sec != NULL; sec = conf_nextsection(config, "state", &s)) {
-	create_skinned_state(win, skin, sec);
+
+	char *id = NULL;
+	int e = 1;
+
+	w = create_skinned_state(win, skin, sec);
+	conf_getvalue(sec, "id", "%s", &id);
+	if(id) hash_replace(skin->id_hash, id, w);
+	conf_getvalue(sec, "enabled", "%d", &e);
+	if(e == 0) xtk_hide_widget(w);
     }
 
     for(s=NULL, sec = conf_nextsection(config, "slider", &s);
 	sec != NULL; sec = conf_nextsection(config, "slider", &s)) {
-	create_skinned_seek_bar(win, skin, sec);
+
+	char *id = NULL;
+	int e = 1;
+
+	w = create_skinned_seek_bar(win, skin, sec);
+	conf_getvalue(sec, "id", "%s", &id);
+	if(id) hash_replace(skin->id_hash, id, w);
+	conf_getvalue(sec, "enabled", "%d", &e);
+	if(e == 0) xtk_hide_widget(w);
     }
 
     return 0;
@@ -529,8 +644,8 @@ create_ui(window_t *win, skin_t *skin, conf_section *config)
 static int
 tcvp_sticky(xtk_widget_t *w, void *p)
 {
-    char *d = ((action_data_t *)w->data)->data;
-    skin_t *s = ((action_data_t *)w->data)->skin;
+    char *d = ((widget_data_t *)w->data)->action_data;
+    skin_t *s = ((widget_data_t *)w->data)->skin;
 
     if(!d || strcasecmp(d, "toggle") == 0) {
 	if(s->state & ST_STICKY) {
@@ -554,8 +669,8 @@ tcvp_sticky(xtk_widget_t *w, void *p)
 static int
 tcvp_on_top(xtk_widget_t *w, void *p)
 {
-    char *d = ((action_data_t *)w->data)->data;
-    skin_t *s = ((action_data_t *)w->data)->skin;
+    char *d = ((widget_data_t *)w->data)->action_data;
+    skin_t *s = ((widget_data_t *)w->data)->skin;
 
     if(!d || strcasecmp(d, "toggle") == 0) {
 	if(s->state & ST_ON_TOP) {
@@ -574,3 +689,97 @@ tcvp_on_top(xtk_widget_t *w, void *p)
     }
     return 0;
 }
+
+
+static int
+set_var(xtk_widget_t *w, void *p)
+{
+    char *d = ((widget_data_t *)w->data)->action_data;
+
+    if(d) {
+	if(w->type == TCSEEKBAR) {
+	    double *pos = malloc(sizeof(*pos));
+	    *pos = *((double*)p);
+	    change_variable(d, pos);
+	} else {
+	    fprintf(stderr, "set_variable(%s) not yet implemented for "
+		    "widget type %d.\n", d, w->type);
+	}
+    }
+
+    return 0;
+}
+
+static int
+set_text(xtk_widget_t *w, void *p)
+{
+    char *d = ((widget_data_t *)w->data)->action_data;
+
+    if(d) {
+	fprintf(stderr, "set_text(%s) not yet implemented for "
+		"widget type %d.\n", d, w->type);
+    }
+
+    return 0;
+}
+
+
+static int
+show_widgets(skin_t *skin, char *widgets, int show)
+{
+    char *d = strdup(widgets);
+    char *tmp = d;
+
+    while(tmp != NULL) {
+	char *next = strchr(tmp, ',');
+	xtk_widget_t *w = NULL;
+
+	if(next) {
+	    next[0]=0;
+	    next++;
+	}
+	
+	hash_find(skin->id_hash, tmp, &w);
+	if(w) {
+	    if(show) {
+		xtk_show_widget(w);
+	    } else {
+		xtk_hide_widget(w);
+	    }
+	}
+	tmp = next;
+    }
+
+    free(d);
+
+    xtk_repaint_widgets();
+    xtk_draw_widgets();
+
+    return 0;
+}
+
+
+static int
+enable_widgets(xtk_widget_t *xw, void *p)
+{
+    if(xw->data) {
+	widget_data_t *wd = xw->data;
+	show_widgets(wd->skin, strdup(wd->action_data), 1);
+	return 0;
+    }
+    return -1;
+}
+
+
+static int
+disable_widgets(xtk_widget_t *xw, void *p)
+{
+    if(xw->data) {
+	widget_data_t *wd = xw->data;
+	show_widgets(wd->skin, strdup(wd->action_data), 0);
+	return 0;
+    }
+    return -1;
+}
+
+

@@ -43,19 +43,20 @@ typedef struct {
     int width, height;
     window_t *window;
     int state;
+    hash_table *id_hash;
 } skin_t;
 
 skin_t* load_skin(char *skinfile);
 int create_ui(window_t *win, skin_t *skin, conf_section *config);
 
-int register_actions(void);
-extern void cleanup_actions(void);
+int init_skins(void);
+extern void cleanup_skins(void);
 
 int init_dynamic(void);
 extern void free_dynamic(void);
 
 int parse_text(char *text, char *result);
-int parse_variable(char *text, void **result);
+int parse_variable(char *text, void **result, void **def);
 
 int change_text(char *key, char *text);
 int change_variable(char *key, void *data);
@@ -84,9 +85,10 @@ hash_table *text_hash;
 
 typedef struct {
     char *action;
-    void *data;
+    void *action_data;
+    char *value;
     skin_t *skin;
-} action_data_t;
+} widget_data_t;
 
 
 #endif /* _TCVPX_H */

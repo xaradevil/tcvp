@@ -18,6 +18,8 @@
 
 #include "widgets.h"
 
+#define LABEL_PRESS (1<<0)
+#define LABEL_DRAG  (1<<1)
 
 extern int
 repaint_seek_bar(xtk_widget_t *xw)
@@ -94,7 +96,7 @@ enable_seek_bar(tcseek_bar_t *w)
 extern int
 change_seek_bar(tcseek_bar_t *w, double position)
 {
-    if(w->enabled) {
+    if(w->enabled && (w->state & LABEL_DRAG) == 0) {
 	w->position = position;
 	w->repaint((xtk_widget_t *) w);
 	draw_widget((tcwidget_t *) w);
@@ -105,8 +107,17 @@ change_seek_bar(tcseek_bar_t *w, double position)
 }
 
 
-extern int
-seek_bar_onpress(xtk_widget_t *xw, void *xe)
+static int
+seek_bar_drag_begin(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+    w->seek_bar.state |= LABEL_DRAG;
+
+    return 0;
+}
+
+static int
+sb_ondrag(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
 
@@ -116,22 +127,88 @@ seek_bar_onpress(xtk_widget_t *xw, void *xe)
     int yl = w->seek_bar.end_y - w->seek_bar.start_y;
     int xs = w->seek_bar.start_x;
     int ys = w->seek_bar.start_y;
-    double pos;
     int x=0, y=0;
 
     if(xl>0) {
 	x = xc-xs;
 	x = (x<0)?0:(x<=xl)?x:xl;
-	pos = (double)x/xl;
+	w->seek_bar.position = (double)x/xl;
     } else if(yl>0) {
 	y = yc-ys;	
 	y = (y<0)?0:(y<=yl)?y:yl;
-	pos = (double)y/yl;
+	w->seek_bar.position = (double)y/yl;
     }
 
-/*     fprintf(stderr, "seek bar clicked (%d,%d)->%f\n", x, y, pos); */
+    w->seek_bar.repaint((xtk_widget_t *)w);
+    draw_widget(w);
+    XSync(xd, False);
 
-    w->seek_bar.action((xtk_widget_t *)w, &pos);
+    return 0;
+}
+
+static int
+seek_bar_drag_end(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+
+    sb_ondrag(xw, xe);
+
+    w->seek_bar.state &= ~LABEL_DRAG;
+
+    w->seek_bar.action((xtk_widget_t *)w, &w->seek_bar.position);
+    return 0;
+}
+
+
+
+static int
+press_sb(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+    w->seek_bar.indicator = w->seek_bar.down_img;
+    repaint_seek_bar(xw);
+    draw_widget(w);
+    w->seek_bar.state |= LABEL_PRESS;
+    return 0;
+}
+
+
+static int
+release_sb(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+    if(w->seek_bar.indicator == w->seek_bar.down_img) {
+	w->seek_bar.indicator = w->seek_bar.over_img;
+    }
+    repaint_seek_bar(xw);
+    draw_widget(w);
+    w->seek_bar.state &= ~LABEL_PRESS;
+    return 0;
+}
+
+
+static int
+enter_sb(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+    if((w->seek_bar.state & LABEL_PRESS) == 0) {
+	w->seek_bar.indicator = w->seek_bar.over_img;
+	repaint_seek_bar(xw);
+	draw_widget(w);
+    }
+    return 0;
+}
+
+
+static int
+exit_sb(xtk_widget_t *xw, void *xe)
+{
+    tcwidget_t *w = (tcwidget_t *)xw;
+    if((w->seek_bar.state & LABEL_PRESS) == 0) {
+	w->seek_bar.indicator = w->seek_bar.standard_img;
+	repaint_seek_bar(xw);
+	draw_widget(w);
+    }
     return 0;
 }
 
@@ -144,8 +221,18 @@ destroy_seek_bar(xtk_widget_t *xw)
     image_free(w->seek_bar.background);
     free(w->seek_bar.background);
 
-    image_free(w->seek_bar.indicator);
-    free(w->seek_bar.indicator);
+    image_free(w->seek_bar.standard_img);
+    free(w->seek_bar.standard_img);
+
+    if(w->seek_bar.over_img) {
+	image_free(w->seek_bar.over_img);
+	free(w->seek_bar.over_img);
+    }
+
+    if(w->seek_bar.down_img) {
+	image_free(w->seek_bar.down_img);
+	free(w->seek_bar.down_img);
+    }
 
     return 0;
 }
@@ -154,7 +241,8 @@ destroy_seek_bar(xtk_widget_t *xw)
 extern tcseek_bar_t*
 create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 		int ep_x, int ep_y, image_info_t *background,
-		image_info_t *indicator, double position,
+		image_info_t *indicator, image_info_t *over_image,
+		image_info_t *down_image, double position,
 		action_cb_t action, void *data)
 {
     tcseek_bar_t *sb = calloc(sizeof(tcseek_bar_t), 1);
@@ -172,7 +260,7 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
     sb->window = window;
     sb->position = position;
     sb->background = background;
-    sb->indicator = indicator;
+    sb->indicator = sb->standard_img = indicator;
     sb->width = sb->background->width;
     sb->height = sb->background->height;
     sb->enabled = 1;
@@ -187,11 +275,28 @@ create_seek_bar(window_t *window, int x, int y, int sp_x, int sp_y,
 
     emask = ExposureMask;
     list_push(widget_list, sb);
+
+
     if(action){
-	sb->onpress = seek_bar_onpress;
 	sb->action = action;
+	sb->drag_begin = seek_bar_drag_begin;
+	sb->ondrag = sb_ondrag;
+	sb->drag_end = seek_bar_drag_end;
+	emask |= ButtonPressMask | PointerMotionMask | ButtonReleaseMask;
 	list_push(click_list, sb);
-	emask |= ButtonPressMask;
+    }
+
+    if(over_image != NULL) {
+	sb->over_img = over_image;
+	emask |= EnterWindowMask | LeaveWindowMask;
+	sb->enter = enter_sb;
+	sb->exit = exit_sb;
+    }
+    if(down_image != NULL) {
+	sb->down_img = down_image;
+	emask |= ButtonPressMask | ButtonReleaseMask;
+	sb->press = press_sb;
+	sb->release = release_sb;
     }
 
     XSelectInput(xd, sb->win, emask);

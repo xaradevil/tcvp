@@ -221,7 +221,7 @@ tcvp_seek(xtk_widget_t *w, void *p)
 extern int
 tcvp_seek_rel(xtk_widget_t *w, void *p)
 {
-    char *d = ((action_data_t *)w->data)->data;
+    char *d = ((widget_data_t *)w->data)->action_data;
     uint64_t time = strtol(d, NULL, 0) * 27000000;
 
     tcvp_seek_event_t *se = tcvp_alloc_event(TCVP_SEEK, time, TCVP_SEEK_REL);

@@ -52,8 +52,8 @@ change_variable(char *key, void *data)
 	xtk_widget_t *w;
 
 	while((w = list_next(lst, &current))!=NULL) {
-	    action_data_t *ad = w->data;
-	    parse_variable(ad->data, &tmp);
+	    widget_data_t *ad = w->data;
+	    parse_variable(ad->value, &tmp, NULL);
 	    switch(w->type) {
 	    case TCSEEKBAR:
 	    {
@@ -95,8 +95,8 @@ change_text(char *key, char *text)
 	xtk_widget_t *w;
 
 	while((w = list_next(lst, &current))!=NULL) {
-	    action_data_t *ad = w->data;
-	    parse_text(ad->data, buf);
+	    widget_data_t *ad = w->data;
+	    parse_text(ad->value, buf);
 	    switch(w->type) {
 	    case TCLABEL:
 		xtk_change_label(w, buf);
@@ -113,9 +113,10 @@ change_text(char *key, char *text)
 
 
 static int
-get_keys(char *text, char ***keysp)
+get_keys(char *text, char ***keysp, char ***defaultsp)
 {
     char **keys = NULL;
+    char **defaults = NULL;
     char *foo, *src;
     int n = 0;
 
@@ -124,6 +125,7 @@ get_keys(char *text, char ***keysp)
     for(;;) {
 	char *tmp;
 	char *key;
+	char *def=NULL;
 
 	tmp = strstr(src, "${");
 	if(!tmp) break;
@@ -137,16 +139,30 @@ get_keys(char *text, char ***keysp)
 	tmp = strchr(key, ':');
 	if(tmp) {
 	    tmp[0] = 0;
+	    if(tmp[1]=='-') {
+		def = tmp+2;
+	    }
 	}
 
 	keys = realloc(keys, (n+1)*sizeof(*keys));
 	keys[n] = strdup(key);
+	if(defaultsp) {
+	    defaults = realloc(defaults, (n+1)*sizeof(*defaults));
+	    if(def) {
+		defaults[n] = strdup(def);
+	    } else {
+		defaults[n] = NULL;
+	    }
+	}
 	n++;
     }
 
     free(foo);
 
     *keysp = keys;
+    if(defaultsp) {
+	*defaultsp = defaults;
+    }
     return n;
 }
 
@@ -187,7 +203,7 @@ register_textwidget(xtk_widget_t *w, char *text)
     char **keys;
     int n, i;
 
-    n = get_keys(text, &keys);
+    n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
 	char buf[1024];
 	sprintf(buf, "text:%s", keys[i]);
@@ -206,7 +222,7 @@ unregister_textwidget(xtk_widget_t *w, char *text)
     char **keys;
     int n, i;
 
-    n = get_keys(text, &keys);
+    n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
 	char buf[1024];
 	sprintf(buf, "text:%s", keys[i]);
@@ -226,7 +242,7 @@ register_varwidget(xtk_widget_t *w, char *text)
     char **keys;
     int n, i;
 
-    n = get_keys(text, &keys);
+    n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
 	char buf[1024];
 	sprintf(buf, "var:%s", keys[i]);
@@ -245,7 +261,7 @@ unregister_varwidget(xtk_widget_t *w, char *text)
     char **keys;
     int n, i;
 
-    n = get_keys(text, &keys);
+    n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
 	char buf[1024];
 	sprintf(buf, "var:%s", keys[i]);
@@ -260,22 +276,33 @@ unregister_varwidget(xtk_widget_t *w, char *text)
 
 
 extern int
-parse_variable(char *text, void **result)
+parse_variable(char *text, void **result, void **def)
 {
-    char **keys;
+    char **keys, **defaults;
     int n, i;
 
-    n = get_keys(text, &keys);
+    n = get_keys(text, &keys, &defaults);
 
     if(n>1) {
 	for(i=0; i<n; i++) {
 	    free(keys[i]);
+	    free(defaults[i]);
 	}
 	free(keys);
+	free(defaults);
     } else if(n == 1) {
 	*result = lookup_variable(keys[0]);
+	if(!*result && def) {
+	    if(defaults[0] && defaults[0][0] == '%' && defaults[0][1] == 'f') {
+		double *dp = malloc(sizeof(*dp));
+		*dp = strtod(defaults[0]+2, NULL);
+		*def = dp;
+	    }
+	}
 	free(keys[0]);
+	free(defaults[0]);
 	free(keys);
+	free(defaults);
     }
 
     return 0;

@@ -19,7 +19,7 @@
 #include "widgets.h"
 #include <unistd.h>
 
-list *widget_list, *click_list, *sl_list, *drag_list, *window_list;
+list *widget_list, *click_list, *sl_list, *window_list;
 
 
 extern int
@@ -77,7 +77,7 @@ draw_widget(tcwidget_t *w)
 		  w->common.window->bgc, 0, 0, w->common.width,
 		  w->common.height, 0, 0);
 
-	if(w->type == TCBOX) {
+	if(w->type == TCBOX && w->box.enabled != 0) {
 	    draw_window(w->box.subwindow);
 	}
     }
@@ -108,7 +108,7 @@ repaint_window(window_t *win)
 	list_item *current=NULL;
 	while((w = list_next(win->widgets, &current))!=NULL) {
 	    if(w->common.repaint) w->common.repaint((xtk_widget_t *)w);
-	    if(w->type == TCBOX) {
+	    if(w->type == TCBOX && w->box.enabled != 0) {
 		repaint_window(w->box.subwindow);
 	    }
 	}
@@ -156,7 +156,6 @@ destroy_widget(tcwidget_t *w)
 
     if(w->type == TCLABEL) {
 	list_delete(sl_list, w, widget_cmp, NULL);
-	list_delete(drag_list, w, widget_cmp, NULL);
     }
 
     if(w->common.action){
@@ -181,6 +180,25 @@ destroy_widget(tcwidget_t *w)
     }
 
     free(w);
+
+    return 0;
+}
+
+
+extern int
+show_widget(tcwidget_t *w)
+{
+    XMapWindow(xd, w->common.win);
+    w->common.enabled = 1;
+
+    return 0;
+}
+
+extern int
+hide_widget(tcwidget_t *w)
+{
+    XUnmapWindow(xd, w->common.win);
+    w->common.enabled = 0;
 
     return 0;
 }
