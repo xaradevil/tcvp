@@ -275,7 +275,7 @@ tcl_init(char *p)
 	}
     }
 
-    if(sel_ui){
+    if(!ncmds && sel_ui){
 	char *ui = alloca(strlen(sel_ui)+9);
 	char *op = alloca(strlen(qname) + 10 + (skin? (strlen(skin) + 10): 0));
 	char *p = op;
@@ -299,7 +299,7 @@ tcl_init(char *p)
     intr = 1;
     pthread_create(&intr_thr, NULL, tcl_intr, NULL);
 
-    if(ncmds && !sel_ui)
+    if(ncmds)
 	tc2_request(TC2_UNLOAD_ALL, 0);
 
     free(qname);
