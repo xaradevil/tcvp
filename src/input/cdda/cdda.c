@@ -29,6 +29,7 @@
 #include <cdda_paranoia.h>
 #include <tcstring.h>
 #include <tcalloc.h>
+#include <tcvp_types.h>
 #include <cdda_mod.h>
 
 #define buffer_size tcvp_input_cdda_conf_buffer
@@ -121,16 +122,6 @@ cd_read(void *data, size_t size, size_t count, url_t *u)
     if(cdt->pos >= u->size)
 	return -1;
 
-    if(cdt->pos < cdt->header_length) {
-	int i = size*count;
-	if(cdt->pos + i > cdt->header_length) {
-	    i = cdt->header_length - cdt->pos;
-	}
-	memcpy(data, cdt->header+cdt->pos, i);
-	remain -= i;
-	used += i;
-    }
-
     while(remain > 0) {
 	if(cdt->pos + used < u->size && cdt->data_length > 0){
 	    int n;
@@ -171,20 +162,19 @@ cd_seek(url_t *u, int64_t offset, int how)
     } else if(how == SEEK_CUR) {
 	pos = cdt->pos + offset;
     } else if(how == SEEK_END) {
-	pos = cdt->data_length + cdt->header_length - offset;
+	pos = cdt->data_length - offset;
     }
-    if(pos < 0) {
-	pos = 0;
-    }
-    if(pos > cdt->header_length + cdt->data_length) {
-	pos = cdt->header_length + cdt->data_length;
-    }
+
+    if(pos < 0)
+	return -1;
+
+    if(pos > cdt->data_length)
+	return -1;
 
     if(cdt->pos != pos) {
 	cdt->buffer_pos = cdt->bufsize;
 	cdt->pos = pos;
-	cdt->current_sector = cdt->first_sector +
-	    (cdt->pos - cdt->header_length) / CD_FRAMESIZE_RAW;
+	cdt->current_sector = cdt->first_sector + cdt->pos / CD_FRAMESIZE_RAW;
 	if(cdt->cdprn){
 	    paranoia_seek(cdt->cdprn, cdt->current_sector, SEEK_SET);
 	}
@@ -204,7 +194,8 @@ cd_close(url_t *u)
 	    print_paranoia_stats(cdt);
     }
     cdda_close(cdt->drive);
-    free(cdt->buffer);
+    if(cdt->buffer)
+	free(cdt->buffer);
     free(cdt->header);
     free(cdt);
     tcfree(u);
@@ -214,6 +205,7 @@ cd_close(url_t *u)
 static url_t *
 track_open(char *url, char *mode)
 {
+    stream_t s;
     char *trk;
     url_t *u;
     cd_data_t *cdt;
@@ -271,6 +263,7 @@ track_open(char *url, char *mode)
 
     cdt->first_sector = cdda_track_firstsector(cdt->drive, cdt->track);
     cdt->last_sector = cdda_track_lastsector(cdt->drive, cdt->track);
+    cdt->current_sector = cdt->first_sector;
 
     if(paranoia){
 	cdt->cdprn = paranoia_init(cdt->drive);
@@ -279,36 +272,28 @@ track_open(char *url, char *mode)
 	paranoia_seek(cdt->cdprn, cdt->first_sector, SEEK_SET);
     }
 
-    cdt->header = malloc(44);
-    cdt->header_length = 44;
-    cdt->pos = 0;
-    cdt->data_length = (cdt->last_sector - cdt->first_sector) *
-	CD_FRAMESIZE_RAW;
-    {
-	uint32_t *i32 = cdt->header;
-	uint16_t *i16 = cdt->header;
-	uint8_t *i8 = cdt->header;
+    cdt->data_length =
+	(cdt->last_sector - cdt->first_sector) * CD_FRAMESIZE_RAW;
 
-	memcpy(&i8[0], "RIFF", 4);
-	i32[1] = cdt->data_length+44-8;
-	memcpy(&i8[8], "WAVEfmt ", 8);
-	i32[4] = 16;
-	i16[10] = 1;
-	i16[11] = 2;
-	i32[6] = 44100;
-	i32[7] = 44100*2*2;
-	i16[16] = 4;
-	i16[17] = 16;
-	memcpy(&i8[36], "data", 4);
-	i32[10] = cdt->data_length;
-    }
+    memset(&s, 0, sizeof(s));
+    s.stream_type = STREAM_TYPE_AUDIO;
+    s.audio.codec = "audio/pcm-s16le";
+    s.audio.bit_rate = 2 * 2 * 44100;
+    s.audio.sample_rate = 44100;
+    s.audio.channels = 2;
+    s.audio.samples = cdt->data_length / 4;
+    s.audio.block_align = 4;
+    s.audio.sample_size = 16;
+
+    cdt->header = mux_wav_header(&s, &cdt->header_length);
+
     u->private = cdt;
-    u->size = cdt->data_length + cdt->header_length;
+    u->size = cdt->data_length;
 
     if(tcvp_input_cdda_conf_cddb)
 	cdda_freedb(u, track);
 
-    return u;
+    return url_vheader_new(u, cdt->header, cdt->header_length);
 }
 
 static url_t *
@@ -317,7 +302,7 @@ list_open(char *url, char *mode)
     cd_data_t *cdt;
     int tracks;
     url_t *u;
-    char *p;
+    u_char *p;
     int i;
 
     u = tcallocz(sizeof(*u));
@@ -348,16 +333,16 @@ list_open(char *url, char *mode)
 
     for(i = 1; i <= tracks; i++) {
 	if(cdda_track_audiop(cdt->drive, cdt->track) != 0) {
-	    int l = sprintf(p, "cdda:/%d.wav\n", i);
-	    p += l;
-	    cdt->header_length += l;
+	    p += sprintf(p, "cdda:/%d.wav\n", i);
 	}
     }
 
-    u->private = cdt;
-    u->size = cdt->header_length;
+    cdt->header_length = p - cdt->header;
 
-    return u;
+    u->private = cdt;
+    u->size = 0;
+
+    return url_vheader_new(u, cdt->header, cdt->header_length);
 }
 
 

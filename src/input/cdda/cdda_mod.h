@@ -28,7 +28,7 @@
 typedef struct {
     cdrom_drive *drive;
     cdrom_paranoia *cdprn;
-    void *header;
+    u_char *header;
     int header_length;
     int64_t pos;
     int64_t data_length;
