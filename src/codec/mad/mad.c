@@ -49,6 +49,9 @@ typedef struct mad_dec {
     int bs, pfs;
     int bufsize;
     u_char *buf;
+    uint64_t npts;
+    int ptsc;
+    int pc;
 } mad_dec_t;
 
 typedef struct mp3_frame {
@@ -91,6 +94,9 @@ mp3_header(u_char *buf, mp3_frame_t *mf)
     int bx, br, sr, pad;
     int c = buf[1], d = buf[2], e = buf[3];
 
+    if(buf[0] != 0xff)
+	return -1;
+
     if((c & 0xe0) != 0xe0 ||
        ((c & 0x18) == 0x08 ||
 	(c & 0x06) == 0)){
@@ -115,8 +121,14 @@ mp3_header(u_char *buf, mp3_frame_t *mf)
     pad = (d >> 1) & 1;
     mf->bitrate = bitrates[br][bx] * 1000;
     mf->sample_rate = sample_rates[sr][mf->version];
+    if(!mf->sample_rate)
+	return -1;
+
     mf->size = 144 * mf->bitrate / mf->sample_rate + pad;
     mf->channels = ((e >> 6) & 3) > 2? 1: 2;
+
+/*     fprintf(stderr, "MP3: layer %i, version %i, rate %i, channels %i\n", */
+/* 	    mf->layer, mf->version, mf->bitrate, mf->channels); */
 
     return 0;
 }
@@ -186,7 +198,7 @@ output(tcvp_pipe_t *tp, struct mad_header const *header, struct mad_pcm *pcm)
 	    *md->out->dp++ = sample;
 	}
 
-	if(md->out->dp -  md->out->data == OUT_PACKET_SIZE(channels)){
+	if(md->out->dp - md->out->data == OUT_PACKET_SIZE(channels)){
 	    md->out->size = OUT_PACKET_SIZE(channels) * 2;
 	    tp->next->input(tp->next, &md->out->pk);
 	    md->out = mad_alloc(channels);
@@ -211,6 +223,15 @@ do_decode(tcvp_pipe_t *p)
 		break;
 	}
 	mad_synth_frame(&md->synth, &md->frame);
+	if(md->ptsc > 0){
+	    md->ptsc -= md->stream.next_frame - md->stream.this_frame;
+	    if(md->ptsc <= 0 && md->out){
+		md->out->pk.pts = md->npts - ((md->out->dp - md->out->data) /
+		    md->synth.pcm.channels) * 1000000 /
+		    md->frame.header.samplerate;
+		md->ptsc = 0;
+	    }
+	}
 	output(p, &md->frame.header, &md->synth.pcm);
     }
 
@@ -252,6 +273,11 @@ decode(tcvp_pipe_t *p, packet_t *pk)
 
     d = pk->data[0];
     size = pk->sizes[0];
+
+    if(pk->pts){
+	md->npts = pk->pts;
+	md->ptsc = md->bs;
+    }
 
     while(size > 0 && !md->flush){
 	int bs = min(size, md->bufsize - md->bs);
@@ -296,8 +322,11 @@ probe(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
     mp3_frame_t mf;
     u_char *d = pk->data[0];
 
-    if(mp3_header(d, &mf) < 0)
-	return PROBE_FAIL;
+    if(mp3_header(d, &mf)){
+	md->pc += pk->sizes[0];
+	pk->free(pk);
+	return md->pc > 8065? PROBE_FAIL: PROBE_AGAIN;
+    }
 
     s->audio.sample_rate = mf.sample_rate;
     s->audio.channels = mf.channels;

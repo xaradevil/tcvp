@@ -40,6 +40,7 @@ typedef struct alsa_out {
     snd_pcm_t *pcm;
     snd_pcm_hw_params_t *hwp;
     int bpf;
+    int rate;
     timer__t *timer;
     int state;
     u_char *buf, *head, *tail;
@@ -50,6 +51,8 @@ typedef struct alsa_out {
     pthread_t pth;
     int can_pause;
     int data_end;
+    uint64_t npts;
+    int ptsc;
 } alsa_out_t;
 
 static int
@@ -148,6 +151,11 @@ alsa_input(tcvp_pipe_t *p, packet_t *pk)
 	return 0;
     }
 
+    if(pk->pts && ao->ptsc <= 0){
+	ao->npts = pk->pts;
+	ao->ptsc = ao->bbytes;
+    }
+
     count = pk->sizes[0];
     data = pk->data[0];
 
@@ -203,15 +211,34 @@ alsa_play(void *p)
 		ao->tail = ao->buf;
 	    pthread_cond_broadcast(&ao->cd);
 	    pthread_mutex_unlock(&ao->mx);
+
+	    if(ao->ptsc > 0){
+		ao->ptsc -= r * ao->bpf;
+		if(ao->ptsc <= 0){
+		    uint64_t d, t, tm;
+		    int64_t dt;
+		    snd_pcm_sframes_t df;
+		    snd_pcm_delay(ao->pcm, &df);
+		    d = (uint64_t) df * 1000000 / ao->rate;
+		    t = ao->npts - d;
+		    tm = ao->timer->read(ao->timer);
+		    dt = tm > t? tm - t: t - tm;
+		    if(dt > tcvp_output_alsa_conf_pts_threshold){
+			ao->timer->reset(ao->timer, t);
+			fprintf(stderr, "ALSA: pts = %llu, t = %llu, dt = %lli\n",
+				ao->npts, t, t - tm);
+		    }
+		}
+	    }
 	} else if(r == -EAGAIN){
 	    pthread_mutex_unlock(&ao->mx);
 	    snd_pcm_wait(ao->pcm, 1000);
 	} else if(r < 0){
-	    pthread_mutex_unlock(&ao->mx);
 	    if((r = snd_pcm_prepare(ao->pcm)) < 0){
 		fprintf(stderr, "ALSA: %s\n", snd_strerror(r));
 		break;
 	    }
+	    pthread_mutex_unlock(&ao->mx);
 	}
 	if(!ao->bbytes && ao->data_end){
 	    tm_settimer(ao->timer, SYSTEM);
@@ -277,6 +304,7 @@ alsa_open(audio_stream_t *as, conf_section *cs, timer__t **timer)
     ao->pcm = pcm;
     ao->hwp = hwp;
     ao->bpf = as->channels * 2;
+    ao->rate = as->sample_rate;
     ao->bufsize = ao->bpf * output_audio_conf_buffer_size;
     ao->buf = malloc(ao->bufsize);
     ao->head = ao->tail = ao->buf;

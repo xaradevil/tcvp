@@ -109,7 +109,8 @@ avc_decaudio(tcvp_pipe_t *p, packet_t *pk)
 	    out->sizes = malloc(sizeof(*out->sizes));
 	    out->sizes[0] = outsize;
 	    out->planes = 1;
-	    out->pts = 0;
+	    out->pts = pk->pts;
+	    pk->pts = 0;
 	    out->free = avc_free_packet;
 	    out->private = ac->buf;
 	    if(p->next){
@@ -165,6 +166,15 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 	return 0;
     }
 
+    if(pk->pts){
+	uint64_t pts = vc->pts / vc->ptsd;
+	uint64_t ptsdiff = pk->pts > pts? pk->pts - pts: pts - pk->pts;
+	if(ptsdiff > 1000000){
+	    vc->pts = pk->pts * vc->ptsd;
+	}
+	pk->pts = 0;
+    }
+
     while(insize > 0){
 	int l, gp = 0;
 
@@ -188,14 +198,6 @@ avc_decvideo(tcvp_pipe_t *p, packet_t *pk)
 		    break;
 	    }
 	    out->planes = i;
-
-	    if(pk->pts){
-		uint64_t pts = vc->pts / vc->ptsd;
-		uint64_t ptsdiff = pk->pts > pts? pk->pts - pts: pts - pk->pts;
-		if(ptsdiff > 1000000){
-		    vc->pts = pk->pts * vc->ptsd;
-		}
-	    }
 
 	    out->pts = vc->pts / vc->ptsd;
 	    vc->pts += vc->ptsn;
@@ -304,13 +306,13 @@ avc_probe_video(tcvp_pipe_t *p, packet_t *pk, stream_t *s)
 	return PROBE_FAIL;
 
     if(vc->have_params){
-	if(!s->video.frame_rate.num){
-	    s->video.frame_rate.num = vc->ctx->frame_rate;
-	    s->video.frame_rate.den = vc->ctx->frame_rate_base;
-	}
+	s->video.frame_rate.num = vc->ctx->frame_rate;
+	s->video.frame_rate.den = vc->ctx->frame_rate_base;
 	s->video.width = vc->ctx->width;
 	s->video.height = vc->ctx->height;
 	s->video.pixel_format = pixel_fmts[vc->ctx->pix_fmt];
+	vc->ptsn = (uint64_t) 1000000 * vc->ctx->frame_rate_base;
+	vc->ptsd = vc->ctx->frame_rate;
 	ret = PROBE_OK;
     } else {
 	ret = PROBE_AGAIN;
@@ -398,7 +400,7 @@ avc_new(stream_t *s, int mode)
 	vc = calloc(1, sizeof(*vc));
 	vc->ctx = avctx;
 	vc->ptsn = (uint64_t) 1000000 * s->video.frame_rate.den;
-	vc->ptsd = s->video.frame_rate.num;
+	vc->ptsd = s->video.frame_rate.num?: 1;
 	vc->pts = 0;
 	vc->frame = avcodec_alloc_frame();
 

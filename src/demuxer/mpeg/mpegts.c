@@ -50,7 +50,7 @@ typedef struct mpegts_packet {
 	int splice_countdown;
     } adaptation_field;
     int data_length;
-    u_char *pdata, data[184];
+    u_char *datap, data[184];
 } mpegts_packet_t;
 
 typedef struct mpeg_stream {
@@ -60,6 +60,10 @@ typedef struct mpeg_stream {
     int *map, *imap;
     list **packets;
     pthread_mutex_t mtx;
+    struct {
+	uint64_t val;
+	uint64_t offset;
+    } *pts;
 } mpeg_stream_t;
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -111,88 +115,112 @@ static mpegts_packet_t *
 mpegts_read_packet(mpeg_stream_t *s)
 {
     mpegts_packet_t *mp;
-    int i = 188;
-
-    s->br = 0;
-
-    while(--i)
-	if(getbits(s, 8, "sync") == MPEGTS_SYNC)
-	    break;
-    if(!i){
-	fprintf(stderr, "MPEGTS: can't find sync byte, @ %lx\n",
-		s->stream->tell(s->stream));
-	return NULL;
-    }
+    int error;
 
     mp = malloc(sizeof(*mp));
-    mp->transport_error = getbits(s, 1, "transport_error");
-    mp->unit_start = getbits(s, 1, "unit_start");
-    mp->priority = getbits(s, 1, "priority");
-    mp->pid = getbits(s, 13, "pid");
-    mp->scrambling = getbits(s, 2, "scrambling");
-    mp->adaptation = getbits(s, 2, "adaptation");
-    mp->cont_counter = getbits(s, 4, "cont_counter");
 
-    if(mp->adaptation & 2){
-	struct adaptation_field *af = &mp->adaptation_field;
-	int al = getbits(s, 8, "adaptation_field_length");
-	if(al > 0){
-	    int br = s->br;
+    do {
+	int i = 1024;
+	error = 0;
 
-	    af->discontinuity = getbits(s, 1, "discontinuity");
-	    af->random_access = getbits(s, 1, "random_access");
-	    af->es_priority = getbits(s, 1, "es_priority");
-	    af->pcr_flag = getbits(s, 1, "pcr_flag");
-	    af->opcr_flag = getbits(s, 1, "opcr_flag");
-	    af->splicing_point = getbits(s, 1, "splicing_point");
-	    af->transport_private = getbits(s, 1, "transport_private_flag");
-	    af->extension = getbits(s, 1, "af_extention_flag");
-	    if(af->pcr_flag){
-		uint64_t pcr_base, pcr_ext;
-		pcr_base = getbits(s, 33, "pcr_base");
-		getbits(s, 6, NULL);
-		pcr_ext = getbits(s, 9, "pcr_ext");
-		af->pcr = pcr_base * 300 + pcr_ext;
-	    }
-	    if(af->opcr_flag){
-		uint64_t opcr_base, opcr_ext;
-		opcr_base = getbits(s, 33, "opcr_base");
-		getbits(s, 6, NULL);
-		opcr_ext = getbits(s, 9, "opcr_ext");
-		af->opcr = opcr_base * 300 + opcr_ext;
-	    }
-	    if(af->splicing_point)
-		af->splice_countdown = getbits(s, 8, "splice_countdown");
-	    if(af->transport_private){
-		int tl = getbits(s, 8, "private_length");
-		while(tl--){
-		    getbits(s, 8, "private_data");
+	while(--i)
+	    if(getbits(s, 8, "sync") == MPEGTS_SYNC)
+		break;
+	if(!i){
+	    fprintf(stderr, "MPEGTS: can't find sync byte, @ %lx\n",
+		    s->stream->tell(s->stream));
+	    return NULL;
+	}
+
+	s->br = 8;
+
+	mp->transport_error = getbits(s, 1, "transport_error");
+	if(mp->transport_error){
+	    fprintf(stderr, "MPEGTS: transport error\n");
+	    s->stream->read(mp->data, 1, 188 - (s->br + s->bs) / 8, s->stream);
+	    s->bs = 0;
+	    error = 1;
+	    continue;
+	}
+
+	mp->unit_start = getbits(s, 1, "unit_start");
+	mp->priority = getbits(s, 1, "priority");
+	mp->pid = getbits(s, 13, "pid");
+	mp->scrambling = getbits(s, 2, "scrambling");
+	mp->adaptation = getbits(s, 2, "adaptation");
+	mp->cont_counter = getbits(s, 4, "cont_counter");
+
+	if(mp->adaptation & 2){
+	    struct adaptation_field *af = &mp->adaptation_field;
+	    int al = getbits(s, 8, "adaptation_field_length");
+	    if(al > 0){
+		int br = s->br;
+
+		af->discontinuity = getbits(s, 1, "discontinuity");
+		af->random_access = getbits(s, 1, "random_access");
+		af->es_priority = getbits(s, 1, "es_priority");
+		af->pcr_flag = getbits(s, 1, "pcr_flag");
+		af->opcr_flag = getbits(s, 1, "opcr_flag");
+		af->splicing_point = getbits(s, 1, "splicing_point");
+		af->transport_private = getbits(s, 1, "transport_priv_flag");
+		af->extension = getbits(s, 1, "af_extention_flag");
+		if(af->pcr_flag){
+		    uint64_t pcr_base, pcr_ext;
+		    pcr_base = getbits(s, 33, "pcr_base");
+		    getbits(s, 6, NULL);
+		    pcr_ext = getbits(s, 9, "pcr_ext");
+		    af->pcr = pcr_base * 300 + pcr_ext;
 		}
-	    }
-	    if(af->extension){
-		int afel = getbits(s, 8, "afext_length");
-		while(afel--){
-		    getbits(s, 8, "afext_data");
+		if(af->opcr_flag){
+		    uint64_t opcr_base, opcr_ext;
+		    opcr_base = getbits(s, 33, "opcr_base");
+		    getbits(s, 6, NULL);
+		    opcr_ext = getbits(s, 9, "opcr_ext");
+		    af->opcr = opcr_base * 300 + opcr_ext;
 		}
-	    }
-	    br = al - (s->br - br) / 8;
-	    assert(br >= 0);
-	    while(br--){
-		assert(getbits(s, 8, "stuffing") == 0xff);
+		if(af->splicing_point)
+		    af->splice_countdown = getbits(s, 8, "splice_countdown");
+		if(af->transport_private){
+		    int tl = getbits(s, 8, "private_length");
+		    while(tl--){
+			getbits(s, 8, "private_data");
+		    }
+		}
+		if(af->extension){
+		    int afel = getbits(s, 8, "afext_length");
+		    while(afel--){
+			getbits(s, 8, "afext_data");
+		    }
+		}
+		br = al - (s->br - br) / 8;
+		if(br < 0){
+		    fprintf(stderr, "MPEGTS: Bad pack header. br = %i\n", br);
+		    error = 1;
+		    continue;
+		}
+		assert(br >= 0);
+		while(br--){
+		    if(getbits(s, 8, "stuffing") != 0xff){
+			fprintf(stderr, "MPEGTS: Stuffing != 0xff\n");
+			error = 1;
+			break;
+		    }
+		}
 	    }
 	}
-    }
 
-    if(mp->adaptation & 1){
-	mp->data_length = 188 - s->br / 8;
-	for(i = 0; s->bs; i++)
-	    mp->data[i] = getbits(s, 8, NULL);
-	s->stream->read(mp->data + i, 1, mp->data_length - i, s->stream);
-    } else {
-	mp->data_length = 0;
-    }
-
-    mp->pdata = mp->data;
+	if(!error){
+	    if(mp->adaptation & 1){
+		mp->data_length = 188 - s->br / 8;
+		for(i = 0; s->bs; i++)
+		    mp->data[i] = getbits(s, 8, NULL);
+		s->stream->read(mp->data+i, 1, mp->data_length-i, s->stream);
+	    } else {
+		mp->data_length = 0;
+	    }
+	    mp->datap = mp->data;
+	}
+    } while(error);
 
     return mp;
 }
@@ -218,6 +246,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	do {
 	    mpegts_packet_t *mp = mpegts_read_packet(s);
+	    uint64_t pts = 0, upts = 0;
 
 	    if(!mp)
 		abort();
@@ -230,16 +259,34 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    }
 
 	    if(mp->unit_start){
-		int peshl = mp->data[8];
-		mp->pdata += 9 + peshl;
+		int peshl = mp->datap[8];
+		if(mp->datap[7] & 0x80 /* && !s->pts[sx].val */){
+		    pts = (htob_16(unaligned16(mp->datap+12)) & 0xfffe) >> 1;
+		    pts |= (htob_16(unaligned16(mp->datap+10)) & 0xfffe) << 14;
+		    pts |= (uint64_t) (mp->datap[9] & 0xe) << 29;
+
+		    if(pts < s->pts[sx].val &&
+		       s->pts[sx].val - pts > 24000){
+			fprintf(stderr, "MPEGTS: PTS discontinuous\n");
+/* 			s->pts[sx].offset += 1LL << 33; */
+		    }
+		    s->pts[sx].val = pts;
+		    upts = pts + s->pts[sx].offset;
+		    upts *= 100LL;
+		    upts /= 9LL;
+
+/* 		    fprintf(stderr, "MPEGTS: sx = %i, pts = %10llu, upts = %15llu\n", */
+/* 			    sx, pts, upts); */
+		}
+		mp->datap += 9 + peshl;
 		mp->data_length -= 9 + peshl;
 	    }
 
 	    pk = malloc(sizeof(*pk));
-	    pk->data = &mp->pdata;
+	    pk->data = &mp->datap;
 	    pk->sizes = &mp->data_length;
 	    pk->planes = 1;
-	    pk->pts = 0;
+	    pk->pts = upts;
 	    pk->free = mpegts_free_pk;
 	    pk->private = mp;
 
@@ -259,6 +306,7 @@ mpeg_free(void *p)
 {
     muxed_stream_t *ms = p;
     mpeg_stream_t *s = ms->private;
+    int i;
 
     if(ms->file)
 	free(ms->file);
@@ -266,6 +314,9 @@ mpeg_free(void *p)
 	free(ms->title);
     if(ms->performer)
 	free(ms->performer);
+
+    for(i = 0; i < ms->n_streams; i++)
+	list_destroy(s->packets[i], (tc_free_fn) mpegts_free_pk);
 
     s->stream->close(s->stream);
     free(s->map);
@@ -321,8 +372,8 @@ mpegts_getinfo(muxed_stream_t *ms)
     for(i = 0; i < n; i++){
 	pat[2*i] = 1;
 	pat[2*i+1] = htob_16(unaligned16(dp + 2)) & 0x1fff;
-/* 	fprintf(stderr, "MPEGTS: program %i => PMT pid %x\n", */
-/* 		htob_16(unaligned16(dp)), pat[i+1]); */
+	fprintf(stderr, "MPEGTS: program %i => PMT pid %x\n",
+		htob_16(unaligned16(dp)), pat[i+1]);
 	dp += 4;
     }
 
@@ -351,7 +402,7 @@ mpegts_getinfo(muxed_stream_t *ms)
 	prg = htob_16(unaligned16(dp + 3));
 	pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
 	dp += 12 + pi_len;
-	seclen -= 12 + pi_len;
+	seclen -= 16 + pi_len;
 	for(i = 0; i < seclen;){
 	    int stype, epid, esil;
 	    int typeok = 1;
@@ -390,9 +441,10 @@ mpegts_getinfo(muxed_stream_t *ms)
 		break;
 	    }
 
+	    fprintf(stderr, "MPEGTS: program %i => PID %x, type %x\n",
+		    prg, epid, stype);
+
 	    if(typeok){
-/* 		fprintf(stderr, "MPEGTS: stream %i:%i => PID %x, type %x\n", */
-/* 			prg, ms->n_streams, epid, stype); */
 		ms->n_streams++;
 		sp++;
 	    }
@@ -431,10 +483,12 @@ mpeg_open(char *name, conf_section *cs)
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     ms->next_packet = mpegts_packet;
 
-    mf->packets = calloc(ms->n_streams, sizeof(list *));
+    mf->packets = calloc(ms->n_streams, sizeof(*mf->packets));
     for(i = 0; i < ms->n_streams; i++)
 	mf->packets[i] = list_new(TC_LOCK_NONE);
     pthread_mutex_init(&mf->mtx, NULL);
+
+    mf->pts = calloc(ms->n_streams, sizeof(*mf->pts));
 
     return ms;
 }

@@ -27,7 +27,10 @@
 typedef struct mpeg_dec {
     mpeg2dec_t *mpeg2;
     const mpeg2_info_t *info;
-    uint64_t pts;
+    uint64_t pts, npts;
+    int ptsc;
+    int pc;
+    int pts_delay;
 } mpeg_dec_t;
 
 typedef struct mpeg_packet {
@@ -40,6 +43,8 @@ mpeg_free_pk(packet_t *p)
 {
     free(p);
 }
+
+static char pictypes[] = {0, 'I', 'P', 'B', 'D'};
 
 static int
 mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
@@ -56,6 +61,14 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
     if(!mpd->info)
 	mpd->info = mpeg2_info(mpd->mpeg2);
 
+    if(pk->pts && !mpd->ptsc){
+	uint64_t pts = mpd->pts / 27;
+	uint64_t ptsdiff = pk->pts>pts? pk->pts-pts: pts-pk->pts;
+	mpd->npts = pk->pts * 27;
+	mpd->ptsc = mpd->info->sequence->flags & SEQ_FLAG_LOW_DELAY? 1:
+	    mpd->pts_delay;
+    }
+
     do {
 	state = mpeg2_parse(mpd->mpeg2);
 	if(state == STATE_SLICE || state == STATE_END){
@@ -68,17 +81,19 @@ mpeg_decode(tcvp_pipe_t *p, packet_t *pk)
 		pic->sizes[1] = pic->sizes[0]/2;
 		pic->sizes[2] = pic->sizes[0]/2;
 
-		if(pk->pts){
-		    uint64_t pts = mpd->pts / 27;
-		    uint64_t ptsdiff = pk->pts>pts? pk->pts-pts: pts-pk->pts;
-		    if(ptsdiff > 1000000){
-			mpd->pts = pk->pts * 27;
-		    }
+		if(mpd->ptsc > 0 && --mpd->ptsc == 0)
+		    mpd->pts = mpd->npts;
+
+		if((mpd->info->current_picture->flags&PIC_MASK_CODING_TYPE) ==
+		   PIC_FLAG_CODING_TYPE_B){
+		    mpd->pc++;
+		} else if(mpd->pc){
+		    mpd->pts_delay = mpd->pc + 1;
+		    mpd->pc = 0;
 		}
 
 		pic->pk.pts = mpd->pts / 27;
 		mpd->pts += mpd->info->sequence->frame_period;
-
 		pic->pk.free = mpeg_free_pk;
 		pic->pk.private = pic;
 		p->next->input(p->next, &pic->pk);
