@@ -1,1 +1,1 @@
-AM_PATH_AUDIOFILE(0.2.3, TC2_ENABLE_MODULE, AC_MSG_WARN([audiofile not found]))
+AM_PATH_AUDIOFILE(0.2.4, TC2_ENABLE_MODULE, AC_MSG_WARN([audiofile not found]))
