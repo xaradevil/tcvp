@@ -217,15 +217,12 @@ ogg_free(void *p)
 
 /* Hack to fetch the title information without libvorbis. */
 static int
-ogg_title(muxed_stream_t *ms, char *buf)
+ogg_title(muxed_stream_t *ms, char *buf, int size)
 {
     char *p;
     int s, n, i, j;
 
-    if(!(p = memchr(buf + 0x3b, 'v', 0x30)))
-	return -1;
-
-    if(strncmp(p, "vorbis", 6))
+    if(!(p = memmem(buf + 0x3b, size - 0x3b, "vorbis", 6)))
 	return -1;
 
     p += 6;
@@ -314,7 +311,7 @@ ogg_open(char *name, conf_section *cs)
     buf=ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
     
     l=f->read(buf, 1, BUFFER_SIZE, ost->f);
-    ogg_title(ms, buf);
+    ogg_title(ms, buf, BUFFER_SIZE);
 
     ogg_sync_wrote(&ost->oy, l);
     ogg_sync_pageout(&ost->oy, &og);
