@@ -1,0 +1,1 @@
+TC2_CHECK_LIBS([alsa, asound, snd_pcm_open,, alsa/asoundlib.h])

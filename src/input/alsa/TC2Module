@@ -1,0 +1,11 @@
+module		alsarec
+name		"TCVP/input/alsa"
+version		0.1.0
+tc2version	0.4.0
+sources		alsarec.c
+implement	"URL/pcm"	"open"	alsa_open
+import		"URL/vheader"	"new"
+import		"mux/wav"	"header"
+option		device%s="default"
+option		period%i=6000
+option		buffer%i=12000

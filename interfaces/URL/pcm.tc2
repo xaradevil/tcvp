@@ -1,0 +1,3 @@
+inherit "URL"
+option rate%i=44100
+option channels%i=2

@@ -23,6 +23,7 @@ module src/codec/pcm
 module src/filters/crop
 module src/filters/deinterlace
 module src/filters/scale
+module src/input/alsa
 module src/input/cdda
 module src/input/dvd
 module src/input/dvdnav
