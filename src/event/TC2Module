@@ -8,7 +8,10 @@ shutdown	event_free
 
 implement	"tcvp/event"	"register"	reg_event
 implement	"tcvp/event"	"send"		send_event
+implement	"tcvp/event"	"new"		new_event
 implement	"tcvp/event"	"get"		get_event
 implement	"tcvp/event"	"delete"	del_event
 implement	"tcvp/event"	"alloc"		alloc_event
+implement	"tcvp/event"	"serialize"	serialize_event
+implement	"tcvp/event"	"deserialize"	deserialize_event
 import		"Eventq"	"send"

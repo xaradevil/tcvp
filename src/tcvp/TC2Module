@@ -21,6 +21,7 @@ import		"tcvp/event"	"send"
 import		"tcvp/event"	"get"
 import		"tcvp/event"	"delete"
 import		"tcvp/event"	"alloc"
+import		"tcvp/event"	"new"
 require		"filter"
 
 option		default_profile%s="play"

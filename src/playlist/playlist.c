@@ -444,14 +444,17 @@ pl_alloc_shuffle(int t, va_list args)
 extern int
 pl_init(char *p)
 {
-    TCVP_PL_START = tcvp_event_register("TCVP_PL_START", NULL);
-    TCVP_PL_STOP = tcvp_event_register("TCVP_PL_STOP", NULL);
-    TCVP_PL_NEXT = tcvp_event_register("TCVP_PL_NEXT", NULL);
-    TCVP_PL_PREV = tcvp_event_register("TCVP_PL_PREV", NULL);
-    TCVP_PL_ADD = tcvp_event_register("TCVP_PL_ADD", pl_alloc_add);
-    TCVP_PL_ADDLIST = tcvp_event_register("TCVP_PL_ADDLIST", pl_alloc_addlist);
-    TCVP_PL_REMOVE = tcvp_event_register("TCVP_PL_REMOVE", pl_alloc_remove);
-    TCVP_PL_SHUFFLE = tcvp_event_register("TCVP_PL_SHUFFLE", pl_alloc_shuffle);
+    TCVP_PL_START = tcvp_event_register("TCVP_PL_START", NULL, NULL, NULL);
+    TCVP_PL_STOP = tcvp_event_register("TCVP_PL_STOP", NULL, NULL, NULL);
+    TCVP_PL_NEXT = tcvp_event_register("TCVP_PL_NEXT", NULL, NULL, NULL);
+    TCVP_PL_PREV = tcvp_event_register("TCVP_PL_PREV", NULL, NULL, NULL);
+    TCVP_PL_ADD = tcvp_event_register("TCVP_PL_ADD", pl_alloc_add, NULL, NULL);
+    TCVP_PL_ADDLIST = tcvp_event_register("TCVP_PL_ADDLIST", pl_alloc_addlist,
+					  NULL, NULL);
+    TCVP_PL_REMOVE = tcvp_event_register("TCVP_PL_REMOVE", pl_alloc_remove,
+					 NULL, NULL);
+    TCVP_PL_SHUFFLE = tcvp_event_register("TCVP_PL_SHUFFLE", pl_alloc_shuffle,
+					  NULL, NULL);
 
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
     TCVP_OPEN = tcvp_event_get("TCVP_OPEN"); 

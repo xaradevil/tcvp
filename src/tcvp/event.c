@@ -9,6 +9,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <tchash.h>
+#include <tctypes.h>
+#include <tcbyteswap.h>
 #include <tcvp_mod.h>
 #include <tcvp_core_tc2.h>
 
@@ -53,6 +55,34 @@ open_alloc(int type, va_list args)
     return te;
 }
 
+static u_char *
+open_ser(char *name, void *event, int *size)
+{
+    tcvp_open_event_t *te = event;
+    u_char *sb;
+    int s;
+
+    s = strlen(name) + strlen(te->file) + 2;
+    sb = malloc(s);
+    sprintf(sb, "%s%c%s", name, 0, te->file);
+    *size = s;
+
+    return sb;
+}
+
+static void *
+open_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+
+    n++;
+
+    if(!memchr(n, 0, size - (n - event)))
+	return NULL;
+
+    return tcvp_event_new(type, n);
+}
+
 static void *
 open_multi_alloc(int type, va_list args)
 {
@@ -78,6 +108,43 @@ seek_alloc(int type, va_list args)
     return te;
 }
 
+static u_char *
+seek_ser(char *name, void *event, int *size)
+{
+    tcvp_seek_event_t *te = event;
+    int s = strlen(name) + 1 + 9;
+    u_char *sb = malloc(s);
+    u_char *p = sb;
+
+    p += sprintf(sb, "%s", name);
+    p++;
+    st_unaligned64(htob_64(te->time), p);
+    p += 8;
+    *p = te->how;
+
+    *size = s;
+    return sb;
+}
+
+static void *
+seek_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    uint64_t time;
+    int how;
+
+    n++;
+
+    if(size - (n - event) < 9)
+	return NULL;
+
+    time = htob_64(unaligned64(n));
+    n += 8;
+    how = *n;
+
+    return tcvp_event_new(type, time, how);
+}
+
 static void *
 timer_alloc(int type, va_list args)
 {
@@ -92,6 +159,33 @@ state_alloc(int type, va_list args)
     tcvp_state_event_t *te = tcvp_event_alloc(type, sizeof(*te), NULL);
     te->state = va_arg(args, int);
     return te;
+}
+
+static u_char *
+state_ser(char *name, void *event, int *size)
+{
+    tcvp_state_event_t *te = event;
+    int s = strlen(name) + 1 + 4;
+    u_char *sb = malloc(s);
+    u_char *p = sb;
+
+    p += sprintf(sb, "%s", name);
+    p++;
+    st_unaligned32(htob_32(te->state), p);
+
+    *size = s;
+    return sb;
+}
+
+static void *
+state_deser(int type, u_char *event, int size)
+{
+    u_char *n = memchr(event, 0, size);
+    int state;
+
+    n++;
+    state = htob_32(unaligned32(n));
+    return tcvp_event_new(type, state);
 }
 
 static void
@@ -113,19 +207,21 @@ load_alloc(int type, va_list args)
 static struct {
     char *name;
     tcvp_alloc_event_t alloc;
+    tcvp_serialize_event_t serialize;
+    tcvp_deserialize_event_t deserialize;
 } core_events[] = {
-    { .name = "TCVP_KEY",         .alloc = key_alloc        },
-    { .name = "TCVP_OPEN",        .alloc = open_alloc       },
-    { .name = "TCVP_OPEN_MULTI",  .alloc = open_multi_alloc },
-    { .name = "TCVP_START",       .alloc = NULL             },
-    { .name = "TCVP_STOP",        .alloc = NULL             },
-    { .name = "TCVP_PAUSE",       .alloc = NULL             },
-    { .name = "TCVP_SEEK",        .alloc = seek_alloc       },
-    { .name = "TCVP_CLOSE",       .alloc = NULL             },
-    { .name = "TCVP_TIMER",       .alloc = timer_alloc      },
-    { .name = "TCVP_STATE",       .alloc = state_alloc      },
-    { .name = "TCVP_LOAD",        .alloc = load_alloc       },
-    { .name = "TCVP_STREAM_INFO", .alloc = NULL             },
+    { "TCVP_KEY",         key_alloc,        NULL,      NULL        },
+    { "TCVP_OPEN",        open_alloc,       open_ser,  open_deser  },
+    { "TCVP_OPEN_MULTI",  open_multi_alloc, NULL,      NULL        },
+    { "TCVP_START",       NULL,             NULL,      NULL        },
+    { "TCVP_STOP",        NULL,             NULL,      NULL        },
+    { "TCVP_PAUSE",       NULL,             NULL,      NULL        },
+    { "TCVP_SEEK",        seek_alloc,       seek_ser,  seek_deser  },
+    { "TCVP_CLOSE",       NULL,             NULL,      NULL        },
+    { "TCVP_TIMER",       timer_alloc,      NULL,      NULL,       },
+    { "TCVP_STATE",       state_alloc,      state_ser, state_deser },
+    { "TCVP_LOAD",        load_alloc,       NULL,      NULL        },
+    { "TCVP_STREAM_INFO", NULL,             NULL,      NULL        },
 };
 
 extern int
@@ -134,7 +230,9 @@ init_events(void)
     int i;
 
     for(i = 0; i < sizeof(core_events) / sizeof(core_events[0]); i++)
-	tcvp_event_register(core_events[i].name, core_events[i].alloc);
+	tcvp_event_register(core_events[i].name, core_events[i].alloc,
+			    core_events[i].serialize,
+			    core_events[i].deserialize);
 
     return 0;
 }

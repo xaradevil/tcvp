@@ -18,6 +18,8 @@ typedef struct tcvp_event_type {
     char *name;
     int num;
     tcvp_alloc_event_t alloc;
+    tcvp_serialize_event_t serialize;
+    tcvp_deserialize_event_t deserialize;
 } tcvp_event_type_t;
 
 static hash_table *event_types;
@@ -32,8 +34,22 @@ evt_alloc(int type, va_list args)
     return te;
 }
 
+static u_char *
+evt_serialize(char *name, void *event, int *size)
+{
+    *size = strlen(name) + 1;
+    return strdup(name);
+}
+
+static void *
+evt_deserialize(int type, u_char *event, int size)
+{
+    return new_event(type);
+}
+
 static tcvp_event_type_t *
-new_type(char *name, tcvp_alloc_event_t af)
+new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
+	 tcvp_deserialize_event_t df)
 {
     tcvp_event_type_t *e;
 
@@ -41,6 +57,8 @@ new_type(char *name, tcvp_alloc_event_t af)
     e->name = strdup(name);
     e->num = ++event_num;
     e->alloc = af;
+    e->serialize = sf;
+    e->deserialize = df;
 
     event_tab = realloc(event_tab, (event_num + 1) * sizeof(*event_tab));
     event_tab[e->num] = e;
@@ -50,21 +68,29 @@ new_type(char *name, tcvp_alloc_event_t af)
 }
 
 extern int
-reg_event(char *name, tcvp_alloc_event_t af)
+reg_event(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
+	  tcvp_deserialize_event_t df)
 {
     tcvp_event_type_t *e;
 
-    if(!af)
+    if(!af){
 	af = evt_alloc;
+	if(!sf)
+	    sf = evt_serialize;
+	if(!df)
+	    df = evt_deserialize;
+    }
 
     if(!hash_find(event_types, name, &e)){
 	if(e->alloc)
 	    return -1;
 	e->alloc = af;
+	e->serialize = sf;
+	e->deserialize = df;
 	return e->num;
     }
 
-    e = new_type(name, af);
+    e = new_type(name, af, sf, df);
 
     return e->num;
 }
@@ -75,7 +101,7 @@ get_event(char *name)
     tcvp_event_type_t *e;
 
     if(hash_find(event_types, name, &e))
-	e = new_type(name, NULL);
+	e = new_type(name, NULL, NULL, NULL);
 
     return e->num;
 }
@@ -98,6 +124,25 @@ del_event(char *name)
 	free_event(e);
 
     return 0;
+}
+
+extern void *
+new_event(int type, ...)
+{
+    tcvp_event_t *te = NULL;
+    va_list args;
+
+    va_start(args, type);
+
+    if(type <= event_num && event_tab[type]){
+	te = event_tab[type]->alloc(type, args);
+    } else {
+	fprintf(stderr, "TCVP: unknown event type %i\n", type);
+    }
+
+    va_end(args);
+
+    return te;
 }
 
 extern int
@@ -130,6 +175,44 @@ send_event(eventq_t q, int type, ...)
     }
 
     return ret;
+}
+
+extern u_char *
+serialize_event(void *event, int *size)
+{
+    tcvp_event_t *te = event;
+
+
+    if(te->type < 0 || te->type > event_num)
+	return NULL;
+    if(!event_tab[te->type])
+	return NULL;
+
+    if(!event_tab[te->type]->serialize){
+	fprintf(stderr, "EVENT: no serializer for %s\n",
+		event_tab[te->type]->name);
+	return NULL;
+    }
+
+    return event_tab[te->type]->serialize(event_tab[te->type]->name,
+					  event, size);
+}
+
+extern void *
+deserialize_event(u_char *event, int size)
+{
+    tcvp_event_type_t *e;
+
+    if(!memchr(event, 0, size))
+	return NULL;
+
+    if(hash_find(event_types, event, &e))
+	return NULL;
+
+    if(!e->deserialize)
+	return NULL;
+
+    return e->deserialize(e->num, event, size);
 }
 
 extern void *
