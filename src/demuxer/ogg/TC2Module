@@ -1,0 +1,8 @@
+module		ogg
+name		"TCVP/demux/ogg"
+version		0.1.0
+tc2version	0.4.0
+sources		ogg.c
+implement	"audio/ogg"	"open"		ogg_open
+implement	"audio/ogg"	"close"		ogg_close
+implement	"audio/ogg"	"next_packet"	ogg_next_packet

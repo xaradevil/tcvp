@@ -1,0 +1,6 @@
+module		vorbis
+name		"TCVP/codec/vorbis"
+version		0.1.0
+tc2version	0.4.0
+sources		vorbis.c
+implement	"codec/audio/vorbis"	"new"	vorbis_new
