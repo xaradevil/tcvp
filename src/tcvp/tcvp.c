@@ -365,7 +365,7 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 {
     tcvp_player_t *tp = pl->private;
     int ns = 0;
-    char *profile = strdup(tcvp_conf_default_profile), prname[256];
+    char *profile = NULL, prname[256];
     tcconf_section_t *prsec, *dc;
     uint64_t start_time = 0;
     char *outfile;
@@ -374,6 +374,8 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 
     if(tp->conf)
 	tcconf_getvalue(tp->conf, "profile", "%s", &profile);
+    if(!profile)
+	profile = strdup(tcvp_conf_default_profile);
 
     snprintf(prname, 256, "TCVP/profiles/%s", profile);
     if(!(prsec = tc2_get_conf(prname))){
