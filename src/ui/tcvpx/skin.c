@@ -371,9 +371,9 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int xoff = 0, yoff = 0;
     char *font;
     char *color, *align_s, *stype_s;
-    int alpha;
+    int alpha = 0xff;
     int stype, align;
-    int i=0, j;
+    int i = 0, j;
     char *action = NULL, *bg = NULL, *text, *default_text;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *l, *w;
@@ -381,7 +381,6 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 
     i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
     i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
-
     i += tcconf_getvalue(sec, "text", "%s", &text);
 
     if((bfnt = tcconf_getsection(sec, "bitmap"))){
@@ -391,21 +390,15 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	i++;
     }
 
-    if((j = tcconf_getvalue(sec, "color", "%s %d", &color, &alpha)) == 1){
-	alpha = 0xff;
-	j++;
-    }
-    i += j;
-    if((j = tcconf_getvalue(sec, "scroll_style", "%s", &stype_s)) < 1){
+    i += !!tcconf_getvalue(sec, "color", "%s %d", &color, &alpha);
+
+    if(tcconf_getvalue(sec, "scroll_style", "%s", &stype_s) < 1)
 	stype_s = strdup("none");
-	j = 1;
-    }
-    i += j;
-    if((j = tcconf_getvalue(sec, "align", "%s", &align_s)) < 1){
-	j = 1;
+
+    if(tcconf_getvalue(sec, "align", "%s", &align_s) < 1)
 	align_s = strdup("left");
-    }
-    i += j;
+
+
     if(strcasecmp(align_s, "left") == 0) {
 	align = XTKLABELLEFT;
     } else if(strcasecmp(align_s, "right") == 0) {
@@ -424,9 +417,8 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     }
     free(stype_s);
 
-    if(i != 10){
+    if(i != 7)
 	return NULL;
-    }
 
     tcconf_getvalue(sec, "text_offset", "%d %d", &xoff, &yoff);
     tcconf_getvalue(sec, "action", "%s", &action);
@@ -461,7 +453,8 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     register_textwidget(l, text);
     l->on_destroy = destroy_skinned_label;
     free(default_text);
-    free(color);
+    if(color)
+	free(color);
     free(bg);
 
     return l;
