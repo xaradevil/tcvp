@@ -15,7 +15,7 @@
 
 /* key */
 
-extern void
+static void
 key_free(void *p)
 {
     tcvp_key_event_t *te = p;
@@ -32,7 +32,7 @@ key_alloc(int type, va_list args)
 
 /* open */
 
-extern void
+static void
 open_free(void *p)
 {
     tcvp_open_event_t *te = p;
@@ -77,7 +77,7 @@ open_deser(int type, u_char *event, int size)
 
 /* open_multi */
 
-extern void
+static void
 open_multi_free(void *p)
 {
     tcvp_open_multi_event_t *te = p;
@@ -233,7 +233,7 @@ state_deser(int type, u_char *event, int size)
 
 /* load */
 
-extern void
+static void
 load_free(void *p)
 {
     tcvp_load_event_t *te = p;
@@ -331,6 +331,8 @@ load_deser(int type, u_char *event, int size)
     tcfree(ms);
     return te;
 }
+
+/* button */
 
 extern void *
 button_alloc(int type, va_list args)
