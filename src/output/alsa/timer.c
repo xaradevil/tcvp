@@ -77,6 +77,7 @@ run_timer(void *p)
 
     while(at->state == RUN){
 	int s = poll(pfd, pfds, 100);
+	uint64_t t = 0;
 
 	if(s == 0)
 	    continue;
@@ -84,11 +85,13 @@ run_timer(void *p)
 	    break;
 
 	while(snd_timer_read(timer, &tr, sizeof(tr)) == sizeof(tr)){
-	    pthread_mutex_lock(&at->mx);
-	    at->time += tr.resolution * tr.ticks;
-	    pthread_cond_broadcast(&at->cd);
-	    pthread_mutex_unlock(&at->mx);
+	    t += tr.resolution * tr.ticks;
 	}
+
+	pthread_mutex_lock(&at->mx);
+	at->time += t;
+	pthread_cond_broadcast(&at->cd);
+	pthread_mutex_unlock(&at->mx);
     }
 
     snd_timer_stop(timer);
