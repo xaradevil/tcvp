@@ -1,0 +1,4 @@
+inherit "URL"
+option device%s="/dev/cdroms/cdrom0"
+option title%i=1
+option buffer%i=4

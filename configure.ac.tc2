@@ -34,6 +34,7 @@ AC_CONFIG_FILES([Makefile
 		 src/filters/scale/Makefile
 		 src/input/Makefile
 		 src/input/cdda/Makefile
+		 src/input/dvd/Makefile
 		 src/output/Makefile
 		 src/output/drivers/Makefile
 		 src/output/drivers/vidix/Makefile
