@@ -23,7 +23,6 @@
 **/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <tcmath.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
@@ -33,6 +32,7 @@
 typedef struct scale {
     ImgReSampleContext *irs;
     int w, h;
+    int keepaspect;
 } scale_t;
 
 typedef struct scale_packet {
@@ -104,6 +104,12 @@ scale_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     vs->width = sc->w;
     vs->height = sc->h;
 
+    if(sc->keepaspect){
+	vs->aspect.num = s->video.width;
+	vs->aspect.den = s->video.height;
+	tcreduce(&vs->aspect);
+    }
+
     return PROBE_OK;
 }
 
@@ -132,6 +138,8 @@ scale_new(tcvp_pipe_t *p, stream_t *st, tcconf_section_t *cs, tcvp_timer_t *t,
     s = tcallocdz(sizeof(*s), NULL, scale_free);
     s->w = w;
     s->h = h;
+
+    tcconf_getvalue(cs, "keepaspect", "%i", &s->keepaspect);
 
     p->private = s;
 
