@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <tctypes.h>
+#include <tcmath.h>
 
 typedef struct packet packet_t;
 struct packet {
@@ -63,13 +64,9 @@ struct packet {
 
 typedef struct video_stream {
     STREAM_COMMON;
-    struct {
-	int num, den;
-    } frame_rate;
+    tcfraction_t frame_rate;
     int width, height;
-    struct {
-	int num, den;
-    } aspect;
+    tcfraction_t aspect;
     u_long frames;
     int pixel_format;
 } video_stream_t;
