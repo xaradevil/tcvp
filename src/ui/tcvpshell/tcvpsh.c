@@ -32,10 +32,8 @@ tcvp_pause(char *p)
     static int paused = 0;
 
     pthread_mutex_lock(&pmx);
-    if(!player)
-	return -1;
-
-    (paused ^= 1)? player->stop(player): player->start(player);
+    if(player)
+	(paused ^= 1)? player->stop(player): player->start(player);
     pthread_mutex_unlock(&pmx);
 
     return 0;
@@ -73,11 +71,8 @@ tcvp_play(char *file)
     tcvp_stop(NULL);
 
     pthread_mutex_lock(&pmx);
-
-    if(!(player = tcvp_open(file, tcvp_status, NULL)))
-	return -1;
-
-    player->start(player);
+    if((player = tcvp_open(file, tcvp_status, NULL)))
+	player->start(player);
     pthread_mutex_unlock(&pmx);
 
     return 0;
