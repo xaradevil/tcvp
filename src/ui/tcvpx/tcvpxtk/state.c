@@ -115,7 +115,7 @@ create_state(window_t *window, int x, int y, image_info_t *bg,
 /* 	fprintf(stderr, "%s -> %s\n", states[i], imagefiles[i]); */
 	st->states[i] = strdup(states[i]);
 	st->images[i] = images[i];
-	shape_window(st->win, images[i]);
+	shape_window(st->win, images[i], ShapeUnion, NULL);
     }
 
     merge_shape(window, st->win, x, y);

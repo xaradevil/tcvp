@@ -6,6 +6,12 @@
 
 #include "widgets.h"
 
+static void
+shape_button(tcimage_button_t *btn, int s)
+{
+    XShapeCombineMask(xd, btn->win, ShapeBounding, 0, 0,
+		      btn->shapes[s], ShapeSet);
+}
 
 static int
 repaint_button(xtk_widget_t *xw)
@@ -42,6 +48,8 @@ static int
 destroy_button(xtk_widget_t *xw)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
+    int i;
+
     free_btimg(w->button.bgimg);
     if(w->button.over_img)
 	free_btimg(w->button.over_img);
@@ -49,6 +57,10 @@ destroy_button(xtk_widget_t *xw)
 	free_btimg(w->button.down_img);
     if(w->button.background)
 	free_btimg(w->button.background);
+
+    for(i = 0; i < 3; i++)
+	if(w->button.shapes[i])
+	    XFreePixmap(xd, w->button.shapes[i]);
 
     return 0;
 }
@@ -59,6 +71,7 @@ press_button(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
     w->button.img = w->button.down_img;
+    shape_button(&w->button, 2);
     repaint_button(xw);
     draw_widget(w);
     w->button.pressed = 1;
@@ -71,10 +84,13 @@ release_button(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
     if(w->button.img == w->button.down_img) {
-	if(w->button.over_img)
+	if(w->button.over_img){
 	    w->button.img = w->button.over_img;
-	else
+	    shape_button(&w->button, 1);
+	} else {
 	    w->button.img = w->button.bgimg;
+	    shape_button(&w->button, 0);
+	}
     }
     repaint_button(xw);
     draw_widget(w);
@@ -89,9 +105,11 @@ enter_button(xtk_widget_t *xw, void *xe)
     tcwidget_t *w = (tcwidget_t *)xw;
     if(w->button.pressed) {
 	w->button.img = w->button.down_img;
+	shape_button(&w->button, 2);
     } else {
 	if(w->button.over_img) {
 	    w->button.img = w->button.over_img;
+	    shape_button(&w->button, 1);
 	}
     }
     repaint_button(xw);
@@ -105,11 +123,11 @@ exit_button(xtk_widget_t *xw, void *xe)
 {
     tcwidget_t *w = (tcwidget_t *)xw;
     w->button.img = w->button.bgimg;
+    shape_button(&w->button, 0);
     repaint_button(xw);
     draw_widget(w);
     return 0;
 }
-
 
 extern xtk_widget_t*
 create_button(window_t *window, int x, int y, image_info_t *bg,
@@ -141,14 +159,15 @@ create_button(window_t *window, int x, int y, image_info_t *bg,
 			     CopyFromParent, 0, 0);
     btn->pixmap = XCreatePixmap(xd, window->xw, btn->width,
 				btn->height, depth);
-    clear_shape(btn->win);
-    shape_window(btn->win, image);
+    if(bg)
+	shape_window(btn->win, bg, ShapeSet, NULL);
+    shape_window(btn->win, image, ShapeUnion, btn->shapes);
     if(over_image != NULL) {
 	btn->over_img = over_image;
 	emask |= EnterWindowMask | LeaveWindowMask;
 	btn->enter = enter_button;
 	btn->exit = exit_button;
-	shape_window(btn->win, over_image);
+	shape_window(btn->win, over_image, ShapeSet, btn->shapes + 1);
     }
     if(down_image != NULL) {
 	btn->down_img = down_image;
@@ -157,10 +176,11 @@ create_button(window_t *window, int x, int y, image_info_t *bg,
 	btn->release = release_button; 
 	btn->enter = enter_button;
 	btn->exit = exit_button;
-	shape_window(btn->win, down_image);
+	shape_window(btn->win, down_image, ShapeSet, btn->shapes + 2);
     }
 
     merge_shape(window, btn->win, btn->x, btn->y);
+    shape_button(btn, 0);
 
     list_push(widget_list, btn);
     emask |= ExposureMask;

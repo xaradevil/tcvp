@@ -683,7 +683,7 @@ clear_shape(Window w)
 }
 
 extern int
-shape_window(Window w, image_info_t *im)
+shape_window(Window w, image_info_t *im, int op, Pixmap *shape)
 {
     int transparent = 0;
     Pixmap maskp;
@@ -708,9 +708,12 @@ shape_window(Window w, image_info_t *im)
     }
 
     maskp = XCreateBitmapFromData(xd, w, data, im->width, im->height);
-    XShapeCombineMask(xd, w, ShapeBounding, 0, 0, maskp, ShapeUnion);
+    XShapeCombineMask(xd, w, ShapeBounding, 0, 0, maskp, op);
     XSync(xd, False);
-    XFreePixmap(xd, maskp);
+    if(shape)
+	*shape = maskp;
+    else
+	XFreePixmap(xd, maskp);
     free(data);
 
     return transparent;

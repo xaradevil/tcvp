@@ -321,7 +321,7 @@ create_background(window_t *window, image_info_t *image)
     bg->win = window->xw;
     bg->enabled = 1;
 
-    bg->transparent = shape_window(window->xw, image);
+    bg->transparent = shape_window(window->xw, image, ShapeUnion, NULL);
     merge_shape(window->parent, window->xw, window->x, window->y);
 
     list_push(widget_list, bg);

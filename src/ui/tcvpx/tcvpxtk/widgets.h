@@ -9,6 +9,7 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xft/Xft.h>
+#include <X11/extensions/shape.h>
 #include <tcvpxtk_tc2.h>
 #include <tcconf.h>
 #include <tclist.h>
@@ -81,6 +82,7 @@ struct _tcimage_button_t{
     image_info_t *over_img;
     image_info_t *down_img;
     int pressed;
+    Pixmap shapes[3];
 };
 
 struct _tcstate_t{
@@ -178,7 +180,7 @@ int widget_cmp(const void *, const void *);
 void *x11_event(void *p);
 void *scroll_labels(void *p);
 
-extern int shape_window(Window w, image_info_t *im);
+extern int shape_window(Window w, image_info_t *im, int op, Pixmap *shape);
 extern int merge_shape(window_t *d, Window s, int x, int y);
 extern int clear_shape(Window w);
 
