@@ -16,6 +16,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 **/
 
+#define _ISOC99_SOURCE
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -44,6 +47,9 @@ typedef struct mpegts_stream {
 	int cc;
 	int start;
     } *streams;
+    int rate;
+    uint64_t start_time;
+    tcvp_timer_t **timer;
 } mpegts_stream_t;
 
 typedef struct mpegts_pk {
@@ -243,16 +249,17 @@ mpegts_packet(muxed_stream_t *ms, int str)
 
 	tb = &s->streams[sx];
 
-	ccd = (mp.cont_counter - tb->cc + 0x10) & 0xf;
-	if(ccd == 0){
-	    fprintf(stderr, "MPEGTS: duplicate packet, PID %x\n", mp.pid);
-	    continue;
-	} else if(ccd != 1){
-	    fprintf(stderr, "MPEGTS: lost packet, PID %x: %i %i\n",
-		    mp.pid, tb->cc, mp.cont_counter);
-	    tb->start = 0;
+	if(tb->cc > -1){
+	    ccd = (mp.cont_counter - tb->cc + 0x10) & 0xf;
+	    if(ccd == 0){
+		fprintf(stderr, "MPEGTS: duplicate packet, PID %x\n", mp.pid);
+		continue;
+	    } else if(ccd != 1){
+		fprintf(stderr, "MPEGTS: lost packet, PID %x: %i %i\n",
+			mp.pid, tb->cc, mp.cont_counter);
+		tb->start = 0;
+	    }
 	}
-
 	tb->cc = mp.cont_counter;
 
 	if((mp.unit_start && tb->bpos) || tb->bpos > MAX_PACKET_SIZE){
@@ -296,9 +303,73 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	    }
 	    tb->start = 1;
 	}
+
+	if(mp.adaptation_field.pcr_flag){
+	    if(s->start_time != -1LL){
+		uint64_t time =
+		    (mp.adaptation_field.pcr - s->start_time) / 27000;
+		if(time)
+		    s->rate = s->stream->tell(s->stream) / time;
+	    } else {
+		s->start_time = mp.adaptation_field.pcr;
+	    }
+
+	    if((s->stream->flags & URL_FLAG_STREAMED) &&
+	       s->timer && *s->timer){
+		uint64_t pcr = mp.adaptation_field.pcr - 27000000 * 5;
+		uint64_t time = (*s->timer)->read(*s->timer);
+		int64_t dt = pcr - time;
+		if(llabs(dt) > 270000){
+		    time += dt / 2;
+		    (*s->timer)->reset(*s->timer, time);
+		}
+	    }
+	}
     } while(!pk);
 
     return &pk->pk;
+}
+
+static uint64_t
+mpegts_seek(muxed_stream_t *ms, uint64_t time)
+{
+    mpegts_stream_t *s = ms->private;
+    int64_t p, st = 0;
+    packet_t *pk = NULL;
+    int i, sm = SEEK_SET;
+
+    p = time / 27000 * s->rate;
+
+    do {
+	p /= 188;
+	p *= 188;
+
+	if(s->stream->seek(s->stream, p, sm))
+	    return -1;
+
+	for(i = 0; i < ms->n_streams; i++){
+	    s->streams[i].flags = 0;
+	    s->streams[i].bpos = 0;
+	    s->streams[i].start = 0;
+	    s->streams[i].cc = -1;
+	}
+
+	do {
+	    pk = mpegts_packet(ms, 0);
+	    if(pk){
+		if(pk->flags & TCVP_PKT_FLAG_PTS)
+		    st = pk->pts;
+		pk->free(pk);
+	    } else {
+		return -1;
+	    }
+	} while(!st);
+
+	p = (time - st) / 27000 * s->rate;
+	sm = SEEK_CUR;
+    } while(llabs(st - time) > 27000000);
+
+    return st;
 }
 
 static void
@@ -321,7 +392,7 @@ mpegts_free(void *p)
 }
 
 extern muxed_stream_t *
-mpegts_open(char *name)
+mpegts_open(char *name, conf_section *cs, tcvp_timer_t **tm)
 {
     muxed_stream_t *ms;
     mpegts_stream_t *s;
@@ -350,8 +421,10 @@ mpegts_open(char *name)
 
     ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
     ms->next_packet = mpegts_packet;
+    ms->seek = mpegts_seek;
     s = calloc(1, sizeof(*s));
     s->stream = u;
+    s->timer = tm;
     ms->private = s;
 
     do {
@@ -450,6 +523,8 @@ mpegts_open(char *name)
 	s->streams[i].buf = malloc(0x10000);
 	s->streams[i].cc = -1;
     }
+
+    s->start_time = -1LL;
 
     free(pat);
     return ms;
