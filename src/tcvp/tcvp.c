@@ -224,12 +224,15 @@ print_info(muxed_stream_t *stream, tcvp_pipe_t **pipes, int ss)
     char *file = tcattr_get(stream, "file");
     char *performer = tcattr_get(stream, "performer");
     char *title = tcattr_get(stream, "title");
+    char *album = tcattr_get(stream, "album");
     int i;
 
     if(file)
 	printf("File:      %s\n", file);
     if(performer)
 	printf("Performer: %s\n", performer);
+    if(album)
+	printf("Album:     %s\n", album);
     if(title)
 	printf("Title:     %s\n", title);
     if(stream->time)
