@@ -88,7 +88,9 @@ ogg_close(muxed_stream_t *ms)
     ogg_stream_t *os = ms->private;
     int i;
 
+    ogg_sync_clear(&os->oy);
     ogg_stream_clear(&os->os);
+    fclose(os->f);
 
     free(ms->streams);
     free(ms->used_streams);
