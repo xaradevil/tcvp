@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -57,9 +57,10 @@ x11_event(void *p)
     int run = 1;
 
     while(run){
-	XEvent xe;
+	XEvent xe, nxe;
 
 	XNextEvent(xwm->dpy, &xe);
+
 	switch(xe.type){
 	case ConfigureNotify: {
 	    XWindowAttributes xwa;
@@ -67,6 +68,10 @@ x11_event(void *p)
 	    int x, y, w, h;
 	    int ckx, cky;
 	    float wa;
+
+	    while(XCheckTypedWindowEvent(xwm->dpy, xwm->win,
+					 ConfigureNotify, &nxe))
+		xe = nxe;
 
 	    XGetWindowAttributes(xwm->dpy, xwm->win, &xwa);
 	    if(xwm->flags & WM_ABSCOORD){
@@ -100,6 +105,8 @@ x11_event(void *p)
 	    break;
 	}
 	case Expose:
+	    while(XCheckTypedWindowEvent(xwm->dpy, xwm->win, Expose, &nxe))
+		xe = nxe;
 	case MapNotify: {
 	    xwm->update(xwm->cbd, WM_SHOW, 0, 0, 0, 0);
 	    break;
