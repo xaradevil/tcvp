@@ -103,6 +103,9 @@ alsa_open(char *name, char *mode)
     url_t *u;
     int tmp;
 
+    if(*mode != 'r')
+	return NULL;
+
     dev = strchr(name, ':');
     if(!dev || !*++dev)
 	dev = tcvp_input_alsa_conf_device;
