@@ -287,8 +287,6 @@ tcl_init(char *p)
 	anf = tc2_get_symbol(modnames[i], "new");
 	if(anf){
 	    modules[i] = anf(cf);
-	    if(!qname)
-		tcconf_getvalue(cf, "qname", "%s", &qname);
 	}
     }
 
@@ -299,6 +297,11 @@ tcl_init(char *p)
 		modules[i] = NULL;
 	    }
 	}
+    }
+
+    if(tcconf_getvalue(cf, "qname", "%s", &qname) < 1){
+	tc2_request(TC2_UNLOAD_ALL, 0);
+	return 0;
     }
 
     TCVP_STATE = tcvp_event_get("TCVP_STATE");
