@@ -423,55 +423,56 @@ avc_new(stream_t *s, int mode)
     return p;
 }
 
-static const char *codec_names[] = {
-    [CODEC_ID_NONE] = "", 
-    [CODEC_ID_MPEG1VIDEO] = "video/mpeg",
-    [CODEC_ID_H263] = "video/h263",
-    [CODEC_ID_RV10] = "video/rv10",
-    [CODEC_ID_MP2] = "audio/mp2",
-    [CODEC_ID_MP3LAME] = "audio/mp3",
-    [CODEC_ID_VORBIS] = "audio/vorbis",
-    [CODEC_ID_AC3] = "audio/ac3",
-    [CODEC_ID_MJPEG] = "video/mjpeg",
-    [CODEC_ID_MJPEGB] = "video/mjpegb",
-    [CODEC_ID_MPEG4] = "video/mpeg4",
-    [CODEC_ID_RAWVIDEO] = "video/rawvideo",
-    [CODEC_ID_MSMPEG4V1] = "video/msmpeg4v1",
-    [CODEC_ID_MSMPEG4V2] = "video/msmpeg4v2",
-    [CODEC_ID_MSMPEG4V3] = "video/msmpeg4v3",
-    [CODEC_ID_WMV1] = "video/wmv1",
-    [CODEC_ID_WMV2] = "video/wmv2",
-    [CODEC_ID_H263P] = "video/h263p",
-    [CODEC_ID_H263I] = "video/h263i",
-    [CODEC_ID_SVQ1] = "video/svq1",
-    [CODEC_ID_SVQ3] = "video/svq3",
-    [CODEC_ID_DVVIDEO] = "video/dv",
-    [CODEC_ID_DVAUDIO] = "audio/dv",
-    [CODEC_ID_WMAV1] = "audio/wmav1",
-    [CODEC_ID_WMAV2] = "audio/wmav2",
-    [CODEC_ID_MACE3] = "audio/mace3",
-    [CODEC_ID_MACE6] = "audio/mace6",
-    [CODEC_ID_HUFFYUV] = "video/huffyuv",
-    [CODEC_ID_CYUV] = "video/cyuv",
-    [CODEC_ID_H264] = "video/h264",
-    [CODEC_ID_INDEO3] = "video/indeo3",
-    [CODEC_ID_VP3] = "video/vp3",
+static const char *codec_names[][2] = {
+    { (char *) CODEC_ID_NONE, "" }, 
+    { (char *) CODEC_ID_MPEG1VIDEO, "video/mpeg" },
+    { (char *) CODEC_ID_H263, "video/h263" },
+    { (char *) CODEC_ID_RV10, "video/rv10" },
+    { (char *) CODEC_ID_MP2, "audio/mp2" },
+    { (char *) CODEC_ID_MP2, "audio/mpeg" },
+    { (char *) CODEC_ID_MP3LAME, "audio/mp3" },
+    { (char *) CODEC_ID_VORBIS, "audio/vorbis" },
+    { (char *) CODEC_ID_AC3, "audio/ac3" },
+    { (char *) CODEC_ID_MJPEG, "video/mjpeg" },
+    { (char *) CODEC_ID_MJPEGB, "video/mjpegb" },
+    { (char *) CODEC_ID_MPEG4, "video/mpeg4" },
+    { (char *) CODEC_ID_RAWVIDEO, "video/rawvideo" },
+    { (char *) CODEC_ID_MSMPEG4V1, "video/msmpeg4v1" },
+    { (char *) CODEC_ID_MSMPEG4V2, "video/msmpeg4v2" },
+    { (char *) CODEC_ID_MSMPEG4V3, "video/msmpeg4v3" },
+    { (char *) CODEC_ID_WMV1, "video/wmv1" },
+    { (char *) CODEC_ID_WMV2, "video/wmv2" },
+    { (char *) CODEC_ID_H263P, "video/h263p" },
+    { (char *) CODEC_ID_H263I, "video/h263i" },
+    { (char *) CODEC_ID_SVQ1, "video/svq1" },
+    { (char *) CODEC_ID_SVQ3, "video/svq3" },
+    { (char *) CODEC_ID_DVVIDEO, "video/dv" },
+    { (char *) CODEC_ID_DVAUDIO, "audio/dv" },
+    { (char *) CODEC_ID_WMAV1, "audio/wmav1" },
+    { (char *) CODEC_ID_WMAV2, "audio/wmav2" },
+    { (char *) CODEC_ID_MACE3, "audio/mace3" },
+    { (char *) CODEC_ID_MACE6, "audio/mace6" },
+    { (char *) CODEC_ID_HUFFYUV, "video/huffyuv" },
+    { (char *) CODEC_ID_CYUV, "video/cyuv" },
+    { (char *) CODEC_ID_H264, "video/h264" },
+    { (char *) CODEC_ID_INDEO3, "video/indeo3" },
+    { (char *) CODEC_ID_VP3, "video/vp3" },
 
     /* various pcm "codecs" */
-    [CODEC_ID_PCM_S16LE] = "audio/pcm-s16le",
-    [CODEC_ID_PCM_S16BE] = "audio/pcm-s16be",
-    [CODEC_ID_PCM_U16LE] = "audio/pcm-u16le",
-    [CODEC_ID_PCM_U16BE] = "audio/pcm-u16be",
-    [CODEC_ID_PCM_S8] = "audio/pcm-s8",
-    [CODEC_ID_PCM_U8] = "audio/pcm-u8",
-    [CODEC_ID_PCM_MULAW] = "audio/pcm-ulaw",
-    [CODEC_ID_PCM_ALAW] = "audio/pcm-alaw",
+    { (char *) CODEC_ID_PCM_S16LE, "audio/pcm-s16le" },
+    { (char *) CODEC_ID_PCM_S16BE, "audio/pcm-s16be" },
+    { (char *) CODEC_ID_PCM_U16LE, "audio/pcm-u16le" },
+    { (char *) CODEC_ID_PCM_U16BE, "audio/pcm-u16be" },
+    { (char *) CODEC_ID_PCM_S8, "audio/pcm-s8" },
+    { (char *) CODEC_ID_PCM_U8, "audio/pcm-u8" },
+    { (char *) CODEC_ID_PCM_MULAW, "audio/pcm-ulaw" },
+    { (char *) CODEC_ID_PCM_ALAW, "audio/pcm-alaw" },
 
     /* various adpcm codecs */
-    [CODEC_ID_ADPCM_IMA_QT] = "audio/adpcm-ima-qt",
-    [CODEC_ID_ADPCM_IMA_WAV] = "audio/adpcm-ima-wav",
-    [CODEC_ID_ADPCM_MS] = "audio/adpcm-ms",
-    NULL
+    { (char *) CODEC_ID_ADPCM_IMA_QT, "audio/adpcm-ima-qt" },
+    { (char *) CODEC_ID_ADPCM_IMA_WAV, "audio/adpcm-ima-wav" },
+    { (char *) CODEC_ID_ADPCM_MS, "audio/adpcm-ms" },
+    { NULL, NULL }
 };
 
 static enum CodecID
@@ -480,9 +481,9 @@ avc_codec_id(stream_t *s)
     int i;
     char *n = s->common.codec;
 
-    for(i = 0; i < sizeof(codec_names)/sizeof(codec_names[0]); i++){
-	if(codec_names[i] && !strcmp(n, codec_names[i])){
-	    return i;
+    for(i = 0; codec_names[i][1]; i++){
+	if(!strcmp(n, codec_names[i][1])){
+	    return (enum CodecID) codec_names[i][0];
 	}
     }
 
