@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <pthread.h>
 #include <tcalloc.h>
@@ -107,26 +108,16 @@ x11_fullscreen(x11_wm_t *xwm, int fs)
 static void
 x11_key_event(x11_wm_t *xwm, XKeyEvent *k)
 {
-    int key = XLookupKeysym(k, 0);
+    KeySym key;
+    int len;
+    char buf[16];
+    char *ks = NULL;
+
+    len = XLookupString(k, buf, sizeof(buf), &key, NULL);
+    if(key != NoSymbol)
+	ks = XKeysymToString(key);
 
     switch(key){
-    case XK_space:
-	tcvp_event_send(xwm->qs, TCVP_PAUSE);
-	break;
-    case XK_Up:
-	tcvp_event_send(xwm->qs, TCVP_SEEK, 27 * 60000000LL,
-			TCVP_SEEK_REL);
-	break;
-    case XK_Down:
-	tcvp_event_send(xwm->qs, TCVP_SEEK, -27 * 60000000LL,
-			TCVP_SEEK_REL);
-	break;
-    case XK_q:
-	tcvp_event_send(xwm->qs, TCVP_CLOSE);
-	break;
-    case XK_Escape:
-	tcvp_event_send(xwm->qs, TCVP_KEY, "escape");
-	break;
     case XK_f:
 	x11_fullscreen(xwm, WM_STATE_TOGGLE);
 	break;
@@ -135,6 +126,10 @@ x11_key_event(x11_wm_t *xwm, XKeyEvent *k)
 	XResizeWindow(xwm->dpy, xwm->win, xwm->owidth, xwm->oheight);
 	break;
     }
+
+    if(ks)
+	tcvp_event_send(xwm->qs, TCVP_KEY, ks);
+
 }
 
 static void
