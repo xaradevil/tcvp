@@ -39,8 +39,6 @@ typedef struct mpegps_mux {
     url_t *out;
     int bitrate;
     int pessize;
-    pthread_mutex_t lock;
-    pthread_cond_t cnd;
     int nvideo, naudio;
     int astreams, nstreams;
     struct mpegps_output_stream {
@@ -198,13 +196,10 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
     if(!pk->data){
 	tc2_print("MPEGPS-MUX", TC2_PRINT_DEBUG,
 		  "stream %i end\n", pk->stream);
-	pthread_mutex_lock(&psm->lock);
 	if(!--psm->nstreams){
 	    /* write end code */
 	}
 	psm->streams[pk->stream].dts = -1LL;
-	pthread_cond_broadcast(&psm->cnd);
-	pthread_mutex_unlock(&psm->lock);
 	tcfree(pk);
 	return 0;
     }
@@ -217,17 +212,12 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 	      "stream %i, id %x\n", pk->stream, os->stream_id);
 
     if(pk->flags & TCVP_PKT_FLAG_PTS){
-	pthread_mutex_lock(&psm->lock);
-
 	if(pk->flags & TCVP_PKT_FLAG_DTS)
 	    dts = pk->dts;
 	else
 	    dts = pk->pts;
 
 	os->dts = dts;
-
-	pthread_cond_broadcast(&psm->cnd);
-	pthread_mutex_unlock(&psm->lock);
     } else {
 	dts = os->dts;
     }
@@ -242,8 +232,6 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 	u_char hdr[1024];
 
 	psize = min(size, psm->pessize);
-
-	pthread_mutex_lock(&psm->lock);
 
 	if(psm->psm){
 	    hl = write_psm(hdr, psm, 1024);
@@ -277,9 +265,6 @@ pmx_input(tcvp_pipe_t *p, packet_t *pk)
 	data += psize;
 	size -= psize;
 	pesflags = 0;
-
-	pthread_cond_broadcast(&psm->cnd);
-	pthread_mutex_unlock(&psm->lock);
     }
 
     tcfree(pk);
@@ -345,8 +330,6 @@ pmx_free(void *p)
     psm->out->close(psm->out);
     if(psm->streams)
 	free(psm->streams);
-    pthread_mutex_destroy(&psm->lock);
-    pthread_cond_destroy(&psm->cnd);
     free(psm);
 }
 
@@ -371,8 +354,6 @@ mpegps_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     psm = calloc(1, sizeof(*psm));
     psm->out = out;
-    pthread_mutex_init(&psm->lock, NULL);
-    pthread_cond_init(&psm->cnd, NULL);
     psm->vid = 0xe0;
     psm->aid = 0xc0;
     psm->ac3id = 0x80;
