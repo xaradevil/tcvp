@@ -472,7 +472,7 @@ END_C
 END_C
 	    } elsif ($c eq 's') {
 		print $fh <<END_C;
-    _n = memchr(_p, 0, _size - (_p - _event));
+    _n = memchr(_p, 0, _size);
     if(!_n)
 	return NULL;
     $n = _p;
