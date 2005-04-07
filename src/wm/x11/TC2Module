@@ -17,9 +17,6 @@ postinit	x11_init
 shutdown	x11_free
 
 TCVP {
-	event TCVP_SEEK
-	event TCVP_PAUSE
-	event TCVP_CLOSE
 	event TCVP_BUTTON
 	event TCVP_KEY
 }
