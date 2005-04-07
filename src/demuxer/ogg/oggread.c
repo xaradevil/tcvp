@@ -504,7 +504,7 @@ ogg_get_length(muxed_stream_t *ms)
     }
 
     if(idx != -1){
-	ms->time = ogg_gptopts(ms, idx, ogg->streams[i].granule);
+	ms->time = ogg_gptopts(ms, idx, ogg->streams[idx].granule);
     }
 
     end = ogg->f->tell(ogg->f);
