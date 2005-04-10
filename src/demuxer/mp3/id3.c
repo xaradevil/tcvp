@@ -167,6 +167,15 @@ static char *id3v2_tags[][2] = {
     { "TCON", "genre" },
     { "TYER", "year" },
     { "TRCK", "track" },
+
+    /* v2.2 tags */
+    { "TP1", "artist" },
+    { "TT2", "title" },
+    { "TAL", "album" },
+    { "TCO", "genre" },
+    { "TYE", "year" },
+    { "TRK", "track" },
+
     {}
 };
 
@@ -178,6 +187,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
     uint16_t version;
     int flags;
     int32_t size, tsize;
+    int minsize;
 
     spos = f->tell(f);
 
@@ -188,7 +198,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	goto err;		/* FIXME: check for trailing tag */
 
     url_getu16b(f, &version);
-    if(version >= 0x0500 || version < 0x0300){
+    if(version >= 0x0500 || version < 0x0200){
 	tc2_print("ID3", TC2_PRINT_ERROR,
 		  "Unsupported ID3v2 tag version %i.%i.\n",
 		  version >> 8, version & 0xff);
@@ -214,21 +224,32 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	size -= esize;
     }
 
-    while(size > 10){
+    minsize = version > 2? 10: 6;
+
+    while(size > minsize){
 	uint32_t fsize, dsize;
-	uint16_t fflags;
+	uint16_t fflags = 0;
 	int dlen = 0;
 	off_t pos;
 	char tag[5];
 	int i;
 
-	if(f->read(tag, 1, 4, f) < 4)
-	    break;
+	if(version > 2){
+	    if(f->read(tag, 1, 4, f) < 4)
+		break;
+	    tag[4] = 0;
+	    fsize = getss32(f, version);
+	    url_getu16b(f, &fflags);
+	} else {
+	    if(f->read(tag, 1, 3, f) < 3)
+		break;
+	    tag[3] = 0;
+	    fsize = url_getc(f) << 16;
+	    fsize += url_getc(f) << 8;
+	    fsize += url_getc(f);
+	}
 
-	tag[4] = 0;
-
-	dsize = fsize = getss32(f, version);
-	url_getu16b(f, &fflags);
+	dsize = fsize;
 	pos = f->tell(f);
 
 	tc2_print("ID3", TC2_PRINT_DEBUG, "tag %s size=%x flags=%x\n",
@@ -242,7 +263,7 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
 	    dlen = getss32(f, version);
 
 	for(i = 0; id3v2_tags[i][0]; i++)
-	    if(!memcmp(tag, id3v2_tags[i][0], 4))
+	    if(!strcmp(tag, id3v2_tags[i][0]))
 		break;
 
 	if(id3v2_tags[i][0]){
