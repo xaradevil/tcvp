@@ -425,7 +425,7 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
     ogg_save(ogg);
 
     while(min <= max){
-	uint64_t p = min + (max - min) * time / (tmax - tmin);
+	uint64_t p = min + (max - min) * (time - tmin) / (tmax - tmin);
 	int i = -1;
 
 	ogg->f->seek(ogg->f, p, SEEK_SET);
