@@ -6,4 +6,3 @@ include
 #define TCVP_STATE_END     1
 #define TCVP_STATE_ERROR   2
 #define TCVP_STATE_STOPPED 3
-#define TCVP_STATE_PL_END  4

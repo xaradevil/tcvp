@@ -45,11 +45,19 @@ typedef struct tcvp_playlist {
     tcconf_section_t *conf;
 } tcvp_playlist_t;
 
-#define STOPPED 0
-#define PLAYING 1
-#define END     2
+#define STOPPED TCVP_PL_STATE_STOPPED
+#define PLAYING TCVP_PL_STATE_PLAYING
+#define END     TCVP_PL_STATE_END
 
 #define min(a,b) ((a)<(b)?(a):(b))
+
+static int
+pl_send_state(tcvp_playlist_t *tpl)
+{
+    tcvp_event_send(tpl->ss, TCVP_PL_STATE, tpl->order[tpl->cur],
+		    tpl->state, tpl->flags);
+    return 0;
+}
 
 static int
 pl_add(tcvp_playlist_t *tpl, char **files, int n, int p)
@@ -232,6 +240,7 @@ pl_flags(tcvp_playlist_t *tpl, uint32_t flags)
 	pl_shuffle(tpl, flags & TCVP_PL_FLAG_SHUFFLE);
 
     tpl->flags = flags;
+    pl_send_state(tpl);
 
     return 0;
 }
@@ -271,7 +280,6 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 	    c = c < 0? 0: tpl->nf;
 	}
 	if(tpl->state == PLAYING && !(tpl->flags & TCVP_PL_FLAG_LREPEAT)){
-	    tcvp_event_send(tpl->ss, TCVP_STATE, TCVP_STATE_PL_END);
 	    tpl->state = END;
 	}
     }
@@ -292,6 +300,7 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 	}
     }
 
+    pl_send_state(tpl);
     return ret;
 }
 
@@ -324,6 +333,7 @@ epl_state(tcvp_module_t *p, tcvp_event_t *e)
 
     case TCVP_STATE_PLAYING:
 	tpl->state = PLAYING;
+	pl_send_state(tpl);
 	break;
     }
 
@@ -346,6 +356,7 @@ epl_stop(tcvp_module_t *p, tcvp_event_t *e)
 {
     tcvp_playlist_t *tpl = p->private;
     tpl->state = STOPPED;
+    pl_send_state(tpl);
     return 0;
 }
 
@@ -420,6 +431,16 @@ epl_flags(tcvp_module_t *p, tcvp_event_t *e)
 
     pl_flags(tpl, flags);
 
+    return 0;
+}
+
+extern int
+epl_query(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+
+    tcvp_event_send(tpl->ss, TCVP_PL_CONTENT, tpl->nf, tpl->files);
+    pl_send_state(tpl);
     return 0;
 }
 
@@ -572,4 +593,31 @@ pl_add_deser(int type, u_char *event, int size)
     }
 
     return tcvp_event_new(type, names, i, pos);
+}
+
+extern void
+pl_content_free(void *p)
+{
+    tcvp_pl_content_event_t *te = p;
+    int i;
+
+    for(i = 0; i < te->length; i++)
+	free(te->names[i]);
+    free(te->names);
+}
+
+extern void *
+pl_content_alloc(int t, va_list args)
+{
+    tcvp_pl_content_event_t *te =
+	tcvp_event_alloc(t, sizeof(*te), pl_content_free);
+
+    char **n = va_arg(args, char **);
+    int i;
+    te->length = va_arg(args, int);
+    te->names = malloc(te->length * sizeof(*te->names));
+    for(i = 0; i < te->length; i++)
+	te->names[i] = strdup(n[i]);
+
+    return te;
 }

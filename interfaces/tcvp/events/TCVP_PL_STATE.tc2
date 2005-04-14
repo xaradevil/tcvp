@@ -1,0 +1,7 @@
+TCVP {
+    event TCVP_PL_STATE current%i state%i flags%i
+}
+include
+#define TCVP_PL_STATE_PLAYING 0
+#define TCVP_PL_STATE_STOPPED 1
+#define TCVP_PL_STATE_END     2

@@ -37,4 +37,5 @@ TCVP {
 	event TCVP_QUERY
 	event TCVP_START
 	event TCVP_STATE
+	event TCVP_PL_STATE
 }

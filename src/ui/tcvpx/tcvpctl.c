@@ -39,15 +39,7 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
     if(te->type == TCVP_STATE) {
 	tcvpstate = ((tcvp_state_event_t *)te)->state;
 
-	switch(((tcvp_state_event_t *)te)->state) {
-	case TCVP_STATE_PL_END:
-	    if(st)
-		tcfree(st);
-	    st = NULL;
-
-	    tcvp_stop(NULL, NULL);
-	    break;
-
+	switch(tcvpstate) {
 	case TCVP_STATE_PLAYING:
 	    change_text("state", "play");
 	    break;
@@ -65,7 +57,13 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	    st = NULL;
 	    break;
 	}
-
+    } else if(te->type == TCVP_PL_STATE){
+	tcvp_pl_state_event_t *pls = (tcvp_pl_state_event_t *) te;
+	if(pls->state == TCVP_PL_STATE_END){
+	    tcfree(st);
+	    st = NULL;
+	    tcvp_stop(NULL, NULL);
+	}
     } else if(te->type == TCVP_TIMER) {
 	s_pos = ((tcvp_timer_event_t *)te)->time;
 	if(s_pos-start_time > s_length)

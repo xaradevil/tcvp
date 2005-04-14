@@ -97,6 +97,7 @@ TCVP {
 		event status TCVP_STATE		tcvpx_event
 		event status TCVP_LOAD		tcvpx_event
 		event status TCVP_STREAM_INFO	tcvpx_event
+		event status TCVP_PL_STATE	tcvpx_event
 		event timer  TCVP_TIMER		tcvpx_event
 	}
 	event TCVP_PAUSE

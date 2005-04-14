@@ -65,6 +65,7 @@ static int clr_pl;
 typedef union tcvp_cl_event {
     int type;
     tcvp_state_event_t state;
+    tcvp_pl_state_event_t plstate;
     tcvp_load_event_t load;
 } tcvp_cl_event_t;
 
@@ -178,10 +179,11 @@ tcl_event(void *p)
 	    case TCVP_STATE_END:
 		if(!prl)
 		    break;
-	    case TCVP_STATE_PL_END:
+	    }
+	} else if(te->type == TCVP_PL_STATE){
+	    if(te->plstate.state == TCVP_PL_STATE_END){
 		if(!isdaemon && !have_ui)
 		    tc2_request(TC2_UNLOAD_ALL, 0);
-		break;
 	    }
 	} else if(te->type == -1){
 	    r = 0;
