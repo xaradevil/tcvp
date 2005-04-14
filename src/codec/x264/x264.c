@@ -199,6 +199,7 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     x4 = tcallocdz(sizeof(*x4), NULL, x4_free);
     x264_param_default(&x4->params);
     x4->params.pf_log = x4_log;
+    x4->params.analyse.b_psnr = 0;
 
     tcconf_getvalue(cs, "cabac", "%i", &x4->params.b_cabac);
     tcconf_getvalue(cs, "qp", "%i", &x4->params.rc.i_qp_constant);
@@ -210,6 +211,12 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     tcconf_getvalue(cs, "qpmax", "%i", &x4->params.rc.i_qp_max);
     tcconf_getvalue(cs, "qpstep", "%i", &x4->params.rc.i_qp_step);
     tcconf_getvalue(cs, "cbr", "%i", &x4->params.rc.b_cbr);
+
+    tcconf_getvalue(cs, "inter", "%i", &x4->params.analyse.inter);
+    tcconf_getvalue(cs, "intra", "%i", &x4->params.analyse.intra);
+
+    x4->params.rc.psz_stat_out = NULL;
+    x4->params.rc.psz_stat_in = NULL;
 
     if(tcconf_getvalue(cs, "stats", "%s", &statfile) > 0){
 	if(stat(statfile, &st)){
