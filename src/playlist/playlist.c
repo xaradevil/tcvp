@@ -382,6 +382,7 @@ epl_add(tcvp_module_t *p, tcvp_event_t *e)
     tcvp_playlist_t *tpl = p->private;
     tcvp_pl_add_event_t *te = (tcvp_pl_add_event_t *) e;
     pl_add(tpl, te->names, te->n, te->pos);
+    tcvp_event_send(tpl->ss, TCVP_PL_CONTENT, tpl->nf, tpl->files);
     return 0;
 }
 
@@ -391,6 +392,7 @@ epl_addlist(tcvp_module_t *p, tcvp_event_t *e)
     tcvp_playlist_t *tpl = p->private;
     tcvp_pl_addlist_event_t *te = (tcvp_pl_addlist_event_t *) e;
     pl_addlist(tpl, te->name, te->pos);
+    tcvp_event_send(tpl->ss, TCVP_PL_CONTENT, tpl->nf, tpl->files);
     return 0;
 }
 
@@ -400,6 +402,7 @@ epl_remove(tcvp_module_t *p, tcvp_event_t *e)
     tcvp_playlist_t *tpl = p->private;
     tcvp_pl_remove_event_t *te = (tcvp_pl_remove_event_t *) e;
     pl_remove(tpl, te->start, te->n);
+    tcvp_event_send(tpl->ss, TCVP_PL_CONTENT, tpl->nf, tpl->files);
     return 0;
 }
 
