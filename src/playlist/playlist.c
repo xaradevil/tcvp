@@ -611,10 +611,11 @@ pl_content_alloc(int t, va_list args)
 {
     tcvp_pl_content_event_t *te =
 	tcvp_event_alloc(t, sizeof(*te), pl_content_free);
-
+    int len = va_arg(args, int);
     char **n = va_arg(args, char **);
     int i;
-    te->length = va_arg(args, int);
+
+    te->length = len;
     te->names = malloc(te->length * sizeof(*te->names));
     for(i = 0; i < te->length; i++)
 	te->names[i] = strdup(n[i]);
