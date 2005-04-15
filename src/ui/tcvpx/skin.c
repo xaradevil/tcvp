@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003, 2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003 - 2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -54,6 +54,7 @@ typedef struct {
     } value;
 } parameter_t;
 
+
 extern image_t *
 load_image(char *skinpath, char *file)
 {
@@ -75,6 +76,7 @@ load_image(char *skinpath, char *file)
 
     return img;
 }
+
 
 extern int
 init_skins(void)
@@ -103,6 +105,7 @@ init_skins(void)
 	{"enable_widgets", enable_widgets},
 	{"disable_widgets", disable_widgets},
 	{"playlist_remove", tcvp_playlist_remove},
+	{"playlist_query", tcvp_playlist_query},
 	{NULL, NULL}
     };
     int i;
@@ -116,12 +119,14 @@ init_skins(void)
     return 0;
 }
 
+
 extern void
 cleanup_skins(void)
 {
     if(action_hash)
 	tchash_destroy(action_hash, NULL);
 }
+
 
 extern int
 lookup_action(xtk_widget_t *w, void *p)
@@ -176,6 +181,37 @@ lookup_action(xtk_widget_t *w, void *p)
 
     return 0;
 }
+
+
+static void
+save_varcb(xtk_widget_t *w, action_cb_t cb, char *datatype, char *value)
+{
+    widget_data_t *wd = xtk_widget_get_data(w);
+
+    wd->nvalues++;
+
+    wd->values = realloc(wd->values, wd->nvalues * sizeof(*wd->values)); 
+    wd->cbs = realloc(wd->cbs, wd->nvalues * sizeof(*wd->cbs));
+    wd->datatypes = realloc(wd->datatypes,
+			    wd->nvalues * sizeof(*wd->datatypes));
+
+    wd->values[wd->nvalues-1] = value;
+    wd->cbs[wd->nvalues-1] = cb;
+    wd->datatypes[wd->nvalues-1] = datatype;
+}
+
+
+static void
+free_varcb(xtk_widget_t *w)
+{
+    int i;
+    widget_data_t *wd = xtk_widget_get_data(w);
+
+    for(i=0; i<wd->nvalues; i++) {
+	unregister_varwidget(w, wd->cbs[i], wd->datatypes[i], wd->values[i]);
+    }
+}
+
 
 extern skin_t*
 load_skin(char *skinconf)
@@ -258,6 +294,7 @@ load_skin(char *skinconf)
     return skin;
 }
 
+
 static void
 free_skin(skin_t *skin)
 {
@@ -267,6 +304,7 @@ free_skin(skin_t *skin)
     tchash_destroy(skin->id_hash, NULL);
     free(skin);
 }
+
 
 static xtk_widget_t*
 create_skinned_background(xtk_widget_t *c, skin_t *skin,
@@ -341,7 +379,7 @@ destroy_skinned_button(xtk_widget_t *w)
 {
     widget_data_t *wd = xtk_widget_get_data(w);
     if(wd) {
-	free(wd->action);
+	if(wd->action) free(wd->action);
 	free(wd);
     }
     return 0;
@@ -419,7 +457,7 @@ destroy_skinned_label(xtk_widget_t *w)
     if(wd) {
 	unregister_textwidget(w, wd->value);
 	free(wd->value);
-	free(wd->action);
+	if(wd->action) free(wd->action);
 	free(wd);
     }
     return 0;
@@ -529,13 +567,30 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 
 
 static int
+seek_bar_update(xtk_widget_t *w, void *data)
+{
+    XTK_SLIDER(w, s);
+    if(s) {
+	double pos = (data)?*((double *)data):0;
+	if(pos < 0) {
+	    xtk_widget_disable(w);
+	} else {
+	    xtk_widget_enable(w);
+	}
+	return xtk_widget_slider_set_position(w, pos);
+    }
+
+    return -1;
+}
+
+static int
 destroy_skinned_seek_bar(xtk_widget_t *w)
 {
     widget_data_t *wd = xtk_widget_get_data(w);
     if(wd) {
-	unregister_varwidget(w, wd->value);
+	unregister_varwidget(w, seek_bar_update, "double", wd->value);
 	free(wd->value);
-	free(wd->action);
+	if(wd->action) free(wd->action);
 	free(wd);
     }
     return 0;
@@ -549,7 +604,8 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int sp_x, sp_y;
     int ep_x, ep_y;
     int xd=0, yd=0, sx=0, sy=0;
-    char *bg, *indicator, *value, *ind_over = NULL, *ind_down = NULL;
+    char *bg, *indicator, *value, *variable, *ind_over = NULL,
+	*ind_down = NULL;
     int i=0;
     char *action = NULL;
     widget_data_t *wd = calloc(sizeof(*wd), 1);
@@ -563,9 +619,9 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     i += tcconf_getvalue(sec, "end_position", "%d %d", &ep_x, &ep_y);
     i += tcconf_getvalue(sec, "background", "%s", &bg);
     i += tcconf_getvalue(sec, "indicator", "%s", &indicator);
-    i += tcconf_getvalue(sec, "value", "%s", &value);
+    i += tcconf_getvalue(sec, "value", "%s %s", &variable, &value);
 
-    if(i != 9){
+    if(i != 10){
 	return NULL;
     }
 
@@ -579,7 +635,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     if(!position) {
 	if(def) {
 	    p = *def;
-	    free(def);
+	    tcfree(def);
 	}
 	position = &p;
     } else if(*position < 0 || *position > 1) {
@@ -617,7 +673,11 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	tcfree(img);
 
     if(s) {
-	register_varwidget((xtk_widget_t *)s, wd->value);
+	if(strcmp(variable, "position") == 0) {
+	    register_varwidget((xtk_widget_t *)s, seek_bar_update,
+			       "double", wd->value);
+	}
+	free(variable);
 	s->on_destroy = destroy_skinned_seek_bar;
 	if(disable) xtk_widget_disable(s);
     }
@@ -638,7 +698,7 @@ destroy_skinned_state(xtk_widget_t *w)
     if(wd) {
 	unregister_textwidget(w, wd->value);
 	free(wd->value);
-	free(wd->action);
+	if(wd->action) free(wd->action);
 	free(wd);
     }
     return 0;
@@ -664,7 +724,7 @@ create_skinned_state(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	return NULL;
     }
 
-    while(i = tcconf_nextvalue(sec, "image", &c, "%s %s", &st, &img), c){
+    while(i = tcconf_nextvalue(sec, "image", &c, "%s %s", &st, &img), c) {
 	if(i == 2) {
 	    imgs = realloc(imgs, sizeof(*imgs)*(ns+1));
 	    states = realloc(states, sizeof(*states)*(ns+1));
@@ -743,7 +803,7 @@ tcvp_close_ui(xtk_widget_t *w, void *p)
     wd = xtk_widget_get_data(win);
 
     unregister_textwidget(win, wd->value);
-    free(wd->action);
+    if(wd->action) free(wd->action);
     free(wd);
 
     xtk_window_destroy(win);
@@ -942,9 +1002,9 @@ set_var(xtk_widget_t *w, void *p)
     if(d) {
 	XTK_SLIDER(w, s);
 	if(s) {
-	    double *pos = malloc(sizeof(*pos));
+	    double *pos = tcalloc(sizeof(*pos));
 	    *pos = *((double*)p);
-	    change_variable(d, pos);
+	    change_variable(d, "double", pos);
 	}
     }
 
@@ -1019,7 +1079,7 @@ disable_widgets(xtk_widget_t *xw, void *p)
     widget_data_t *wd = xtk_widget_get_data(xw);
 
     if(wd) {
-	show_widgets(wd->skin, strdup(wd->action_data), 0);
+	show_widgets(wd->skin, wd->action_data, 0);
 	return 0;
     }
 

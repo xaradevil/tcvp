@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003 - 2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -71,13 +71,15 @@ extern int parse_text(char *text, char *result, int len);
 extern int parse_variable(char *text, void **result, void **def);
 
 extern int change_text(char *key, char *text);
-extern int change_variable(char *key, void *data);
+extern int change_variable(char *key, char *datatype, void *data);
 
 extern int unregister_textwidget(xtk_widget_t *w, char *text);
 extern int register_textwidget(xtk_widget_t *w, char *text);
 
-extern int unregister_varwidget(xtk_widget_t *w, char *text);
-extern int register_varwidget(xtk_widget_t *w, char *text);
+extern int unregister_varwidget(xtk_widget_t *w, action_cb_t cb,
+				char *datatype, char *text);
+extern int register_varwidget(xtk_widget_t *w, action_cb_t cb,
+			      char *datatype, char *text);
 
 extern int update_time(void);
 extern int update_state(char *state);
@@ -100,8 +102,11 @@ typedef struct {
     char *action;
     void *action_data;
     char *value;
+    char **values;
+    action_cb_t *cbs;
+    char **datatypes;
+    int nvalues;
     skin_t *skin;
 } widget_data_t;
-
 
 #endif /* _TCVPX_H */

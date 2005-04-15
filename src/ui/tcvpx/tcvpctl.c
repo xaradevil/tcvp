@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003, 2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003 - 2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -59,10 +59,15 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	}
     } else if(te->type == TCVP_PL_STATE){
 	tcvp_pl_state_event_t *pls = (tcvp_pl_state_event_t *) te;
+
 	if(pls->state == TCVP_PL_STATE_END){
 	    tcfree(st);
 	    st = NULL;
 	    tcvp_stop(NULL, NULL);
+	} else {
+	    int32_t *plc = tcalloc(sizeof(*plc));
+	    *plc = pls->current;
+	    change_variable("playlist_current_position", "integer", plc);
 	}
     } else if(te->type == TCVP_TIMER) {
 	s_pos = ((tcvp_timer_event_t *)te)->time;
@@ -142,6 +147,20 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 
 	    update_time();
 	}
+    } else if(te->type == TCVP_PL_CONTENT){
+	int i;
+	int *length = tcalloc(sizeof(*length));
+
+	tcvp_pl_content_event_t *plce = (tcvp_pl_content_event_t *)te;
+
+	fprintf(stderr, "number of entries %d\n", plce->length);
+
+	for(i=0; i<plce->length; i++) {
+	    fprintf(stderr, "  %s\n", plce->names[i]);
+	}
+
+	*length = plce->length;
+	change_variable("playlist_number_of_entries", "integer", length);
     }
 
     return 0;
@@ -239,6 +258,15 @@ tcvp_quit(void)
 
 
 extern int
+tcvp_playlist_query(xtk_widget_t *w, void *p)
+{
+    tcvp_event_send(qs, TCVP_PL_QUERY);
+
+    return 0;
+}
+
+
+extern int
 tcvp_add_file(char *file)
 {
 /*     fprintf(stderr, "%s\n", file); */
@@ -273,7 +301,7 @@ update_time(void)
     char text[8];
     int t = 0;
     char sign = ' ';
-    double *pos = malloc(sizeof(*pos));
+    double *pos = tcalloc(sizeof(*pos));
 
     if(show_time == TCTIME_ELAPSED) {
 	if(tcvp_ui_tcvpx_conf_time_offset) {
@@ -295,7 +323,7 @@ update_time(void)
     } else {
 	*pos = -1;
     }
-    change_variable("position", pos);
+    change_variable("position", "double", pos);
 
     int m = t/60;
 

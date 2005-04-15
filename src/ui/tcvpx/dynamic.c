@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003, 2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003 - 2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -41,39 +41,41 @@ lookup_variable(char *key, void *p)
 }
 
 extern int
-change_variable(char *key, void *data)
+change_variable(char *key, char *datatype, void *data)
 {
-    tclist_item_t *current = NULL;
-    tclist_t *lst = NULL;
+    tclist_item_t *current1 = NULL, *current2 = NULL;
+    tclist_t *wlst = NULL, *cblst = NULL;
     char buf[1024];
     void *tmp = NULL;
 
     tchash_delete(variable_hash, key, -1, &tmp);
-    if(tmp) free(tmp);
+    if(tmp) tcfree(tmp);
 
     tchash_search(variable_hash, key, -1, data, NULL);
 
-    sprintf(buf, "var:%s", key);
-    tchash_find(widget_hash, buf, -1, &lst);
+    sprintf(buf, "varwidget:%s:%s", datatype, key);
+    tchash_find(widget_hash, buf, -1, &wlst);
 
-    if(lst) {
+    sprintf(buf, "varcb:%s:%s", datatype, key);
+    tchash_find(widget_hash, buf, -1, &cblst);
+
+    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10,
+	      "change_variable '%s' '%s' %p\n", key, buf, wlst);
+
+    if(wlst && cblst) {
 	xtk_widget_t *w;
+	action_cb_t cb;
 
-	while((w = tclist_next(lst, &current))!=NULL) {
-	    widget_data_t *ad = xtk_widget_get_data(w);
-	    if(ad) {
-		XTK_SLIDER(w, s);
-		parse_variable(ad->value, &tmp, NULL);
-		if(s) {
-		    double pos = (tmp)?*((double *)tmp):0;
-		    if(pos < 0) {
-			xtk_widget_disable(w);
-		    } else {
-			xtk_widget_enable(w);
-		    }
-		    xtk_widget_slider_set_position(w, pos);
-		    break;
+	while((w = tclist_next(wlst, &current1))!=NULL &&
+	      (cb = tclist_next(cblst, &current2))!=NULL) {
+	    if(data == NULL) {
+		widget_data_t *ad = xtk_widget_get_data(w);
+		if(ad) {
+		    parse_variable(ad->value, &tmp, NULL);
+		    if(tmp) cb(w, tmp);
 		}
+	    } else {
+		cb(w, data);
 	    }
 	}
     }
@@ -90,10 +92,12 @@ change_text(char *key, char *text)
     void *tmp = NULL;
 
     tchash_delete(variable_hash, key, -1, &tmp);
-    if(tmp) free(tmp);
+    if(tmp) tcfree(tmp);
 
     if(text) {
-	tchash_search(variable_hash, key, -1, strdup(text), NULL);
+	char *txttmp = tcalloc(strlen(text)+1);
+	memcpy(txttmp, text, strlen(text)+1);
+	tchash_search(variable_hash, key, -1, txttmp, NULL);
     }
 
     sprintf(buf, "text:%s", key);
@@ -178,7 +182,7 @@ get_keys(char *text, char ***keysp, char ***defaultsp)
 
 
 static int
-register_key(char *key, xtk_widget_t *w)
+register_key(char *key, void *w)
 {
     tclist_t *lst = NULL;
 
@@ -204,9 +208,12 @@ ptr_cmp(const void *p1, const void *p2)
 }
 
 static int
-unregister_key(char *key, xtk_widget_t *w)
+unregister_key(char *key, void *w)
 {
     tclist_t *lst = NULL;
+
+    tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "unregister_key %s\n", key);
+
     tchash_find(widget_hash, key, -1, &lst);
 
     if(lst) {
@@ -261,18 +268,21 @@ unregister_textwidget(xtk_widget_t *w, char *text)
 
 
 extern int
-register_varwidget(xtk_widget_t *w, char *text)
+register_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
+		   char *value)
 {
     char **keys;
     int n, i;
 
     tcref(w);
 
-    n = get_keys(text, &keys, NULL);
+    n = get_keys(value, &keys, NULL);
     for(i=0; i<n; i++) {
 	char buf[1024];
-	sprintf(buf, "var:%s", keys[i]);
+	sprintf(buf, "varwidget:%s:%s", datatype, keys[i]);
 	register_key(buf, w);
+	sprintf(buf, "varcb:%s:%s", datatype, keys[i]);
+	register_key(buf, cb);
 	free(keys[i]);
     }
 
@@ -282,7 +292,8 @@ register_varwidget(xtk_widget_t *w, char *text)
 }
 
 extern int
-unregister_varwidget(xtk_widget_t *w, char *text)
+unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
+		     char *text)
 {
     char **keys;
     int n, i;
@@ -290,8 +301,10 @@ unregister_varwidget(xtk_widget_t *w, char *text)
     n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
 	char buf[1024];
-	sprintf(buf, "var:%s", keys[i]);
+	sprintf(buf, "varwidget:%s:%s", datatype, keys[i]);
 	unregister_key(buf, w);
+	sprintf(buf, "varcb:%s:%s", datatype, keys[i]);
+	unregister_key(buf, cb);
 	free(keys[i]);
     }
 
@@ -322,7 +335,7 @@ parse_variable(char *text, void **result, void **def)
 	*result = lookup_variable(keys[0], NULL);
 	if(!*result && def) {
 	    if(defaults[0] && defaults[0][0] == '%' && defaults[0][1] == 'f') {
-		double *dp = malloc(sizeof(*dp));
+		double *dp = tcalloc(sizeof(*dp));
 		*dp = strtod(defaults[0]+2, NULL);
 		*def = dp;
 	    }
@@ -379,7 +392,7 @@ extern void
 free_dynamic(void)
 {
     if(variable_hash)
-	tchash_destroy(variable_hash, free);
+	tchash_destroy(variable_hash, tcfree);
     if(widget_hash)
 	tchash_destroy(widget_hash, wh_free);
 }
