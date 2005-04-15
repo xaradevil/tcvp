@@ -299,7 +299,7 @@ unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 
 
 extern int
-parse_variable(char *text, void *result, void *def)
+parse_variable(char *text, void **result, void **def)
 {
     char *key, *tmp, *dflt = NULL;
 
@@ -313,12 +313,12 @@ parse_variable(char *text, void *result, void *def)
 	}
     }
 
-    result = lookup_variable(key, NULL);
-    if(!result && def) {
+    *result = lookup_variable(key, NULL);
+    if(!*result && dflt && *def) {
 	if(dflt[0] == '%' && dflt[1] == 'f') {
 	    double *dp = tcalloc(sizeof(*dp));
 	    *dp = strtod(dflt+2, NULL);
-	    def = dp;
+	    *def = dp;
 	}
     }
 

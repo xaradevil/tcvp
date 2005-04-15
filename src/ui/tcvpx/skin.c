@@ -644,7 +644,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     tcconf_getvalue(sec, "scroll_direction", "%d %d %d %d", &xd, &yd,
 		    &sx, &sy);
 
-    parse_variable(value, (void *)position, (void *)def);
+    parse_variable(value, (void *)&position, (void *)&def);
     if(!position) {
 	if(def) {
 	    p = *def;
@@ -816,17 +816,50 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 				   &variable, &value), c) {
 	    if(i == 2) {
 		if(strcmp(variable, "current_position") == 0) {
+		    int *val = NULL, *def = NULL;
+		    int p;
+
 		    save_varcb(l, list_set_current, "integer", value);
 		    register_varwidget(l, list_set_current, "integer",
 				       value);
+
+		    parse_variable(value, (void *)&val, (void *)&def);
+		    if(!val) {
+			if(def) {
+			    p = *def;
+			    tcfree(def);
+			}
+			val = &p;
+		    }
+
+		    list_set_current(l, val);
 		} else if(strcmp(variable, "number_of_entries") == 0) {
+		    int *val = NULL, *def = NULL;
+		    int p;
+
 		    save_varcb(l, list_set_current, "integer", value);
 		    register_varwidget(l, list_set_number_of_entries,
 				       "integer", value);
+
+		    parse_variable(value, (void *)&val, (void *)&def);
+		    if(!val) {
+			if(def) {
+			    p = *def;
+			    tcfree(def);
+			}
+			val = &p;
+		    }
+
+		    list_set_number_of_entries(l, val);
 		} else if(strcmp(variable, "entries") == 0) {
+		    void *val = NULL;
+
 		    save_varcb(l, list_set_current, "string_array", value);
 		    register_varwidget(l, list_set_entries,
 				       "string_array", value);
+
+		    parse_variable(value, &val, NULL);
+		    if(val) list_set_entries(l, val);
 		}
 		free(value);
 		free(variable);

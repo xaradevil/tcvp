@@ -68,7 +68,7 @@ extern void free_dynamic(void);
 extern void free_ctl(void);
 
 extern int parse_text(char *text, char *result, int len);
-extern int parse_variable(char *text, void *result, void *def);
+extern int parse_variable(char *text, void **result, void **def);
 
 extern int change_text(char *key, char *text);
 extern int change_variable(char *key, char *datatype, void *data);
