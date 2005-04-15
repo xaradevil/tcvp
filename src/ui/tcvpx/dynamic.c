@@ -271,44 +271,26 @@ extern int
 register_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 		   char *value)
 {
-    char **keys;
-    int n, i;
-
     tcref(w);
 
-    n = get_keys(value, &keys, NULL);
-    for(i=0; i<n; i++) {
-	char buf[1024];
-	sprintf(buf, "varwidget:%s:%s", datatype, keys[i]);
-	register_key(buf, w);
-	sprintf(buf, "varcb:%s:%s", datatype, keys[i]);
-	register_key(buf, cb);
-	free(keys[i]);
-    }
-
-    free(keys);
+    char buf[1024];
+    sprintf(buf, "varwidget:%s:%s", datatype, value);
+    register_key(buf, w);
+    sprintf(buf, "varcb:%s:%s", datatype, value);
+    register_key(buf, cb);
 
     return 0;
 }
 
 extern int
 unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
-		     char *text)
+		     char *value)
 {
-    char **keys;
-    int n, i;
-
-    n = get_keys(text, &keys, NULL);
-    for(i=0; i<n; i++) {
-	char buf[1024];
-	sprintf(buf, "varwidget:%s:%s", datatype, keys[i]);
-	unregister_key(buf, w);
-	sprintf(buf, "varcb:%s:%s", datatype, keys[i]);
-	unregister_key(buf, cb);
-	free(keys[i]);
-    }
-
-    free(keys);
+    char buf[1024];
+    sprintf(buf, "varwidget:%s:%s", datatype, value);
+    unregister_key(buf, w);
+    sprintf(buf, "varcb:%s:%s", datatype, value);
+    unregister_key(buf, cb);
 
     tcfree(w);
 
@@ -317,34 +299,30 @@ unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 
 
 extern int
-parse_variable(char *text, void **result, void **def)
+parse_variable(char *text, void *result, void *def)
 {
-    char **keys, **defaults;
-    int n, i;
+    char *key, *tmp, *dflt = NULL;
 
-    n = get_keys(text, &keys, &defaults);
+    key = strdup(text);
 
-    if(n>1) {
-	for(i=0; i<n; i++) {
-	    free(keys[i]);
-	    free(defaults[i]);
+    tmp = strchr(key, ':');
+    if(tmp) {
+	tmp[0] = 0;
+	if(tmp[1]=='-') {
+	    dflt = tmp+2;
 	}
-	free(keys);
-	free(defaults);
-    } else if(n == 1) {
-	*result = lookup_variable(keys[0], NULL);
-	if(!*result && def) {
-	    if(defaults[0] && defaults[0][0] == '%' && defaults[0][1] == 'f') {
-		double *dp = tcalloc(sizeof(*dp));
-		*dp = strtod(defaults[0]+2, NULL);
-		*def = dp;
-	    }
-	}
-	free(keys[0]);
-	free(defaults[0]);
-	free(keys);
-	free(defaults);
     }
+
+    result = lookup_variable(key, NULL);
+    if(!result && def) {
+	if(dflt[0] == '%' && dflt[1] == 'f') {
+	    double *dp = tcalloc(sizeof(*dp));
+	    *dp = strtod(dflt+2, NULL);
+	    def = dp;
+	}
+    }
+
+    free(key);
 
     return 0;
 }
