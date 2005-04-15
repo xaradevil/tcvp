@@ -54,8 +54,10 @@ typedef struct tcvp_playlist {
 static int
 pl_send_state(tcvp_playlist_t *tpl)
 {
-    tcvp_event_send(tpl->ss, TCVP_PL_STATE, tpl->order[tpl->cur],
-		    tpl->state, tpl->flags);
+    int cur = 0;
+    if(tpl->cur >= 0 && tpl->cur < tpl->nf)
+	cur = tpl->order[tpl->cur];
+    tcvp_event_send(tpl->ss, TCVP_PL_STATE, cur, tpl->state, tpl->flags);
     return 0;
 }
 
