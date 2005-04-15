@@ -314,7 +314,8 @@ parse_variable(char *text, void **result, void **def)
     }
 
     *result = lookup_variable(key, NULL);
-    if(!*result && dflt && *def) {
+
+    if(*result == NULL && dflt != NULL && def != NULL) {
 	if(dflt[0] == '%' && dflt[1] == 'f') {
 	    double *dp = tcalloc(sizeof(*dp));
 	    *dp = strtod(dflt+2, NULL);
