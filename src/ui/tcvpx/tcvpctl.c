@@ -153,14 +153,17 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 
 	tcvp_pl_content_event_t *plce = (tcvp_pl_content_event_t *)te;
 
-	fprintf(stderr, "number of entries %d\n", plce->length);
+	char **entries = tcalloc((plce->length+1) * sizeof(*entries));
 
 	for(i=0; i<plce->length; i++) {
-	    fprintf(stderr, "  %s\n", plce->names[i]);
+	    entries[i] = strdup(plce->names[i]);
 	}
+	entries[i] = NULL;
 
 	*length = plce->length;
 	change_variable("playlist_number_of_entries", "integer", length);
+
+	change_variable("playlist_entries", "string_array", entries);
     }
 
     return 0;
