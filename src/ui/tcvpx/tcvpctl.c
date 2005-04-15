@@ -32,6 +32,8 @@ int64_t s_pos, s_length, start_time;
 static int show_time = TCTIME_ELAPSED;
 static muxed_stream_t *st = NULL;
 
+static void plarrayfree(void *ptr);
+
 
 extern int
 tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
@@ -153,7 +155,8 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 
 	tcvp_pl_content_event_t *plce = (tcvp_pl_content_event_t *)te;
 
-	char **entries = tcalloc((plce->length+1) * sizeof(*entries));
+	char **entries = tcallocd((plce->length+1) * sizeof(*entries),
+				  NULL, plarrayfree);
 
 	for(i=0; i<plce->length; i++) {
 	    entries[i] = strdup(plce->names[i]);
@@ -167,6 +170,18 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
     }
 
     return 0;
+}
+
+
+static void
+plarrayfree(void *ptr)
+{
+    char **entries = (char **) ptr;
+    int i;
+
+    for(i=0; entries[i] != NULL; i++) {
+	free(entries[i]);
+    }
 }
 
 

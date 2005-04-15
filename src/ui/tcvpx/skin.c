@@ -195,9 +195,9 @@ save_varcb(xtk_widget_t *w, action_cb_t cb, char *datatype, char *value)
     wd->datatypes = realloc(wd->datatypes,
 			    wd->nvalues * sizeof(*wd->datatypes));
 
-    wd->values[wd->nvalues-1] = value;
+    wd->values[wd->nvalues-1] = strdup(value);
     wd->cbs[wd->nvalues-1] = cb;
-    wd->datatypes[wd->nvalues-1] = datatype;
+    wd->datatypes[wd->nvalues-1] = strdup(datatype);
 }
 
 
@@ -209,7 +209,20 @@ free_varcb(xtk_widget_t *w)
 
     for(i=0; i<wd->nvalues; i++) {
 	unregister_varwidget(w, wd->cbs[i], wd->datatypes[i], wd->values[i]);
+	free(wd->datatypes[i]);
+	free(wd->values[i]);
     }
+
+    free(wd->cbs);
+    wd->cbs = NULL;
+
+    free(wd->datatypes);
+    wd->datatypes = NULL;
+
+    free(wd->values);
+    wd->values = NULL;
+
+    wd->nvalues = 0;
 }
 
 
@@ -631,7 +644,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     tcconf_getvalue(sec, "scroll_direction", "%d %d %d %d", &xd, &yd,
 		    &sx, &sy);
 
-    parse_variable(value, (void *)&position, (void *)&def);
+    parse_variable(value, (void *)position, (void *)def);
     if(!position) {
 	if(def) {
 	    p = *def;
@@ -688,6 +701,143 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     free(bg);
 
     return s;
+}
+
+
+static int
+list_set_current(xtk_widget_t *w, void *data)
+{
+/*     printf("Current: %d\n", *((int*)data)); */
+
+    return 0;
+}
+
+static int
+list_set_number_of_entries(xtk_widget_t *w, void *data)
+{
+/*     printf("Number of entries: %d\n", *((int*)data)); */
+
+    return 0;
+}
+
+static int
+list_set_entries(xtk_widget_t *w, void *data)
+{
+/*     int i; */
+    char **entries = (char**) data;
+
+/*     printf("List entries\n"); */
+/*     for(i=0; entries[i] != NULL; i++) { */
+/* 	printf("  %s\n", entries[i]); */
+/*     } */
+
+    xtk_widget_list_set_entries(w, entries);
+
+    return 0;
+}
+
+static int
+destroy_skinned_list(xtk_widget_t *w)
+{
+    widget_data_t *wd = xtk_widget_get_data(w);
+    if(wd) {
+	free_varcb(w);
+	if(wd->action) free(wd->action);
+	free(wd);
+    }
+    return 0;
+}
+
+static xtk_widget_t*
+create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
+		    tchash_table_t *parameters)
+{
+    int x, y;
+    int width, height;
+    int i=0;
+    char *action = NULL;
+    widget_data_t *wd = calloc(sizeof(*wd), 1);
+    xtk_widget_t *l;
+    int disable = 0;
+    int alpha = 0xff;
+    char *font, *color;
+    tcconf_section_t *bfnt = NULL;
+    int rows, spacing;
+
+    i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
+    i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
+
+    if((bfnt = tcconf_getsection(sec, "bitmap"))){
+	tcconf_setvalue(bfnt, "path", "%s", skin->path);
+	i++;
+    } else if(tcconf_getvalue(sec, "font", "%s", &font) == 1){
+	i++;
+    }
+
+    i += tcconf_getvalue(sec, "color", "%s %d", &color, &alpha) > 0;
+    i += tcconf_getvalue(sec, "spacing", "%d", &spacing);
+    i += tcconf_getvalue(sec, "rows", "%d", &rows);
+
+    if(i != 8){
+	return NULL;
+    }
+
+    tcconf_getvalue(sec, "action", "%s", &action);
+
+    wd->action = action;
+    wd->skin = skin;
+    wd->values = calloc(1, sizeof(char *));
+
+    l = xtk_widget_list_create(win, x, y, width, height);
+
+    xtk_widget_list_set_data(l, wd);
+    xtk_widget_list_set_action(l, lookup_action);
+
+    if(l) {
+	void *c = NULL;
+	char *value, *variable;
+
+	if(bfnt){
+	    xtk_widget_list_set_bitmapfont(l, bfnt);
+	    tcfree(bfnt);
+	} else {
+	    xtk_widget_list_set_font(l, font);
+	    free(font);
+	}
+
+	xtk_widget_list_set_color(l, color, alpha);
+	free(color);
+
+	xtk_widget_list_set_spacing(l, spacing);
+
+	xtk_widget_list_set_rows(l, rows);
+
+	while(i = tcconf_nextvalue(sec, "value", &c, "%s %s",
+				   &variable, &value), c) {
+	    if(i == 2) {
+		if(strcmp(variable, "current_position") == 0) {
+		    save_varcb(l, list_set_current, "integer", value);
+		    register_varwidget(l, list_set_current, "integer",
+				       value);
+		} else if(strcmp(variable, "number_of_entries") == 0) {
+		    save_varcb(l, list_set_current, "integer", value);
+		    register_varwidget(l, list_set_number_of_entries,
+				       "integer", value);
+		} else if(strcmp(variable, "entries") == 0) {
+		    save_varcb(l, list_set_current, "string_array", value);
+		    register_varwidget(l, list_set_entries,
+				       "string_array", value);
+		}
+		free(value);
+		free(variable);
+	    }
+	}
+
+	l->on_destroy = destroy_skinned_list;
+	if(disable) xtk_widget_disable(l);
+    }
+
+    return l;
 }
 
 
@@ -922,6 +1072,7 @@ create_ui(xtk_widget_t *c, skin_t *skin, tcconf_section_t *config,
     create_skinned_widget("label", create_skinned_label);
     create_skinned_widget("state", create_skinned_state);
     create_skinned_widget("slider", create_skinned_seek_bar);
+    create_skinned_widget("list", create_skinned_list);
 
     return 0;
 }
