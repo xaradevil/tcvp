@@ -762,6 +762,7 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int alpha = 0xff;
     char *font, *color;
     tcconf_section_t *bfnt = NULL;
+    tcconf_section_t *fig = NULL;
     int rows, spacing;
 
     i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
@@ -782,6 +783,8 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	return NULL;
     }
 
+    fig = tcconf_getsection(sec, "background_figure");
+
     tcconf_getvalue(sec, "action", "%s", &action);
 
     wd->action = action;
@@ -789,6 +792,15 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     wd->values = calloc(1, sizeof(char *));
 
     l = xtk_widget_list_create(win, x, y, width, height);
+
+    if(fig != NULL) {
+	tcconf_setvalue(fig, "position", "%d %d", 0, 0);
+	tcconf_setvalue(fig, "size", "%d %d", width, height);
+
+	image_t *img = draw_figure(fig);
+
+	xtk_widget_list_set_image(l, img);
+    }
 
     xtk_widget_list_set_data(l, wd);
     xtk_widget_list_set_action(l, lookup_action);
