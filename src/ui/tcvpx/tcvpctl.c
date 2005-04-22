@@ -285,14 +285,17 @@ tcvp_playlist_query(xtk_widget_t *w, void *p)
 
 
 extern int
-tcvp_add_file(char *file)
+tcvp_add_file(char **file, int num)
 {
 /*     fprintf(stderr, "%s\n", file); */
-    char *s = strrchr(file, '.');
-    if(s && !strcasecmp(s, ".m3u")){
-	tcvp_event_send(qs, TCVP_PL_ADDLIST, file, -1);	
-    } else {
-	tcvp_event_send(qs, TCVP_PL_ADD, &file, 1, -1);
+    int i;
+    for(i=0; i<num; i++) {
+	char *s = strrchr(file[i], '.');
+	if(s && !strcasecmp(s, ".m3u")){
+	    tcvp_event_send(qs, TCVP_PL_ADDLIST, file[i], -1);
+	} else {
+	    tcvp_event_send(qs, TCVP_PL_ADD, &file[i], 1, -1);
+	}
     }
 
     return 0;
