@@ -72,6 +72,7 @@ tlirc_run(void *p)
 	    while((ret=lirc_code2char(tl->lconfig, code, &c))==0 &&
 		  c!=NULL)
 	    {
+		tc2_print("lirc", TC2_PRINT_DEBUG, "Command \"%s\"\n", c);
 		tcvp_event_send(tl->qs, TCVP_KEY, c);
 	    }
 	    free(code);
