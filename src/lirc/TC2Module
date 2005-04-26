@@ -1,0 +1,20 @@
+module		lirc
+name		"TCVP/lirc"
+version		0.1.0
+tc2version	0.6.0
+sources		lirc.c
+
+import	"Eventq"	"new"
+import	"Eventq"	"delete"
+import	"Eventq"	"recv"
+import	"Eventq"	"attach"
+import	"tcvp/event"	"send"
+import	"tcvp/event"	"get_qname"
+
+TCVP {
+	module "tcvp/lirc" {
+		new tlirc_new
+		init tlirc_init
+	}
+	event TCVP_KEY
+}
