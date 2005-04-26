@@ -8,4 +8,6 @@ bind 'space'	'video'	'send(TCVP_PAUSE)'
 bind 'Next'	'*'	'send(TCVP_PL_NEXT)'
 bind 'Prior'	'*'	'send(TCVP_PL_PREV)'
 bind 'Play'	'*'	'send(TCVP_PL_START); send(TCVP_START)'
-bind 'Pause'	'*'	'sent(TCVP_PAUSE)'
+bind 'Pause'	'*'	'send(TCVP_PAUSE)'
+bind 'Stop'	'*'	'send(TCVP_PL_STOP); send(TCVP_CLOSE)'
+
