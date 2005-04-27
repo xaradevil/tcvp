@@ -794,8 +794,9 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 
     l = xtk_widget_list_create(win, x, y, width, height);
 
-    tcconf_getvalue(sec, "scroll", "%d %d", &xs, &ys);
-    xtk_widget_list_set_scroll(l, xs, ys);
+    if(tcconf_getvalue(sec, "scroll", "%d %d", &xs, &ys) == 2) {
+        xtk_widget_list_set_scroll(l, xs, ys);
+    }
 
     if(fig != NULL) {
 	tcconf_setvalue(fig, "position", "%d %d", 0, 0);
