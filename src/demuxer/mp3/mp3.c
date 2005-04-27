@@ -47,7 +47,7 @@ typedef struct mp3_file {
     stream_t stream;
     int used;
     uint64_t start;
-    size_t size;
+    uint64_t size;
     eventq_t qs;
     uint64_t sbr;
     size_t bytes;
@@ -536,7 +536,7 @@ xing_header(muxed_stream_t *ms)
 
     mf->file->seek(mf->file, fp, SEEK_SET);
 
-    for(i = 0; i < XING_SIZE; i++)
+    for(i = 0; i < XING_SIZE - 4; i++)
 	if(!strncmp(x + i, "Xing", 4))
 	    break;
 
@@ -548,9 +548,9 @@ xing_header(muxed_stream_t *ms)
     xp += 4;
 
     if(flags & 0x1){
-	int frames = (xp[0] << 24) + (xp[1] << 16) + (xp[2] << 8) + xp[3];
+	int frames = htob_32(unaligned32(xp));
 	uint64_t samples = 1152 * frames;
-	ms->time = 27000000 * samples / mf->stream.audio.sample_rate;
+	ms->time = 27000000LL * samples / mf->stream.audio.sample_rate;
 	mf->stream.audio.samples = samples;
 	mf->stream.audio.bit_rate =
 	    mf->size * 8 * mf->stream.audio.sample_rate / samples;
