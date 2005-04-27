@@ -92,7 +92,8 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	    int i;
 	    for(i = 0; i < suffix_map_size; i++){
 		if(!strcmp(s, suffix_map[i].suffix)){
-		    m = strdup(suffix_map[i].demuxer);
+		    if(suffix_map[i].demuxer)
+			m = strdup(suffix_map[i].demuxer);
 		    break;
 		}
 	    }
