@@ -764,6 +764,7 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     tcconf_section_t *bfnt = NULL;
     tcconf_section_t *fig = NULL;
     int rows, spacing;
+    int xs, ys;
 
     i += tcconf_getvalue(sec, "position", "%d %d", &x, &y);
     i += tcconf_getvalue(sec, "size", "%d %d", &width, &height);
@@ -792,6 +793,9 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     wd->values = calloc(1, sizeof(char *));
 
     l = xtk_widget_list_create(win, x, y, width, height);
+
+    tcconf_getvalue(sec, "scroll", "%d %d", &xs, &ys);
+    xtk_widget_list_set_scroll(l, xs, ys);
 
     if(fig != NULL) {
 	tcconf_setvalue(fig, "position", "%d %d", 0, 0);

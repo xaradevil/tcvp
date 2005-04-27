@@ -59,6 +59,7 @@ import		"xtk/widget/list"	"set_entries"
 import		"xtk/widget/list"	"set_font"
 import		"xtk/widget/list"	"set_image"
 import		"xtk/widget/list"	"set_rows"
+import		"xtk/widget/list"	"set_scroll"
 import		"xtk/widget/list"	"set_spacing"
 import		"xtk/widget/list"	"set_topmost"
 
