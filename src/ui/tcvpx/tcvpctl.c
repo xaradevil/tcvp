@@ -157,16 +157,30 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 
 	char **entries = tcallocd((plce->length+1) * sizeof(*entries),
 				  NULL, plarrayfree);
+	char **entries_basename = 
+	    tcallocd((plce->length+1) * sizeof(*entries), NULL, plarrayfree);
 
 	for(i=0; i<plce->length; i++) {
 	    entries[i] = strdup(plce->names[i]);
 	}
 	entries[i] = NULL;
 
+	for(i=0; i<plce->length; i++) {
+	    char *tmp = strrchr(plce->names[i], '/');
+	    if(tmp != NULL && tmp[1] != 0) {
+		tmp++;
+	    } else {
+		tmp = plce->names[i];
+	    }
+	    entries_basename[i] = strdup(tmp);
+	}
+	entries_basename[i] = NULL;
+
 	*length = plce->length;
 	change_variable("playlist_number_of_entries", "integer", length);
-
 	change_variable("playlist_entries", "string_array", entries);
+	change_variable("playlist_entries_basename", "string_array",
+			entries_basename);
     }
 
     return 0;
