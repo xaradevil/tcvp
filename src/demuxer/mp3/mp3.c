@@ -530,17 +530,24 @@ xing_header(muxed_stream_t *ms)
     u_char x[XING_SIZE], *xp;
     int i, flags;
     uint64_t fp = mf->file->tell(mf->file);
+    mp3_frame_t fr;
+    int size;
 
     if(mf->file->read(x, 1, XING_SIZE, mf->file) < XING_SIZE)
 	return -1;
 
     mf->file->seek(mf->file, fp, SEEK_SET);
 
-    for(i = 0; i < XING_SIZE - 4; i++)
+    if(mf->parse_header(x, &fr))
+	return -1;
+
+    size = min(fr.size, XING_SIZE) - 4;
+
+    for(i = 0; i < size; i++)
 	if(!strncmp(x + i, "Xing", 4))
 	    break;
 
-    if(i == XING_SIZE)
+    if(i == size)
 	return -1;
 
     xp = x + i + 4;
