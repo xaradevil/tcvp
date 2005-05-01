@@ -64,23 +64,23 @@ typedef struct mp3_file {
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-static int bitrates[16][4] = {
-    {  0,   0,   0,   0},
-    { 32,  32,  32,   8},
-    { 64,  48,  40,  16},
-    { 96,  56,  48,  24},
-    {128,  64,  56,  32},
-    {160,  80,  64,  40},
-    {192,  96,  80,  48},
-    {224, 112,  96,  56},
-    {256, 128, 112,  64},
-    {288, 160, 128,  80},
-    {320, 192, 160,  96},
-    {352, 224, 192, 112},
-    {384, 256, 224, 128},
-    {416, 320, 256, 144},
-    {448, 384, 320, 160},
-    {  0,   0,   0,   0}
+static int bitrates[16][5] = {
+    {  0,   0,   0,   0,   0},
+    { 32,  32,  32,  32,   8},
+    { 64,  48,  40,  48,  16},
+    { 96,  56,  48,  56,  24},
+    {128,  64,  56,  64,  32},
+    {160,  80,  64,  80,  40},
+    {192,  96,  80,  96,  48},
+    {224, 112,  96, 112,  56},
+    {256, 128, 112, 128,  64},
+    {288, 160, 128, 144,  80},
+    {320, 192, 160, 160,  96},
+    {352, 224, 192, 176, 112},
+    {384, 256, 224, 192, 128},
+    {416, 320, 256, 224, 144},
+    {448, 384, 320, 256, 160},
+    {  0,   0,   0,   0,   0}
 };
 
 static int mpeg_sample_rates[3][4] = {
@@ -157,7 +157,7 @@ static int
 mp3_header(u_char *head, mp3_frame_t *mf)
 {
     int c = head[1], d = head[2];
-    int bx, br, sr, pad;
+    int bx, br, sr, pad, lsf = 0;
 
     if(head[0] != 0xff)
 	return -1;
@@ -177,7 +177,7 @@ mp3_header(u_char *head, mp3_frame_t *mf)
 
     mf->version = (c >> 3) & 0x3;
     mf->layer = 3 - ((c >> 1) & 0x3);
-    bx = mf->layer + (mf->layer == 2? ~mf->version & 1: 0);
+    bx = mf->version == 3? mf->layer: 3 + (mf->layer > 1);
     br = (d >> 4) & 0xf;
     if(!bitrates[br][bx])
 	return -1;
@@ -186,12 +186,23 @@ mp3_header(u_char *head, mp3_frame_t *mf)
     pad = (d >> 1) & 1;
     mf->bitrate = bitrates[br][bx] * 1000;
     mf->sample_rate = mpeg_sample_rates[sr][mf->version];
-    mf->size = 144 * mf->bitrate / mf->sample_rate + pad;
-    mf->samples = 1152;
+    switch(mf->layer){
+    case 2:
+	lsf = ~mf->version & 1;
+    case 1:
+	mf->size = 144 * mf->bitrate / (mf->sample_rate << lsf) + pad;
+	mf->samples = 1152;
+	break;
+    case 0:
+	mf->size = (12 * mf->bitrate / mf->sample_rate + pad) * 4;
+	mf->samples = 384;
+	break;
+    }
 
 #ifdef DEBUG
-    tc2_print("MP3", TC2_PRINT_DEBUG, "layer %i, version %i, rate %i\n",
-	      mf->layer, mf->version, mf->bitrate);
+    tc2_print("MP3", TC2_PRINT_DEBUG,
+	      "layer %i, version %i, rate %i, size %i\n",
+	      mf->layer, mf->version, mf->bitrate, mf->size);
 #endif
 
     return 0;
