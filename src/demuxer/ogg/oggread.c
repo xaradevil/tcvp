@@ -114,10 +114,14 @@ ogg_new_stream(muxed_stream_t *ms, uint32_t serial)
 static uint64_t
 ogg_gptopts(muxed_stream_t *ms, int i, uint64_t gp)
 {
+    ogg_t *ogg = ms->private;
+    ogg_stream_t *os = ogg->streams + i;
     stream_t *st = ms->streams + i;
     uint64_t pts = -1;
 
-    if(st->stream_type == STREAM_TYPE_AUDIO){
+    if(os->codec->gptopts){
+	pts = os->codec->gptopts(ms, i, gp);
+    } else if(st->stream_type == STREAM_TYPE_AUDIO){
 	pts = gp * 27000000LL / st->audio.sample_rate;
     } else if(st->stream_type == STREAM_TYPE_VIDEO){
 	pts = gp * st->video.frame_rate.den * 27000000LL /
@@ -315,7 +319,7 @@ ogg_packet(muxed_stream_t *ms, int *str)
 	}
     } while(!complete);
 
-    tc2_print("OGG", TC2_PRINT_DEBUG+1,
+    tc2_print("OGG", TC2_PRINT_DEBUG+2,
 	      "ogg_packet: idx %i, frame size %i, start %i\n",
 	      idx, os->psize, os->pstart);
 
@@ -485,7 +489,7 @@ ogg_get_length(muxed_stream_t *ms)
 {
     ogg_t *ogg = ms->private;
     uint64_t end;
-    int idx = -1, i;
+    int i;
 
     if(ogg->f->flags & URL_FLAG_STREAMED)
 	return 0;
@@ -500,11 +504,7 @@ ogg_get_length(muxed_stream_t *ms)
     while(!ogg_read_page(ms, &i)){
 	if(ogg->streams[i].granule != -1 &&
 	   ogg->streams[i].granule != 0)
-	    idx = i;
-    }
-
-    if(idx != -1){
-	ms->time = ogg_gptopts(ms, idx, ogg->streams[idx].granule);
+	    ms->time = ogg_gptopts(ms, i, ogg->streams[i].granule);
     }
 
     end = ogg->f->tell(ogg->f);
@@ -524,6 +524,7 @@ ogg_free(void *p)
 
     for(i = 0; i < ogg->nstreams; i++){
 	tcfree(ogg->streams[i].buf);
+	tcfree(ogg->streams[i].private);
 	free(ms->streams[i].common.codec_data);
     }
 
@@ -564,6 +565,7 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 static ogg_codec_t *ogg_codecs[] = {
     &vorbis_codec,
     &flac_codec,
+    &theora_codec,
     &ogm_video_codec,
     &ogm_audio_codec,
     &ogm_old_codec,

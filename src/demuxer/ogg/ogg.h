@@ -34,6 +34,7 @@ typedef struct ogg_codec {
     char *name;
     int (*header)(muxed_stream_t *, int);
     int (*packet)(muxed_stream_t *, int);
+    uint64_t (*gptopts)(muxed_stream_t *, int, uint64_t);
 } ogg_codec_t;
 
 typedef struct ogg_stream {
@@ -50,6 +51,7 @@ typedef struct ogg_stream {
     int header;
     int nsegs, segp;
     u_char segments[255];
+    void *private;
 } ogg_stream_t;
 
 typedef struct ogg_state {
@@ -78,6 +80,7 @@ extern ogg_codec_t ogm_video_codec;
 extern ogg_codec_t ogm_audio_codec;
 extern ogg_codec_t ogm_old_codec;
 extern ogg_codec_t flac_codec;
+extern ogg_codec_t theora_codec;
 
 extern int vorbis_comment(muxed_stream_t *ms, char *buf, int size);
 
