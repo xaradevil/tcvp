@@ -1,0 +1,1 @@
+TC2_CHECK_LIBS([libtheora, theora, theora_decode_init, -logg, theora/theora.h])

@@ -1,0 +1,13 @@
+module		libtheora
+name		"TCVP/codec/libtheora"
+version		0.1.0
+tc2version	0.6.0
+sources		theoradec.c
+
+TCVP {
+	filter "decoder/video/theora" {
+		new th_new
+		packet DATA th_decode
+		probe th_probe
+	}
+}
