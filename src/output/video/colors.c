@@ -35,6 +35,8 @@
 #define min(a,b) ((a)<(b)? (a): (b))
 #endif
 
+#define abs(a) ((a)<0?-(a):(a))
+
 static void
 i420_yuy2(int width, int height, const u_char **in, int *istride,
 	  u_char **out, int *ostride)
@@ -79,13 +81,13 @@ i420_yuy2(int width, int height, const u_char **in, int *istride,
     }
 }
 
-#define copy_plane(i, ip, d, bpp) do {					\
-    int j;								\
-    for(j = 0; j < height / d; j++){					\
-	memcpy(out[i] + j * ostride[i],					\
-	       in[ip] + j * istride[i],					\
-	       bpp * min(istride[i], min(ostride[i], width / d)));	\
-    }									\
+#define copy_plane(i, ip, d, bpp) do {				\
+    int j, ais = abs(istride[i]), aos = abs(ostride[i]);	\
+    for(j = 0; j < height / d; j++){				\
+	memcpy(out[i] + j * ostride[i],				\
+	       in[ip] + j * istride[i],				\
+	       bpp * min(ais, min(aos, width / d)));		\
+    }								\
 } while(0)
 
 #define exp_plane(i, ip, d, x, y) do {					    \
