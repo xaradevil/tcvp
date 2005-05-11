@@ -11,6 +11,7 @@ TC2/interface {
 	priority "decoder/video/mpeg"	"TCVP/codec/mpeg2"	5
 	priority "decoder/video/mpeg2"	"TCVP/codec/mpeg2"	5
 	priority "decoder/audio/ac3"	"TCVP/codec/a52"	5
+	priority "decoder/audio/flac"	"TCVP/codec/flac"	5
 	priority "driver/timer"	 "TCVP/driver/audio/alsa"	5
 	priority "URL/dvd"		"TCVP/input/dvdnav"	5
 	priority "URL/pcm"		"TCVP/input/alsa"	5
