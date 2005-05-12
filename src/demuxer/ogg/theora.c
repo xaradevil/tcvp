@@ -61,7 +61,11 @@ theora_header(muxed_stream_t *ms, int idx)
 
     if(os->buf[os->pstart] == 0x80){
 	u_char *p = os->buf + os->pstart + 7;
-	p += 3;			/* version */
+	if(*p++ != 3)
+	    return -1;
+	if(*p++ != 2)
+	    return -1;
+	p++;
 	st->video.width = htob_16(unaligned16(p)) * 16;
 	p += 2;
 	st->video.height = htob_16(unaligned16(p)) * 16;
