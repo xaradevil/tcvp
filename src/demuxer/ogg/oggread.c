@@ -251,7 +251,7 @@ ogg_read_page(muxed_stream_t *ms, int *str)
     os->granule = gp;
     os->flags = flags;
 
-    if(str)
+    if(str && os->header > -2)
 	*str = idx;
 
     return 0;
@@ -284,10 +284,10 @@ ogg_packet(muxed_stream_t *ms, int *str)
 		  idx, os->pstart, os->psize, os->segp, os->nsegs);
 
 	if(!os->codec){
-	    if(os->header < 0){
+	    if(os->header == -1){
 		os->codec = ogg_find_codec(os->buf, os->bufpos);
 		if(!os->codec){
-		    os->header = 0;
+		    os->header = -2;
 		    return 0;
 		}
 	    } else {
@@ -325,7 +325,7 @@ ogg_packet(muxed_stream_t *ms, int *str)
 
     ogg->curidx = idx;
 
-    if(os->header < 0){
+    if(os->header == -1){
 	int hdr = os->codec->header(ms, idx);
 	if(!hdr){
 	    os->header = os->seq;
@@ -333,6 +333,8 @@ ogg_packet(muxed_stream_t *ms, int *str)
 	    os->psize = psize;
 	    ogg->headers = 1;
 	} else {
+	    if(hdr < 0)
+		os->header = -2;
 	    os->pstart += os->psize;
 	    os->psize = 0;
 	}
@@ -435,7 +437,7 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
 	ogg->f->seek(ogg->f, p, SEEK_SET);
 
 	while(!ogg_read_page(ms, &i)){
-	    if(ogg->streams[i].granule != 0 &&
+	    if(i >= 0 && ogg->streams[i].granule != 0 &&
 	       ogg->streams[i].granule != -1)
 		break;
 	}
@@ -502,7 +504,7 @@ ogg_get_length(muxed_stream_t *ms)
     ogg->f->seek(ogg->f, -MAX_PAGE_SIZE, SEEK_END);
 
     while(!ogg_read_page(ms, &i)){
-	if(ogg->streams[i].granule != -1 &&
+	if(i >= 0 && ogg->streams[i].granule != -1 &&
 	   ogg->streams[i].granule != 0)
 	    ms->time = ogg_gptopts(ms, i, ogg->streams[i].granule);
     }
