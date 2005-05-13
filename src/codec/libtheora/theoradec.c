@@ -22,15 +22,14 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#include <stdlib.h>
-#include <tcstring.h>
+#include <string.h>
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
 #include <theora/theora.h>
 #include <libtheora_tc2.h>
 
-typedef struct vorbis_context {
+typedef struct th_context {
     theora_info info;
     theora_state state;
     theora_comment comment;
