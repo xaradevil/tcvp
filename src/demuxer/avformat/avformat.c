@@ -80,6 +80,8 @@ avf_codec_name(int codec)
     int i;
 
     avc = avcodec_find_decoder(codec);
+    if(!avc)
+	return NULL;
 
     for(i = 0; codec_names[i][0]; i++){
 	if(!strcmp(avc->name, codec_names[i][1])){
@@ -159,14 +161,26 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     pk->pk.flags = 0;
     if(pk->apk.pts != AV_NOPTS_VALUE){
 	pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+#if LIBAVCODEC_BUILD > 4753
+	pk->pk.pts = pk->apk.pts * 27000000LL *
+	    afc->streams[sx]->time_base.num /
+	    afc->streams[sx]->time_base.den;
+#else
 	pk->pk.pts = pk->apk.pts * 27000000 / AV_TIME_BASE;
+#endif
 	tc2_print("AVFORMAT", TC2_PRINT_DEBUG+1, "[%i] pts %lli\n",
 		  sx, pk->pk.pts);
     }
 #if LIBAVFORMAT_BUILD >= 4610
     if(pk->apk.dts != AV_NOPTS_VALUE){
 	pk->pk.flags |= TCVP_PKT_FLAG_DTS;
+#if LIBAVCODEC_BUILD > 4753
+	pk->pk.dts = pk->apk.dts * 27000000LL *
+	    afc->streams[sx]->time_base.num /
+	    afc->streams[sx]->time_base.den;
+#else
 	pk->pk.dts = pk->apk.dts * 27000000 / AV_TIME_BASE;
+#endif
     }
 #endif
 
@@ -236,8 +250,8 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	switch(afc->streams[i]->codec.codec_type){
 	case CODEC_TYPE_VIDEO:
 	    st->stream_type = STREAM_TYPE_VIDEO;
-	    st->video.frame_rate.num = avs->codec.frame_rate;
-	    st->video.frame_rate.den = avs->codec.frame_rate_base;
+	    st->video.frame_rate.num = avs->r_frame_rate.num;
+	    st->video.frame_rate.den = avs->r_frame_rate.den;
 	    st->video.width = avs->codec.width;
 	    st->video.height = avs->codec.height;
 

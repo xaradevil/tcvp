@@ -133,8 +133,13 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     as->codec.bit_rate = s->common.bit_rate;
     if(s->stream_type == STREAM_TYPE_VIDEO){
 	as->codec.codec_type = CODEC_TYPE_VIDEO;
+#if LIBAVCODEC_BUILD > 4753
+	as->codec.time_base.den = s->video.frame_rate.num;
+	as->codec.time_base.num = s->video.frame_rate.den;
+#else
 	as->codec.frame_rate = s->video.frame_rate.num;
 	as->codec.frame_rate_base = s->video.frame_rate.den;
+#endif
 	as->codec.width = s->video.width;
 	as->codec.height = s->video.height;
     } else if(s->stream_type == STREAM_TYPE_AUDIO){
