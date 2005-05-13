@@ -250,8 +250,13 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	switch(afc->streams[i]->codec.codec_type){
 	case CODEC_TYPE_VIDEO:
 	    st->stream_type = STREAM_TYPE_VIDEO;
+#if LIBAVFORMAT_BUILD > 4623
 	    st->video.frame_rate.num = avs->r_frame_rate.num;
 	    st->video.frame_rate.den = avs->r_frame_rate.den;
+#else
+	    st->video.frame_rate.num = avs->r_frame_rate;
+	    st->video.frame_rate.den = avs->r_frame_rate_base;
+#endif
 	    st->video.width = avs->codec.width;
 	    st->video.height = avs->codec.height;
 
