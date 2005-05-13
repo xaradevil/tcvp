@@ -121,9 +121,13 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     case STREAM_TYPE_VIDEO:
 	avctx->width = s->video.width;
 	avctx->height = s->video.height;
+#if LIBAVCODEC_BUILD > 4753
+	avctx->time_base.den = s->video.frame_rate.num;
+	avctx->time_base.num = s->video.frame_rate.den;
+#else
 	avctx->frame_rate = s->video.frame_rate.num;
 	avctx->frame_rate_base = s->video.frame_rate.den;
-
+#endif
 	ac->ptsn = (uint64_t) 27000000 * s->video.frame_rate.den;
 	ac->ptsd = s->video.frame_rate.num?: 1;
 	ac->pts = 0;

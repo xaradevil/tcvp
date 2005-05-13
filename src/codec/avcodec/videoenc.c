@@ -122,8 +122,13 @@ avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     p->format.common.codec = enc->codec;
     p->format.common.bit_rate = ctx->bit_rate;
 
+#if LIBAVCODEC_BUILD > 4753
+    ctx->time_base.den = s->video.frame_rate.num;
+    ctx->time_base.num = s->video.frame_rate.den;
+#else
     ctx->frame_rate = s->video.frame_rate.num;
     ctx->frame_rate_base = s->video.frame_rate.den;
+#endif
     ctx->width = s->video.width;
     ctx->height = s->video.height;
     if(s->video.aspect.num){

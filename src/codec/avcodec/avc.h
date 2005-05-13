@@ -41,7 +41,6 @@ typedef struct avc_codec {
     uint64_t ptsn, ptsd;
     AVFrame *frame;
     uint64_t ptsq[PTSQSIZE];
-    int cpn;
 
     int have_params;
 } avc_codec_t;
