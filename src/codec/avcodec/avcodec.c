@@ -114,7 +114,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 	avctx->channels = s->audio.channels;
 	avctx->bit_rate = s->audio.bit_rate;
 	avctx->block_align = s->audio.block_align;
-	ac->buf = malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE);
+	ac->buf = malloc(10 * 1048576);
 	p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
 	break;
 
@@ -183,4 +183,55 @@ avc_codec_name(char *codec)
 	    cn[i] = '_';
 
     return cn;
+}
+
+static char *
+avc_codec_rname(const char *name)
+{
+    char *cn;
+    int i;
+
+    for(i = 0; codec_names[i][0]; i++){
+	if(!strcmp(name, codec_names[i][1])){
+	    cn = strchr(codec_names[i][0], '/');
+	    return strdup(cn + 1);
+	}
+    }
+
+    cn = strdup(name);
+    for(i = 0; cn[i]; i++)
+	if(cn[i] == '_')
+	    cn[i] = '-';
+
+    return cn;
+}
+
+extern int
+avc_setup(void)
+{
+    AVCodec *avc;
+    avcodec_register_all();
+
+    for(avc = first_avcodec; avc; avc = avc->next){
+	char buf[512];
+	char *type, *func, *name;
+	if(avc->type == CODEC_TYPE_VIDEO){
+	    type = "video";
+	    func = "_tcvp_decoder_video_mpeg_new";
+	} else if(avc->type == CODEC_TYPE_AUDIO){
+	    type = "audio";
+	    func = "_tcvp_decoder_audio_mpeg_new";
+	} else {
+	    continue;
+	}
+	name = avc_codec_rname(avc->name);
+	if(avc->decode){
+	    snprintf(buf, sizeof(buf), "decoder/%s/%s", type,
+		     name? name: avc->name);
+	    tc2_add_export(THIS_MODULE, buf, "new", func);
+	}
+	free(name);
+    }
+
+    return 0;
 }
