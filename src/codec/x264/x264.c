@@ -205,7 +205,7 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     tcconf_getvalue(cs, "qp", "%i", &x4->params.rc.i_qp_constant);
     tcconf_getvalue(cs, "gop_size", "%i", &x4->params.i_keyint_max);
     tcconf_getvalue(cs, "rc_buffer_size", "%i",
-		    &x4->params.rc.i_rc_buffer_size);
+		    &x4->params.rc.i_vbv_buffer_size);
     tcconf_getvalue(cs, "bitrate", "%i", &x4->params.rc.i_bitrate);
     tcconf_getvalue(cs, "qpmin", "%i", &x4->params.rc.i_qp_min);
     tcconf_getvalue(cs, "qpmax", "%i", &x4->params.rc.i_qp_max);
