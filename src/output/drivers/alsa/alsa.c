@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -212,6 +212,9 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     } else if(strstr(as->codec, "pcm-s8")){
 	afmt = SND_PCM_FORMAT_S8;
 	format = "s8";
+    } else if(strstr(as->codec, "pcm-f32le")){
+	afmt = SND_PCM_FORMAT_FLOAT_LE;
+	format = "f32le";
     } else {
 	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n",
 		  as->codec);
