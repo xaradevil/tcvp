@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -59,6 +59,7 @@ copy_##ss(void *dst, void *src, int samples, int channels)	\
 
 copy(8)
 copy(16)
+copy(32)
 
 #define HE TCVP_ENDIAN
 
@@ -79,6 +80,8 @@ static struct {
     { "s8",    "s8",    copy_8 },
     { "s8",    "u8",    s8_u8 },
     { "s32"HE, "s16"HE, s32_s16 },
+    { "f32le", "f32le", copy_32 },
+    { "f32be", "f32be", copy_32 },
     { NULL, NULL, NULL }
 };
 
