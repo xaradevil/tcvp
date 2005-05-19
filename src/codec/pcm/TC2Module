@@ -10,6 +10,7 @@ TCVP {
 		alias "decoder/audio/pcm-s16le"
 		alias "decoder/audio/pcm-u8"
 		alias "decoder/audio/pcm-ulaw"
+		alias "decoder/audio/pcm-f32le"
 
 		alias "encoder/audio/pcm-s16le"
 	}
