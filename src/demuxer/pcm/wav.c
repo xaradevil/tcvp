@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -31,7 +31,7 @@
 
 #define TAG(a,b,c,d) (a + (b << 8) + (c << 16) + (d << 24))
 
-static char *aid2codec(int id, int bits);
+static char *aid2codec(int id, int bits, const char *guid);
 
 static char *
 tag2str(uint32_t tag, u_char *s)
@@ -53,6 +53,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     uint32_t srate, brate;
     int data_size = 0;
     int data = 0;
+    u_char guid[16];
     u_char tags[5];
     uint64_t pos;
 
@@ -63,6 +64,8 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     url_getu32l(u, &tag);
     if(tag != TAG('W','A','V','E'))
 	return NULL;
+
+    memset(guid, 0, sizeof(guid));
 
     while(!data && !url_getu32l(u, &tag)){
 	url_getu32l(u, &size);
@@ -80,6 +83,14 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 	    if(size > 16){
 		url_getu16l(u, &extrasize);
 		if(extrasize){
+		    if(fmt == 0xfffe){
+			uint32_t cm;
+			uint16_t s;
+			url_getu16l(u, &s);
+			url_getu32l(u, &cm);
+			u->read(guid, 1, 16, u);
+			extrasize -= 22;
+		    }
 		    extra = malloc(extrasize);
 		    u->read(extra, 1, extrasize, u);
 		}
@@ -106,7 +117,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     if(!data)
 	return NULL;
 
-    codec = aid2codec(fmt, bits);
+    codec = aid2codec(fmt, bits, guid);
     if(!codec)
 	return NULL;
     brate *= 8;
@@ -210,9 +221,15 @@ wav_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 static struct {
     int id;
     char *codec;
+    char guid[16];
 } acodec_ids[] = {
-    { 0x01, "audio/pcm-s16le" },
+    { 0x01, "audio/pcm-s16le",
+      { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+	0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } },
     { 0x02, "audio/adpcm-ms" },
+    { 0x03, "audio/pcm-f32le",
+      { 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+	0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } },
     { 0x06, "audio/pcm-alaw" },
     { 0x07, "audio/pcm-ulaw" },
     { 0x11, "audio/adpcm-ima-wav" },
@@ -228,7 +245,7 @@ static struct {
 };
 
 static char *
-aid2codec(int id, int bits)
+aid2codec(int id, int bits, const char *guid)
 {
     int i;
 
@@ -236,7 +253,7 @@ aid2codec(int id, int bits)
 	return bits == 8? "audio/pcm-u8": "audio/pcm-s16le";
 
     for(i = 0; acodec_ids[i].codec; i++)
-	if(id == acodec_ids[i].id)
+	if(id == acodec_ids[i].id || !memcmp(guid, acodec_ids[i].guid, 16))
 	    break;
 
     return acodec_ids[i].codec;
