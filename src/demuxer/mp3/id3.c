@@ -320,7 +320,7 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
 
     tagsize = 10;
 
-    for(i = 0; id3v2_tags[i][0]; i++){
+    for(i = 0; id3v2_tags[i][0][3]; i++){
 	char *av = tcattr_get(ms, id3v2_tags[i][1]);
 	if(av)
 	    tagsize += 11 + strlen(av);
@@ -336,7 +336,7 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
     st_ss32(tagsize - 10, p);
     p += 4;
 
-    for(i = 0; id3v2_tags[i][0]; i++){
+    for(i = 0; id3v2_tags[i][0][3]; i++){
 	char *av = tcattr_get(ms, id3v2_tags[i][1]);
 	if(av)
 	    p += id3v2_text_frame(p, id3v2_tags[i][0], av);
