@@ -663,7 +663,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		goto err;
 
 	    dp = mp.data + mp.data[0] + 1;
-	    pmtsize = (htob_16(unaligned16(dp + 1)) & 0xfff) + 4;
+	    pmtsize = (htob_16(unaligned16(dp + 1)) & 0xfff) + 3;
 	    pmt = malloc(pmtsize);
 	    pmtpos = 0;
 	    pmtpid = mp.pid;
@@ -687,7 +687,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
 	dp = pmt;
 	seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
-	if(seclen > pmtsize - 4 || seclen < 13)
+	if(seclen > pmtsize - 3 || seclen < 13)
 	    goto err;
 	crc = htob_32(unaligned32(dp + seclen - 1));
 
