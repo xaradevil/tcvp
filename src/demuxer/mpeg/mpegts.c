@@ -98,15 +98,19 @@ fill_buf(mpegts_stream_t *s)
 {
     int bpos = (s->tsp - s->tsbuf) % 188;
     int n = s->tsnbuf * TS_PACKET_SIZE + s->extra;
+    int eof = 0;
 
     memmove(s->tsbuf, s->tsp - bpos, n);
     s->tsp = s->tsbuf + bpos;
 
-    while(s->tsnbuf < TS_PACKET_BUF){
+    while(s->tsnbuf < TS_PACKET_BUF && !eof){
 	int r = TS_PACKET_SIZE * TS_PACKET_BUF - n;
 	r = s->stream->read(s->tsbuf + n, 1, r, s->stream);
-	if(r <= 0)
-	    return -1;
+	if(r <= 0){
+	    if(!s->tsnbuf)
+		return -1;
+	    eof = 1;
+	}
 
 	n += r;
 	s->tsnbuf = n / TS_PACKET_SIZE;
@@ -205,7 +209,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
     skip_packet(s);				\
     error = -1;					\
     skip++;					\
-    goto next;					\
+    continue;					\
 } while(0)
 
 #define check_length(l, start, len, m) do {			\
@@ -329,8 +333,6 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 
 	s->tsp += mp->data_length;
 	s->tsnbuf--;
-
-    next: ;
     } while(error && skip < tcvp_demux_mpeg_conf_ts_max_skip);
 
     return error;
@@ -378,13 +380,14 @@ mpegts_endpacket(muxed_stream_t *ms)
     mpegts_stream_t *s = ms->private;
     tcvp_packet_t *pk = NULL;
 
+    while(++s->end < ms->n_streams && !ms->used_streams[s->end]);
+
     if(s->end >= ms->n_streams)
 	return NULL;
 
     if(s->streams[s->end].bpos)
 	pk = mpegts_mkpacket(s, s->end);
 
-    s->end++;
     return pk;
 }
 
@@ -406,7 +409,6 @@ mpegts_packet(muxed_stream_t *ms, int str)
 	do {
 	    if(mp.pid < 0){
 		if(mpegts_read_packet(s, &mp) < 0){
-		    s->end++;
 		    return mpegts_endpacket(ms);
 		}
 	    }
