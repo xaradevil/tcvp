@@ -273,6 +273,7 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 		avs->codec.sample_rate;
 	    st->audio.channels = avs->codec.channels;
 	    st->audio.bit_rate = avs->codec.bit_rate;
+	    st->audio.block_align = avs->codec.block_align;
 	    break;
 
 	default:
