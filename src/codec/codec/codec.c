@@ -82,6 +82,7 @@ enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
 	char mb[strlen(m) + 8];
 	sprintf(mb, "encoder/%s", m);
 	cnew = tc2_get_symbol(mb, "new");
+	tcconf_setvalue(cs, "type", "%s", mb);
     }
 
     free(name);
