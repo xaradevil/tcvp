@@ -156,7 +156,7 @@ static char *codec_names[][2] = {
     { "video/mpeg2", "mpeg2video" },
     { "video/dv", "dvvideo" },
     { "video/msmpeg4v3", "msmpeg4" },
-    { "audio/mpeg", "mp3" },
+    { "audio/mpeg", "mp2" },
     { }
 };
 
@@ -206,6 +206,20 @@ avc_codec_rname(const char *name)
     return cn;
 }
 
+static void
+add_codec(const char *name, char *type, char *dec, char *enc)
+{
+    char buf[512];
+    if(dec){
+	snprintf(buf, sizeof(buf), "decoder/%s/%s", type, name);
+	tc2_add_export(THIS_MODULE, buf, "new", dec);
+    }
+    if(enc){
+	snprintf(buf, sizeof(buf), "encoder/%s/%s", type, name);
+	tc2_add_export(THIS_MODULE, buf, "new", enc);
+    }
+}
+
 extern int
 avc_setup(void)
 {
@@ -213,23 +227,24 @@ avc_setup(void)
     avcodec_register_all();
 
     for(avc = first_avcodec; avc; avc = avc->next){
-	char buf[512];
-	char *type, *func, *name;
+	char *type, *enc, *dec, *name;
 	if(avc->type == CODEC_TYPE_VIDEO){
 	    type = "video";
-	    func = "_tcvp_decoder_video_mpeg_new";
+	    dec = "_tcvp_decoder_video_mpeg_new";
+	    enc = "_tcvp_encoder_video_mpeg_new";
 	} else if(avc->type == CODEC_TYPE_AUDIO){
 	    type = "audio";
-	    func = "_tcvp_decoder_audio_mpeg_new";
+	    dec = "_tcvp_decoder_audio_mpeg_new";
+	    enc = "_tcvp_encoder_audio_mpeg_new";
 	} else {
 	    continue;
 	}
 	name = avc_codec_rname(avc->name);
-	if(avc->decode){
-	    snprintf(buf, sizeof(buf), "decoder/%s/%s", type,
-		     name? name: avc->name);
-	    tc2_add_export(THIS_MODULE, buf, "new", func);
-	}
+	if(!avc->decode)
+	    dec = NULL;
+	if(!avc->encode)
+	    enc = NULL;
+	add_codec(name? name: avc->name, type, dec, enc);
 	free(name);
     }
 

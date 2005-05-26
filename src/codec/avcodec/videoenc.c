@@ -157,6 +157,9 @@ avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
 #endif
     }
+
+    ctx->pix_fmt = PIX_FMT_YUV420P;
+
 /*     if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED) */
 /* 	ctx->flags |= CODEC_FLAG_INTERLACED_DCT; */
     if(avcodec_open(ctx, enc->avc) < 0){
@@ -189,17 +192,34 @@ avc_free_encvid(void *p)
     free(enc->ctx->stats_in);
     if(enc->ctx->codec)
 	avcodec_close(enc->ctx);
+    free(enc->codec);
 }
 
 extern int
-avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
-		 tcconf_section_t *cf)
+avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
+		 tcvp_timer_t *t, muxed_stream_t *ms)
 {
     AVCodec *avc;
     AVCodecContext *ctx;
     avc_encvid_t *enc;
+    char *filter, *codec;
     char *statsfile;
     char *avcname;
+
+    if(tcconf_getvalue(cf, "type", "%s", &filter) <= 0){
+	tc2_print("AVCODEC", TC2_PRINT_ERROR, "who am I?\n");
+	return -1;
+    }
+
+    codec = strchr(filter, '/');
+    if(codec){
+	codec = strdup(codec + 1);
+    } else {
+	tc2_print("AVCODEC", TC2_PRINT_ERROR, "don't know %s\n", filter);
+	return -1;
+    }
+
+    free(filter);
 
     avcname = avc_codec_name(codec);
     avc = avcodec_find_encoder_by_name(avcname);
@@ -354,17 +374,3 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, char *codec,
 
     return 0;
 }
-
-#define avc_enc_new(cd)							\
-extern int								\
-avc_##cd##_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,	\
-		      tcvp_timer_t *t, muxed_stream_t *ms)		\
-{									\
-    return avc_encvideo_new(p, s, "video/"#cd, cs);			\
-}
-
-avc_enc_new(mpeg4)
-avc_enc_new(mpeg2)
-avc_enc_new(mpeg)
-avc_enc_new(msmpeg4v3)
-avc_enc_new(msmpeg4v2)

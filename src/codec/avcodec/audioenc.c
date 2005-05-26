@@ -204,16 +204,33 @@ avc_free_audioenc(void *p)
     free(enc->outbuf);
     if(enc->ctx->codec)
 	avcodec_close(enc->ctx);
+    free(enc->codec);
 }
 
 extern int
-avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, char *codec,
-		 tcconf_section_t *cf)
+avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
+		 tcvp_timer_t *t, muxed_stream_t *ms)
 {
     AVCodec *avc;
     AVCodecContext *ctx;
     avc_audioenc_t *enc;
+    char *filter, *codec;
     char *avcname;
+
+    if(tcconf_getvalue(cf, "type", "%s", &filter) <= 0){
+	tc2_print("AVCODEC", TC2_PRINT_ERROR, "who am I?\n");
+	return -1;
+    }
+
+    codec = strchr(filter, '/');
+    if(codec){
+	codec = strdup(codec + 1);
+    } else {
+	tc2_print("AVCODEC", TC2_PRINT_ERROR, "don't know %s\n", filter);
+	return -1;
+    }
+
+    free(filter);
 
     avcname = avc_codec_name(codec);
     avc = avcodec_find_encoder_by_name(avcname);
@@ -255,14 +272,3 @@ avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, char *codec,
 
     return 0;
 }
-
-#define avc_enc_new(cd)							\
-extern int								\
-avc_##cd##_enc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,	\
-		   tcvp_timer_t *t, muxed_stream_t *ms)			\
-{									\
-    return avc_audioenc_new(p, s, "audio/"#cd, cs);			\
-}
-
-avc_enc_new(mp2)
-avc_enc_new(ac3)
