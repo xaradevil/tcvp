@@ -98,6 +98,7 @@ fill_buf(mpegts_stream_t *s)
 {
     int bpos = (s->tsp - s->tsbuf) % 188;
     int n = s->tsnbuf * TS_PACKET_SIZE + s->extra;
+    int nb = s->tsnbuf;
     int eof = 0;
 
     memmove(s->tsbuf, s->tsp - bpos, n);
@@ -107,7 +108,7 @@ fill_buf(mpegts_stream_t *s)
 	int r = TS_PACKET_SIZE * TS_PACKET_BUF - n;
 	r = s->stream->read(s->tsbuf + n, 1, r, s->stream);
 	if(r <= 0){
-	    if(!s->tsnbuf)
+	    if(s->tsnbuf <= nb)
 		return -1;
 	    eof = 1;
 	}
@@ -147,11 +148,11 @@ resync(mpegts_stream_t *s)
 	nb = bufmax - s->tsp + TS_PACKET_SIZE;
 	memmove(s->tsbuf, s->tsp, nb);
 	s->tsp = s->tsbuf + nb;
+	s->tsnbuf = nb / TS_PACKET_SIZE;
 
 	if(sync){
 	    int rb;
 
-	    s->tsnbuf = nb / TS_PACKET_SIZE;
 	    nb -= s->tsnbuf * TS_PACKET_SIZE;
 	    rb = 188 - nb;
 
@@ -209,19 +210,19 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
     skip_packet(s);				\
     error = -1;					\
     skip++;					\
-    continue;					\
+    goto next;					\
 } while(0)
 
-#define check_length(l, start, len, m) do {			\
-    if(l > start + len - s->tsp || l < 0){			\
-	tc2_print("MPEGTS", TC2_PRINT_WARNING, "PID %x:" m, l);	\
-	do_error();						\
-    }								\
+#define check_length(l, start, len, m) do {				\
+    if(l > start + len - s->tsp || l < 0){				\
+	tc2_print("MPEGTS", TC2_PRINT_WARNING, "PID %x: " m, mp->pid, l); \
+	do_error();							\
+    }									\
 } while(0)
 
     do {
 	u_char *pkstart;
-	int v;
+	u_int v;
 
 	error = 0;
 
@@ -333,6 +334,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 
 	s->tsp += mp->data_length;
 	s->tsnbuf--;
+      next:;
     } while(error && skip < tcvp_demux_mpeg_conf_ts_max_skip);
 
     return error;
