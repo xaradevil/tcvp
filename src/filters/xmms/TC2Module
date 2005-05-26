@@ -1,0 +1,18 @@
+module		xmms
+name		"TCVP/filter/xmms"
+version		0.1.0
+tc2version	0.6.0
+sources		xmms.c visual.c
+postinit	xmms_init
+shutdown	xmms_shutdown
+
+TCVP {
+	filter "filter/xmms/visual" {
+		new vis_new
+		packet DATA vis_input
+		probe vis_probe
+	}
+}
+
+option	plugindir%s="/usr/lib/xmms"
+option	vis_period%i=0

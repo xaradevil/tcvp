@@ -1,0 +1,8 @@
+PKG_CHECK_MODULES(GTK, gtk+ gthread,
+	[TC2_ADD_INC($GTK_CFLAGS)
+	 TC2_ADD_LDFLAGS($GTK_LIBS)
+	 save_CPPFLAGS="$CPPFLAGS"
+	 CPPFLAGS="$CPPFLAGS $GTK_CFLAGS"
+	 AC_CHECK_HEADER([xmms/plugin.h],
+		[TC2_CHECK_LIBS([fftw, fftw3, fftw_execute, -lm, fftw3.h])])
+	 CPPFLAGS="$save_CPPFLAGS"], [AC_MSG_WARN([gtk not found])])

@@ -1,0 +1,6 @@
+xmms_MODINC += -DLIBDIR=\"$(pkglibdir)\"
+
+pkglib_LTLIBRARIES = src/filters/xmms/libxmms.la
+src_filters_xmms_libxmms_la_SOURCES = src/filters/xmms/libxmms.c
+src_filters_xmms_libxmms_la_CPPFLAGS = $(xmms_MODINC)
+src_filters_xmms_libxmms_la_LDFLAGS = -module $(xmms_MODLIBS)
