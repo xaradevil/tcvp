@@ -179,8 +179,8 @@ http_status(httpd *hd)
 
     httpdOutput(hd, "</div>\n");
 
+    httpdOutput(hd, "<div class=\"box playlist\">\n");
     if(h->playlist && h->playlist->length){
-	httpdOutput(hd, "<div class=\"box playlist\">\n");
 	httpdOutput(hd, "<form action=\"remove\" method=\"get\">\n");
 	httpdOutput(hd, "<table>\n");
 	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plname\"/>\n");
@@ -197,8 +197,11 @@ http_status(httpd *hd)
 	httpdOutput(hd, "</table>\n");
 	httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
 		    "</div>\n");
-	httpdOutput(hd, "</form></div>\n");
+	httpdOutput(hd, "</form>\n");
+    } else {
+	httpdOutput(hd, "Empty playlist\n");
     }
+    httpdOutput(hd, "</div>\n");
 
     pthread_mutex_unlock(&h->lock);
     httpdOutput(hd, HTML_FOOT);
@@ -253,13 +256,32 @@ http_remove(httpd *hd)
     tcvp_module_t *m = (tcvp_module_t *) hd->host;
     tcvp_http_t *h = m->private;
     httpVar *v = httpdGetVariableByName(hd, "p");
+    int *r, i = 0;
 
-    for(; v; v = v->nextValue){
+    if(!h->playlist || !v)
+	goto end;
+
+    pthread_mutex_lock(&h->lock);
+
+    r = calloc(2 * h->playlist->length, sizeof(*r));
+    r[0] = strtol(v->value, NULL, 0);
+    r[1] = 1;
+
+    while((v = v->nextValue)){
 	int p = strtol(v->value, NULL, 0);
-	tcvp_event_send(h->control, TCVP_PL_REMOVE, p, 1);
-	h->update += 4;
+	if(p > r[i] + r[i+1])
+	    r[i+=2] = p;
+	r[i+1]++;
     }
 
+    while(i >= 0){
+	tcvp_event_send(h->control, TCVP_PL_REMOVE, r[i], r[i+1]);
+	h->update += 4;
+	i -= 2;
+    }
+
+  end:
+    pthread_mutex_unlock(&h->lock);
     http_status(hd);
 }
 
@@ -281,7 +303,6 @@ http_run(void *p)
 
 	if(httpdReadRequest(hd) < 0)
 	    continue;
-	tc2_print("HTTP", TC2_PRINT_DEBUG, "%s\n", httpdRequestPath(hd));
 	httpdProcessRequest(hd);
 	httpdEndRequest(hd);
     }
