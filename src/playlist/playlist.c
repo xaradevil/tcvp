@@ -180,10 +180,15 @@ pl_remove(tcvp_playlist_t *tpl, int s, int n)
 
     pthread_mutex_lock(&tpl->lock);
 
+    if(s >= tpl->nf)
+	goto end;
+
     if(s < 0)
-	s = tpl->nf + s + 1;
-    if(s < 0)
+	s = tpl->nf + s;
+    if(s < 0){
+	n += s;
 	s = 0;
+    }
 
     nr = min(tpl->nf - s, un);
 
@@ -205,6 +210,7 @@ pl_remove(tcvp_playlist_t *tpl, int s, int n)
     if(tpl->cur > tpl->nf)
 	tpl->cur = tpl->nf;
 
+  end:
     pthread_mutex_unlock(&tpl->lock);
     return 0;
 }
