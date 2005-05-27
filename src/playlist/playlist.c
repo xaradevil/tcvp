@@ -527,7 +527,7 @@ pl_new(tcvp_module_t *m, tcconf_section_t *cs)
     tpl->files = malloc(tpl->af * sizeof(*tpl->files));
     tpl->order = malloc(tpl->af * sizeof(*tpl->order));
     pthread_mutex_init(&tpl->lock, NULL);
-    tpl->state = END;
+    tpl->state = STOPPED;
     tpl->conf = tcref(cs);
     m->private = tpl;
 
@@ -561,27 +561,69 @@ pl_alloc_add(int t, va_list args)
     return te;
 }
 
+static u_char *
+serialize_list(int n, char **s, int *size)
+{
+    int sz = *size + 4;
+    u_char *sb, *p;
+    int i;
+
+    for(i = 0; i < n; i++)
+	sz += strlen(s[i]) + 1;
+
+    sb = malloc(sz);
+    p = sb + *size;
+
+    st_unaligned32(htob_32(n), p);
+    p += 4;
+    for(i = 0; i < n; i++)
+	p += sprintf(p, "%s", s[i]) + 1;
+
+    *size = sz;
+    return sb;
+}
+
+extern char **
+deserialize_list(u_char *p, int size, int *count)
+{
+    int n, i;
+    char **s;
+
+    if(size < 4)
+	return NULL;
+
+    n = htob_32(unaligned32(p));
+    p += 4;
+    size -= 4;
+
+    s = calloc(n, sizeof(*s));
+    i = 0;
+    while(i < n && size > 0){
+	u_char *m = memchr(p, 0, size);
+	if(!m)
+	    break;
+	s[i++] = p;
+	m++;
+	size -= m - p;
+	p = m;
+    }
+
+    *count = i;
+    return s;
+}
+
 extern u_char *
 pl_add_ser(char *name, void *event, int *size)
 {
     tcvp_pl_add_event_t *te = event;
-    int s = strlen(name) + 1 + 4 + 4;
+    int s = strlen(name) + 1 + 4;
     u_char *sb, *p;
-    int i;
 
-    for(i = 0; i < te->n; i++)
-	s += strlen(te->names[i]) + 1;
-
-    sb = malloc(s);
+    sb = serialize_list(te->n, te->names, &s);
     p = sb;
 
     p += sprintf(p, "%s", name) + 1;
-    st_unaligned32(htob_32(te->n), p);
-    p += 4;
     st_unaligned32(htob_32(te->pos), p);
-    p += 4;
-    for(i = 0; i < te->n; i++)
-	p += sprintf(p, "%s", te->names[i]) + 1;
 
     *size = s;
     return sb;
@@ -592,33 +634,23 @@ pl_add_deser(int type, u_char *event, int size)
 {
     u_char *nm = memchr(event, 0, size);
     char **names;
-    int n, i, pos;
+    int n, pos;
 
     if(!nm)
 	return NULL;
     nm++;
     size -= nm - event;
-    if(size < 8)
+    if(size < 4)
 	return NULL;
-    n = htob_32(unaligned32(nm));
-    nm += 4;
     pos = htob_32(unaligned32(nm));
     nm += 4;
-    size -= 8;
+    size -= 4;
 
-    names = calloc(n, sizeof(*names));
-    i = 0;
-    while(i < n && size > 0){
-	u_char *m = memchr(nm, 0, size);
-	if(!m)
-	    break;
-	names[i++] = nm;
-	m++;
-	size -= m - nm;
-	nm = m;
-    }
+    names = deserialize_list(nm, size, &n);
+    if(!names)
+	return NULL;
 
-    return tcvp_event_new(type, names, i, pos);
+    return tcvp_event_new(type, names, n, pos);
 }
 
 extern void
@@ -647,4 +679,36 @@ pl_content_alloc(int t, va_list args)
 	te->names[i] = strdup(n[i]);
 
     return te;
+}
+
+extern u_char *
+pl_ct_ser(char *name, void *event, int *size)
+{
+    tcvp_pl_content_event_t *te = event;
+    int s = strlen(name) + 1;
+    u_char *sb;
+
+    sb = serialize_list(te->length, te->names, &s);
+    sprintf(sb, "%s", name);
+
+    *size = s;
+    return sb;
+}
+
+extern void *
+pl_ct_deser(int type, u_char *event, int size)
+{
+    u_char *nm = memchr(event, 0, size);
+    char **names;
+    int n;
+
+    if(!nm)
+	return NULL;
+    nm++;
+    size -= nm - event;
+    names = deserialize_list(nm, size, &n);
+    if(!names)
+	return NULL;
+
+    return tcvp_event_new(type, n, names);
 }

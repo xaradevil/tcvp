@@ -25,6 +25,7 @@ TCVP {
 		event control TCVP_PL_REMOVE epl_remove
 		event control TCVP_PL_FLAGS epl_flags
 		event control TCVP_PL_QUERY epl_query
+		event control TCVP_QUERY epl_query
 		event control TCVP_PL_SEEK epl_seek
 	}
 	event TCVP_OPEN
@@ -40,7 +41,7 @@ TCVP {
 	event TCVP_PL_NEXT	NULL NULL NULL
 	event TCVP_PL_PREV	NULL NULL NULL
 	event TCVP_PL_QUERY	NULL NULL NULL
-	event TCVP_PL_CONTENT	pl_content_alloc NULL NULL
+	event TCVP_PL_CONTENT	pl_content_alloc pl_ct_ser pl_ct_deser
 	event TCVP_PL_STATE	auto
 	event TCVP_PL_SEEK	auto
 }
