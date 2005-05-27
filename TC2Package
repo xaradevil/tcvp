@@ -56,6 +56,7 @@ module src/tcvp
 module src/timer/backends/soft
 module src/timer/frontend
 module src/ui/cmdline
+module src/ui/http
 module src/ui/tcvpx
 module src/watchdog
 module src/wm/wm

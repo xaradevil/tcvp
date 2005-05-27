@@ -1,0 +1,68 @@
+body {
+  font-family: sans-serif;
+  font-size: 10pt;
+}
+
+.heading {
+  font-size: 18pt;
+  font-weight: bold;
+  position: absolute;
+  top: 0.2em;
+  left: 0.5em;
+  height: 3em;
+}
+
+.main, .control {
+  top: 3em;
+}
+
+.control {
+  position: fixed;
+  left: 1em;
+  width: 8em;
+  font-weight: bold;
+}
+
+.control a, .playlist a {
+  display: block;
+  padding: 2px;
+}
+
+a:link, a:visited {
+  color: black;
+  text-decoration: none;
+}
+
+.control a:hover, .control a.active, .playlist a:hover, .plcurrent a {
+  background: #666699;
+  color: white;
+}
+
+.main {
+  position: absolute;
+  left: 12em;
+  right: 1em;
+}
+
+.control, .box {
+  background: #d9dce9;
+  border: thin solid black;
+  padding: 1em;
+}
+
+.box {
+  margin-bottom: 1em;
+}
+
+.status table {
+  border-collapse: collapse;
+}
+
+.playlist table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.plcurrent {
+  font-weight: bold;
+}

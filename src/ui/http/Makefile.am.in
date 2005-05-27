@@ -1,0 +1,3 @@
+httpdatadir = ${pkgdatadir}/http
+http_MODINC += -DHTTP_DIR=\"${httpdatadir}\"
+dist_httpdata_DATA = src/ui/http/tcvp.css

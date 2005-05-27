@@ -1,0 +1,34 @@
+module		http
+name		"TCVP/ui/http"
+version		0.1.0
+tc2version	0.6.0
+sources		http.c
+
+import	"stream" "open"
+
+TCVP {
+	module "tcvp/ui/http" {
+		new http_new
+		init http_init
+		event status TCVP_STATE		http_state
+		event status TCVP_LOAD		http_load
+		event status TCVP_PL_CONTENT	http_pl_content
+		event status TCVP_PL_STATE	http_pl_state
+	}
+	event TCVP_PAUSE
+	event TCVP_SEEK
+	event TCVP_CLOSE
+	event TCVP_PL_STOP
+	event TCVP_PL_START
+	event TCVP_PL_NEXT
+	event TCVP_PL_PREV
+	event TCVP_PL_ADD
+	event TCVP_PL_ADDLIST
+	event TCVP_PL_REMOVE
+	event TCVP_PL_QUERY
+	event TCVP_PL_SEEK
+}
+
+option	listen iface%s="127.0.0.1" port%i=8080
+option	playlistformat%s="${artist} - ${title}"
+option	title%s="${artist} - ${title} - TCVP"
