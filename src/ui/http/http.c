@@ -348,17 +348,27 @@ static void
 http_free(void *p)
 {
     tcvp_http_t *h = p;
+    int i;
 
     h->run = 0;
     if(h->th)
 	pthread_join(h->th, NULL);
 
-    h->httpd->host = NULL;
-    httpdDestroy(h->httpd);
+    if(h->httpd){
+	h->httpd->host = NULL;
+	httpdDestroy(h->httpd);
+    }
 
     if(h->control)
 	eventq_delete(h->control);
     tcfree(h->conf);
+    tcfree(h->current);
+    if(h->titles){
+	for(i = 0; i < h->playlist->length; i++)
+	    free(h->titles[i]);
+	free(h->titles);
+    }
+    tcfree(h->playlist);
     pthread_mutex_destroy(&h->lock);
     pthread_cond_destroy(&h->cond);
 }
