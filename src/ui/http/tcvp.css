@@ -9,7 +9,7 @@ body {
   position: absolute;
   top: 0.2em;
   left: 0.5em;
-  height: 3em;
+  height: 1em;
 }
 
 .main, .control {
@@ -63,6 +63,14 @@ a:link, a:visited {
   width: 100%;
 }
 
+.playlist form {
+  margin: 0;
+}
+
 .plcurrent {
   font-weight: bold;
+}
+
+#plname {
+  width: 100%;
 }

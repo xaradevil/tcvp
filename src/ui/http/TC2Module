@@ -14,6 +14,7 @@ TCVP {
 		event status TCVP_LOAD		http_load
 		event status TCVP_PL_CONTENT	http_pl_content
 		event status TCVP_PL_STATE	http_pl_state
+		event timer  TCVP_TIMER		http_timer
 	}
 	event TCVP_PAUSE
 	event TCVP_SEEK

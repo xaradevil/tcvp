@@ -35,17 +35,6 @@
 
 extern void httpdDestroy(httpd *server);
 
-#define HTML_HEAD "\
-<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n\
-  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\
-<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\n\
-  <head>\n\
-    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\n\
-    <link rel=\"stylesheet\" href=\"/tcvp.css\" type=\"text/css\"/>\n\
-    <title>%s</title>\n\
-  </head>\n\
-  <body>\n"
-
 #define HTML_FOOT "</div>\n</body>\n</html>\n"
 
 typedef struct tcvp_http {
@@ -62,6 +51,7 @@ typedef struct tcvp_http {
     tcvp_pl_content_event_t *playlist;
     int plpos, plflags;
     char **titles;
+    uint64_t time;
 } tcvp_http_t;
 
 static const struct tcvp_http_control {
@@ -91,7 +81,21 @@ http_head(tcvp_module_t *m, char *title)
     httpd *hd = h->httpd;
     int i;
 
-    httpdPrintf(hd, HTML_HEAD, title);
+    httpdOutput(hd, "\
+<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n\
+  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\
+<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\n\
+  <head>\n\
+    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\n\
+    <link rel=\"stylesheet\" href=\"/tcvp.css\" type=\"text/css\"/>\n");
+
+    if(h->current && h->current->time && h->state == TCVP_STATE_PLAYING){
+	int d = (h->current->time - h->time) / 27000000 + 1;
+	httpdPrintf(hd, "<meta http-equiv=\"refresh\" content=\"%i\"/>\n", d);
+    }
+    httpdPrintf(hd, "<title>%s</title>\n", title);
+    httpdOutput(hd, "</head>\n");
+    httpdOutput(hd, "<body>\n");
     httpdPrintf(hd, "<div class=\"heading\">%s</div>\n", title);
     httpdOutput(hd, "<div class=\"control\">\n");
 
@@ -175,18 +179,25 @@ http_status(httpd *hd)
 
     httpdOutput(hd, "</div>\n");
 
-    if(h->playlist){
+    if(h->playlist && h->playlist->length){
 	httpdOutput(hd, "<div class=\"box playlist\">\n");
-/* 	httpdOutput(hd, "<h2>Playlist</h2>\n"); */
+	httpdOutput(hd, "<form action=\"remove\" method=\"get\">\n");
 	httpdOutput(hd, "<table>\n");
+	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plname\"/>\n");
 	for(i = 0; i < h->playlist->length; i++){
 	    char *t =
 		h->titles && h->titles[i]? h->titles[i]: h->playlist->names[i];
-	    httpdPrintf(hd,
-			"<tr%s><td><a href=\"jump?p=%i\">%s</a></td></tr>\n",
-			i == h->plpos? " class=\"plcurrent\"": "", i, t);
+	    httpdPrintf(hd, "<tr%s>", i==h->plpos? " class=\"plcurrent\"": "");
+	    httpdPrintf(hd, "<td>"
+			"<input type=\"checkbox\" name=\"p\" value=\"%i\"/>"
+			"</td>", i);
+	    httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%s</a></td>", i, t);
+	    httpdOutput(hd, "</tr>\n");
 	}
-	httpdOutput(hd, "</table></div>\n");
+	httpdOutput(hd, "</table>\n");
+	httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
+		    "</div>\n");
+	httpdOutput(hd, "</form></div>\n");
     }
 
     pthread_mutex_unlock(&h->lock);
@@ -231,6 +242,22 @@ http_jump(httpd *hd)
 	int p = strtol(v->value, NULL, 0);
 	tcvp_event_send(h->control, TCVP_PL_SEEK, p, TCVP_PL_SEEK_ABS);
 	h->update = 4;
+    }
+
+    http_status(hd);
+}
+
+static void
+http_remove(httpd *hd)
+{
+    tcvp_module_t *m = (tcvp_module_t *) hd->host;
+    tcvp_http_t *h = m->private;
+    httpVar *v = httpdGetVariableByName(hd, "p");
+
+    for(; v; v = v->nextValue){
+	int p = strtol(v->value, NULL, 0);
+	tcvp_event_send(h->control, TCVP_PL_REMOVE, p, 1);
+	h->update += 4;
     }
 
     http_status(hd);
@@ -344,6 +371,15 @@ http_pl_state(tcvp_module_t *m, tcvp_event_t *te)
     return 0;
 }
 
+extern int
+http_timer(tcvp_module_t *m, tcvp_event_t *te)
+{
+    tcvp_timer_event_t *t = (tcvp_timer_event_t *) te;
+    tcvp_http_t *h = m->private;
+    h->time = t->time;
+    return 0;
+}
+
 static void
 http_free(void *p)
 {
@@ -398,6 +434,7 @@ http_init(tcvp_module_t *m)
     http_reg(next);
     http_reg(prev);
     http_reg(jump);
+    http_reg(remove);
 
     free(hd->host);
     hd->host = (char *) m;
