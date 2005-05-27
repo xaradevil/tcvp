@@ -1,0 +1,6 @@
+TCVP {
+    event TCVP_PL_SEEK offset%i how%c
+}
+include
+#define TCVP_PL_SEEK_ABS  0
+#define TCVP_PL_SEEK_REL  1

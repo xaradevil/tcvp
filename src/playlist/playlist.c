@@ -449,6 +449,27 @@ epl_query(tcvp_module_t *p, tcvp_event_t *e)
     return 0;
 }
 
+extern int
+epl_seek(tcvp_module_t *p, tcvp_event_t *e)
+{
+    tcvp_playlist_t *tpl = p->private;
+    tcvp_pl_seek_event_t *se = (tcvp_pl_seek_event_t *) e;
+    int pos = -1;
+
+    if(se->how == TCVP_PL_SEEK_ABS)
+	pos = se->offset;
+    else if(se->how == TCVP_PL_SEEK_REL)
+	pos = tpl->cur + se->offset;
+
+    if(pos < 0 || pos >= tpl->nf)
+	return 0;
+
+    tpl->cur = pos;
+    pl_next(tpl, 0);
+
+    return 0;
+}
+
 static void
 pl_free(void *p)
 {
