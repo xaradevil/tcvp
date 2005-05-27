@@ -53,7 +53,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     uint32_t srate, brate;
     int data_size = 0;
     int data = 0;
-    u_char guid[16];
+    u_char guid[16], *gp = NULL;
     u_char tags[5];
     uint64_t pos;
 
@@ -89,6 +89,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 			url_getu16l(u, &s);
 			url_getu32l(u, &cm);
 			u->read(guid, 1, 16, u);
+			gp = guid;
 			extrasize -= 22;
 		    }
 		    extra = malloc(extrasize);
@@ -117,7 +118,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     if(!data)
 	return NULL;
 
-    codec = aid2codec(fmt, bits, guid);
+    codec = aid2codec(fmt, bits, gp);
     if(!codec)
 	return NULL;
     brate *= 8;
@@ -253,7 +254,8 @@ aid2codec(int id, int bits, const char *guid)
 	return bits == 8? "audio/pcm-u8": "audio/pcm-s16le";
 
     for(i = 0; acodec_ids[i].codec; i++)
-	if(id == acodec_ids[i].id || !memcmp(guid, acodec_ids[i].guid, 16))
+	if(id == acodec_ids[i].id ||
+	   (guid && !memcmp(guid, acodec_ids[i].guid, 16)))
 	    break;
 
     return acodec_ids[i].codec;
