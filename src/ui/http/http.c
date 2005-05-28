@@ -104,6 +104,8 @@ http_head(tcvp_module_t *m, char *title)
 
     for(i = 0; controls[i].label; i++){
 	char *class, *label;
+	if(i == 5)
+	    httpdOutput(hd, "<hr/>");
 	if((i <= 4 && h->state == controls[i].activestate) ||
 	   (i > 4 && h->plflags & controls[i].activestate)){
 	    class = "active";

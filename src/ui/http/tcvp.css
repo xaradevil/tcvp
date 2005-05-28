@@ -17,7 +17,7 @@ body {
 }
 
 .control {
-  position: fixed;
+  position: absolute;
   left: 1em;
   width: 8em;
   font-weight: bold;
@@ -73,4 +73,11 @@ a:link, a:visited {
 
 #plname {
   width: 100%;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  background-color: black;
+  border: none;
 }
