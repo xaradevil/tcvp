@@ -54,7 +54,7 @@ typedef struct tcvp_playlist {
 static int
 pl_send_state(tcvp_playlist_t *tpl)
 {
-    int cur = 0;
+    int cur = -1;
     if(tpl->cur >= 0 && tpl->cur < tpl->nf)
 	cur = tpl->order[tpl->cur];
     tcvp_event_send(tpl->ss, TCVP_PL_STATE, cur, tpl->state, tpl->flags);
@@ -296,16 +296,22 @@ pl_next(tcvp_playlist_t *tpl, int dir)
 
     pthread_mutex_unlock(&tpl->lock);
 
-    if(tpl->state == PLAYING){
-	tpl->state = STOPPED;
-	pl_start(tpl);
-    } else if(tpl->cur < tpl->nf){
-	muxed_stream_t *ms = stream_open(tpl->files[tpl->order[tpl->cur]],
-					 tpl->conf, NULL);
-	if(ms){
-	    tcvp_event_send(tpl->ss, TCVP_LOAD, ms);
-	    tcfree(ms);
+    if(tpl->cur < tpl->nf){
+	if(tpl->state == PLAYING){
+	    tpl->state = STOPPED;
+	    pl_start(tpl);
+	} else {
+	    muxed_stream_t *ms = stream_open(tpl->files[tpl->order[tpl->cur]],
+					     tpl->conf, NULL);
+	    if(ms){
+		tcvp_event_send(tpl->ss, TCVP_LOAD, ms);
+		tcfree(ms);
+	    }
 	}
+    }
+
+    if(tpl->state == END){
+	tcvp_event_send(tpl->sc, TCVP_CLOSE);
     }
 
     pl_send_state(tpl);
@@ -460,7 +466,7 @@ epl_seek(tcvp_module_t *p, tcvp_event_t *e)
 {
     tcvp_playlist_t *tpl = p->private;
     tcvp_pl_seek_event_t *se = (tcvp_pl_seek_event_t *) e;
-    int pos = -1;
+    int pos = -1, i;
 
     if(se->how == TCVP_PL_SEEK_ABS)
 	pos = se->offset;
@@ -469,6 +475,15 @@ epl_seek(tcvp_module_t *p, tcvp_event_t *e)
 
     if(pos < 0 || pos >= tpl->nf)
 	return 0;
+
+    if(se->how == TCVP_PL_SEEK_ABS && tpl->flags & TCVP_PL_FLAG_SHUFFLE){
+	for(i = 0; i < tpl->nf; i++){
+	    if(tpl->order[i] == pos){
+		pos = i;
+		break;
+	    }
+	}
+    }
 
     tpl->cur = pos;
     pl_next(tpl, 0);
