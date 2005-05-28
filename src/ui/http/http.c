@@ -63,8 +63,11 @@ static const struct tcvp_http_control {
     { "Play", "play", TCVP_STATE_PLAYING },
     { "Stop", "stop", TCVP_STATE_END },
     { "Pause", "pause", TCVP_STATE_STOPPED, "Resume" },
-    { "Next", "next", -1 },
     { "Previous", "prev", -1 },
+    { "Next", "next", -1 },
+    { "Shuffle", "shuffle", TCVP_PL_FLAG_SHUFFLE },
+    { "Repeat", "repeat", TCVP_PL_FLAG_REPEAT },
+    { "Loop", "loop", TCVP_PL_FLAG_LREPEAT },
     { }
 };
 
@@ -87,7 +90,7 @@ http_head(tcvp_module_t *m, char *title)
 <html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\n\
   <head>\n\
     <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\n\
-    <link rel=\"stylesheet\" href=\"/tcvp.css\" type=\"text/css\"/>\n");
+    <link rel=\"stylesheet\" href=\"tcvp.css\" type=\"text/css\"/>\n");
 
     if(h->current && h->current->time && h->state == TCVP_STATE_PLAYING){
 	int d = (h->current->time - h->time) / 27000000 + 1;
@@ -101,7 +104,8 @@ http_head(tcvp_module_t *m, char *title)
 
     for(i = 0; controls[i].label; i++){
 	char *class, *label;
-	if(h->state == controls[i].activestate){
+	if((i <= 4 && h->state == controls[i].activestate) ||
+	   (i > 4 && h->plflags & controls[i].activestate)){
 	    class = "active";
 	    label = controls[i].activelabel?
 		controls[i].activelabel: controls[i].label;
@@ -207,21 +211,28 @@ http_status(httpd *hd)
     httpdOutput(hd, HTML_FOOT);
 }
 
-#define http_send(name, event, up)			\
+#define http_send(name, up, ...)			\
 static void						\
 http_##name(httpd *hd)					\
 {							\
     tcvp_module_t *m = (tcvp_module_t *) hd->host;	\
     tcvp_http_t *h = m->private;			\
-    tcvp_event_send(h->control, event);			\
+    tcvp_event_send(h->control, __VA_ARGS__);		\
     h->update = up;					\
     http_status(hd);					\
 }
 
-http_send(play, TCVP_PL_START, 2)
-http_send(next, TCVP_PL_NEXT, 4)
-http_send(prev, TCVP_PL_PREV, 4)
-http_send(pause, TCVP_PAUSE, 1)
+http_send(play, 2, TCVP_PL_START)
+http_send(next, 4, TCVP_PL_NEXT)
+http_send(prev, 4, TCVP_PL_PREV)
+http_send(pause, 1, TCVP_PAUSE)
+
+#define http_plflag(name, flag)					\
+    http_send(name, 1, TCVP_PL_FLAGS, flag, TCVP_PL_FLAGS_XOR)
+
+http_plflag(shuffle, TCVP_PL_FLAG_SHUFFLE)
+http_plflag(repeat, TCVP_PL_FLAG_REPEAT)
+http_plflag(loop, TCVP_PL_FLAG_LREPEAT)
 
 static void
 http_stop(httpd *hd)
@@ -279,6 +290,8 @@ http_remove(httpd *hd)
 	h->update += 4;
 	i -= 2;
     }
+
+    free(r);
 
   end:
     pthread_mutex_unlock(&h->lock);
@@ -456,6 +469,9 @@ http_init(tcvp_module_t *m)
     http_reg(prev);
     http_reg(jump);
     http_reg(remove);
+    http_reg(shuffle);
+    http_reg(repeat);
+    http_reg(loop);
 
     free(hd->host);
     hd->host = (char *) m;

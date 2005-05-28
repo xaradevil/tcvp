@@ -28,6 +28,7 @@ TCVP {
 	event TCVP_PL_REMOVE
 	event TCVP_PL_QUERY
 	event TCVP_PL_SEEK
+	event TCVP_PL_FLAGS
 }
 
 option	listen iface%s="127.0.0.1" port%i=8080
