@@ -34,3 +34,4 @@ TCVP {
 option	listen iface%s="127.0.0.1" port%i=8080
 option	playlistformat%s="${artist} - ${title}"
 option	title%s="${artist} - ${title} - TCVP"
+option	refresh%i=60

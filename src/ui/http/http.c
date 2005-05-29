@@ -82,6 +82,7 @@ http_head(tcvp_module_t *m, char *title)
 {
     tcvp_http_t *h = m->private;
     httpd *hd = h->httpd;
+    int refresh = tcvp_ui_http_conf_refresh;
     int i;
 
     httpdOutput(hd, "\
@@ -94,8 +95,12 @@ http_head(tcvp_module_t *m, char *title)
 
     if(h->current && h->current->time && h->state == TCVP_STATE_PLAYING){
 	int d = (h->current->time - h->time) / 27000000 + 1;
-	httpdPrintf(hd, "<meta http-equiv=\"refresh\" content=\"%i\"/>\n", d);
+	if(d < refresh)
+	    refresh = d;
     }
+    httpdPrintf(hd, "<meta http-equiv=\"refresh\" content=\"%i\"/>\n",
+		refresh);
+
     httpdPrintf(hd, "<title>%s</title>\n", title);
     httpdOutput(hd, "</head>\n");
     httpdOutput(hd, "<body>\n");
@@ -342,6 +347,17 @@ http_state(tcvp_module_t *m, tcvp_event_t *te)
     tcvp_http_t *h = m->private;
 
     h->state = se->state;
+    if(se->state == TCVP_STATE_END || se->state == TCVP_STATE_ERROR){
+	pthread_mutex_lock(&h->lock);
+	tcfree(h->current);
+	if(h->playlist && h->plpos < h->playlist->length && h->plpos >= 0)
+	    h->current = stream_open(h->playlist->names[h->plpos],
+				     h->conf, NULL);
+	else
+	    h->current = NULL;
+	pthread_mutex_unlock(&h->lock);
+    }
+
     http_update(m);
     return 0;
 }
@@ -389,6 +405,12 @@ http_pl_content(tcvp_module_t *m, tcvp_event_t *te)
 	    tcfree(ms);
 	}
     }
+    tcfree(h->current);
+    if(h->playlist && h->plpos < h->playlist->length && h->plpos >= 0)
+	h->current = stream_open(h->playlist->names[h->plpos],
+				 h->conf, NULL);
+    else
+	h->current = NULL;
     pthread_mutex_unlock(&h->lock);
 
     http_update(m);
