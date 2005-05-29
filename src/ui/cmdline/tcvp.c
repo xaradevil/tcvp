@@ -174,7 +174,7 @@ tcl_event(void *p)
 	if(te->type == TCVP_STATE){
 	    switch(te->state.state){
 	    case TCVP_STATE_ERROR:
-		printf("Error opening file.\n");
+		tc2_print("TCVP", TC2_PRINT_ERROR, "Error opening file.\n");
 		break;
 	    case TCVP_STATE_END:
 		if(!prl)

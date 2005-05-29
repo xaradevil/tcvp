@@ -485,7 +485,7 @@ t_open(tcvp_module_t *pl, int nn, char **names)
     return 0;
 
 err:
-    printf("No supported streams found.\n");
+    tc2_print("TCVP", TC2_PRINT_ERROR, "No supported streams found.\n");
     for(i = 0; i < tp->nstreams; i++)
 	tcfree(tp->streams[i]);
     free(tp->streams);
