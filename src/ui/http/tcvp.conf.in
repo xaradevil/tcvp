@@ -1,0 +1,7 @@
+# -*- tcconf -*-
+info 'Title'		'${title:-${file:r,.*/|\.[^.]*$,}}'
+info 'Artist'		'${artist}'
+info 'Album'		'${album}'
+info 'Track'		'${track}'
+info 'Genre'		'${genre}'
+info 'Year'		'${year}'

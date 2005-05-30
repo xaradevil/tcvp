@@ -74,7 +74,15 @@ static const struct tcvp_http_control {
 static char *
 lookup_attr(char *n, void *p)
 {
-    return tcattr_get(p, n);
+    char *v = tcattr_get(p, n);
+    return v? strdup(v): NULL;
+}
+
+static char *
+exp_string(tcvp_http_t *h, muxed_stream_t *ms, char *s)
+{
+    return tcstrexp(s, "{", "}", ':', lookup_attr, ms,
+		    TCSTREXP_FREE | TCSTREXP_ESCAPE);
 }
 
 static void
@@ -136,12 +144,6 @@ http_status(httpd *hd)
     char *title = NULL;
     int i;
 
-#define printattr(l, a) do {						\
-    char *v = tcattr_get(h->current, a);				\
-    if(v)								\
-	httpdPrintf(hd, "<tr><td>" l "</td><td>%s</td></tr>\n", v);	\
-} while(0)
-
     httpdAddHeader(hd, "Cache-Control: must-revalidate");
     httpdAddHeader(hd, "Pragma: no-cache");
 
@@ -168,8 +170,7 @@ http_status(httpd *hd)
     }
 
     if(h->current)
-	title = tcstrexp(tcvp_ui_http_conf_title, "{", "}", ':',
-			 lookup_attr, h->current, 0);
+	title = exp_string(h, h->current, tcvp_ui_http_conf_title);
     else
 	title = strdup("TCVP");
     http_head(m, title);
@@ -179,10 +180,14 @@ http_status(httpd *hd)
 
     if(h->current){
 	httpdOutput(hd, "<table>\n");
-	printattr("Title", "title");
-	printattr("Artist", "artist");
-	printattr("Album", "album");
-	printattr("Track", "track");
+	for(i = 0; i < tcvp_ui_http_conf_info_count; i++){
+	    char *l = tcvp_ui_http_conf_info[i].label;
+	    char *v =
+		exp_string(h, h->current, tcvp_ui_http_conf_info[i].value);
+	    if(l[0] && v[0])
+		httpdPrintf(hd, "<tr><td>%s</td><td>%s</td></tr>\n", l, v);
+	    free(v);
+	}
 	httpdOutput(hd, "</table>\n");
     } else {
 	httpdOutput(hd, "No file\n");
@@ -398,10 +403,8 @@ http_pl_content(tcvp_module_t *m, tcvp_event_t *te)
 	for(i = 0; i < h->playlist->length; i++){
 	    muxed_stream_t *ms =
 		stream_open(h->playlist->names[i], h->conf, NULL);
-	    if(ms){
-		h->titles[i] = tcstrexp(playlistformat, "{", "}", ':',
-					lookup_attr, ms, 0);
-	    }
+	    if(ms)
+		h->titles[i] = exp_string(h, ms, playlistformat);
 	    tcfree(ms);
 	}
     }
