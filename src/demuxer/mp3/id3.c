@@ -396,7 +396,8 @@ id3v1_tag(url_t *f, muxed_stream_t *ms)
 	id3v1_setattr(ms, "year", buf + 93, 4);
 	id3v1_setattr(ms, "comment", buf + 97, 29);
 
-	if(trk > 0 && trk < 100 && !tcattr_get(ms, "track")){
+	if(trk > 0 && trk < 100 && !(trk == 32 && buf[125] == 32) &&
+	   !tcattr_get(ms, "track")){
 	    char *track = malloc(4);
 	    snprintf(track, 4, "%i", trk);
 	    tcattr_set(ms, "track", track, NULL, free);
