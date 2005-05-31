@@ -35,8 +35,6 @@
 
 extern void httpdDestroy(httpd *server);
 
-#define HTML_FOOT "</div>\n</body>\n</html>\n"
-
 typedef struct tcvp_http {
     httpd *httpd;
     eventq_t control;
@@ -71,6 +69,8 @@ static const struct tcvp_http_control {
     { }
 };
 
+#define playlistformat tcvp_ui_http_conf_playlistformat
+
 static char *
 lookup_attr(char *n, void *p)
 {
@@ -83,6 +83,45 @@ exp_string(tcvp_http_t *h, muxed_stream_t *ms, char *s)
 {
     return tcstrexp(s, "{", "}", ':', lookup_attr, ms,
 		    TCSTREXP_FREE | TCSTREXP_ESCAPE);
+}
+
+static int
+get_titles(tcvp_http_t *h, int start, int n)
+{
+    if(playlistformat && h->playlist){
+	int i, end = start + n;
+	if(end > h->playlist->length)
+	    end = h->playlist->length;
+	for(i = start; i < end; i++){
+	    muxed_stream_t *ms;
+	    if(h->titles[i])
+		continue;
+	    ms = stream_open(h->playlist->names[i], h->conf, NULL);
+	    if(ms)
+		h->titles[i] = exp_string(h, ms, playlistformat);
+	    tcfree(ms);
+	}
+    }
+
+    return 0;
+}
+
+static int
+http_redirect(tcvp_http_t *h, char *dest)
+{
+    httpd *hd = h->httpd;
+
+    if(strcmp(httpdRequestPath(hd), dest)){
+	char buf[1024];
+	snprintf(buf, sizeof(buf), "Location: %s", dest);
+	httpdSetResponse(hd, "302 Found");
+	httpdAddHeader(hd, buf);
+	httpdPrintf(hd, "<html><body><a href=\"%s\">%s</a></body></html>",
+		    buf, buf);
+	return 1;
+    }
+
+    return 0;
 }
 
 static void
@@ -137,22 +176,72 @@ http_head(tcvp_module_t *m, char *title)
 }
 
 static void
+http_print_info(tcvp_http_t *h)
+{
+    httpd *hd = h->httpd;
+    int i;
+
+    httpdOutput(hd, "<div class=\"box status\">\n");
+
+    if(h->current){
+	httpdOutput(hd, "<table>\n");
+	for(i = 0; i < tcvp_ui_http_conf_info_count; i++){
+	    char *l = tcvp_ui_http_conf_info[i].label;
+	    char *v =
+		exp_string(h, h->current, tcvp_ui_http_conf_info[i].value);
+	    if(l[0] && v[0])
+		httpdPrintf(hd, "<tr><td>%s</td><td>%s</td></tr>\n", l, v);
+	    free(v);
+	}
+	httpdOutput(hd, "</table>\n");
+    } else {
+	httpdOutput(hd, "No file\n");
+    }
+
+    httpdOutput(hd, "</div>\n");
+}
+
+static void
+http_print_playlist(tcvp_http_t *h, int start)
+{
+    httpd *hd = h->httpd;
+    int i;
+
+    httpdOutput(hd, "<div class=\"box playlist\">\n");
+    if(h->playlist && h->playlist->length){
+	get_titles(h, 0, h->playlist->length);
+	httpdOutput(hd, "<form action=\"remove\" method=\"get\">\n");
+	httpdOutput(hd, "<table>\n");
+	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plname\"/>\n");
+	for(i = 0; i < h->playlist->length; i++){
+	    char *t =
+		h->titles && h->titles[i]? h->titles[i]: h->playlist->names[i];
+	    httpdPrintf(hd, "<tr%s>", i==h->plpos? " class=\"plcurrent\"": "");
+	    httpdPrintf(hd, "<td>"
+			"<input type=\"checkbox\" name=\"p\" value=\"%i\"/>"
+			"</td>", i);
+	    httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%s</a></td>", i, t);
+	    httpdOutput(hd, "</tr>\n");
+	}
+	httpdOutput(hd, "</table>\n");
+	httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
+		    "</div>\n");
+	httpdOutput(hd, "</form>\n");
+    } else {
+	httpdOutput(hd, "Empty playlist\n");
+    }
+    httpdOutput(hd, "</div>\n");
+}
+
+static void
 http_status(httpd *hd)
 {
     tcvp_module_t *m = (tcvp_module_t *) hd->host;
     tcvp_http_t *h = m->private;
     char *title = NULL;
-    int i;
 
-    httpdAddHeader(hd, "Cache-Control: must-revalidate");
-    httpdAddHeader(hd, "Pragma: no-cache");
-
-    if(strcmp(httpdRequestPath(hd), "/")){
-	httpdSetResponse(hd, "302 Found");
-	httpdAddHeader(hd, "Location: /");
-	httpdOutput(hd, "<html><body>302</body></html>");
+    if(http_redirect(h, "/"))
 	return;
-    }
 
     pthread_mutex_lock(&h->lock);
     while(h->update > 0){
@@ -176,51 +265,11 @@ http_status(httpd *hd)
     http_head(m, title);
     free(title);
 
-    httpdOutput(hd, "<div class=\"box status\">\n");
-
-    if(h->current){
-	httpdOutput(hd, "<table>\n");
-	for(i = 0; i < tcvp_ui_http_conf_info_count; i++){
-	    char *l = tcvp_ui_http_conf_info[i].label;
-	    char *v =
-		exp_string(h, h->current, tcvp_ui_http_conf_info[i].value);
-	    if(l[0] && v[0])
-		httpdPrintf(hd, "<tr><td>%s</td><td>%s</td></tr>\n", l, v);
-	    free(v);
-	}
-	httpdOutput(hd, "</table>\n");
-    } else {
-	httpdOutput(hd, "No file\n");
-    }
-
-    httpdOutput(hd, "</div>\n");
-
-    httpdOutput(hd, "<div class=\"box playlist\">\n");
-    if(h->playlist && h->playlist->length){
-	httpdOutput(hd, "<form action=\"remove\" method=\"get\">\n");
-	httpdOutput(hd, "<table>\n");
-	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plname\"/>\n");
-	for(i = 0; i < h->playlist->length; i++){
-	    char *t =
-		h->titles && h->titles[i]? h->titles[i]: h->playlist->names[i];
-	    httpdPrintf(hd, "<tr%s>", i==h->plpos? " class=\"plcurrent\"": "");
-	    httpdPrintf(hd, "<td>"
-			"<input type=\"checkbox\" name=\"p\" value=\"%i\"/>"
-			"</td>", i);
-	    httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%s</a></td>", i, t);
-	    httpdOutput(hd, "</tr>\n");
-	}
-	httpdOutput(hd, "</table>\n");
-	httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
-		    "</div>\n");
-	httpdOutput(hd, "</form>\n");
-    } else {
-	httpdOutput(hd, "Empty playlist\n");
-    }
-    httpdOutput(hd, "</div>\n");
+    http_print_info(h);
+    http_print_playlist(h, 0);
 
     pthread_mutex_unlock(&h->lock);
-    httpdOutput(hd, HTML_FOOT);
+    httpdOutput(hd, "</div>\n</body>\n</html>\n");
 }
 
 #define http_send(name, up, ...)			\
@@ -231,7 +280,7 @@ http_##name(httpd *hd)					\
     tcvp_http_t *h = m->private;			\
     tcvp_event_send(h->control, __VA_ARGS__);		\
     h->update = up;					\
-    http_status(hd);					\
+    http_redirect(h, "/");				\
 }
 
 http_send(play, 2, TCVP_PL_START)
@@ -254,7 +303,7 @@ http_stop(httpd *hd)
     tcvp_event_send(h->control, TCVP_PL_STOP);
     tcvp_event_send(h->control, TCVP_CLOSE);
     h->update = 2;
-    http_status(hd);
+    http_redirect(h, "/");
 }
 
 static void
@@ -270,7 +319,7 @@ http_jump(httpd *hd)
 	h->update = 4;
     }
 
-    http_status(hd);
+    http_redirect(h, "/");
 }
 
 static void
@@ -307,7 +356,7 @@ http_remove(httpd *hd)
 
   end:
     pthread_mutex_unlock(&h->lock);
-    http_status(hd);
+    http_redirect(h, "/");
 }
 
 static void *
@@ -328,6 +377,9 @@ http_run(void *p)
 
 	if(httpdReadRequest(hd) < 0)
 	    continue;
+
+	httpdAddHeader(hd, "Cache-Control: must-revalidate");
+	httpdAddHeader(hd, "Pragma: no-cache");
 	httpdProcessRequest(hd);
 	httpdEndRequest(hd);
     }
@@ -382,8 +434,6 @@ http_load(tcvp_module_t *m, tcvp_event_t *te)
     return 0;
 }
 
-#define playlistformat tcvp_ui_http_conf_playlistformat
-
 extern int
 http_pl_content(tcvp_module_t *m, tcvp_event_t *te)
 {
@@ -398,16 +448,8 @@ http_pl_content(tcvp_module_t *m, tcvp_event_t *te)
     }
     tcfree(h->playlist);
     h->playlist = tcref(te);
-    if(playlistformat){
+    if(playlistformat)
 	h->titles = calloc(h->playlist->length, sizeof(*h->titles));
-	for(i = 0; i < h->playlist->length; i++){
-	    muxed_stream_t *ms =
-		stream_open(h->playlist->names[i], h->conf, NULL);
-	    if(ms)
-		h->titles[i] = exp_string(h, ms, playlistformat);
-	    tcfree(ms);
-	}
-    }
     tcfree(h->current);
     if(h->playlist && h->plpos < h->playlist->length && h->plpos >= 0)
 	h->current = stream_open(h->playlist->names[h->plpos],
