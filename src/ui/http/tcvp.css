@@ -33,7 +33,9 @@ a:link, a:visited {
   text-decoration: none;
 }
 
-.control a:hover, .control a.active, .playlist a:hover, .plcurrent a {
+a:hover, a.active, .plcurrent, .plcurrent a,
+table.playlist tr:hover, table.playlist tr:hover a,
+table.plpage td:hover, table.plpage td:hover a {
   background: #666699;
   color: white;
 }
@@ -54,12 +56,24 @@ a:link, a:visited {
   margin-bottom: 1em;
 }
 
-.status table {
+table {
   border-collapse: collapse;
 }
 
-.playlist table {
-  border-collapse: collapse;
+div.playlist {
+  padding: 0 1em;
+}
+
+.playlist div {
+  margin: 1em 0;
+}
+
+table.plpage td {
+  width: 5em;
+  text-align: center;
+}
+
+table.playlist {
   width: 100%;
 }
 

@@ -70,6 +70,9 @@ static const struct tcvp_http_control {
 };
 
 #define playlistformat tcvp_ui_http_conf_playlistformat
+#define playlistpage tcvp_ui_http_conf_playlistpage
+
+#define min(a,b) ((a)<(b)?(a):(b))
 
 static char *
 lookup_attr(char *n, void *p)
@@ -89,9 +92,7 @@ static int
 get_titles(tcvp_http_t *h, int start, int n)
 {
     if(playlistformat && h->playlist){
-	int i, end = start + n;
-	if(end > h->playlist->length)
-	    end = h->playlist->length;
+	int i, end = min(start + n, h->playlist->length);
 	for(i = start; i < end; i++){
 	    muxed_stream_t *ms;
 	    if(h->titles[i])
@@ -110,18 +111,17 @@ static int
 http_redirect(tcvp_http_t *h, char *dest)
 {
     httpd *hd = h->httpd;
+    char buf[1024];
 
-    if(strcmp(httpdRequestPath(hd), dest)){
-	char buf[1024];
-	snprintf(buf, sizeof(buf), "Location: %s", dest);
-	httpdSetResponse(hd, "302 Found");
-	httpdAddHeader(hd, buf);
-	httpdPrintf(hd, "<html><body><a href=\"%s\">%s</a></body></html>",
-		    buf, buf);
-	return 1;
-    }
+    if(!strcmp(httpdRequestPath(hd), dest))
+	return 0;
 
-    return 0;
+    snprintf(buf, sizeof(buf), "Location: %s", dest);
+    httpdSetResponse(hd, "302 Found");
+    httpdAddHeader(hd, buf);
+    httpdPrintf(hd, "<html><body><a href=\"%s\">%s</a></body></html>",
+		buf, buf);
+    return 1;
 }
 
 static void
@@ -202,24 +202,47 @@ http_print_info(tcvp_http_t *h)
 }
 
 static void
-http_print_playlist(tcvp_http_t *h, int start)
+http_print_plpages(tcvp_http_t *h)
 {
     httpd *hd = h->httpd;
     int i;
 
+    httpdOutput(hd, "<div><table class=\"plpage\"><tr>");
+    for(i = 0; i < h->playlist->length; i += playlistpage){
+	int e = min(i + playlistpage, h->playlist->length);
+	char *class = h->plpos >= i && h->plpos < e? "plcurrent": "";
+	httpdPrintf(hd, "<td class=\"%s\"><a href=\"?ps=%i\">%i - %i</a></td>",
+		    class, i, i + 1, e);
+    }
+    httpdOutput(hd, "</tr></table></div>\n");
+}
+
+static void
+http_print_playlist(tcvp_http_t *h, int start)
+{
+    httpd *hd = h->httpd;
+    int end, i;
+
     httpdOutput(hd, "<div class=\"box playlist\">\n");
     if(h->playlist && h->playlist->length){
-	get_titles(h, 0, h->playlist->length);
+	start = min(start, h->playlist->length - playlistpage);
+	end = min(start + playlistpage, h->playlist->length);
+	get_titles(h, start, playlistpage);
+	if(h->playlist->length > playlistpage)
+	    http_print_plpages(h);
 	httpdOutput(hd, "<form action=\"remove\" method=\"get\">\n");
-	httpdOutput(hd, "<table>\n");
-	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plname\"/>\n");
-	for(i = 0; i < h->playlist->length; i++){
+	httpdOutput(hd, "<table class=\"playlist\">\n");
+	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plnum\"/>"
+		    "<col id=\"plname\"/>\n");
+	for(i = start; i < end; i++){
 	    char *t =
 		h->titles && h->titles[i]? h->titles[i]: h->playlist->names[i];
-	    httpdPrintf(hd, "<tr%s>", i==h->plpos? " class=\"plcurrent\"": "");
+	    char *class = i == h->plpos? "plcurrent" : "";
+	    httpdPrintf(hd, "<tr class=\"%s\">", class);
 	    httpdPrintf(hd, "<td>"
 			"<input type=\"checkbox\" name=\"p\" value=\"%i\"/>"
 			"</td>", i);
+	    httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%i</a></td>", i, i + 1);
 	    httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%s</a></td>", i, t);
 	    httpdOutput(hd, "</tr>\n");
 	}
@@ -227,6 +250,8 @@ http_print_playlist(tcvp_http_t *h, int start)
 	httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
 		    "</div>\n");
 	httpdOutput(hd, "</form>\n");
+	if(h->playlist->length > playlistpage)
+	    http_print_plpages(h);
     } else {
 	httpdOutput(hd, "Empty playlist\n");
     }
@@ -239,6 +264,16 @@ http_status(httpd *hd)
     tcvp_module_t *m = (tcvp_module_t *) hd->host;
     tcvp_http_t *h = m->private;
     char *title = NULL;
+    httpVar *ps;
+    int plstart = 0;
+
+    ps = httpdGetVariableByName(hd, "ps");
+    if(ps)
+	httpdSetCookie(hd, "s", ps->value);
+    else
+	ps = httpdGetVariableByName(hd, "s");
+    if(ps)
+	plstart = strtol(ps->value, NULL, 10);
 
     if(http_redirect(h, "/"))
 	return;
@@ -266,7 +301,7 @@ http_status(httpd *hd)
     free(title);
 
     http_print_info(h);
-    http_print_playlist(h, 0);
+    http_print_playlist(h, plstart);
 
     pthread_mutex_unlock(&h->lock);
     httpdOutput(hd, "</div>\n</body>\n</html>\n");
