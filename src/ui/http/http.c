@@ -211,8 +211,8 @@ http_print_plpages(tcvp_http_t *h)
     for(i = 0; i < h->playlist->length; i += playlistpage){
 	int e = min(i + playlistpage, h->playlist->length);
 	char *class = h->plpos >= i && h->plpos < e? "plcurrent": "";
-	httpdPrintf(hd, "<td class=\"%s\"><a href=\"?ps=%i\">%i - %i</a></td>",
-		    class, i, i + 1, e);
+	httpdPrintf(hd, "<td class=\"%s\"><a href=\"page?ps=%i\">%i - %i</a>"
+		    "</td>", class, i, i + 1, e);
     }
     httpdOutput(hd, "</tr></table></div>\n");
 }
@@ -225,11 +225,11 @@ http_print_playlist(tcvp_http_t *h, int start)
 
     httpdOutput(hd, "<div class=\"box playlist\">\n");
     if(h->playlist && h->playlist->length){
-	start = min(start, h->playlist->length - playlistpage);
 	end = min(start + playlistpage, h->playlist->length);
 	get_titles(h, start, playlistpage);
 	if(h->playlist->length > playlistpage)
 	    http_print_plpages(h);
+	httpdOutput(hd, "<div>\n");
 	httpdOutput(hd, "<form action=\"remove\" method=\"get\">\n");
 	httpdOutput(hd, "<table class=\"playlist\">\n");
 	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plnum\"/>"
@@ -249,11 +249,11 @@ http_print_playlist(tcvp_http_t *h, int start)
 	httpdOutput(hd, "</table>\n");
 	httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
 		    "</div>\n");
-	httpdOutput(hd, "</form>\n");
+	httpdOutput(hd, "</form>\n</div>\n");
 	if(h->playlist->length > playlistpage)
 	    http_print_plpages(h);
     } else {
-	httpdOutput(hd, "Empty playlist\n");
+	httpdOutput(hd, "<div>Empty playlist</div>\n");
     }
     httpdOutput(hd, "</div>\n");
 }
@@ -267,16 +267,13 @@ http_status(httpd *hd)
     httpVar *ps;
     int plstart = 0;
 
-    ps = httpdGetVariableByName(hd, "ps");
-    if(ps)
-	httpdSetCookie(hd, "s", ps->value);
-    else
-	ps = httpdGetVariableByName(hd, "s");
+    if(http_redirect(h, "/"))
+	return;
+
+    ps = httpdGetVariableByName(hd, "s");
     if(ps)
 	plstart = strtol(ps->value, NULL, 10);
 
-    if(http_redirect(h, "/"))
-	return;
 
     pthread_mutex_lock(&h->lock);
     while(h->update > 0){
@@ -292,6 +289,9 @@ http_status(httpd *hd)
 	if(pthread_cond_timedwait(&h->cond, &h->lock, &ts))
 	    break;
     }
+
+    if(!h->playlist || plstart >= h->playlist->length)
+	plstart = 0;
 
     if(h->current)
 	title = exp_string(h, h->current, tcvp_ui_http_conf_title);
@@ -353,6 +353,20 @@ http_jump(httpd *hd)
 	tcvp_event_send(h->control, TCVP_PL_SEEK, p, TCVP_PL_SEEK_ABS);
 	h->update = 4;
     }
+
+    http_redirect(h, "/");
+}
+
+static void
+http_page(httpd *hd)
+{
+    tcvp_module_t *m = (tcvp_module_t *) hd->host;
+    tcvp_http_t *h = m->private;
+    httpVar *ps;
+
+    ps = httpdGetVariableByName(hd, "ps");
+    if(ps)
+	httpdSetCookie(hd, "s", ps->value);
 
     http_redirect(h, "/");
 }
@@ -576,6 +590,7 @@ http_init(tcvp_module_t *m)
     http_reg(shuffle);
     http_reg(repeat);
     http_reg(loop);
+    http_reg(page);
 
     free(hd->host);
     hd->host = (char *) m;
