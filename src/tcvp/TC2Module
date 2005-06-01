@@ -5,8 +5,8 @@ tc2version	0.6.0
 sources		tcvp.c event.c
 
 import		"stream"	"open"
-import		"stream"	"play"
-import		"stream"	"new"
+import		"player"	"add"
+import		"player"	"new"
 import		"timer"		"new"
 import		"driver/timer"	"new"
 import		"tcvp/event"	"alloc"

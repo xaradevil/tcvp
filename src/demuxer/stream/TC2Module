@@ -2,47 +2,17 @@ module		stream
 name		"TCVP/demux/stream"
 version		0.1.4
 tc2version	0.4.0
-sources		stream.c play.c
+sources		stream.c
 postinit	s_init
 shutdown	s_shdn
 implement	"stream"	"open"		s_open
-implement	"stream" 	"play"		s_play
 implement	"stream" 	"validate"	s_validate
-implement	"stream"	"new"		new_shared
-implement	"stream"	"new_pipe"	new_pipe
-implement	"stream"	"close_pipe"	close_pipe
 implement	"mux"		"new"		s_open_mux
-import		"Eventq"	"new"
-import		"Eventq"	"delete"
-import		"Eventq"	"send"
-import		"Eventq"	"attach"
-import		"tcvp/event"	"send"
-import		"tcvp/event"	"get"
 import		"URL"		"open"
 require		"demux"
-
-TCVP {
-	event TCVP_STATE
-	event TCVP_LOAD
-}
-
-option		buffer%i=100
-Readahead in milliseconds.
-
-option		max_packets%i=200
-Maximum number of packets to buffer.
-
-option		min_packets%i=4
-Minimum number of packets to keep in buffer.
-
-option		max_probe%i=1024
-Maximum number of packets read when probing stream parameters.
 
 option		magic_size%i=24
 Number of bytes to check for magic signatures.
 
 option	*suffix suffix%s demuxer%s muxer%s
 Mapping of filename suffixes to formats if detection fails.
-
-option	synctime%i
-Synchronize timer with stream clock

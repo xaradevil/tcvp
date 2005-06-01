@@ -31,8 +31,8 @@
 #include <tcvp_types.h>
 #include <tcvp_core_tc2.h>
 
-typedef struct tcvp_player {
-    stream_shared_t *ssh;
+typedef struct tcvp_core {
+    tcvp_player_t *ssh;
     tcvp_pipe_t **demux;
     muxed_stream_t **streams;
     int nstreams;
@@ -45,7 +45,7 @@ typedef struct tcvp_player {
     tcconf_section_t *conf;
     int open;
     char *outfile;
-} tcvp_player_t;
+} tcvp_core_t;
 
 typedef union tcvp_core_event {
     int type;
@@ -60,7 +60,7 @@ typedef union tcvp_core_event {
 extern int
 t_start(tcvp_module_t *pl, tcvp_event_t *te)
 {
-    tcvp_player_t *tp = pl->private;
+    tcvp_core_t *tp = pl->private;
     int i;
 
     if(tp->demux)
@@ -80,7 +80,7 @@ t_start(tcvp_module_t *pl, tcvp_event_t *te)
 extern int
 t_stop(tcvp_module_t *pl, tcvp_event_t *te)
 {
-    tcvp_player_t *tp = pl->private;
+    tcvp_core_t *tp = pl->private;
     int i;
 
     if(tp->demux)
@@ -98,7 +98,7 @@ t_stop(tcvp_module_t *pl, tcvp_event_t *te)
 }
 
 static int
-do_close(tcvp_player_t *tp)
+do_close(tcvp_core_t *tp)
 {
     int i;
 
@@ -156,7 +156,7 @@ do_close(tcvp_player_t *tp)
 extern int
 te_close(tcvp_module_t *pl, tcvp_event_t *te)
 {
-    tcvp_player_t *tp = pl->private;
+    tcvp_core_t *tp = pl->private;
     do_close(tp);
     return 0;
 }
@@ -164,7 +164,7 @@ te_close(tcvp_module_t *pl, tcvp_event_t *te)
 static void
 t_free(void *p)
 {
-    tcvp_player_t *tp = p;
+    tcvp_core_t *tp = p;
 
     do_close(tp);
 
@@ -256,7 +256,7 @@ print_info(muxed_stream_t *stream)
 static void *
 st_ticker(void *p)
 {
-    tcvp_player_t *tp = p;
+    tcvp_core_t *tp = p;
     uint64_t time;
 
     pthread_mutex_lock(&tp->tmx);
@@ -273,7 +273,7 @@ st_ticker(void *p)
 extern int
 t_seek(tcvp_module_t *pl, int64_t time, int how)
 {
-    tcvp_player_t *tp = pl->private;
+    tcvp_core_t *tp = pl->private;
     uint64_t ntime, stime = -1;
     int s = tp->state;
     int i;
@@ -342,7 +342,7 @@ exp_stream(char *n, void *p)
 }
 
 static int
-open_files(tcvp_player_t *tp, int n, char **files, tcconf_section_t *cs)
+open_files(tcvp_core_t *tp, int n, char **files, tcconf_section_t *cs)
 {
     int i;
 
@@ -365,7 +365,7 @@ open_files(tcvp_player_t *tp, int n, char **files, tcconf_section_t *cs)
 static int
 t_open(tcvp_module_t *pl, int nn, char **names)
 {
-    tcvp_player_t *tp = pl->private;
+    tcvp_core_t *tp = pl->private;
     int ns = 0;
     char *profile = NULL, prname[256];
     tcconf_section_t *prsec, *dc;
@@ -428,11 +428,11 @@ t_open(tcvp_module_t *pl, int nn, char **names)
 
     tp->open = 1;
 
-    tp->ssh = stream_new(prsec, tp->conf, tp->timer, tp->outfile);
+    tp->ssh = player_new(prsec, tp->conf, tp->timer, tp->outfile);
     tp->demux = calloc(tp->nstreams, sizeof(*tp->demux));
 
     for(i = 0, j = 0; i < tp->nstreams; i++){
-	tp->demux[i] = stream_play(tp->ssh, tp->streams[i]);
+	tp->demux[i] = player_add(tp->ssh, tp->streams[i]);
 	ns += !!tp->demux[i];
 	if(tcvp_conf_verbose)
 	    print_info(tp->streams[i]);
@@ -498,7 +498,7 @@ err:
 extern int
 te_open(tcvp_module_t *tm, tcvp_event_t *e)
 {
-    tcvp_player_t *tp = tm->private;
+    tcvp_core_t *tp = tm->private;
     tcvp_core_event_t *te = (tcvp_core_event_t *) e;
     if(t_open(tm, 1, &te->open.file) < 0)
 	tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_ERROR);
@@ -508,7 +508,7 @@ te_open(tcvp_module_t *tm, tcvp_event_t *e)
 extern int
 te_openm(tcvp_module_t *tm, tcvp_event_t *e)
 {
-    tcvp_player_t *tp = tm->private;
+    tcvp_core_t *tp = tm->private;
     tcvp_core_event_t *te = (tcvp_core_event_t *) e;
     if(t_open(tm, te->open_m.nfiles, te->open_m.files) < 0)
 	tcvp_event_send(tp->qs, TCVP_STATE, TCVP_STATE_ERROR);
@@ -518,7 +518,7 @@ te_openm(tcvp_module_t *tm, tcvp_event_t *e)
 extern int
 te_pause(tcvp_module_t *tm, tcvp_event_t *e)
 {
-    tcvp_player_t *tp = tm->private;
+    tcvp_core_t *tp = tm->private;
     if(tp->state == TCVP_STATE_PLAYING)
 	t_stop(tm, NULL);
     else if(tp->state == TCVP_STATE_STOPPED)
@@ -529,7 +529,7 @@ te_pause(tcvp_module_t *tm, tcvp_event_t *e)
 extern int
 te_query(tcvp_module_t *tm, tcvp_event_t *e)
 {
-    tcvp_player_t *tp = tm->private;
+    tcvp_core_t *tp = tm->private;
     tcvp_event_send(tp->qs, TCVP_STATE, tp->state);
     if(tp->streams && tp->streams[0])
 	tcvp_event_send(tp->qs, TCVP_LOAD, tp->streams[0]); /* FIXME */
@@ -541,7 +541,7 @@ te_query(tcvp_module_t *tm, tcvp_event_t *e)
 extern int
 t_init(tcvp_module_t *tm)
 {
-    tcvp_player_t *tp = tm->private;
+    tcvp_core_t *tp = tm->private;
     char *qname, qn[32];
 
     if(!tcconf_getvalue(tp->conf, "features/core", ""))
@@ -564,7 +564,7 @@ t_init(tcvp_module_t *tm)
 extern int
 t_new(tcvp_module_t *tm, tcconf_section_t *cs)
 {
-    tcvp_player_t *tp;
+    tcvp_core_t *tp;
 
     tp = tcallocdz(sizeof(*tp), NULL, t_free);
     tp->state = TCVP_STATE_END;

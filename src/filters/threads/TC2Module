@@ -3,9 +3,9 @@ name		"TCVP/filter/threads"
 version		0.1.0
 tc2version	0.6.0
 sources		threads.c
-import		"stream" "new"
-import		"stream" "new_pipe"
-import		"stream" "close_pipe"
+import		"player" "new"
+import		"player" "new_pipe"
+import		"player" "close_pipe"
 
 TCVP {
 	filter "filter/parallel" {

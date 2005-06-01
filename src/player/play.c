@@ -30,17 +30,17 @@
 #include <tclist.h>
 #include <tchash.h>
 #include <tcvp_types.h>
-#include <stream_tc2.h>
+#include <player_tc2.h>
 
 #define RUN   1
 #define STOP  2
 #define PAUSE 3
 
-#define buffertime (tcvp_demux_stream_conf_buffer * 27000)
-#define min_packets tcvp_demux_stream_conf_min_packets
-#define max_packets tcvp_demux_stream_conf_max_packets
+#define buffertime (tcvp_player_conf_buffer * 27000)
+#define min_packets tcvp_player_conf_min_packets
+#define max_packets tcvp_player_conf_max_packets
 
-struct stream_shared {
+struct tcvp_player {
     int sid;
     int as, vs, ss;
     uint64_t starttime, endtime, playtime;
@@ -76,7 +76,7 @@ typedef struct stream_play {
     pthread_t rth;
     pthread_mutex_t lock;
     pthread_cond_t cond;
-    stream_shared_t *shared;
+    tcvp_player_t *shared;
 } stream_player_t;
 
 static void
@@ -124,14 +124,14 @@ close_pipe(tcvp_pipe_t *p)
 static void
 pid_free(void *p)
 {
-    stream_shared_t *sh = tcattr_get(p, "stream-shared");
+    tcvp_player_t *sh = tcattr_get(p, "stream-shared");
     tc2_print("STREAM", TC2_PRINT_DEBUG, "removing %s from hash\n", p);
     tchash_delete(sh->filters, p, -1, NULL);
     tcfree(p);
 }
 
 extern tcvp_pipe_t *
-new_pipe(stream_shared_t *sh, muxed_stream_t *ms, stream_t *s)
+new_pipe(tcvp_player_t *sh, muxed_stream_t *ms, stream_t *s)
 {
     tcvp_pipe_t *pipe = NULL, *pp = NULL, *pn = NULL;
     tcconf_section_t *f, *mcf;
@@ -240,7 +240,7 @@ pipe_end(tcvp_pipe_t *p)
 }
 
 static int
-use_stream(stream_shared_t *sh, int s, stream_t *str)
+use_stream(tcvp_player_t *sh, int s, stream_t *str)
 {
     int t = str->stream_type;
     void *cs = NULL;
@@ -293,7 +293,7 @@ use_stream(stream_shared_t *sh, int s, stream_t *str)
 static int
 add_stream(stream_player_t *sp, int s)
 {
-    stream_shared_t *sh = sp->shared;
+    tcvp_player_t *sh = sp->shared;
     tcvp_pipe_t *tp;
     int sid;
     int r = -1;
@@ -361,7 +361,7 @@ out:
 static int
 del_stream(stream_player_t *sp, int s)
 {
-    stream_shared_t *sh = sp->shared;
+    tcvp_player_t *sh = sp->shared;
     int ss = sp->smap[s];
     struct sp_stream *str = sp->streams + s;
 
@@ -527,7 +527,7 @@ waitbuf(stream_player_t *sp)
 static int
 do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
 {
-    stream_shared_t *sh = sp->shared;
+    tcvp_player_t *sh = sp->shared;
     struct sp_stream *str;
     int ps;
 
@@ -588,7 +588,7 @@ do_data_packet(stream_player_t *sp, tcvp_data_packet_t *pk)
 	str->probe = str->pipe->probe(str->pipe, pk,
 				      sp->ms->streams + ps);
 	if(str->probe == PROBE_FAIL ||
-	   str->nprobe++ > tcvp_demux_stream_conf_max_probe){
+	   str->nprobe++ > tcvp_player_conf_max_probe){
 	    tc2_print("STREAM", TC2_PRINT_DEBUG,
 		      "[%i] failed probe\n", pk->stream);
 	    sp->fail++;
@@ -698,7 +698,7 @@ static int
 s_start(tcvp_pipe_t *tp)
 {
     stream_player_t *sp = tp->private;
-    stream_shared_t *sh = sp->shared;
+    tcvp_player_t *sh = sp->shared;
     int i;
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "start\n");
@@ -737,7 +737,7 @@ static int
 s_stop(tcvp_pipe_t *tp)
 {
     stream_player_t *sp = tp->private;
-    stream_shared_t *sh = sp->shared;
+    tcvp_player_t *sh = sp->shared;
     int i;
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "stop\n");
@@ -810,7 +810,7 @@ s_free(void *p)
 }
 
 extern tcvp_pipe_t *
-s_play(stream_shared_t *sh, muxed_stream_t *ms)
+s_play(tcvp_player_t *sh, muxed_stream_t *ms)
 {
     stream_player_t *sp;
     tcvp_pipe_t *p;
@@ -854,7 +854,7 @@ sh_free(void *p)
 static void
 free_shared(void *p)
 {
-    stream_shared_t *sh = p;
+    tcvp_player_t *sh = p;
 
     tcfree(sh->profile);
     tcfree(sh->conf);
@@ -864,11 +864,11 @@ free_shared(void *p)
 	free(sh->outfile);
 }
 
-extern stream_shared_t *
-new_shared(tcconf_section_t *profile, tcconf_section_t *conf,
+extern tcvp_player_t *
+new_player(tcconf_section_t *profile, tcconf_section_t *conf,
 	   tcvp_timer_t *timer, char *out)
 {
-    stream_shared_t *sh;
+    tcvp_player_t *sh;
     char *qname, *qn;
     int pt;
 
@@ -891,7 +891,7 @@ new_shared(tcconf_section_t *profile, tcconf_section_t *conf,
     if(tcconf_getvalue(conf, "play_time", "%i", &pt) > 0)
 	sh->playtime = pt * 27000000LL;
 
-    sh->synctime = tcvp_demux_stream_conf_synctime;
+    sh->synctime = tcvp_player_conf_synctime;
     tcconf_getvalue(profile, "synctime", "%i", &sh->synctime);
 
     tcconf_getvalue(conf, "qname", "%s", &qname);

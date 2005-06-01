@@ -1,0 +1,33 @@
+module		player
+name		"TCVP/player"
+version		0.1.0
+tc2version	0.6.0
+sources		play.c
+implement	"player" 	"add"		s_play
+implement	"player"	"new"		new_player
+implement	"player"	"new_pipe"	new_pipe
+implement	"player"	"close_pipe"	close_pipe
+import		"tcvp/event"	"send"
+import		"Eventq"	"new"
+import		"Eventq"	"attach"
+require		"filter"
+
+TCVP {
+	event TCVP_STATE
+	event TCVP_LOAD
+}
+
+option		buffer%i=100
+Readahead in milliseconds.
+
+option		max_packets%i=200
+Maximum number of packets to buffer.
+
+option		min_packets%i=4
+Minimum number of packets to keep in buffer.
+
+option		max_probe%i=1024
+Maximum number of packets read when probing stream parameters.
+
+option	synctime%i
+Synchronize timer with stream clock

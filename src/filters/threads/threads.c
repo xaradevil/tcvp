@@ -44,7 +44,7 @@ typedef struct thread {
     pthread_cond_t cond;
     pthread_t thr;
     struct thread *next;
-    stream_shared_t *sh;
+    tcvp_player_t *sh;
     threads_t *th;
     int run;
     int free;
@@ -311,7 +311,7 @@ thr_free(void *p)
 	pthread_cond_broadcast(&t->cond);
 	pthread_mutex_unlock(&t->lock);
 	pthread_join(t->thr, NULL);
-	stream_close_pipe(t->pipe);
+	player_close_pipe(t->pipe);
 	tcfree(t->sh);
 	pthread_mutex_destroy(&t->lock);
 	pthread_cond_destroy(&t->cond);
@@ -371,8 +371,8 @@ thr_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     for(i = 0; i < th->nthreads; i++){
 	tcvp_pipe_t *te;
 
-	th->threads[i].sh = stream_new(cs, cs, t, NULL);
-	th->threads[i].pipe = stream_new_pipe(th->threads[i].sh, ms, s);
+	th->threads[i].sh = player_new(cs, cs, t, NULL);
+	th->threads[i].pipe = player_new_pipe(th->threads[i].sh, ms, s);
 	pthread_mutex_init(&th->threads[i].lock, NULL);
 	pthread_cond_init(&th->threads[i].cond, NULL);
 	th->threads[i].end = tcallocz(sizeof(*th->threads[i].end));
