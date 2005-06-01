@@ -180,8 +180,8 @@ v_put(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 	}
 
 	planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
-	vo->cconv(vo->vstream->width, vo->vstream->height, pk->data,
-		  pk->sizes, data, strides);
+	vo->cconv(vo->vstream->width, vo->vstream->height,
+		  (const u_char **) pk->data, pk->sizes, data, strides);
 	if(vo->driver->put_frame)
 	    vo->driver->put_frame(vo->driver, vo->head);
 	v_qpts(vo, pk->pts);
