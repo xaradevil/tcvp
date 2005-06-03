@@ -67,8 +67,6 @@ pl_add(tcvp_playlist_t *tpl, char **files, int n, int p)
     int nf;
     int i;
 
-    pthread_mutex_lock(&tpl->lock);
-
     if(p < 0)
 	p = tpl->nf + p + 1;
     if(p < 0)
@@ -113,7 +111,6 @@ pl_add(tcvp_playlist_t *tpl, char **files, int n, int p)
 
     tpl->nf = nf;
 
-    pthread_mutex_unlock(&tpl->lock);
     return 0;
 }
 
@@ -168,6 +165,35 @@ pl_addlist(tcvp_playlist_t *tpl, char *file, int pos)
     plf->close(plf);
 
     return n;
+}
+
+static int
+pl_addauto(tcvp_playlist_t *tpl, char **files, int n, int p)
+{
+    int i;
+
+    pthread_mutex_lock(&tpl->lock);
+
+    if(p < 0)
+	p = tpl->nf + p + 1;
+    if(p < 0)
+	p = 0;
+
+    for(i = 0; i < n; i++){
+	char *m = stream_magic_url(files[i]);
+	if(!m)
+	    continue;
+	if(!strcmp(m, "application/x-playlist")){
+	    int np = pl_addlist(tpl, files[i], p);
+	    if(np > 0)
+		p += np;
+	} else {
+	    pl_add(tpl, files + i, 1, p++);
+	}
+    }
+
+    pthread_mutex_unlock(&tpl->lock);
+    return 0;
 }
 
 static int
@@ -395,7 +421,7 @@ epl_add(tcvp_module_t *p, tcvp_event_t *e)
 {
     tcvp_playlist_t *tpl = p->private;
     tcvp_pl_add_event_t *te = (tcvp_pl_add_event_t *) e;
-    pl_add(tpl, te->names, te->n, te->pos);
+    pl_addauto(tpl, te->names, te->n, te->pos);
     tcvp_event_send(tpl->ss, TCVP_PL_CONTENT, tpl->nf, tpl->files);
     return 0;
 }
@@ -405,7 +431,7 @@ epl_addlist(tcvp_module_t *p, tcvp_event_t *e)
 {
     tcvp_playlist_t *tpl = p->private;
     tcvp_pl_addlist_event_t *te = (tcvp_pl_addlist_event_t *) e;
-    pl_addlist(tpl, te->name, te->pos);
+    pl_addauto(tpl, &te->name, 1, te->pos);
     tcvp_event_send(tpl->ss, TCVP_PL_CONTENT, tpl->nf, tpl->files);
     return 0;
 }

@@ -9,6 +9,7 @@ import		"URL"		"gets"
 import		"tcvp/event"	"alloc"
 import		"tcvp/event"	"new"
 import		"stream"	"open"
+import		"stream"	"magic_url"
 require		"tcvp/core"
 
 TCVP {
