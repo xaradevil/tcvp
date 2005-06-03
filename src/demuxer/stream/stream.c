@@ -27,9 +27,10 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <tcalloc.h>
-#include <tclist.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <ctype.h>
 #include <tcvp_types.h>
 #include <stream_tc2.h>
 
@@ -37,6 +38,7 @@
 #include <magic.h>
 
 static magic_t file_magic;
+static pthread_mutex_t magic_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 #define magic_size tcvp_demux_stream_conf_magic_size
@@ -54,55 +56,148 @@ cpattr(void *d, void *s, char *a)
     }
 }
 
-extern muxed_stream_t *
-s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
+static int
+isplaylist(url_t *u, char *mime)
 {
+    char buf[1024];
+    struct stat st;
+    uint64_t pos;
+    char *p, *q;
+
+    if(strcmp(mime, "text/plain") && strcmp(mime, "ASCII"))
+	return 0;
+
+    pos = u->tell(u);
+    p = url_gets(buf, sizeof(buf), u);
+    u->seek(u, pos, SEEK_SET);
+    if(!p)
+	return 0;
+
+    p = strchr(buf, ':');
+    if(p){
+	for(q = buf; q < p; q++){
+	    if(*p >= 'a' && *p <= 'z')
+		continue;
+	    if(isdigit(*p))
+		continue;
+	    if(*p == '-' || *p == '+' || *p == '.')
+		continue;
+	    break;
+	}
+	if(p == q)
+	    return 1;
+    }
+
+    p = strchr(buf, 0);
+    if(p > buf && *--p == '\n')
+	*p = 0;
+    if(p > buf && *--p == '\r')
+	*p = 0;
+
+    if(stat(buf, &st))
+	return 0;
+    return 1;
+}
+
+extern char *
+s_magic(url_t *u)
+{
+    char buf[magic_size];
     const char *mg;
     char *m = NULL;
-    url_t *u;
-    char buf[magic_size];
+    uint64_t pos;
     int mgs;
-    demux_open_t sopen;
-    muxed_stream_t *ms;
-
-    if(!(u = url_open(name, "r")))
-	return NULL;
 
 #ifdef HAVE_LIBMAGIC
+    pos = u->tell(u);
     mgs = u->read(buf, 1, magic_size, u);
-    u->seek(u, 0, SEEK_SET);
+    u->seek(u, pos, SEEK_SET);
     if(mgs < magic_size)
 	return NULL;
+    pthread_mutex_lock(&magic_lock);
     mg = magic_buffer(file_magic, buf, mgs);
     if(mg){
 	int e;
 	m = strdup(mg);
 	e = strcspn(m, " \t;");
 	m[e] = 0;
-	if(strncmp(m, "audio/", 6) && strncmp(m, "video/", 6)){
+	if(isplaylist(u, m)){
+	    free(m);
+	    m = strdup("application/x-playlist");
+	} else if(!strcmp(m, "data") ||
+		  !strcmp(m, "application/octet-stream")){
 	    free(m);
 	    m = NULL;
 	}
     }
+    pthread_mutex_unlock(&magic_lock);
 #endif
 
-    if(!m){
-	char *s = strrchr(name, '.');
-	if(s){
-	    int i;
-	    for(i = 0; i < suffix_map_size; i++){
-		if(!strcmp(s, suffix_map[i].suffix)){
-		    if(suffix_map[i].demuxer)
-			m = strdup(suffix_map[i].demuxer);
-		    break;
-		}
+    return m;
+}
+
+static char *
+s_magic_suffix(char *name)
+{
+    char *s = strrchr(name, '.');
+    char *m = NULL;
+
+    if(s){
+	int i;
+	for(i = 0; i < suffix_map_size; i++){
+	    if(!strcmp(s, suffix_map[i].suffix)){
+		if(suffix_map[i].demuxer)
+		    m = strdup(suffix_map[i].demuxer);
+		break;
 	    }
 	}
     }
 
-    if(!m){
-	m = strdup("video/mpeg");
+    return m;
+}
+
+extern char *
+s_magic_url(char *url)
+{
+    url_t *u;
+    char *m;
+
+    u = url_open(url, "r");
+    if(!u)
+	return NULL;
+    m = s_magic(u);
+    tcfree(u);
+
+    if(!m)
+	m = s_magic_suffix(url);
+
+    return m;
+}
+
+extern muxed_stream_t *
+s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
+{
+    char *m;
+    url_t *u;
+    demux_open_t sopen;
+    muxed_stream_t *ms;
+
+    if(!(u = url_open(name, "r")))
+	return NULL;
+
+    m = s_magic(u);
+    if(!m)
+	m = s_magic_suffix(name);
+
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "mime type %s\n", m);
+
+    if(m && strncmp(m, "audio/", 6) && strncmp(m, "video/", 6)){
+	free(m);
+	m = NULL;
     }
+
+    if(!m)
+	return NULL;
 
     if(!(sopen = tc2_get_symbol(m, "open")))
 	return NULL;

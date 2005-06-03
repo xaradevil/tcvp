@@ -7,8 +7,11 @@ postinit	s_init
 shutdown	s_shdn
 implement	"stream"	"open"		s_open
 implement	"stream" 	"validate"	s_validate
+implement	"stream"	"magic"		s_magic
+implement	"stream"	"magic_url"	s_magic_url
 implement	"mux"		"new"		s_open_mux
 import		"URL"		"open"
+import		"URL"		"gets"
 require		"demux"
 
 option		magic_size%i=24
