@@ -1,6 +1,6 @@
 symbol	"open"		muxed_stream_t *(*%s)(char *name, tcconf_section_t *, tcvp_timer_t *)
 symbol	"validate"	int (*%s)(char *name, tcconf_section_t *)
-symbol	"magic"		char *(*%s)(url_t *)
+symbol	"magic"		char *(*%s)(url_t *, char *)
 symbol	"magic_url"	char *(*%s)(char *)
 require "timer"
 require "URL"

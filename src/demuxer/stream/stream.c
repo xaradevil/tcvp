@@ -57,9 +57,9 @@ cpattr(void *d, void *s, char *a)
 }
 
 static int
-isplaylist(url_t *u, char *mime)
+isplaylist(url_t *u, char *mime, char *name)
 {
-    char buf[1024];
+    char buf[1024], buf1[1024];
     struct stat st;
     uint64_t pos;
     char *p, *q;
@@ -94,46 +94,22 @@ isplaylist(url_t *u, char *mime)
     if(p > buf && *--p == '\r')
 	*p = 0;
 
-    if(stat(buf, &st))
+    if(buf[0] != '/' && name){
+	strncpy(buf1, name, sizeof(buf1));
+	p = strrchr(buf1, '/');
+	if(p)
+	    *p++ = 0;
+	else
+	    p = buf1;
+	strncpy(p, buf, sizeof(buf1) - (p - buf1));
+	p = buf1;
+    } else {
+	p = buf;
+    }
+
+    if(stat(p, &st))
 	return 0;
     return 1;
-}
-
-extern char *
-s_magic(url_t *u)
-{
-    char buf[magic_size];
-    const char *mg;
-    char *m = NULL;
-    uint64_t pos;
-    int mgs;
-
-#ifdef HAVE_LIBMAGIC
-    pos = u->tell(u);
-    mgs = u->read(buf, 1, magic_size, u);
-    u->seek(u, pos, SEEK_SET);
-    if(mgs < magic_size)
-	return NULL;
-    pthread_mutex_lock(&magic_lock);
-    mg = magic_buffer(file_magic, buf, mgs);
-    if(mg){
-	int e;
-	m = strdup(mg);
-	e = strcspn(m, " \t;");
-	m[e] = 0;
-	if(isplaylist(u, m)){
-	    free(m);
-	    m = strdup("application/x-playlist");
-	} else if(!strcmp(m, "data") ||
-		  !strcmp(m, "application/octet-stream")){
-	    free(m);
-	    m = NULL;
-	}
-    }
-    pthread_mutex_unlock(&magic_lock);
-#endif
-
-    return m;
 }
 
 static char *
@@ -157,6 +133,47 @@ s_magic_suffix(char *name)
 }
 
 extern char *
+s_magic(url_t *u, char *name)
+{
+    char buf[magic_size];
+    const char *mg;
+    char *m = NULL;
+    uint64_t pos;
+    int mgs;
+
+#ifdef HAVE_LIBMAGIC
+    pos = u->tell(u);
+    mgs = u->read(buf, 1, magic_size, u);
+    u->seek(u, pos, SEEK_SET);
+    if(mgs < magic_size)
+	return NULL;
+    pthread_mutex_lock(&magic_lock);
+    mg = magic_buffer(file_magic, buf, mgs);
+    if(mg){
+	int e;
+	m = strdup(mg);
+	e = strcspn(m, " \t;");
+	m[e] = 0;
+	if(isplaylist(u, m, name)){
+	    free(m);
+	    m = strdup("application/x-playlist");
+	} else if(!strcmp(m, "data") ||
+		  !strcmp(m, "application/octet-stream")){
+	    free(m);
+	    m = NULL;
+	}
+    }
+    pthread_mutex_unlock(&magic_lock);
+#endif
+
+    if(!m && name)
+	m = s_magic_suffix(name);
+
+    return m;
+}
+
+
+extern char *
 s_magic_url(char *url)
 {
     url_t *u;
@@ -165,11 +182,8 @@ s_magic_url(char *url)
     u = url_open(url, "r");
     if(!u)
 	return NULL;
-    m = s_magic(u);
+    m = s_magic(u, url);
     tcfree(u);
-
-    if(!m)
-	m = s_magic_suffix(url);
 
     return m;
 }
@@ -185,9 +199,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
     if(!(u = url_open(name, "r")))
 	return NULL;
 
-    m = s_magic(u);
-    if(!m)
-	m = s_magic_suffix(name);
+    m = s_magic(u, name);
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "mime type %s\n", m);
 
