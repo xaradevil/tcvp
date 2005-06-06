@@ -1,2 +1,2 @@
 stream_MODINC += -DDATADIR=\"$(pkgdatadir)\"
-dist_pkgdata_DATA = src/demuxer/stream/magic
+dist_pkgdata_DATA = src/demuxer/stream/magic.mime

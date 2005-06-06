@@ -64,7 +64,7 @@ isplaylist(url_t *u, char *mime, char *name)
     uint64_t pos;
     char *p, *q;
 
-    if(strcmp(mime, "text/plain") && strcmp(mime, "ASCII"))
+    if(strcmp(mime, "text/plain"))
 	return 0;
 
     pos = u->tell(u);
@@ -304,7 +304,7 @@ extern int
 s_init(char *p)
 {
 #ifdef HAVE_LIBMAGIC
-    file_magic = magic_open(MAGIC_SYMLINK | MAGIC_DEVICES);
+    file_magic = magic_open(MAGIC_MIME);
     magic_load(file_magic, DATADIR "/magic");
 #endif
 
