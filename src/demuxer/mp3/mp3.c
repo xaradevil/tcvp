@@ -40,6 +40,7 @@ typedef struct mp3_file {
     int used;
     uint64_t start;
     uint64_t size;
+    uint64_t end;
     eventq_t qs;
     uint64_t sbr;
     size_t bytes;
@@ -208,7 +209,7 @@ fill_buffer(mp3_file_t *mf)
     uint64_t pos;
 
     pos = mf->file->tell(mf->file);
-    size = min(size, mf->size - pos + mf->start);
+    size = min(size, mf->end - pos + mf->start);
     size = mf->file->read(data, 1, size, mf->file);
 
     if(size > 0)
@@ -415,9 +416,6 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     if(!f->flags & URL_FLAG_STREAMED)
 	ts = id3v1_tag(f, ms);
 
-    if(ts > 0)
-	mf->size -= ts;
-
     f->read(head, 1, 4, f);
     if(strncmp(head, "RIFF", 4)){
 	f->seek(f, -4, SEEK_CUR);
@@ -443,6 +441,12 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     mf->start = f->tell(f);
     mf->size -= mf->start;
+    if(ts > 0){
+	mf->size -= ts;
+	mf->end = mf->size;
+    } else {
+	mf->end = -1LL;
+    }
 
     tc2_print(mf->tag, TC2_PRINT_DEBUG, "data start %x\n", f->tell(f));
 
