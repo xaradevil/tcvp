@@ -29,18 +29,10 @@
 #include <tcvp_types.h>
 #include <mp3_tc2.h>
 #include "id3.h"
+#include "mp3.h"
 
 #define MAX_FRAME_SIZE 8065
 #define MAX_HEADER_SIZE 6
-
-typedef struct mp3_frame {
-    int version;
-    int layer;
-    int bitrate;
-    int sample_rate;
-    int size;
-    int samples;
-} mp3_frame_t;
 
 typedef struct mp3_file {
     url_t* file;
@@ -62,89 +54,6 @@ typedef struct mp3_file {
     char *tag;
 } mp3_file_t;
 
-#define min(a, b) ((a)<(b)?(a):(b))
-
-static int bitrates[16][5] = {
-    {  0,   0,   0,   0,   0},
-    { 32,  32,  32,  32,   8},
-    { 64,  48,  40,  48,  16},
-    { 96,  56,  48,  56,  24},
-    {128,  64,  56,  64,  32},
-    {160,  80,  64,  80,  40},
-    {192,  96,  80,  96,  48},
-    {224, 112,  96, 112,  56},
-    {256, 128, 112, 128,  64},
-    {288, 160, 128, 144,  80},
-    {320, 192, 160, 160,  96},
-    {352, 224, 192, 176, 112},
-    {384, 256, 224, 192, 128},
-    {416, 320, 256, 224, 144},
-    {448, 384, 320, 256, 160},
-    {  0,   0,   0,   0,   0}
-};
-
-static int mpeg_sample_rates[3][4] = {
-    {11025, 0, 22050, 44100},
-    {12000, 0, 24000, 48000},
-    { 8000, 0, 16000, 32000}
-};
-
-static int aac_sample_rates[16] = {
-    96000, 88200, 64000, 48000, 44100, 32000,
-    24000, 22050, 16000, 12000, 11025, 8000
-};
-
-static int ac3_sample_rates[4] = {
-    48000, 44100, 32000, 0
-};
-
-static int ac3_frame_sizes[64][3] = {
-    { 64,   69,   96   },  
-    { 64,   70,   96   },  
-    { 80,   87,   120  },  
-    { 80,   88,   120  },  
-    { 96,   104,  144  },  
-    { 96,   105,  144  },  
-    { 112,  121,  168  }, 
-    { 112,  122,  168  }, 
-    { 128,  139,  192  }, 
-    { 128,  140,  192  }, 
-    { 160,  174,  240  }, 
-    { 160,  175,  240  }, 
-    { 192,  208,  288  }, 
-    { 192,  209,  288  }, 
-    { 224,  243,  336  }, 
-    { 224,  244,  336  }, 
-    { 256,  278,  384  }, 
-    { 256,  279,  384  }, 
-    { 320,  348,  480  }, 
-    { 320,  349,  480  }, 
-    { 384,  417,  576  }, 
-    { 384,  418,  576  }, 
-    { 448,  487,  672  }, 
-    { 448,  488,  672  }, 
-    { 512,  557,  768  }, 
-    { 512,  558,  768  }, 
-    { 640,  696,  960  }, 
-    { 640,  697,  960  }, 
-    { 768,  835,  1152 }, 
-    { 768,  836,  1152 }, 
-    { 896,  975,  1344 }, 
-    { 896,  976,  1344 }, 
-    { 1024, 1114, 1536 },
-    { 1024, 1115, 1536 },
-    { 1152, 1253, 1728 },
-    { 1152, 1254, 1728 },
-    { 1280, 1393, 1920 },
-    { 1280, 1394, 1920 },
-};
-
-static int ac3_bitrates[64] = {
-    32, 32, 40, 40, 48, 48, 56, 56, 64, 64, 80, 80, 96, 96, 112, 112,
-    128, 128, 160, 160, 192, 192, 224, 224, 256, 256, 320, 320, 384,
-    384, 448, 448, 512, 512, 576, 576, 640, 640,
-};
-
 static char *codecs[] = {
     "audio/mp1",
     "audio/mp2",
@@ -152,111 +61,6 @@ static char *codecs[] = {
     "audio/aac",
     "audio/ac3"
 };
-
-static int
-mp3_header(u_char *head, mp3_frame_t *mf)
-{
-    int c = head[1], d = head[2];
-    int bx, br, sr, pad, lsf = 0;
-
-    if(head[0] != 0xff)
-	return -1;
-
-    if((c & 0xe0) != 0xe0 ||
-       ((c & 0x18) == 0x08 ||
-	(c & 0x06) == 0)){
-	return -1;
-    }
-    if((d & 0xf0) == 0xf0 ||
-       (d & 0x0c) == 0x0c){
-	return -1;
-    }
-
-    if(!mf)
-	return 0;
-
-    mf->version = (c >> 3) & 0x3;
-    mf->layer = 3 - ((c >> 1) & 0x3);
-    bx = mf->version == 3? mf->layer: 3 + (mf->layer > 1);
-    br = (d >> 4) & 0xf;
-    if(!bitrates[br][bx])
-	return -1;
-
-    sr = (d >> 2) & 3;
-    pad = (d >> 1) & 1;
-    mf->bitrate = bitrates[br][bx] * 1000;
-    mf->sample_rate = mpeg_sample_rates[sr][mf->version];
-    switch(mf->layer){
-    case 2:
-	lsf = ~mf->version & 1;
-    case 1:
-	mf->size = 144 * mf->bitrate / (mf->sample_rate << lsf) + pad;
-	mf->samples = 1152;
-	break;
-    case 0:
-	mf->size = (12 * mf->bitrate / mf->sample_rate + pad) * 4;
-	mf->samples = 384;
-	break;
-    }
-
-#ifdef DEBUG
-    tc2_print("MP3", TC2_PRINT_DEBUG,
-	      "layer %i, version %i, rate %i, size %i\n",
-	      mf->layer, mf->version, mf->bitrate, mf->size);
-#endif
-
-    return 0;
-}
-
-static int
-aac_header(u_char *head, mp3_frame_t *mf)
-{
-    int profile;
-
-    if(head[0] != 0xff)
-	return -1;
-
-    if((head[1] & 0xf6) != 0xf0)
-	return -1;
-
-    if(!mf)
-	return 0;
-
-    profile = head[2] >> 6;
-    mf->sample_rate = aac_sample_rates[(head[2] >> 2) & 0xf];
-    mf->size = ((int) (head[3] & 0x3) << 11) +
-	((int) head[4] << 3) +
-	((int) (head[5] & 0xe0) >> 5);
-    mf->samples = 1024;
-    mf->bitrate = mf->size * 8 * mf->sample_rate / mf->samples;
-    mf->layer = 3;
-
-    return 0;
-}
-
-static int
-ac3_header(u_char *head, mp3_frame_t *mf)
-{
-    int fscod, frmsizecod;
-
-    if(head[0] != 0x0b || head[1] != 0x77)
-	return -1;
-
-    fscod = (head[4] >> 6) & 0x3;
-    frmsizecod = head[4] & 0x3f;
-
-    if(!ac3_sample_rates[fscod])
-	return -1;
-
-    mf->sample_rate = ac3_sample_rates[fscod];
-    mf->bitrate = ac3_bitrates[frmsizecod] * 1000;
-    mf->size = ac3_frame_sizes[frmsizecod][fscod] * 2;
-    mf->samples = 6 * 256;
-
-    mf->layer = 4;
-
-    return 0;
-}
 
 struct header_parser {
     int (*parser)(u_char *, mp3_frame_t *);
