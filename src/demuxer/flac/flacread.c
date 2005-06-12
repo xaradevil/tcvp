@@ -173,7 +173,10 @@ flr_packet(muxed_stream_t *ms, int s)
 		break;
 	}
 
-	if((hsize > 0 && i < flr->bend - hsize) || flr->eof){
+	tc2_print("FLAC", TC2_PRINT_DEBUG+2,
+		  "hsize = %i, i = %i, end = %i\n", hsize, i, flr->bend);
+
+	if((hsize > 0 && i <= flr->bend - hsize) || flr->eof){
 	    uint16_t crc, fcrc;
 	    int size;
 
@@ -217,7 +220,7 @@ flr_packet(muxed_stream_t *ms, int s)
 		flr->bufsize *= 2;
 
 	    nb = tcalloc(flr->bufsize);
-	    memcpy(nb, flr->buf + flr->bpos, flr->bend - flr->bpos);
+	    memmove(nb, flr->buf + flr->bpos, flr->bend - flr->bpos);
 	    tcfree(flr->buf);
 	    flr->buf = nb;
 	    flr->bend -= flr->bpos;
