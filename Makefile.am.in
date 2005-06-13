@@ -1,4 +1,4 @@
-include_HEADERS = include/tcvp_types.h
+include_HEADERS = include/tcvp_types.h include/tcvp_bits.h
 dist_bin_SCRIPTS = tools/xmmsskin2tcvpx tools/wa3skin2tcvpx
 if tcvpx
 SUBDIRS = skins
