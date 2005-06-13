@@ -6,7 +6,7 @@
 0	beshort&0xfff8		0xfff0		audio/mpeg
 0	string			ID3		audio/mpeg
 16	string			M4A		audio/mp4
-0	belong&0xFF5FFF1F	0x47400010	video/mpeg
+0	beshort&0xff80		0x4700		video/mpeg
 0	belong			0x3026b275	video/x-asf
 0	string			.snd		audio/basic
 0	beshort&0xfff6		0xfff0		audio/x-aac
@@ -23,7 +23,12 @@
 0	string			YUV4MPEG2	video/x-yuv4mpeg
 0	string			MP+		audio/x-mpc
 0	belong			0x00000001
+>4	byte&0x1f		0x06		video/x-h264
 >4	byte&0x1f		0x07		video/x-h264
 0	beshort			0x0b77		audio/ac3
 0	belong			0x1a45dfa3	video/x-matroska
 0	string			fLaC		audio/x-flac
+0	string			#\ VobSub	video/x-vobsub
+0	string			.RMF		video/x-real
+0	belong			0x7ffe8001	audio/x-dts
+0	belong			0xff1f00e8	audio/x-dts

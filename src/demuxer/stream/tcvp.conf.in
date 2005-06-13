@@ -17,3 +17,4 @@ suffix '.ts'	'video/mpeg'		'mpeg-ts'
 suffix '.mkv'	'video/x-matroska'	NULL
 suffix '.mka'	'audio/x-matroska'	NULL
 suffix '.flac'	'audio/x-flac'		NULL
+suffix '.dts'	'audio/x-dts'		'dts'
