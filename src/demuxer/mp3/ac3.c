@@ -27,6 +27,7 @@
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
+#include <tcvp_bits.h>
 #include <mp3_tc2.h>
 #include "mp3.h"
 
@@ -81,26 +82,50 @@ static int ac3_bitrates[64] = {
     384, 448, 448, 512, 512, 576, 576, 640, 640,
 };
 
-extern int
+static int ac3_channels[8] = {
+    2, 1, 2, 3, 3, 4, 4, 5
+};
+
+static int
 ac3_header(u_char *head, mp3_frame_t *mf)
 {
-    int fscod, frmsizecod;
+    u_int fscod, frmsizecod, acmod, bsid, lfeon;
+    tcvp_bits_t bits;
 
-    if(head[0] != 0x0b || head[1] != 0x77)
+    tcvp_bits_init(&bits, head, 8);
+
+    if(tcvp_bits_get(&bits, 16) != 0x0b77)
 	return -1;
 
-    fscod = (head[4] >> 6) & 0x3;
-    frmsizecod = head[4] & 0x3f;
+    tcvp_bits_get(&bits, 16);	/* crc */
+    fscod = tcvp_bits_get(&bits, 2);
+    frmsizecod = tcvp_bits_get(&bits, 6);
 
     if(!ac3_sample_rates[fscod])
 	return -1;
+
+    bsid = tcvp_bits_get(&bits, 5);
+    if(bsid > 8)
+	return -1;
+    tcvp_bits_get(&bits, 3);	/* bsmod */
+    acmod = tcvp_bits_get(&bits, 3);
+    if(acmod & 1 && acmod != 1)
+	tcvp_bits_get(&bits, 2); /* cmixlev */
+    if(acmod & 4)
+	tcvp_bits_get(&bits, 2); /* surmixlev */
+    if(acmod & 2)
+	tcvp_bits_get(&bits, 2); /* dsurmod */
+    lfeon = tcvp_bits_get(&bits, 1);
 
     mf->sample_rate = ac3_sample_rates[fscod];
     mf->bitrate = ac3_bitrates[frmsizecod] * 1000;
     mf->size = ac3_frame_sizes[frmsizecod][fscod] * 2;
     mf->samples = 6 * 256;
+    mf->channels = ac3_channels[acmod] + lfeon;
 
     mf->layer = 4;
 
     return 0;
 }
+
+mp3_header_parser_t ac3_parser = { ac3_header, 8, "AC3" };

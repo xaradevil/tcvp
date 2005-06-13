@@ -34,12 +34,23 @@ typedef struct mp3_frame {
     int sample_rate;
     int size;
     int samples;
+    int channels;
 } mp3_frame_t;
+
+typedef struct mp3_header_parser {
+    int (*parser)(u_char *, mp3_frame_t *);
+    int header_size;
+    char *tag;
+} mp3_header_parser_t;
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-extern int mp3_header(u_char *, mp3_frame_t *);
-extern int aac_header(u_char *, mp3_frame_t *);
-extern int ac3_header(u_char *, mp3_frame_t *);
+extern mp3_header_parser_t mpeg1_parser;
+extern mp3_header_parser_t aac_parser;
+extern mp3_header_parser_t ac3_parser;
+extern mp3_header_parser_t dts16_parser;
+extern mp3_header_parser_t dts16s_parser;
+extern mp3_header_parser_t dts14_parser;
+extern mp3_header_parser_t dts14s_parser;
 
 #endif

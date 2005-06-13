@@ -31,8 +31,8 @@
 #include "id3.h"
 #include "mp3.h"
 
-#define MAX_FRAME_SIZE 8065
-#define MAX_HEADER_SIZE 6
+#define MAX_FRAME_SIZE 16384
+#define MAX_HEADER_SIZE 14
 
 typedef struct mp3_file {
     url_t* file;
@@ -60,17 +60,18 @@ static char *codecs[] = {
     "audio/mp2",
     "audio/mp3",
     "audio/aac",
-    "audio/ac3"
+    "audio/ac3",
+    "audio/dts"
 };
 
-struct header_parser {
-    int (*parser)(u_char *, mp3_frame_t *);
-    int header_size;
-    char *tag;
-} header_parsers[] = {
-    { mp3_header, 3, "MP3" },
-    { aac_header, 6, "AAC" },
-    { ac3_header, 5, "AC3" },
+static mp3_header_parser_t *header_parsers[] = {
+    &mpeg1_parser,
+    &aac_parser,
+    &ac3_parser,
+    &dts16_parser,
+    &dts16s_parser,
+    &dts14_parser,
+    &dts14s_parser,
 };
 
 #define NUM_PARSERS (sizeof(header_parsers) / sizeof(header_parsers[0]))
@@ -84,10 +85,10 @@ all_headers(mp3_file_t *mf, u_char *head, mp3_frame_t *fr)
 	return mf->parse_header(head, fr);
 
     for(i = 0; i < NUM_PARSERS; i++){
-	if(!header_parsers[i].parser(head, fr)){
-	    mf->parse_header = header_parsers[i].parser;
-	    mf->header_size = header_parsers[i].header_size;
-	    mf->tag = header_parsers[i].tag;
+	if(!header_parsers[i]->parser(head, fr)){
+	    mf->parse_header = header_parsers[i]->parser;
+	    mf->header_size = header_parsers[i]->header_size;
+	    mf->tag = header_parsers[i]->tag;
 	    return 0;
 	}
     }
@@ -147,6 +148,7 @@ mp3_getparams(muxed_stream_t *ms)
 	mf->stream.audio.bit_rate = fr.bitrate;
     mf->stream.audio.codec = codecs[fr.layer];
     mf->stream.audio.sample_rate = fr.sample_rate;
+    mf->stream.audio.channels = fr.channels;
     if(fr.bitrate && !ms->time)
 	ms->time = 27 * 8000000LL * mf->size / fr.bitrate;
 

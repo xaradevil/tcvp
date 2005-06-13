@@ -27,36 +27,58 @@
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
+#include <tcvp_bits.h>
 #include <mp3_tc2.h>
 #include "mp3.h"
 
 static int aac_sample_rates[16] = {
     96000, 88200, 64000, 48000, 44100, 32000,
-    24000, 22050, 16000, 12000, 11025, 8000
+    24000, 22050, 16000, 12000, 11025, 8000, 7350
 };
 
-extern int
+static int aac_channels[8] = {
+    0, 1, 2, 3, 4, 5, 6, 8
+};
+
+static int
 aac_header(u_char *head, mp3_frame_t *mf)
 {
-    int profile;
+    tcvp_bits_t bits;
+    u_int id, layer, profile, sr, ch, rdb;
 
-    if(head[0] != 0xff)
+    tcvp_bits_init(&bits, head, 7);
+
+    if(tcvp_bits_get(&bits, 12) != 0xfff)
 	return -1;
 
-    if((head[1] & 0xf6) != 0xf0)
+    id = tcvp_bits_get(&bits, 1);
+    layer = tcvp_bits_get(&bits, 2);
+    tcvp_bits_get(&bits, 1);	/* protection_absent */
+    profile = tcvp_bits_get(&bits, 2);
+    sr = tcvp_bits_get(&bits, 4);
+    if(!aac_sample_rates[sr])
 	return -1;
+    tcvp_bits_get(&bits, 1);	/* private_bit */
+    ch = tcvp_bits_get(&bits, 3);
+    if(!aac_channels[ch])
+	return -1;
+    tcvp_bits_get(&bits, 1);	/* original/copy */
+    tcvp_bits_get(&bits, 1);	/* home */
 
-    if(!mf)
-	return 0;
+    /* adts_variable_header */
+    tcvp_bits_get(&bits, 1);	/* copyright_identification_bit */
+    tcvp_bits_get(&bits, 1);	/* copyright_identification_start */
+    mf->size = tcvp_bits_get(&bits, 13);
+    tcvp_bits_get(&bits, 11);	/* adts_buffer_fullness */
+    rdb = tcvp_bits_get(&bits, 2);
 
-    profile = head[2] >> 6;
-    mf->sample_rate = aac_sample_rates[(head[2] >> 2) & 0xf];
-    mf->size = ((int) (head[3] & 0x3) << 11) +
-	((int) head[4] << 3) +
-	((int) (head[5] & 0xe0) >> 5);
-    mf->samples = 1024;
+    mf->channels = aac_channels[ch];
+    mf->sample_rate = aac_sample_rates[sr];
+    mf->samples = (rdb + 1) * 1024;
     mf->bitrate = mf->size * 8 * mf->sample_rate / mf->samples;
     mf->layer = 3;
 
     return 0;
 }
+
+mp3_header_parser_t aac_parser = { aac_header, 8, "AAC" };

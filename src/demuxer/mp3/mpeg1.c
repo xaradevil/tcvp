@@ -55,7 +55,7 @@ static int mpeg_sample_rates[3][4] = {
     { 8000, 0, 16000, 32000}
 };
 
-extern int
+static int
 mp3_header(u_char *head, mp3_frame_t *mf)
 {
     int c = head[1], d = head[2];
@@ -88,6 +88,7 @@ mp3_header(u_char *head, mp3_frame_t *mf)
     pad = (d >> 1) & 1;
     mf->bitrate = bitrates[br][bx] * 1000;
     mf->sample_rate = mpeg_sample_rates[sr][mf->version];
+    mf->channels = head[3] >> 6 == 3? 1: 2;
     switch(mf->layer){
     case 2:
 	lsf = ~mf->version & 1;
@@ -109,3 +110,5 @@ mp3_header(u_char *head, mp3_frame_t *mf)
 
     return 0;
 }
+
+mp3_header_parser_t mpeg1_parser = { mp3_header, 4, "MP3" };
