@@ -230,7 +230,28 @@ http_print_playlist(tcvp_http_t *h, int start)
 	if(h->playlist->length > playlistpage)
 	    http_print_plpages(h);
 	httpdOutput(hd, "<div>\n");
-	httpdOutput(hd, "<form action=\"remove\" method=\"get\">\n");
+	httpdOutput(hd, "<script language=\"JavaScript\" "
+		      "type=\"text/javascript\">\n"
+		    "<!--\n"
+		    "function ToggleAll() {\n"
+		    "  for (var i=0; i<document.plremove.elements.length; "
+		      "i++) {\n"
+		    "    if(document.plremove.elements[i].type == "
+		      "'checkbox' && "
+		      "document.plremove.elements[i].name != \"toggle\"){\n"
+		    "      document.plremove.elements[i].checked = "
+		      "!(document.plremove.elements[i].checked);\n"
+		    "    }\n"
+		    "  }\n"
+		    "}\n"
+		    "//-->\n"
+		    "</script>\n");
+
+	httpdOutput(hd, "<div><a href=\"javascript:void(0)\" "
+		    "onClick=\"ToggleAll();\">Toggle All</a></div>\n");
+
+	httpdOutput(hd, "<form action=\"remove\" method=\"get\" "
+		    "name=\"plremove\">\n");
 	httpdOutput(hd, "<table class=\"playlist\">\n");
 	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plnum\"/>"
 		    "<col id=\"plname\"/>\n");
