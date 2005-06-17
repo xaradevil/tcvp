@@ -530,6 +530,7 @@ ogg_free(void *p)
 	free(ms->streams[i].common.codec_data);
     }
 
+    tcfree(ogg->f);
     free(ogg->streams);
     free(ogg);
 
