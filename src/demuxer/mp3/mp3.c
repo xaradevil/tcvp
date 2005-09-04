@@ -422,7 +422,14 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     if(strncmp(head, "RIFF", 4)){
 	f->seek(f, -4, SEEK_CUR);
     } else {
-	f->seek(f, 44, SEEK_SET);
+	uint32_t tag, size;
+	f->seek(f, 8, SEEK_CUR);
+	while(!url_getu32b(f, &tag)){
+	    url_getu32l(f, &size);
+	    if(tag == 0x64617461)
+		break;
+	    f->seek(f, size, SEEK_CUR);
+	}
     }
 
     tc2_print("MP3", TC2_PRINT_DEBUG, "data start %x\n", f->tell(f));
