@@ -76,11 +76,11 @@ isplaylist(url_t *u, char *mime, char *name)
     p = strchr(buf, ':');
     if(p){
 	for(q = buf; q < p; q++){
-	    if(*p >= 'a' && *p <= 'z')
+	    if(*q >= 'a' && *q <= 'z')
 		continue;
-	    if(isdigit(*p))
+	    if(isdigit(*q))
 		continue;
-	    if(*p == '-' || *p == '+' || *p == '.')
+	    if(*q == '-' || *q == '+' || *q == '.')
 		continue;
 	    break;
 	}
