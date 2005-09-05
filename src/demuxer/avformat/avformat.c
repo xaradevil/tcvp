@@ -244,10 +244,10 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	AVStream *avs = afc->streams[i];
 	stream_t *st = ms->streams + i;
 
-	if(avs->codec.codec_id == CODEC_ID_NONE)
+	if(AVCODEC(avs, codec_id) == CODEC_ID_NONE)
 	    continue;
 
-	switch(afc->streams[i]->codec.codec_type){
+	switch(AVCODEC(afc->streams[i], codec_type)){
 	case CODEC_TYPE_VIDEO:
 	    st->stream_type = STREAM_TYPE_VIDEO;
 #if LIBAVFORMAT_BUILD > 4623
@@ -257,23 +257,22 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    st->video.frame_rate.num = avs->r_frame_rate;
 	    st->video.frame_rate.den = avs->r_frame_rate_base;
 #endif
-	    st->video.width = avs->codec.width;
-	    st->video.height = avs->codec.height;
+	    st->video.width = AVCODEC(avs, width);
+	    st->video.height = AVCODEC(avs, height);
 
 	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_tag %x\n",
-		      i, avs->codec.codec_tag);
+		      i, AVCODEC(avs, codec_tag));
 	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG,
 		      "[%i] stream_codec_tag %x\n",
-		      i, avs->codec.stream_codec_tag);
+		      i, AVCODEC(avs, stream_codec_tag));
 	    break;
 
 	case CODEC_TYPE_AUDIO:
 	    st->stream_type = STREAM_TYPE_AUDIO;
-	    st->audio.sample_rate =
-		avs->codec.sample_rate;
-	    st->audio.channels = avs->codec.channels;
-	    st->audio.bit_rate = avs->codec.bit_rate;
-	    st->audio.block_align = avs->codec.block_align;
+	    st->audio.sample_rate = AVCODEC(avs, sample_rate);
+	    st->audio.channels = AVCODEC(avs, channels);
+	    st->audio.bit_rate = AVCODEC(avs, bit_rate);
+	    st->audio.block_align = AVCODEC(avs, block_align);
 	    break;
 
 	default:
@@ -282,19 +281,19 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	    break;
 	}
 
-	st->common.codec = avf_codec_name(avs->codec.codec_id);
+	st->common.codec = avf_codec_name(AVCODEC(avs, codec_id));
 
 	if(!st->common.codec)
 	    tc2_print("AVFORMAT", TC2_PRINT_WARNING,
 		      "[%i] unknown codec id %i\n", i,
-		      avs->codec.codec_id);
+		      AVCODEC(avs, codec_id));
 	else
 	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_id %x -> %s\n",
-		      i, avs->codec.codec_id,
+		      i, AVCODEC(avs, codec_id),
 		      st->common.codec);
 
-	st->common.codec_data = avs->codec.extradata;
-	st->common.codec_data_size = avs->codec.extradata_size;
+	st->common.codec_data = AVCODEC(avs, extradata);
+	st->common.codec_data_size = AVCODEC(avs, extradata_size);
 	tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_data_size %i\n",
 		  i, st->common.codec_data_size);
 

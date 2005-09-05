@@ -46,6 +46,7 @@ extern int
 avfw_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     avf_write_t *avf = p->private;
+    AVStream *avs;
     int ai;
 
     if(!pk->data){
@@ -61,25 +62,26 @@ avfw_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     }
 
     ai = avf->streams[pk->stream].avidx;
+    avs = avf->fc.streams[ai];
+
 #if LIBAVFORMAT_BUILD < 4615
     if(pk->flags & TCVP_PKT_FLAG_DTS){
 	avf->streams[pk->stream].dts = pk->dts;
     } else if(pk->flags & TCVP_PKT_FLAG_PTS){
 	avf->streams[pk->stream].dts = pk->pts;
     }
-    avf->fc.streams[ai]->codec.coded_frame->key_frame =
-	pk->flags & TCVP_PKT_FLAG_KEY;
+    AVCODEC(avs, coded_frame)->key_frame = pk->flags & TCVP_PKT_FLAG_KEY;
     av_write_frame(&avf->fc, ai, pk->data[0], pk->sizes[0]);
 #else
     {
 	AVPacket ap;
 	av_init_packet(&ap);
 	if(pk->flags & TCVP_PKT_FLAG_PTS)
-	    ap.pts = pk->pts * avf->fc.streams[ai]->time_base.den /
-		(27000000 * avf->fc.streams[ai]->time_base.num);
+	    ap.pts = pk->pts * avs->time_base.den /
+		(27000000 * avs->time_base.num);
 	if(pk->flags & TCVP_PKT_FLAG_DTS)
-	    ap.dts = pk->dts * avf->fc.streams[ai]->time_base.den /
-		(27000000 * avf->fc.streams[ai]->time_base.num);
+	    ap.dts = pk->dts * avs->time_base.den /
+		(27000000 * avs->time_base.num);
 	ap.data = pk->data[0];
 	ap.size = pk->sizes[0];
 	ap.stream_index = ai;
@@ -128,24 +130,24 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     avf->streams[s->common.index].avidx = ai;
     avf->streams[s->common.index].used = 1;
     as = avf->fc.streams[ai];
-    as->codec.codec_id = avc->id;
-    as->codec.coded_frame = avcodec_alloc_frame();
-    as->codec.bit_rate = s->common.bit_rate;
+    AVCODEC(as, codec_id) = avc->id;
+    AVCODEC(as, coded_frame) = avcodec_alloc_frame();
+    AVCODEC(as, bit_rate) = s->common.bit_rate;
     if(s->stream_type == STREAM_TYPE_VIDEO){
-	as->codec.codec_type = CODEC_TYPE_VIDEO;
+	AVCODEC(as, codec_type) = CODEC_TYPE_VIDEO;
 #if LIBAVCODEC_BUILD > 4753
-	as->codec.time_base.den = s->video.frame_rate.num;
-	as->codec.time_base.num = s->video.frame_rate.den;
+	AVCODEC(as, time_base).den = s->video.frame_rate.num;
+	AVCODEC(as, time_base).num = s->video.frame_rate.den;
 #else
-	as->codec.frame_rate = s->video.frame_rate.num;
-	as->codec.frame_rate_base = s->video.frame_rate.den;
+	AVCODEC(as, frame_rate) = s->video.frame_rate.num;
+	AVCODEC(as, frame_rate_base) = s->video.frame_rate.den;
 #endif
-	as->codec.width = s->video.width;
-	as->codec.height = s->video.height;
+	AVCODEC(as, width) = s->video.width;
+	AVCODEC(as, height) = s->video.height;
     } else if(s->stream_type == STREAM_TYPE_AUDIO){
-	as->codec.codec_type = CODEC_TYPE_AUDIO;
-	as->codec.sample_rate = s->audio.sample_rate;
-	as->codec.channels = s->audio.channels;
+	AVCODEC(as, codec_type) = CODEC_TYPE_AUDIO;
+	AVCODEC(as, sample_rate) = s->audio.sample_rate;
+	AVCODEC(as, channels) = s->audio.channels;
     }
 
     return PROBE_OK;
@@ -161,7 +163,7 @@ avfw_free(void *p)
     free(avf->streams);
 
     for(i = 0; i < avf->fc.nb_streams; i++){
-	av_free(avf->fc.streams[i]->codec.coded_frame);
+	av_free(AVCODEC(avf->fc.streams[i], coded_frame));
 	av_free(avf->fc.streams[i]);
     }
 }
