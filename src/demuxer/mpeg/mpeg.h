@@ -96,6 +96,7 @@ extern tcfraction_t frame_rates[16];
 #define ISDTS(id) ((id & 0xf8) == 0x88)
 #define ISPCM(id) ((id & 0xf8) == 0xa0)
 #define ISSPU(id) ((id & 0xe0) == 0x20)
+#define ISPS1AC3(pk) ((pk->stream_id == 0x0b) && pk->data[1] == 0x77)
 
 #define min(a,b) ((a)<(b)?(a):(b))
 

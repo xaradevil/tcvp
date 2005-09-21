@@ -508,7 +508,8 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 
 	if(ISVIDEO(pk->stream_id) || ISMPEGAUDIO(pk->stream_id) ||
 	   ISAC3(pk->stream_id) || ISDTS(pk->stream_id) ||
-	   ISPCM(pk->stream_id) || ISSPU(pk->stream_id)){
+	   ISPCM(pk->stream_id) || ISSPU(pk->stream_id) ||
+	   ISPS1AC3(pk)){
 	    if(s->imap[pk->stream_id] < 0){
 		if(ms->n_streams == ns){
 		    ns *= 2;
@@ -556,6 +557,9 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 		} else if(ISSPU(pk->stream_id)) {
 		    sp->stream_type = STREAM_TYPE_SUBTITLE;
 		    sp->common.codec = "subtitle/dvd";
+		} else if(ISPS1AC3(pk)){
+		    sp->stream_type = STREAM_TYPE_AUDIO;
+		    sp->common.codec = "audio/ac3";
 		}
 		sp->common.index = ms->n_streams++;
 		sp->common.start_time = -1;
