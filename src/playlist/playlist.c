@@ -146,19 +146,30 @@ pl_addlist(tcvp_playlist_t *tpl, char *file, int pos)
     }
 
     while(url_gets(buf, 1024, plf)){
-	if(buf[0] != '#'){
-	    int bl = strlen(buf);
-	    buf[bl-1] = 0;
-	    if(buf[bl-2] == '\r')
-		buf[bl-2] = 0;
-	    if(buf[0] == '/' || strchr(buf, ':')){
-		strncpy(line, buf, 1024);
-		line[1023] = 0;
-	    } else {
-		snprintf(line, 1024, "%s/%s", d, buf);
-	    }
-	    pl_add(tpl, lp, 1, pos + n++);
+	int bl;
+
+	if(buf[0] == '#')
+	    continue;
+
+	bl = strlen(buf);
+	if(bl == 0)
+	    continue;
+
+	buf[bl-1] = 0;
+	if(bl > 2 && buf[bl-2] == '\r')
+	    buf[bl-2] = 0;
+
+	if(buf[0] == 0)
+	    continue;
+
+	if(buf[0] == '/' || strchr(buf, ':')){
+	    strncpy(line, buf, 1024);
+	    line[1023] = 0;
+	} else {
+	    snprintf(line, 1024, "%s/%s", d, buf);
 	}
+
+	pl_add(tpl, lp, 1, pos + n++);
     }
 
     free(l);
