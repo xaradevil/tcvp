@@ -761,8 +761,8 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     widget_data_t *wd = calloc(sizeof(*wd), 1);
     xtk_widget_t *l;
     int disable = 0;
-    int alpha = 0xff;
-    char *font, *color;
+    int alpha = 0xff, calpha = 0xff;
+    char *font, *color, *ccolor = NULL;
     tcconf_section_t *bfnt = NULL;
     tcconf_section_t *fig = NULL;
     int rows, spacing;
@@ -785,6 +785,8 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     if(i != 8){
 	return NULL;
     }
+
+    tcconf_getvalue(sec, "current-color", "%s %d", &ccolor, &calpha);
 
     fig = tcconf_getsection(sec, "background_figure");
 
@@ -826,6 +828,11 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 
 	xtk_widget_list_set_color(l, color, alpha);
 	free(color);
+
+	if(ccolor) {
+	    xtk_widget_list_set_current_color(l, ccolor, calpha);
+	    free(ccolor);
+	}
 
 	xtk_widget_list_set_spacing(l, spacing);
 
