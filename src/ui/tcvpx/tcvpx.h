@@ -94,9 +94,6 @@ extern int on_top_cb(xtk_widget_t *xw, int i);
 extern int quit;
 
 extern eventq_t qs;
-extern eventq_t qr;
-
-extern tchash_table_t *text_hash;
 
 typedef struct {
     char *action;
