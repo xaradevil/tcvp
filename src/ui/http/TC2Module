@@ -32,8 +32,8 @@ TCVP {
 }
 
 option	listen iface%s="127.0.0.1" port%i=8080
-option	playlistformat%s="${artist} - ${title}"
+option	playlistformat%s="${artist}${artist:+ - }${title:-${file:r,.*/|\.[^.]*$,}}"
 option	playlistpage%i=20
-option	title%s="${artist} - ${title} - TCVP"
+option	title%s="${artist}${artist:+ - }${title:-${file:r,.*/|\.[^.]*$,}}${title:+ - } TCVP"
 option	refresh%i=60
 option	*info label%s value%s
