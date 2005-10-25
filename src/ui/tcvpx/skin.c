@@ -709,6 +709,8 @@ list_set_current(xtk_widget_t *w, void *data)
 {
 /*     printf("Current: %d\n", *((int*)data)); */
 
+    xtk_widget_list_set_current(w, *((int*)data));
+
     return 0;
 }
 
