@@ -109,7 +109,6 @@ option		xposition%d=-2
 option		yposition%d=-2
 option		*skinpath%s
 option		window_title%s="TCVP${title:+ (}${title}${performer:+ - }${performer}${title:+)}"
-option		playlistformat%s="${artist}${artist:+ - }${title:-${file:r,.*/|\.[^.]*$,}}"
 
 TCVP {
 	module "tcvp/ui/tcvpx" {

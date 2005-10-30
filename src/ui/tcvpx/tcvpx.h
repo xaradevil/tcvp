@@ -68,7 +68,8 @@ extern void free_dynamic(void);
 extern void free_ctl(void);
 
 extern int parse_text(char *text, char *result, int len);
-extern int parse_variable(char *text, void **result, void **def);
+extern int parse_variable(char *datatype, char *text, void **result,
+			  void **def);
 
 extern int change_text(char *key, char *text);
 extern int change_variable(char *key, char *datatype, void *data);
@@ -89,6 +90,8 @@ extern int toggle_time(xtk_widget_t *w, void *p);
 
 extern int sticky_cb(xtk_widget_t *xw, int i);
 extern int on_top_cb(xtk_widget_t *xw, int i);
+
+extern void plarrayfree(void *ptr);
 
 
 extern int quit;

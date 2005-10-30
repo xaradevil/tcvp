@@ -41,6 +41,53 @@ lookup_variable(char *key, void *p)
     return var;
 }
 
+static char *
+escape_string(char *src)
+{
+    char *ret = malloc(2*strlen(src)+1);
+    char *dst = ret;
+    do {
+	if (*src == '\'') *dst++ = '\\';
+	*dst++ = *src;
+    } while(*src++);
+
+    return ret;
+}
+
+static char *
+lookup_db_attr(char *n, void *p)
+{
+    char *f = (char*) p;
+    char *k, *fe, *ne;
+    tcdb_reply_t *r;
+
+    if(strcmp("file", n) == 0) {
+	return strdup(f);
+    }
+
+    fe = escape_string(f);
+    ne = escape_string(n);
+
+    k = calloc(strlen(fe) + strlen(ne) + 20, 1);
+
+    sprintf(k, "FIND '%s/%s'", fe, ne);
+
+    r = tcvp_tcdbc_query(dbc, k);
+
+    free(k);
+
+//   fprintf(stderr, "%s\n", (r && r->rtype == TCDB_STRING)?r->reply:"ERROR");
+
+    k = (r && r->rtype == TCDB_STRING && r->reply)?strdup(r->reply):NULL;
+    if(r) tcfree(r);
+
+    free(fe);
+    free(ne);
+
+    return k;
+}
+
+
 extern int
 change_variable(char *key, char *datatype, void *data)
 {
@@ -72,9 +119,34 @@ change_variable(char *key, char *datatype, void *data)
 	    if(data == NULL) {
 		widget_data_t *ad = xtk_widget_get_data(w);
 		if(ad) {
-		    parse_variable(ad->value, &tmp, NULL);
+		    parse_variable(datatype, ad->value, &tmp, NULL);
 		    if(tmp) cb(w, tmp);
 		}
+	    } else if(strcmp(datatype, "string_array") == 0) {
+		widget_data_t *ad = xtk_widget_get_data(w);
+		if(ad) {
+		    if(ad->value) {
+			parse_variable(datatype, ad->value, &tmp, NULL);
+			if(tmp) {
+			    cb(w, tmp);
+			    tcfree(tmp);
+			}
+		    } else if(ad->nvalues > 0) {
+			int i;
+			for(i = 0; i<ad->nvalues; i++) {
+			    if(strncmp(ad->values[i], key, strlen(key))== 0) {
+				parse_variable(datatype, ad->values[i], &tmp,
+					       NULL);
+				if(tmp) {
+				    cb(w, tmp);
+				    tcfree(tmp);
+				}
+			    }
+			}
+		    }
+		} else {
+		    cb(w, data);
+		}		
 	    } else {
 		cb(w, data);
 	    }
@@ -273,12 +345,22 @@ register_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 		   char *value)
 {
     tcref(w);
-
+    char *tmp, *valueparsed;
     char buf[1024];
-    sprintf(buf, "varwidget:%s:%s", datatype, value);
+
+    valueparsed = strdup(value);
+
+    tmp = strchr(valueparsed, '|');
+    if(tmp) {
+	*tmp=0;
+    }
+
+    sprintf(buf, "varwidget:%s:%s", datatype, valueparsed);
     register_key(buf, w);
-    sprintf(buf, "varcb:%s:%s", datatype, value);
+    sprintf(buf, "varcb:%s:%s", datatype, valueparsed);
     register_key(buf, cb);
+
+    free(valueparsed);
 
     return 0;
 }
@@ -287,27 +369,44 @@ extern int
 unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 		     char *value)
 {
+    char *valueparsed, *tmp;
     char buf[1024];
-    sprintf(buf, "varwidget:%s:%s", datatype, value);
+
+    valueparsed = strdup(value);
+
+    tmp = strchr(valueparsed, '|');
+    if(tmp) {
+	*tmp=0;
+    }
+
+    sprintf(buf, "varwidget:%s:%s", datatype, valueparsed);
     unregister_key(buf, w);
-    sprintf(buf, "varcb:%s:%s", datatype, value);
+    sprintf(buf, "varcb:%s:%s", datatype, valueparsed);
     unregister_key(buf, cb);
 
     tcfree(w);
+
+    free(valueparsed);
 
     return 0;
 }
 
 
 extern int
-parse_variable(char *text, void **result, void **def)
+parse_variable(char *datatype, char *text, void **result, void **def)
 {
-    char *key, *tmp, *dflt = NULL;
+    char *key, *tmp, *attr = NULL, *dflt = NULL;
 
     key = strdup(text);
 
-    tmp = strchr(key, ':');
+    tmp = strchr(key, '|');
     if(tmp) {
+	*tmp = 0;
+	attr = tmp+1;
+    }    
+
+    tmp = strchr(key, ':');
+    if(tmp && attr == NULL) {
 	tmp[0] = 0;
 	if(tmp[1]=='-') {
 	    dflt = tmp+2;
@@ -322,6 +421,26 @@ parse_variable(char *text, void **result, void **def)
 	    *dp = strtod(dflt+2, NULL);
 	    *def = dp;
 	}
+    }
+
+    if(*result != NULL && attr != NULL &&
+       strcmp(datatype, "string_array") == 0) {
+	int n, i;
+	char **list = (char **)*result;
+	for(n=0; list[n] != NULL; n++);
+
+	char **entries_formatted = 
+	    tcallocd((n+1) * sizeof(*entries_formatted), NULL, plarrayfree);
+	for(i=0; i<n; i++) {
+	    entries_formatted[i] = tcstrexp(attr, "{", "}", ':',
+					    lookup_db_attr, list[i],
+					    TCSTREXP_FREE | TCSTREXP_ESCAPE);
+	}
+	entries_formatted[i] = NULL;
+
+	*result = entries_formatted;
+    } else if(strcmp(datatype, "string_array") == 0) {
+	tcref(*result);
     }
 
     free(key);

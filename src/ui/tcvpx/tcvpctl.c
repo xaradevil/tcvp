@@ -35,34 +35,6 @@ int64_t s_pos, s_length, start_time;
 static int show_time = TCTIME_ELAPSED;
 static muxed_stream_t *st = NULL;
 
-static void plarrayfree(void *ptr);
-
-static char *
-lookup_attr(char *n, void *p)
-{
-    char *f = (char*) p;
-    char *k;
-    tcdb_reply_t *r;
-
-    if(strcmp("file", n) == 0) {
-	return strdup(f);
-    }
-
-    k = calloc(strlen(f) + strlen(n) + 10, 1);
-
-    sprintf(k, "FIND '%s/%s'", f, n);
-
-    r = tcvp_tcdbc_query(dbc, k);
-
-    free(k);
-
-//   fprintf(stderr, "%s\n", (r && r->rtype == TCDB_STRING)?r->reply:"ERROR");
-
-    k = (r && r->rtype == TCDB_STRING && r->reply)?strdup(r->reply):NULL;
-    if(r) tcfree(r);
-
-    return k;
-}
 
 extern int
 tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
@@ -189,9 +161,6 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 	char **entries_basename = 
 	    tcallocd((plce->length+1) * sizeof(*entries_basename),
 		     NULL, plarrayfree);
-	char **entries_formatted = 
-	    tcallocd((plce->length+1) * sizeof(*entries_basename),
-		     NULL, plarrayfree);
 
 	for(i=0; i<plce->length; i++) {
 	    entries[i] = strdup(plce->names[i]);
@@ -206,29 +175,21 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 		tmp = plce->names[i];
 	    }
 	    entries_basename[i] = strdup(tmp);
-	    entries_formatted[i] = tcstrexp(playlistformat, "{", "}",
-					    ':', lookup_attr, plce->names[i],
-					    TCSTREXP_FREE | TCSTREXP_ESCAPE);
 	}
 	entries_basename[i] = NULL;
-	entries_formatted[i] = NULL;
 
 	*length = plce->length;
 	change_variable("playlist_number_of_entries", "integer", length);
 	change_variable("playlist_entries", "string_array", entries);
 	change_variable("playlist_entries_basename", "string_array",
 			entries_basename);
-	change_variable("playlist_entries_formatted", "string_array",
-			entries_formatted);
-
-	
     }
 
     return 0;
 }
 
 
-static void
+extern void
 plarrayfree(void *ptr)
 {
     char **entries = (char **) ptr;
