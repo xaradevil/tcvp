@@ -1,0 +1,27 @@
+module		database
+name		"TCVP/database"
+version		0.1.0
+tc2version	0.6.0
+sources		db.c
+
+#import		"URL"		"open"
+#import		"URL"		"gets"
+import		"tcvp/event"	"alloc"
+import		"tcvp/event"	"new"
+#import		"stream"	"open"
+#import		"stream"	"magic_url"
+implement	"tcvp/database"	"get_dbref"	get_dbref
+implement	"tcvp/database"	"get_dbname"	get_dbname
+implement	"tcvp/database"	"query"		db_query
+require		"tcvp/core"
+
+TCVP {
+	module "tcvp/database" {
+		new db_new
+		init db_init
+		event control TCVP_DB_QUERY db_event_query
+	}
+	event TCVP_DB_QUERY
+	event TCVP_DB_REPLY
+}
+
