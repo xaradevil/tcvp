@@ -15,6 +15,8 @@ module src/codec/mpeg2
 module src/codec/pcm
 module src/codec/vorbis
 module src/codec/x264
+module src/database
+module src/dbc
 module src/demuxer/avformat
 module src/demuxer/avi
 module src/demuxer/avimage
@@ -44,6 +46,7 @@ module src/input/vheader
 module src/input/video
 module src/keys
 module src/lirc
+module src/mediainfo
 module src/output/audio
 module src/output/drivers/alsa
 module src/output/drivers/oss
