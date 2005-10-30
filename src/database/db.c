@@ -90,7 +90,9 @@ db_free(void *p)
 
     pthread_mutex_destroy(&tdb->lock);
 
-    tchash_destroy(dbhash, dbfree);
+    if(dbhash) {
+	tchash_destroy(dbhash, dbfree);
+    }
     tcfree(tdb->conf);
 }
 
