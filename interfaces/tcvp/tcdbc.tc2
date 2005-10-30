@@ -1,0 +1,3 @@
+inherit "tcvp/module"
+symbol "query"	tcdb_reply_t *(*%s)(tcvp_module_t *, char *)
+require "tcvp/database"

@@ -1,0 +1,24 @@
+module		tcdbc
+name		"TCVP/tcdbc"
+version		0.1.0
+tc2version	0.6.0
+sources		dbc.c
+
+implement	"tcvp/tcdbc"	"query"	db_query
+
+import		"tcvp/database"	"get_dbname"
+import		"tcvp/database"	"get_dbref"
+import		"tcvp/database"	"query"
+import		"tcvp/event"	"alloc"
+import		"tcvp/event"	"new"
+require		"tcvp/core"
+
+TCVP {
+	module "tcvp/tcdbc" {
+		new dbc_new
+		init dbc_init
+		event control TCVP_DB_REPLY db_reply
+	}
+	event TCVP_DB_QUERY	auto
+	event TCVP_DB_REPLY	auto
+}
