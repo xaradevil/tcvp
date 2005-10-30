@@ -41,6 +41,18 @@ typedef struct tcvp_mi {
     tcvp_module_t *dbc;
 } tcvp_mi_t;
 
+static char *
+escape_string(char *src)
+{
+    char *ret = malloc(2*strlen(src)+1);
+    char *dst = ret;
+    do {
+	if (*src == '\'') *dst++ = '\\';
+	*dst++ = *src;
+    } while(*src++);
+
+    return ret;
+}
 
 extern int
 get_info(tcvp_module_t *m, char *t)
@@ -54,13 +66,20 @@ get_info(tcvp_module_t *m, char *t)
 	int n = tcattr_getall(ms, 99, a);
 	int i;
 	for(i=0; i<n; i++) {
-	    char *c = malloc(strlen(a[i].name) + strlen(a[i].value) +
-			     strlen(t) + 100);
-	    sprintf(c, "ADD '%s/%s' '%s'", t, a[i].name, (char *)a[i].value);
+	    char *c, *te, *ne, *ve;
+	    te = escape_string(t);
+	    ne = escape_string(a[i].name);
+	    ve = escape_string(a[i].value);
+	    c = malloc(strlen(ne) + strlen(ve) +
+		       strlen(t) + 100);
+	    sprintf(c, "ADD '%s/%s' '%s'", te, ne, ve);
 	    tc2_print("mediainfo", TC2_PRINT_DEBUG+10, "%s\n", c);
 	    tcdb_reply_t *r = tcvp_tcdbc_query(h->dbc, c);
 	    tcfree(r);
 	    free(c);
+	    free(te);
+	    free(ne);
+	    free(ve);
 	}
 	tcfree(a);
 	tcfree(ms);
