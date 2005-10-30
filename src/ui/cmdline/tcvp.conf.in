@@ -1,3 +1,5 @@
 # -*- tcconf -*-
 module "tcvp/core"
 module "tcvp/playlist"
+module "tcvp/database"
+module "tcvp/mediainfo"
