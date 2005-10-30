@@ -177,6 +177,18 @@ db_reply_free(void *p)
     if(r->reply) free(r->reply);
 }
 
+static void
+unescape(char *s)
+{
+    char *p = s;
+
+    do {
+	if(s[0] == '\\' && s[1] == '\'') {
+	    s++;
+	}
+	*p++ = *s;
+    } while(*s++);
+}
 
 extern tcdb_reply_t *
 db_query(tcdb_t *db, char *query)
@@ -192,12 +204,19 @@ db_query(tcdb_t *db, char *query)
 
 	k = strchr(q, '\'');
 	if(k) {
-	    q = strchr(k+1, '\'');
+	    q=k;
+	    do {
+		q = strchr(q+1, '\'');
+	    } while(q[-1]=='\\');
+		
 	    if(k && q) {
 		*q=0;
 		v = strchr(q+1, '\'');
 		if(v) {
-		    q = strchr(v+1, '\'');
+		    q=v+1;
+		    do {
+			q = strchr(q+1, '\'');
+		    } while(q[-1]=='\\');
 		    if(v && q) {
 			*q=0;
 		    }
@@ -209,6 +228,10 @@ db_query(tcdb_t *db, char *query)
 	    void *p = NULL;
 	    k++;
 	    v++;
+
+	    unescape(k);
+	    unescape(v);
+
 	    tc2_print("database", TC2_PRINT_DEBUG+2, "ADD \"%s\" \"%s\"\n",
 		      k, v);
 
@@ -230,7 +253,11 @@ db_query(tcdb_t *db, char *query)
 
 	k = strchr(q, '\'');
 	if(k) {
-	    q = strchr(k+1, '\'');
+	    q=k;
+	    do {
+		q = strchr(q+1, '\'');
+	    } while(q[-1]=='\\');
+		
 	    if(k && q) {
 		*q=0;
 	    }
@@ -239,6 +266,9 @@ db_query(tcdb_t *db, char *query)
 	if(k) {
 	    void *p = NULL;
 	    k++;
+
+	    unescape(k);
+
 	    tc2_print("database", TC2_PRINT_DEBUG+2, "FIND \"%s\"\n", k);
 
 	    tchash_find(db->hash, k, -1, &p);
