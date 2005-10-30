@@ -1,0 +1,18 @@
+module		mediainfo
+name		"TCVP/mediainfo"
+version		0.1.0
+tc2version	0.6.0
+sources		mediainfo.c
+
+import	"stream"	"open"
+import	"tcvp/tcdbc"	"new"
+import	"tcvp/tcdbc"	"query"
+
+TCVP {
+	module "tcvp/mediainfo" {
+		new mi_new
+		init mi_init
+		event status TCVP_PL_CONTENT	mi_pl_content
+	}
+	event TCVP_PL_QUERY
+}
