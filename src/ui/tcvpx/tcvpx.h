@@ -62,7 +62,7 @@ extern int lookup_action(xtk_widget_t *w, void *p);
 extern int init_skins(void);
 extern void cleanup_skins(void);
 
-extern int init_dynamic(void);
+extern int init_dynamic(tcconf_section_t *cf);
 extern void free_dynamic(void);
 
 extern void free_ctl(void);
@@ -94,6 +94,8 @@ extern int on_top_cb(xtk_widget_t *xw, int i);
 extern int quit;
 
 extern eventq_t qs;
+
+extern tcvp_module_t *dbc;
 
 typedef struct {
     char *action;

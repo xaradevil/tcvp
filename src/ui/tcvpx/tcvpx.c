@@ -64,7 +64,7 @@ tcvpx_init(tcvp_module_t *tm)
 
     free(qname);
 
-    init_dynamic();
+    init_dynamic(tx->conf);
     init_skins();
 
     if((skin = load_skin(skinfile)) == NULL){

@@ -138,7 +138,8 @@ lookup_action(xtk_widget_t *w, void *p)
     wd = xtk_widget_get_data(w);
 
     if(wd && wd->action) {
-	tc2_print("TCVPX", TC2_PRINT_DEBUG+5, "Looking up action \"%s\"\n",wd->action);
+	tc2_print("TCVPX", TC2_PRINT_DEBUG+5, "Looking up action \"%s\"\n",
+		  wd->action);
 
 	ac_c = c = strdup(wd->action);
 
@@ -156,7 +157,8 @@ lookup_action(xtk_widget_t *w, void *p)
 		if(tmp) {
 		    tmp[0] = 0;
 		} else {
-		    tc2_print("TCVPX", TC2_PRINT_ERROR, "Syntax error in skin config file\n");
+		    tc2_print("TCVPX", TC2_PRINT_ERROR,
+			      "Syntax error in skin config file\n");
 		}
 	    }
 
@@ -167,7 +169,8 @@ lookup_action(xtk_widget_t *w, void *p)
 
 	    tchash_find(action_hash, c, -1, &acb);
 	    if(acb) {
-		tc2_print("TCVPX", TC2_PRINT_DEBUG+2, "Action: \"%s(%s)\"\n", c, wd->action_data);
+		tc2_print("TCVPX", TC2_PRINT_DEBUG+2,
+			  "Action: \"%s(%s)\"\n", c, wd->action_data);
 		acb(w, p);
 	    } else {
 		tc2_print("TCVPX", TC2_PRINT_WARNING,

@@ -29,6 +29,7 @@
 
 tchash_table_t *variable_hash;
 tchash_table_t *widget_hash;
+tcvp_module_t *dbc = NULL;
 
 static char *
 lookup_variable(char *key, void *p)
@@ -353,10 +354,13 @@ parse_text(char *text, char *result, int len)
 }
 
 extern int
-init_dynamic(void)
+init_dynamic(tcconf_section_t *cf)
 {
     variable_hash = tchash_new(10, 0, 0);
     widget_hash = tchash_new(10, 0, 0);
+
+    dbc = tcvp_tcdbc_new(cf);
+    dbc->init(dbc);
 
     return 0;
 }
@@ -374,4 +378,5 @@ free_dynamic(void)
 	tchash_destroy(variable_hash, tcfree);
     if(widget_hash)
 	tchash_destroy(widget_hash, wh_free);
+    tcfree(dbc);
 }
