@@ -62,7 +62,7 @@ get_info(tcvp_module_t *m, char *t)
     muxed_stream_t *ms;
     ms = stream_open(t, h->conf, NULL);
     if(ms) {
-	tcattr_t *a = tcallocz(sizeof(*t)*100);
+	tcattr_t *a = tcallocz(sizeof(*a)*100);
 	int n = tcattr_getall(ms, 99, a);
 	int i;
 	for(i=0; i<n; i++) {
