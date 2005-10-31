@@ -139,7 +139,7 @@ db_query(tcvp_module_t *m, char *q)
 	    }
 	}
 	return tcvp_database_query(tdbc->db, q);
-    } else {
+    } else if(!tcconf_getvalue(tdbc->conf, "features/database", "")){
 	void *p=NULL;
 	tc2_print("dbc", TC2_PRINT_DEBUG+8, "Remote connection\n");
 	if(tdbc->dbname == NULL) {
@@ -164,6 +164,9 @@ db_query(tcvp_module_t *m, char *q)
 	tcfree(dbr);
 
 	return ret;
+    } else {
+	tc2_print("dbc", TC2_PRINT_ERROR, "No database available\n");
+	return NULL;
     }
 }
 
