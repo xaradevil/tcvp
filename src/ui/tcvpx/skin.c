@@ -1024,6 +1024,7 @@ tcvp_close_ui(xtk_widget_t *w, void *p)
 
     unregister_textwidget(win, wd->value);
     if(wd->action) free(wd->action);
+    if(wd->value) free(wd->value);
     free(wd);
 
     xtk_window_destroy(win);
@@ -1079,7 +1080,8 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
     xtk_window_set_on_top_callback(skin->window, on_top_cb);
 
     char *default_text = malloc(1024);
-    wd->value = tcvp_ui_tcvpx_conf_window_title;
+    wd->value = strdup(tcvp_ui_tcvpx_conf_window_title);
+    tcconf_getvalue(skin->config, "title", "%s", &wd->value);
     register_textwidget(skin->window, wd->value);
 
     parse_text(wd->value, default_text, 1024);
