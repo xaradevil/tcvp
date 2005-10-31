@@ -216,8 +216,8 @@ db_query(tcdb_t *db, char *query)
 		    q=v+1;
 		    do {
 			q = strchr(q+1, '\'');
-		    } while(q[-1]=='\\');
-		    if(v && q) {
+		    } while(q && q[-1]=='\\');
+		    if(q) {
 			*q=0;
 		    }
 		}
