@@ -440,7 +440,7 @@ parse_variable(char *datatype, char *text, void **result, void **def)
 
 	*result = entries_formatted;
     } else if(strcmp(datatype, "string_array") == 0) {
-	tcref(*result);
+	if(*result) tcref(*result);
     }
 
     free(key);
