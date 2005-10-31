@@ -4,7 +4,9 @@ version		0.1.0
 tc2version	0.6.0
 sources		http.c
 
-import	"stream" "open"
+import	"tcvp/tcdbc"	"new"
+import	"tcvp/tcdbc"	"query"
+import	"stream" 	"open"
 
 TCVP {
 	module "tcvp/ui/http" {

@@ -50,6 +50,7 @@ typedef struct tcvp_http {
     int plpos, plflags;
     char **titles;
     uint64_t time;
+    tcvp_module_t *dbc;
 } tcvp_http_t;
 
 static const struct tcvp_http_control {
@@ -74,6 +75,11 @@ static const struct tcvp_http_control {
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
+typedef struct db_attr {
+    char *filename;
+    tcvp_module_t *dbc;
+} db_attr_t;
+
 static char *
 lookup_attr(char *n, void *p)
 {
@@ -81,11 +87,67 @@ lookup_attr(char *n, void *p)
     return v? strdup(v): NULL;
 }
 
+
 static char *
-exp_string(tcvp_http_t *h, muxed_stream_t *ms, char *s)
+escape_string(char *src)
 {
-    return tcstrexp(s, "{", "}", ':', lookup_attr, ms,
-		    TCSTREXP_FREE | TCSTREXP_ESCAPE);
+    char *ret = malloc(2*strlen(src)+1);
+    char *dst = ret;
+    do {
+	if (*src == '\'') *dst++ = '\\';
+	*dst++ = *src;
+    } while(*src++);
+
+    return ret;
+}
+
+static char *
+lookup_db_attr(char *n, void *p)
+{
+    db_attr_t *da = (db_attr_t *) p;
+
+    char *k, *fe, *ne;
+    tcdb_reply_t *r;
+
+    if(strcmp("file", n) == 0) {
+	return strdup(da->filename);
+    }
+
+    fe = escape_string(da->filename);
+    ne = escape_string(n);
+
+    k = calloc(strlen(fe) + strlen(ne) + 20, 1);
+
+    sprintf(k, "FIND '%s/%s'", fe, ne);
+
+    r = tcvp_tcdbc_query(da->dbc, k);
+
+    free(k);
+
+//   fprintf(stderr, "%s\n", (r && r->rtype == TCDB_STRING)?r->reply:"ERROR");
+
+    k = (r && r->rtype == TCDB_STRING && r->reply)?strdup(r->reply):NULL;
+    if(r) tcfree(r);
+
+    free(fe);
+    free(ne);
+
+    return k;
+}
+
+
+static char *
+exp_string(tcvp_http_t *h, char *f, char *s)
+{
+    db_attr_t *da = malloc(sizeof(*da));
+    da->filename = f;
+    da->dbc = h->dbc;
+
+    char *ret = tcstrexp(s, "{", "}", ':', lookup_db_attr, da,
+			 TCSTREXP_FREE | TCSTREXP_ESCAPE);
+    free(da);
+
+    return ret;
 }
 
 static int
@@ -94,14 +156,11 @@ get_titles(tcvp_http_t *h, int start, int n)
     if(playlistformat && h->playlist){
 	int i, end = min(start + n, h->playlist->length);
 	for(i = start; i < end; i++){
-	    muxed_stream_t *ms;
 	    if(h->titles[i])
 		continue;
-	    ms = stream_open(h->playlist->names[i], h->conf, NULL);
-	    if(ms)
-		h->titles[i] = exp_string(h, ms, playlistformat);
-	    tcfree(ms);
-	}
+	    h->titles[i] = exp_string(h, h->playlist->names[i],
+				      playlistformat);
+ 	}
     }
 
     return 0;
@@ -188,7 +247,8 @@ http_print_info(tcvp_http_t *h)
 	for(i = 0; i < tcvp_ui_http_conf_info_count; i++){
 	    char *l = tcvp_ui_http_conf_info[i].label;
 	    char *v =
-		exp_string(h, h->current, tcvp_ui_http_conf_info[i].value);
+		exp_string(h, tcattr_get(h->current, "file"),
+			   tcvp_ui_http_conf_info[i].value);
 	    if(l[0] && v[0])
 		httpdPrintf(hd, "<tr><td>%s</td><td>%s</td></tr>\n", l, v);
 	    free(v);
@@ -314,7 +374,8 @@ http_status(httpd *hd)
 	plstart = 0;
 
     if(h->current)
-	title = exp_string(h, h->current, tcvp_ui_http_conf_title);
+	title = exp_string(h, tcattr_get(h->current, "file"),
+			   tcvp_ui_http_conf_title);
     else
 	title = strdup("TCVP");
     http_head(m, title);
@@ -567,6 +628,8 @@ http_free(void *p)
 	httpdDestroy(h->httpd);
     }
 
+    if(h->dbc) tcfree(h->dbc);
+
     if(h->control)
 	eventq_delete(h->control);
     tcfree(h->conf);
@@ -628,6 +691,9 @@ http_init(tcvp_module_t *m)
     tcconf_setvalue(h->conf, "features/local/http", "");
     tcconf_setvalue(h->conf, "features/ui", "");
     tcconf_setvalue(h->conf, "features/local/ui", "");
+
+    h->dbc = tcvp_tcdbc_new(h->conf);
+    h->dbc->init(h->dbc);
 
     h->run = 1;
     pthread_create(&h->th, NULL, http_run, m);
