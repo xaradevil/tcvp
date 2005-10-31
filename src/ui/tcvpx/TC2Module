@@ -132,4 +132,5 @@ TCVP {
 	event TCVP_PL_ADDLIST
 	event TCVP_PL_REMOVE
 	event TCVP_PL_QUERY
+	event TCVP_PL_SEEK
 }

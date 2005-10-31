@@ -392,8 +392,19 @@ tcvp_playlist_remove(xtk_widget_t *w, void *p)
     return 0;
 }
 
+
 extern void
 free_ctl(void)
 {
     tcfree(st);
+}
+
+
+extern int
+tcvp_playlist_jump(xtk_widget_t *w, void *p)
+{
+    int entry = *((int *)p);
+    tcvp_event_send(qs, TCVP_PL_SEEK, entry, TCVP_PL_SEEK_ABS);
+
+    return 0;
 }
