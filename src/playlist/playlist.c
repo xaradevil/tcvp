@@ -244,8 +244,12 @@ pl_remove(tcvp_playlist_t *tpl, int s, int n)
 	    tpl->order[j++] = tpl->order[i] - nr;
     }
     tpl->nf -= nr;
-    if(tpl->cur > tpl->nf)
-	tpl->cur = tpl->nf;
+    if(tpl->cur >= s){
+	if(tpl->cur >= s + nr)
+	    tpl->cur -= nr;
+	else
+	    tpl->cur = s;
+    }
 
   end:
     pthread_mutex_unlock(&tpl->lock);
@@ -454,6 +458,7 @@ epl_remove(tcvp_module_t *p, tcvp_event_t *e)
     tcvp_pl_remove_event_t *te = (tcvp_pl_remove_event_t *) e;
     pl_remove(tpl, te->start, te->n);
     tcvp_event_send(tpl->ss, TCVP_PL_CONTENT, tpl->nf, tpl->files);
+    pl_send_state(tpl);
     return 0;
 }
 
