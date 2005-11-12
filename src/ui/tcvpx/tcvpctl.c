@@ -306,12 +306,7 @@ tcvp_add_file(char **file, int num)
 /*     fprintf(stderr, "%s\n", file); */
     int i;
     for(i=0; i<num; i++) {
-	char *s = strrchr(file[i], '.');
-	if(s && !strcasecmp(s, ".m3u")){
-	    tcvp_event_send(qs, TCVP_PL_ADDLIST, file[i], -1);
-	} else {
-	    tcvp_event_send(qs, TCVP_PL_ADD, &file[i], 1, -1);
-	}
+	tcvp_event_send(qs, TCVP_PL_ADD, &file[i], 1, -1);
     }
 
     return 0;
