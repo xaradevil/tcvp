@@ -80,6 +80,9 @@ nobase_dist_skin_DATA = \
 	big_blue/playlist_clear.png \
 	big_blue/playlist_clear_over.png \
 	big_blue/playlist_clear_pressed.png \
+	big_blue/playlist_rm.png \
+	big_blue/playlist_rm_over.png \
+	big_blue/playlist_rm_pressed.png \
 	big_blue/posbg.png \
 	big_blue/posslider.png \
 	big_blue/previous.png \
