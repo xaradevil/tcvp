@@ -814,6 +814,8 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	image_t *img = draw_figure(fig);
 
 	xtk_widget_list_set_image(l, img);
+
+	tcfree(img);
     }
 
     xtk_widget_list_set_data(l, wd);
