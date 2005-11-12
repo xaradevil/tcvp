@@ -105,6 +105,7 @@ init_skins(void)
 	{"enable_widgets", enable_widgets},
 	{"disable_widgets", disable_widgets},
 	{"playlist_remove", tcvp_playlist_remove},
+	{"playlist_remove_selected", tcvp_playlist_remove_selected},
 	{"playlist_query", tcvp_playlist_query},
 	{"playlist_jump", tcvp_playlist_jump},
 	{NULL, NULL}

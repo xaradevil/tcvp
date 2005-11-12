@@ -54,6 +54,7 @@ import		"xtk/widget/label"	"set_text"
 import		"xtk/widget/label"	"set_scroll"
 
 import		"xtk/widget/list"	"create"
+import		"xtk/widget/list"	"get_selected"
 import		"xtk/widget/list"	"set_action"
 import		"xtk/widget/list"	"set_bitmapfont"
 import		"xtk/widget/list"	"set_color"

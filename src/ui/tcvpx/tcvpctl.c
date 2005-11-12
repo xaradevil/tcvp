@@ -388,6 +388,28 @@ tcvp_playlist_remove(xtk_widget_t *w, void *p)
 }
 
 
+extern int
+tcvp_playlist_remove_selected(xtk_widget_t *w, void *p)
+{
+    widget_data_t *wd = xtk_widget_get_data(w);
+    char *d = wd->action_data;
+
+    tchash_find(wd->skin->id_hash, d, -1, &w);
+    if(w) {
+	int *selected, num, i;
+	num = xtk_widget_list_get_selected(w, &selected);
+
+	for(i=num-1; i>=0; i--) {
+	    tcvp_event_send(qs, TCVP_PL_REMOVE, selected[i], 1);	    
+	}
+
+	if(num > 0) free(selected);
+    }
+
+    return 0;
+}
+
+
 extern void
 free_ctl(void)
 {
