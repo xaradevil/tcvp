@@ -73,6 +73,12 @@ tcvpx_init(tcvp_module_t *tm)
 	return -1;
     }
 
+    skin->skin_hash = tchash_new(10, 0, 0);
+    tcconf_getvalue(skin->config, "id", "%s", &skin->id);
+    if(skin->id != NULL) {
+	tchash_search(skin->skin_hash, skin->id, -1, skin, NULL);
+    }
+
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
     xtk_window_set_dnd_callback(skin->window, tcvp_add_file);
     xtk_window_set_class(skin->window, "TCVP");

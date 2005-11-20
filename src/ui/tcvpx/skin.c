@@ -318,8 +318,18 @@ free_skin(skin_t *skin)
 {
     free(skin->file);
     free(skin->path);
+    if(skin->id) {
+	skin_t *ret;
+	tchash_delete(skin->skin_hash, skin->id, -1, &ret);
+	free(skin->id);
+    }
     tcfree(skin->config);
     tchash_destroy(skin->id_hash, NULL);
+
+    if(tchash_entries(skin->skin_hash) == 0) {
+	tchash_destroy(skin->skin_hash, NULL);
+    }
+
     free(skin);
 }
 
@@ -1020,7 +1030,19 @@ tcvp_close_ui(xtk_widget_t *w, void *p)
 {
     widget_data_t *wd;
     widget_data_t *owd = xtk_widget_get_data(w);
-    skin_t *s = owd->skin;
+    char *d = owd->action_data;
+    skin_t *s = owd->skin;;
+
+    if(d != NULL) {
+	skin_t *ret = NULL;
+	tchash_find(s->skin_hash, d, -1, &ret);
+	if(ret != NULL) {
+	    s = ret;
+	} else {
+	    return -1;
+	}
+    }
+
     xtk_widget_t *win = s->window;
 
     wd = xtk_widget_get_data(win);
@@ -1103,6 +1125,11 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 	skin->state |= ST_ON_TOP;
     }
 
+    tcconf_getvalue(skin->config, "id", "%s", &skin->id);
+    skin->skin_hash = s->skin_hash;
+    if(skin->id != NULL) {
+	tchash_search(skin->skin_hash, skin->id, -1, skin, NULL);
+    }
 
     ui_count++;
 

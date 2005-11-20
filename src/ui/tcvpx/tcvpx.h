@@ -52,6 +52,8 @@ typedef struct {
     tchash_table_t *id_hash;
     tclist_t *templates;
     char *dblclick;
+    char *id;
+    tchash_table_t *skin_hash;
 } skin_t;
 
 extern skin_t* load_skin(char *skinfile);
