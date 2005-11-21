@@ -138,6 +138,7 @@ lookup_action(xtk_widget_t *w, void *p)
     char *ac_c, *c;
 
     wd = xtk_widget_get_data(w);
+    tcref(wd);
 
     if(wd && wd->action) {
 	tc2_print("TCVPX", TC2_PRINT_DEBUG+5, "Looking up action \"%s\"\n",
@@ -178,11 +179,15 @@ lookup_action(xtk_widget_t *w, void *p)
 		tc2_print("TCVPX", TC2_PRINT_WARNING,
 			  "Action: \"%s\" not implemented\n", c);
 	    }
+
+	    wd->action_data = NULL;
 	    c = next;
 	}
 
 	free(ac_c);
     }
+
+    tcfree(wd);
 
     return 0;
 }
@@ -231,11 +236,34 @@ free_varcb(xtk_widget_t *w)
 }
 
 
+static void
+free_skin(void *p)
+{
+    skin_t *skin = p;
+
+    free(skin->file);
+    free(skin->path);
+
+    if(skin->id) {
+	skin_t *ret;
+	tchash_delete(skin->skin_hash, skin->id, -1, &ret);
+	free(skin->id);
+    }
+
+    tcfree(skin->config);
+    tchash_destroy(skin->id_hash, NULL);
+
+    if(tchash_entries(skin->skin_hash) == 0) {
+	tchash_destroy(skin->skin_hash, NULL);
+    }
+}
+
+
 extern skin_t*
 load_skin(char *skinconf)
 {
     char *tmp;
-    skin_t *skin = calloc(sizeof(*skin), 1);
+    skin_t *skin = tcallocdz(sizeof(*skin), NULL, free_skin);
     int i=0;
     char *conf_tmp = NULL;
     struct stat stat_foo;
@@ -303,34 +331,13 @@ load_skin(char *skinconf)
     i = tcconf_getvalue(skin->config, "size", "%d %d", &skin->width,
 			&skin->height);
     if(i != 2) {
-	free(skin);
+	tcfree(skin);
 	return NULL;
     }
 
     skin->id_hash = tchash_new(10, 0, 0);
 
     return skin;
-}
-
-
-static void
-free_skin(skin_t *skin)
-{
-    free(skin->file);
-    free(skin->path);
-    if(skin->id) {
-	skin_t *ret;
-	tchash_delete(skin->skin_hash, skin->id, -1, &ret);
-	free(skin->id);
-    }
-    tcfree(skin->config);
-    tchash_destroy(skin->id_hash, NULL);
-
-    if(tchash_entries(skin->skin_hash) == 0) {
-	tchash_destroy(skin->skin_hash, NULL);
-    }
-
-    free(skin);
 }
 
 
@@ -391,7 +398,7 @@ create_skinned_box(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
     }
 
     xtk_widget_t *w = xtk_widget_container_create(c, x, y, width, height);
-    wd = calloc(sizeof(*wd), 1);
+    wd = tcallocz(sizeof(*wd));
     wd->skin = skin;
     xtk_widget_container_set_data(w, wd);
     w->on_destroy = destroy_skinned_box;
@@ -408,7 +415,7 @@ destroy_skinned_button(xtk_widget_t *w)
     widget_data_t *wd = xtk_widget_get_data(w);
     if(wd) {
 	if(wd->action) free(wd->action);
-	free(wd);
+	tcfree(wd);
     }
     return 0;
 }
@@ -420,7 +427,7 @@ create_skinned_button(xtk_widget_t *c, skin_t *skin, tcconf_section_t *sec,
     char *file = NULL, *of = NULL, *df = NULL, *bg = NULL;
     int x, y;
     int i=0;
-    widget_data_t *wd = calloc(sizeof(*wd), 1);
+    widget_data_t *wd = tcallocz(sizeof(*wd));
     xtk_widget_t *bt;
     image_t *img;
     int shaped = 0;
@@ -486,7 +493,7 @@ destroy_skinned_label(xtk_widget_t *w)
 	unregister_textwidget(w, wd->value);
 	free(wd->value);
 	if(wd->action) free(wd->action);
-	free(wd);
+	tcfree(wd);
     }
     return 0;
 }
@@ -504,7 +511,7 @@ create_skinned_label(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int stype, align;
     int i = 0;
     char *action = NULL, *bg = NULL, *text, *default_text;
-    widget_data_t *wd = calloc(sizeof(*wd), 1);
+    widget_data_t *wd = tcallocz(sizeof(*wd));
     xtk_widget_t *l, *w;
     tcconf_section_t *bfnt = NULL;
     image_t *bg_img;
@@ -619,7 +626,7 @@ destroy_skinned_seek_bar(xtk_widget_t *w)
 	unregister_varwidget(w, seek_bar_update, "double", wd->value);
 	free(wd->value);
 	if(wd->action) free(wd->action);
-	free(wd);
+	tcfree(wd);
     }
     return 0;
 }
@@ -636,7 +643,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	*ind_down = NULL;
     int i=0;
     char *action = NULL;
-    widget_data_t *wd = calloc(sizeof(*wd), 1);
+    widget_data_t *wd = tcallocz(sizeof(*wd));
     double *position = NULL, *def = NULL, p=0;
     xtk_widget_t *s;
     int disable = 0;
@@ -760,7 +767,7 @@ destroy_skinned_list(xtk_widget_t *w)
     if(wd) {
 	free_varcb(w);
 	if(wd->action) free(wd->action);
-	free(wd);
+	tcfree(wd);
     }
     return 0;
 }
@@ -773,7 +780,7 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int width, height;
     int i=0;
     char *action = NULL;
-    widget_data_t *wd = calloc(sizeof(*wd), 1);
+    widget_data_t *wd = tcallocz(sizeof(*wd));
     xtk_widget_t *l;
     int disable = 0;
     int alpha = 0xff, calpha = 0xff;
@@ -932,7 +939,7 @@ destroy_skinned_state(xtk_widget_t *w)
 	unregister_textwidget(w, wd->value);
 	free(wd->value);
 	if(wd->action) free(wd->action);
-	free(wd);
+	tcfree(wd);
     }
     return 0;
 }
@@ -948,7 +955,7 @@ create_skinned_state(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     void *c = NULL;
     int i;
     char *img, *st, def_state[512], *bg = NULL;
-    widget_data_t *wd = calloc(sizeof(*wd), 1);
+    widget_data_t *wd = tcallocz(sizeof(*wd));
     xtk_widget_t *s = NULL;
 
     i = tcconf_getvalue(sec, "position", "%d %d", &x, &y);
@@ -1050,10 +1057,9 @@ tcvp_close_ui(xtk_widget_t *w, void *p)
     unregister_textwidget(win, wd->value);
     if(wd->action) free(wd->action);
     if(wd->value) free(wd->value);
-    free(wd);
+    tcfree(wd);
 
     xtk_window_destroy(win);
-    free_skin(s);
 
     ui_count--;
     if(ui_count == 0) {
