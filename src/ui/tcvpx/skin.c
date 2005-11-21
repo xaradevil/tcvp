@@ -388,7 +388,7 @@ destroy_skinned_box(xtk_widget_t *w)
 {
     void *wd = xtk_widget_get_data(w);
     if(wd) {
-	free(wd);
+	tcfree(wd);
     }
     return 0;
 }
@@ -844,6 +844,8 @@ create_skinned_list(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 	xtk_widget_list_set_image(l, img);
 
 	tcfree(img);
+
+	tcfree(fig);
     }
 
     xtk_widget_list_set_data(l, wd);
@@ -1021,45 +1023,9 @@ create_skinned_state(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     
 
 extern int
-tcvp_replace_ui(xtk_widget_t *w, void *p)
-{
-    skin_t *s;
-    if((s = tcvp_open_ui(w, p)) != NULL) {
-	widget_data_t *wd = xtk_widget_get_data(w);
-	skin_t *os = wd->skin;
-	xtk_position_t *pos = xtk_window_get_position(os->window);
-	if(pos) {
-	    if(pos->x + s->width > rwidth || pos->x + os->width == rwidth) {
-		pos->x = rwidth - s->width;
-	    }
-	    if(pos->y + s->height > rheight || pos->y + os->height == rheight){
-		pos->y = rheight - s->height;
-	    }
-	    xtk_window_set_position(s->window, pos);
-	    free(pos);
-	}
-	tcvp_close_ui(w, p);
-    }
-    return 0;
-}
-
-extern int
-tcvp_close_ui(xtk_widget_t *w, void *p)
+tcvp_close_skin(skin_t *s)
 {
     widget_data_t *wd;
-    widget_data_t *owd = xtk_widget_get_data(w);
-    char *d = owd->action_data;
-    skin_t *s = owd->skin;;
-
-    if(d != NULL) {
-	skin_t *ret = NULL;
-	tchash_find(s->skin_hash, d, -1, &ret);
-	if(ret != NULL) {
-	    s = ret;
-	} else {
-	    return -1;
-	}
-    }
 
     xtk_widget_t *win = s->window;
 
@@ -1081,6 +1047,54 @@ tcvp_close_ui(xtk_widget_t *w, void *p)
 
     return 0;
 }
+
+
+extern int
+tcvp_replace_ui(xtk_widget_t *w, void *p)
+{
+    skin_t *s;
+    if((s = tcvp_open_ui(w, p)) != NULL) {
+	widget_data_t *wd = xtk_widget_get_data(w);
+	skin_t *os = wd->skin;
+	xtk_position_t *pos = xtk_window_get_position(os->window);
+	if(pos) {
+	    if(pos->x + s->width > rwidth || pos->x + os->width == rwidth) {
+		pos->x = rwidth - s->width;
+	    }
+	    if(pos->y + s->height > rheight || pos->y + os->height == rheight){
+		pos->y = rheight - s->height;
+	    }
+	    xtk_window_set_position(s->window, pos);
+	    free(pos);
+	}
+	tcvp_close_skin(os);
+    }
+    return 0;
+}
+
+
+extern int
+tcvp_close_ui(xtk_widget_t *w, void *p)
+{
+    widget_data_t *owd = xtk_widget_get_data(w);
+    char *d = owd->action_data;
+    skin_t *s = owd->skin;;
+
+    if(d != NULL) {
+	skin_t *ret = NULL;
+	tchash_find(s->skin_hash, d, -1, &ret);
+	if(ret != NULL) {
+	    s = ret;
+	} else {
+	    return -1;
+	}
+    }
+
+    tcvp_close_skin(s);
+
+    return 0;
+}
+
 
 extern skin_t*
 tcvp_open_ui(xtk_widget_t *w, void *p)

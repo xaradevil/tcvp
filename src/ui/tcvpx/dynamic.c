@@ -420,6 +420,10 @@ parse_variable(char *datatype, char *text, void **result, void **def)
 	    double *dp = tcalloc(sizeof(*dp));
 	    *dp = strtod(dflt+2, NULL);
 	    *def = dp;
+	} else if (dflt[0] == '%' && dflt[1] == 'd') {
+	    double *dp = tcalloc(sizeof(*dp));
+	    *dp = strtol(dflt+2, NULL, 0);
+	    *def = dp;
 	}
     }
 

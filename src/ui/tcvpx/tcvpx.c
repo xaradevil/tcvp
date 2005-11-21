@@ -100,8 +100,10 @@ tcvpx_init(tcvp_module_t *tm)
     xtk_window_set_on_top_callback(skin->window, on_top_cb);
 
     char *default_text = malloc(1024);
-    wd->value = strdup(tcvp_ui_tcvpx_conf_window_title);
     tcconf_getvalue(skin->config, "title", "%s", &wd->value);
+    if(wd->value == NULL) {
+	wd->value = strdup(tcvp_ui_tcvpx_conf_window_title);
+    }
     register_textwidget(skin->window, wd->value);
 
     parse_text(wd->value, default_text, 1024);
