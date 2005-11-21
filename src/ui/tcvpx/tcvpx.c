@@ -89,9 +89,9 @@ tcvpx_init(tcvp_module_t *tm)
 	return -1;
     }
 
-    wd = tcalloc(sizeof(*wd));
+    wd = tcallocdz(sizeof(*wd), NULL, widgetdata_free);
     wd->action = skin->dblclick;
-    wd->skin = skin;
+    wd->skin = tcref(skin);
     xtk_widget_container_set_data(skin->window, wd);
 
     xtk_window_set_doubleclick_callback(skin->window, lookup_action);

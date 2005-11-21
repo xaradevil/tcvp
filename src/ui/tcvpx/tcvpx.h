@@ -95,6 +95,7 @@ extern int on_top_cb(xtk_widget_t *xw, int i);
 
 extern void plarrayfree(void *ptr);
 
+extern void widgetdata_free(void *p);
 
 extern int quit;
 
