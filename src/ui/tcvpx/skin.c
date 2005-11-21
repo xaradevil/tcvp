@@ -280,9 +280,11 @@ load_skin(char *skinconf)
     int i=0;
     char *conf_tmp = NULL;
     struct stat stat_foo;
+    int s = -1;
 
     if(skinconf[0] == '/' || stat(skinconf, &stat_foo) == 0) {
 	conf_tmp = strdup(skinconf);
+	s = stat(conf_tmp, &stat_foo);
     } else if (tcvp_ui_tcvpx_conf_skinpath_count > 0){
 	int i;
 	for(i=0; i<tcvp_ui_tcvpx_conf_skinpath_count && conf_tmp == NULL; i++){
@@ -290,7 +292,7 @@ load_skin(char *skinconf)
 			      strlen(skinconf) + 2);
 	    sprintf(conf_tmp, "%s/%s", tcvp_ui_tcvpx_conf_skinpath[i],
 		    skinconf);
-	    if(stat(conf_tmp, &stat_foo) != 0) {
+	    if((s = stat(conf_tmp, &stat_foo)) != 0) {
 		free(conf_tmp);
 		conf_tmp = NULL;
 	    }
@@ -300,16 +302,12 @@ load_skin(char *skinconf)
     if(conf_tmp == NULL) {
 	conf_tmp = malloc(strlen(getenv("HOME"))+strlen(skinconf)+15);
 	sprintf(conf_tmp, "%s/.tcvp/skins/%s", getenv("HOME"), skinconf);
-	if(stat(conf_tmp, &stat_foo) != 0) {
+	if((s = stat(conf_tmp, &stat_foo)) != 0) {
 	    free(conf_tmp);
-	    conf_tmp = NULL;
+	    conf_tmp = malloc(strlen(TCVP_SKINS)+strlen(skinconf)+2);
+	    sprintf(conf_tmp, "%s/%s", TCVP_SKINS, skinconf);
+	    s = stat(conf_tmp, &stat_foo);
 	}
-    }
-
-    if(conf_tmp == NULL) {
-	conf_tmp = malloc(strlen(TCVP_SKINS)+strlen(skinconf)+2);
-	sprintf(conf_tmp, "%s/%s", TCVP_SKINS, skinconf);
-	stat(conf_tmp, &stat_foo);
     }
 
     if(S_ISDIR(stat_foo.st_mode)) {
@@ -1126,8 +1124,10 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
     xtk_window_set_on_top_callback(skin->window, on_top_cb);
 
     char *default_text = malloc(1024);
-    wd->value = strdup(tcvp_ui_tcvpx_conf_window_title);
     tcconf_getvalue(skin->config, "title", "%s", &wd->value);
+    if(wd->value == NULL) {
+	wd->value = strdup(tcvp_ui_tcvpx_conf_window_title);
+    }
     register_textwidget(skin->window, wd->value);
 
     parse_text(wd->value, default_text, 1024);
