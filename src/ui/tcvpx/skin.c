@@ -137,6 +137,8 @@ lookup_action(xtk_widget_t *w, void *p)
     widget_data_t *wd;
     char *ac_c, *c;
 
+    tcref(w);
+
     wd = xtk_widget_get_data(w);
     tcref(wd);
 
@@ -188,6 +190,8 @@ lookup_action(xtk_widget_t *w, void *p)
     }
 
     tcfree(wd);
+
+    tcfree(w);
 
     return 0;
 }
@@ -1100,7 +1104,7 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 
     free(buf);
 
-    wd = calloc(sizeof(*wd), 1);
+    wd = tcalloc(sizeof(*wd));
     wd->action = skin->dblclick;
     wd->skin = skin;
     xtk_widget_container_set_data(skin->window, wd);

@@ -89,7 +89,7 @@ tcvpx_init(tcvp_module_t *tm)
 	return -1;
     }
 
-    wd = calloc(sizeof(*wd), 1);
+    wd = tcalloc(sizeof(*wd));
     wd->action = skin->dblclick;
     wd->skin = skin;
     xtk_widget_container_set_data(skin->window, wd);
