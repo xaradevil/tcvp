@@ -698,6 +698,7 @@ pl_add_deser(int type, u_char *event, int size)
     u_char *nm = memchr(event, 0, size);
     char **names;
     int n, pos;
+    void *evt;
 
     if(!nm)
 	return NULL;
@@ -713,7 +714,10 @@ pl_add_deser(int type, u_char *event, int size)
     if(!names)
 	return NULL;
 
-    return tcvp_event_new(type, names, n, pos);
+    evt = tcvp_event_new(type, names, n, pos);
+    free(names);
+
+    return evt;
 }
 
 extern void
@@ -763,6 +767,7 @@ pl_ct_deser(int type, u_char *event, int size)
 {
     u_char *nm = memchr(event, 0, size);
     char **names;
+    void *evt;
     int n;
 
     if(!nm)
@@ -773,5 +778,8 @@ pl_ct_deser(int type, u_char *event, int size)
     if(!names)
 	return NULL;
 
-    return tcvp_event_new(type, n, names);
+    evt = tcvp_event_new(type, n, names);
+    free(names);
+
+    return evt;
 }
