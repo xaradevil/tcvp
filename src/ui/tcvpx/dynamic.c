@@ -355,6 +355,11 @@ register_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 	*tmp=0;
     }
 
+    tmp = strchr(valueparsed, ':');
+    if(tmp) {
+	*tmp=0;
+    }
+
     sprintf(buf, "varwidget:%s:%s", datatype, valueparsed);
     register_key(buf, w);
     sprintf(buf, "varcb:%s:%s", datatype, valueparsed);
