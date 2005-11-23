@@ -35,6 +35,7 @@
 extern skin_t *tcvp_open_ui(xtk_widget_t *w, void *p);
 extern int tcvp_close_ui(xtk_widget_t *w, void *p);
 extern int tcvp_replace_ui(xtk_widget_t *w, void *p);
+extern int tcvp_toggle_ui(xtk_widget_t *w, void *p);
 extern int tcvp_sticky(xtk_widget_t *w, void *p);
 extern int tcvp_on_top(xtk_widget_t *w, void *p);
 extern int set_var(xtk_widget_t *w, void *p);
@@ -95,6 +96,7 @@ init_skins(void)
 	{"open_ui", (action_cb_t)tcvp_open_ui},
 	{"close_ui", tcvp_close_ui},
 	{"replace_ui", tcvp_replace_ui},
+	{"toggle_ui", tcvp_toggle_ui},
 	{"toggle_time", toggle_time},
 	{"seek", tcvp_seek},
 	{"seek_relative", tcvp_seek_rel},
@@ -1046,6 +1048,37 @@ tcvp_close_skin(skin_t *s)
     tcfree(s);
 
     return 0;
+}
+
+
+extern int
+tcvp_toggle_ui(xtk_widget_t *w, void *p)
+{
+    widget_data_t *owd = xtk_widget_get_data(w);
+    char *d = owd->action_data;
+    skin_t *s = owd->skin;;
+
+    if(d != NULL) {
+	skin_t *ret = NULL;
+	tchash_find(s->skin_hash, d, -1, &ret);
+	if(ret == NULL) {
+	    char *key = strdup(d);
+	    char *tmp;
+	    tmp = strrchr(key, '.');
+	    if(tmp != NULL) {
+		tmp[0] = 0;
+		tchash_find(s->skin_hash, key, -1, &ret);
+	    }
+	    free(key);
+	}
+	if(ret != NULL) {
+	    return tcvp_close_skin(ret);
+	} else {
+	    return tcvp_open_ui(w, p) == NULL?-1:0;
+	}
+    }
+
+    return -1;
 }
 
 
