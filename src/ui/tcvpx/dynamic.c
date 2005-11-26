@@ -291,6 +291,9 @@ unregister_key(char *key, void *w)
 
     if(lst) {
 	tclist_delete(lst, w, ptr_cmp, NULL);
+    } else {
+	tc2_print("TCVPX", TC2_PRINT_DEBUG,
+		  "Unregistration of key %s failed\n", key);
     }
 
     return 0;
@@ -380,6 +383,11 @@ unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
     valueparsed = strdup(value);
 
     tmp = strchr(valueparsed, '|');
+    if(tmp) {
+	*tmp=0;
+    }
+
+    tmp = strchr(valueparsed, ':');
     if(tmp) {
 	*tmp=0;
     }
