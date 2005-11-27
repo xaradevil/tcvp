@@ -62,6 +62,8 @@ nobase_dist_skin_DATA = \
 	big_blue/big_volbg.png \
 	big_blue/big_volslider.png \
 	big_blue/button.png \
+	big_blue/button_over.png \
+	big_blue/button_pressed.png \
 	big_blue/close.png \
 	big_blue/close_over.png \
 	big_blue/close_pressed.png \
