@@ -339,6 +339,7 @@ mad_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     md = tcallocdz(sizeof(*md), NULL, mad_free);
     mad_stream_init(&md->stream);
+    mad_stream_options(&md->stream, MAD_OPTION_IGNORECRC);
     mad_frame_init(&md->frame);
     mad_synth_init(&md->synth);
     md->bufsize = 2 * MAX_FRAME_SIZE;
