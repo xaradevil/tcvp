@@ -155,9 +155,9 @@ pl_addlist(tcvp_playlist_t *tpl, char *file, int pos)
 	if(bl == 0)
 	    continue;
 
-	buf[bl-1] = 0;
-	if(bl > 2 && buf[bl-2] == '\r')
-	    buf[bl-2] = 0;
+	bl--;
+	while(bl > 0 && (buf[bl] == '\n' || buf[bl] == '\r'))
+	    buf[bl--] = 0;
 
 	if(buf[0] == 0)
 	    continue;
