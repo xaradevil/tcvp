@@ -26,3 +26,4 @@ Delay in seconds before hiding mouse pointer
 
 option		reuse_window%i
 option		subwindow%i=1
+option		fullscreen%i

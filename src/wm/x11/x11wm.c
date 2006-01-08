@@ -487,7 +487,7 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     x11_wm_t *xwm = NULL;
     char *display = NULL;
     char *qname, *qn;
-    int fs = 0;
+    int fs = tcvp_wm_x11_conf_fullscreen;
     char *window = NULL;
     int subwin = tcvp_wm_x11_conf_subwindow;
 
