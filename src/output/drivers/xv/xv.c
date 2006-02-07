@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -160,15 +160,41 @@ static struct {
 
 #define NUMFORMATS (sizeof(formats) / sizeof(formats[0]))
 
+static int
+xv_valid_attr(XvAttribute *attr, int n, char *name, int set, int value)
+{
+    int i;
+
+    for(i = 0; i < n; i++){
+        if(!strcmp(attr[i].name, name))
+            break;
+    }
+
+    if(i == n)
+        return -1;
+
+    if(!set)
+        return attr[i].flags & XvGettable? 0: -1;
+
+    if(!(attr[i].flags & XvSettable))
+        return -1;
+
+    if(value < attr[i].min_value || value > attr[i].max_value)
+        return -1;
+
+    return 0;
+}
+
 extern video_driver_t *
 xv_open(video_stream_t *vs, tcconf_section_t *cs)
 {
     video_driver_t *vd;
     xv_window_t *xvw;
     Display *dpy;
-    int ver, rev, rb, evb, erb;
+    unsigned int ver, rev, rb, evb, erb;
     XvAdaptorInfo *xai;
-    int na;
+    XvAttribute *xvattr;
+    int na, nattr;
     Window win;
     int i;
     int frames = tcvp_driver_video_xv_conf_frames?: FRAMES;
@@ -205,19 +231,32 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 
     XInitThreads();
 
-    if((dpy = XOpenDisplay(display)) == NULL)
+    if((dpy = XOpenDisplay(display)) == NULL){
+	tc2_print("XV", TC2_PRINT_ERROR, "can't open display %s\n",
+		  display? display: "NULL");
 	return NULL;
+    }
 
     if(XvQueryExtension(dpy, &ver, &rev, &rb, &evb, &erb) != Success){
+	tc2_print("XV", TC2_PRINT_ERROR, "XVideo extension not present\n");
 	return NULL;
     }
 
+    tc2_print("XV", TC2_PRINT_DEBUG, "XVideo version %u.%u\n", ver, rev);
+
     if(XvQueryAdaptors(dpy, DefaultRootWindow(dpy), &na, &xai) != Success){
+	tc2_print("XV", TC2_PRINT_ERROR, "XvQueryAdaptors failed\n");
 	return NULL;
     }
+
+    tc2_print("XV", TC2_PRINT_DEBUG, "%i adaptors\n", na);
 
     for(i = 0; i < na && !port; i++){
 	int j;
+
+        tc2_print("XV", TC2_PRINT_DEBUG,
+                  "Adaptor #%i: \"%s\", %i ports, base %i\n",
+                  i, xai[i].name, xai[i].num_ports, xai[i].base_id);
 
 	for(j = 0; j < xai[i].num_ports && !port; j++){
 	    XvImageFormatValues *xif;
@@ -236,8 +275,12 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 
     XvFreeAdaptorInfo(xai);
 
-    if(!port)
+    if(!port){
+        tc2_print("XV", TC2_PRINT_DEBUG, "no suitable port found\n");
 	return NULL;
+    }
+
+    tc2_print("XV", TC2_PRINT_DEBUG, "using port %i\n", port);
 
     xvw = calloc(1, sizeof(*xvw));
     xvw->port = port;
@@ -260,24 +303,37 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 	    xvw->dh = (float) vs->width / dasp;
     }
 
+    xvattr = XvQueryPortAttributes(dpy, port, &nattr);
+
     for(i = 0; i < driver_video_xv_conf_attribute_count; i++){
 	char *name = driver_video_xv_conf_attribute[i].name;
 	int value = driver_video_xv_conf_attribute[i].value;
-	if((atm = XInternAtom(dpy, name, True)) != None){
-	    XvSetPortAttribute(dpy, xvw->port, atm, value);
-	}
+        if(!xv_valid_attr(xvattr, nattr, name, 1, value)){
+            if((atm = XInternAtom(dpy, name, True)) != None){
+                XvSetPortAttribute(dpy, xvw->port, atm, value);
+            }
+        } else {
+            tc2_print("XV", TC2_PRINT_WARNING,
+                      "can't set attribute %s to %i\n", name, value);
+        }
     }
 
     if((atm = XInternAtom(dpy, "XV_COLORKEY", True)) != None){
 	if(tcconf_getvalue(cs, "video/color_key", "%i", &color_key) > 0){
-	    XvSetPortAttribute(dpy, xvw->port, atm, color_key);
+            if(!xv_valid_attr(xvattr, nattr, "XV_COLORKEY", 1, color_key))
+                XvSetPortAttribute(dpy, xvw->port, atm, color_key);
+            else
+                tc2_print("XV", TC2_PRINT_WARNING, "can't set color key\n");
 	} else {
-	    XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
-	    tcconf_clearvalue(cs, "video/color_key");
-	    tcconf_setvalue(cs, "video/color_key", "%i", color_key);
+            if(!xv_valid_attr(xvattr, nattr, "XV_COLORKEY", 0, 0)){
+                XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
+                tcconf_clearvalue(cs, "video/color_key");
+                tcconf_setvalue(cs, "video/color_key", "%i", color_key);
+            }
 	}
     }
 
+    XFree(xvattr);
     XCloseDisplay(dpy);
 
     if(!(wm = wm_x11_open(xvw->dw, xvw->dh, xv_reconf, xvw, cs, 0))){
