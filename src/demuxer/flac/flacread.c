@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2005-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -213,7 +213,7 @@ flr_packet(muxed_stream_t *ms, int s)
 	    }
 	}
 
-	if(i >= flr->bend - MIN_HEADER_SIZE && !flr->eof){
+	if(i >= flr->bend - (hsize > 0? hsize: MIN_HEADER_SIZE) && !flr->eof){
 	    u_char *nb;
 
 	    if(flr->bpos == 0)
