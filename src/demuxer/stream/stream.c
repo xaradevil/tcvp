@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -46,14 +46,20 @@ static pthread_mutex_t magic_lock = PTHREAD_MUTEX_INITIALIZER;
 #define suffix_map_size tcvp_demux_stream_conf_suffix_count
 
 static void
-cpattr(void *d, void *s, char *a)
+cpattr2(void *d, void *s, char *da, char *sa)
 {
-    if(!tcattr_get(d, a)){
-	void *v = tcattr_get(s, a);
+    if(!tcattr_get(d, da)){
+	void *v = tcattr_get(s, sa);
 	if(v){
-	    tcattr_set(d, a, strdup(v), NULL, free);
+	    tcattr_set(d, da, strdup(v), NULL, free);
 	}
     }
+}
+
+static void
+cpattr(void *d, void *s, char *a)
+{
+    cpattr2(d, s, a, a);
 }
 
 static int
@@ -141,6 +147,8 @@ s_magic(url_t *u, char *name)
     uint64_t pos;
     int mgs;
 
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "s_magic %s\n", name);
+
 #ifdef HAVE_LIBMAGIC
     pos = u->tell(u);
     mgs = u->read(buf, 1, magic_size, u);
@@ -168,6 +176,8 @@ s_magic(url_t *u, char *name)
 
     if(!m && name)
 	m = s_magic_suffix(name);
+
+    tc2_print("STREAM", TC2_PRINT_DEBUG, "  type %s\n", m);
 
     return m;
 }
@@ -228,6 +238,13 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 	cpattr(ms, u, "track");
 	cpattr(ms, u, "year");
 	cpattr(ms, u, "genre");
+
+	cpattr2(ms, u, "title", "user.title");
+	cpattr2(ms, u, "artist", "user.artist");
+	cpattr2(ms, u, "album", "user.album");
+	cpattr2(ms, u, "track", "user.track");
+	cpattr2(ms, u, "year", "user.year");
+	cpattr2(ms, u, "genre", "user.genre");
 
 	a = tcattr_get(ms, "artist");
 	p = tcattr_get(ms, "performer");
