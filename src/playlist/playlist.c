@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -201,6 +201,7 @@ pl_addauto(tcvp_playlist_t *tpl, char **files, int n, int p)
 	} else {
 	    pl_add(tpl, files + i, 1, p++);
 	}
+        free(m);
     }
 
     pthread_mutex_unlock(&tpl->lock);
