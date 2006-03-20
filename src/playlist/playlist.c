@@ -51,6 +51,8 @@ typedef struct tcvp_playlist {
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
+static int pl_addauto_unlocked(tcvp_playlist_t *, char **files, int n, int p);
+
 static int
 pl_send_state(tcvp_playlist_t *tpl)
 {
@@ -169,7 +171,7 @@ pl_addlist(tcvp_playlist_t *tpl, char *file, int pos)
 	    snprintf(line, 1024, "%s/%s", d, buf);
 	}
 
-	pl_add(tpl, lp, 1, pos + n++);
+	n += pl_addauto_unlocked(tpl, lp, 1, pos + n);
     }
 
     free(l);
@@ -179,11 +181,9 @@ pl_addlist(tcvp_playlist_t *tpl, char *file, int pos)
 }
 
 static int
-pl_addauto(tcvp_playlist_t *tpl, char **files, int n, int p)
+pl_addauto_unlocked(tcvp_playlist_t *tpl, char **files, int n, int p)
 {
-    int i;
-
-    pthread_mutex_lock(&tpl->lock);
+    int i, nadd = 0;
 
     if(p < 0)
 	p = tpl->nf + p + 1;
@@ -196,16 +196,28 @@ pl_addauto(tcvp_playlist_t *tpl, char **files, int n, int p)
 	    continue;
 	if(!strcmp(m, "application/x-playlist")){
 	    int np = pl_addlist(tpl, files[i], p);
-	    if(np > 0)
+	    if(np > 0){
 		p += np;
+                nadd += np;
+            }
 	} else {
 	    pl_add(tpl, files + i, 1, p++);
+            nadd++;
 	}
         free(m);
     }
 
+    return nadd;
+}
+
+static int
+pl_addauto(tcvp_playlist_t *tpl, char **files, int n, int p)
+{
+    int ret;
+    pthread_mutex_lock(&tpl->lock);
+    ret = pl_addauto_unlocked(tpl, files, n, p);
     pthread_mutex_unlock(&tpl->lock);
-    return 0;
+    return ret;
 }
 
 static int
