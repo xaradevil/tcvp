@@ -294,6 +294,10 @@ tcl_init(char *p)
 		add_module("", aon);
 		free(aon);
 	    }
+            nv = NULL;
+            while(tcconf_nextvalue(prconf, "nomodule", &nv, "%s", &aon) > 0){
+                add_nomodule(aon);
+            }
 	    tcfree(prconf);
 	}
 	free(profile);
@@ -411,6 +415,8 @@ tcl_stop(void)
 {
     int i;
 
+    tc2_print("CMDLINE", TC2_PRINT_DEBUG, "tcl_stop\n");
+
     if(validate)
 	pthread_join(check_thr, NULL);
 
@@ -421,6 +427,7 @@ tcl_stop(void)
     }
 
     if(intr){
+	tc2_print("CMDLINE", TC2_PRINT_DEBUG, "stopping signal handler\n");
 	intr = 0;
 	sem_post(&psm);
 	pthread_join(intr_thr, NULL);
@@ -432,8 +439,10 @@ tcl_stop(void)
 	eventq_delete(qs);
 
     if(modules){
-	int i;
+	tc2_print("CMDLINE", TC2_PRINT_DEBUG, "unloading modules\n");
+
 	for(i = 0; i < nadd; i++){
+	    tc2_print("CMDLINE", TC2_PRINT_DEBUG, "  %s\n", modnames[i]);
 	    if(modules[i])
 		tcfree(modules[i]);
 	    if(modnames[i])
@@ -450,6 +459,8 @@ tcl_stop(void)
 	free(files[i]);
     for(i = 0; i < npl; i++)
 	free(playlist[i]);
+
+    tc2_print("CMDLINE", TC2_PRINT_DEBUG, "tcl_stop done\n");
 
     return 0;
 }
@@ -740,8 +751,10 @@ main(int argc, char **argv)
     tcfree(cf);
     if(playlist)
 	free(playlist);
-    if(nmodnames)
-	free(nmodnames);
+
+    for(i = 0; i < nnadd; i++)
+        free(nmodnames[i]);
+    free(nmodnames);
 
     return 0;
 }
