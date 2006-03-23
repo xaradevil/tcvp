@@ -662,7 +662,7 @@ parse_options(int argc, char **argv)
 	    break;
 
 	case 'X':
-	    add_nomodule(optarg);
+	    add_nomodule(strdup(optarg));
 	    break;
 
 	case OPT_NEXT:
