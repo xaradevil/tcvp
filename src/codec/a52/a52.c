@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -94,6 +94,14 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 	    s16[4*i+3] = convert (f[i+768]);
 	}
 	return 4;
+    case A52_3F1R:
+        for(i = 0; i < 256; i++){
+            s16[5*i] = convert(f[i]);
+            s16[5*i+1] = convert(f[i+512]);
+            s16[5*i+2] = s16[5*i+3] = convert(f[i+768]);
+            s16[5*i+4] = convert(f[i+256]);
+        }
+        return 5;
     case A52_3F2R:
 	for (i = 0; i < 256; i++) {
 	    s16[5*i] = convert (f[i]);
@@ -322,6 +330,7 @@ a52_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	    break;
 	case A52_MONO:
 	case A52_3F:
+        case A52_3F1R:
 	case A52_3F2R:
 	    channels = 5;
 	    break;
@@ -335,7 +344,7 @@ a52_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	    channels = 6;
 	    break;
 	default:
-	    tc2_print("A52", TC2_PRINT_ERROR, "invalid flags\n");
+	    tc2_print("A52", TC2_PRINT_ERROR, "unsuppored flags %x\n", flags);
 	    return PROBE_FAIL;
 	}
     }
