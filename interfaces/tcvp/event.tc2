@@ -9,12 +9,24 @@ symbol "alloc"		void *(*%s)(int type, int size, tcfree_fn)
 symbol "serialize"	u_char *(*%s)(void *event, int *size)
 symbol "deserialize"	void *(*%s)(u_char *event, int size)
 symbol "get_qname"	char *(*%s)(tcconf_section_t *cf)
+symbol "loop"           int (*%s)(eventq_t q, tcvp_event_type_handler_t *, void *, pthread_t *)
 require "Eventq"
 require "tcvp/core"
 include
 #include <tctypes.h>
 #include <stdarg.h>
+#include <pthread.h>
+
+typedef struct tcvp_event {
+    int type;
+} tcvp_event_t;
 
 typedef void *(tcvp_alloc_event_t)(int type, va_list);
 typedef u_char *(tcvp_serialize_event_t)(char *name, void *event, int *size);
 typedef void *(tcvp_deserialize_event_t)(int type, u_char *event, int size);
+typedef int (*tcvp_event_handler_t)(tcvp_module_t *, tcvp_event_t *);
+
+typedef struct tcvp_event_type_handler {
+    int type;
+    tcvp_event_handler_t handler;
+} tcvp_event_type_handler_t;

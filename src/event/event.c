@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -300,4 +300,63 @@ event_free(void)
     event_num = 0;
 
     return 0;
+}
+
+typedef struct event_handler {
+    eventq_t q;
+    tcvp_event_type_handler_t *handlers;
+    void *data;
+    int running;
+} event_handler_t;
+
+static void *
+event_loop(void *p)
+{
+    event_handler_t *eh = p;
+    tcvp_event_type_handler_t *handlers = eh->handlers;
+    void *data = eh->data;
+    eventq_t q = eh->q;
+    int run = 1;
+
+    eh->running = 1;
+    eh = NULL;
+
+    while(run){
+	tcvp_event_t *te = eventq_recv(q);
+        tcvp_event_type_handler_t *h = handlers;
+        while(h->handler){
+            if(h->type == te->type){
+                h->handler(data, te);
+                break;
+            }
+            h++;
+        }
+
+        if(te->type == -1)
+            run = 0;
+
+        tcfree(te);
+    }
+
+    return NULL;
+}
+
+extern int
+start_loop(eventq_t q, tcvp_event_type_handler_t *eht, void *d, pthread_t *pt)
+{
+    event_handler_t eh = {
+        .q = q,
+        .handlers = eht,
+        .data = d,
+        .running = 0
+    };
+    int err;
+
+    err = pthread_create(pt, NULL, event_loop, &eh);
+    if(!err){
+        while(!eh.running)
+            sched_yield();
+    }
+
+    return err;
 }
