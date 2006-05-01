@@ -34,7 +34,6 @@
 
 #define ALSA_PCM_NEW_HW_PARAMS_API 1
 #include <alsa/asoundlib.h>
-#include <alsa/pcm_plugin.h>
 
 #include <tcvp_types.h>
 #include <alsa_tc2.h>
