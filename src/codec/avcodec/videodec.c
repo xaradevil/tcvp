@@ -183,10 +183,10 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 		  vc->ctx->time_base.num, vc->ctx->time_base.den);
 
 	if(vc->ctx->time_base.num){
+	    p->format.video.frame_rate.num = vc->ctx->time_base.den;
+	    p->format.video.frame_rate.den = vc->ctx->time_base.num;
 	    vc->ptsn = (uint64_t) 27000000 * p->format.video.frame_rate.den;
 	    vc->ptsd = p->format.video.frame_rate.num;
-/* 	    p->format.video.frame_rate.num = vc->ctx->time_base.den; */
-/* 	    p->format.video.frame_rate.den = vc->ctx->time_base.num; */
 	}
 #else
 	if(vc->ctx->frame_rate){
