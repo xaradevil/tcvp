@@ -131,6 +131,7 @@ do_close(tcvp_core_t *tp)
     pthread_mutex_unlock(&tp->tmx);
 
     if(tp->th_ticker){
+	tc2_print("TCVP", TC2_PRINT_DEBUG, "waiting for ticker\n");
 	pthread_join(tp->th_ticker, NULL);
 	tp->th_ticker = 0;
     }
@@ -138,6 +139,7 @@ do_close(tcvp_core_t *tp)
     pthread_mutex_lock(&tp->tmx);
 
     if(tp->timer){
+	tc2_print("TCVP", TC2_PRINT_DEBUG, "destroying timer\n");
 	tcfree(tp->timer);
 	tp->timer = NULL;
     }
