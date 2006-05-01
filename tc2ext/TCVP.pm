@@ -76,6 +76,7 @@ sub tc2module {
 	TC2::tc2_import('tcvp/event', 'send');
 	TC2::tc2_import('tcvp/event', 'format');
 	TC2::tc2_import('tcvp/event', 'get_qname');
+	TC2::tc2_import('tcvp/event', 'loop');
 	TC2::tc2_require("tcvp/events/$2");
     } elsif (not $module and
 	     /event\s+(\w+)(?:\s+(\w+)(?:\s+(\w+)\s+(\w+))?)?/) {
@@ -189,37 +190,8 @@ END_C
 	print $fh "} $$_{wtype}_t;\n\n";
 
 	if ($$_{events}) {
-	    print $fh <<END_C;
-static void *
-$$_{w}event_loop(void *p)
-{
-    $$_{wtype}_t *tp = p;
-    int run = 1;
-
-    while(run){
-	tcvp_event_t *te = eventq_recv(tp->qr);
-END_C
-	    my $else;
-	    while (my($name, $e) = each %{$$_{events}}) {
-		if ($$e{handler}) {
-		    print $fh <<END_C;
-	${else}if(te->type == $name){
-	    $$e{handler}(&tp->p, te);
-	}
-END_C
-		    $else = 'else ';
-		}
-	    }
-	    print $fh <<END_C;
-	${else}if(te->type == -1){
-	    run = 0;
-	}
-	tcfree(te);
-    }
-
-    return NULL;
-}
-END_C
+	    my $nh = keys(%{$$_{events}}) + 1;
+	    print $fh "static tcvp_event_type_handler_t $$_{w}event_handlers[$nh];\n";
 	}
 
 	if ($$_{type} eq 'filter') {
@@ -345,7 +317,7 @@ END_C
 END_C
 		}
 		print $fh <<END_C;
-    pthread_create(&p->eth, NULL, $$_{w}event_loop, p);
+    tcvp_event_loop(p->qr, $$_{w}event_handlers, &p->p, &p->eth);
     free(qn);
     free(qname);
 END_C
@@ -534,6 +506,18 @@ sub postinit {
 	} else {
 	    my $fmt = defined $$e{format}? qq/"$$e{format}"/: '""';
 	    print $fh qq/    $name = tcvp_event_register("$name", $$e{alloc}, $$e{ser}, $$e{deser}, $fmt);\n/;
+	}
+    }
+
+    for (values %modules) {
+	if ($$_{events}) {
+	    my $ehi = 0;
+	    while (my($name, $e) = each %{$$_{events}}) {
+		next unless $$e{handler};
+		print $fh "    $$_{w}event_handlers[$ehi].type = $name;\n";
+		print $fh "    $$_{w}event_handlers[$ehi].handler = $$e{handler};\n";
+		$ehi++;
+	    }
 	}
     }
 }
