@@ -218,9 +218,9 @@ mpegps_packet(muxed_stream_t *ms, int str)
 		mpegpes_free(mp);
 		return (tcvp_packet_t *) sp;
 	    case DVD_AUDIO_ID:
-		s->imap[s->map[1]] = -1;
-		s->imap[de->audio.id] = 1;
-		s->map[1] = de->audio.id;
+/* 		s->imap[s->map[1]] = -1; */
+/* 		s->imap[de->audio.id] = 1; */
+/* 		s->map[1] = de->audio.id; */
 		break;
 	    }
 	}
