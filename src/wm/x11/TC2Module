@@ -5,18 +5,15 @@ tc2version	0.6.0
 sources		x11wm.c
 implement	"wm/x11" "open" x11_open
 implement	"wm/x11" "getwindow" x11_getwindow
-import		"Eventq"	"new"
-import		"Eventq"	"delete"
-import		"Eventq"	"send"
-import		"Eventq"	"recv"
-import		"Eventq"	"attach"
-import		"Eventq"	"detach"
-import		"tcvp/event"	"send"
-import		"tcvp/event"	"get_qname"
+import		"wm/x11" "new"
 postinit	x11_init
 shutdown	x11_free
 
 TCVP {
+	module "wm/x11" {
+		event control TCVP_WM_FULLSCREEN x11_ev_fullscreen
+		event control TCVP_WM_RESTORE    x11_ev_restore
+	}
 	event TCVP_BUTTON
 	event TCVP_KEY
 }

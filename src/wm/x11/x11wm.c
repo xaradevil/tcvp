@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -63,6 +63,7 @@ typedef struct x11_wm {
     int run_mouse;
     pthread_mutex_t mouse_lock;
     pthread_cond_t mouse_cond;
+    tcvp_module_t *mod;
 } x11_wm_t;
 
 #define WM_STATE_REMOVE 0
@@ -105,6 +106,24 @@ x11_fullscreen(x11_wm_t *xwm, int fs)
     }
 }
 
+extern int
+x11_ev_fullscreen(tcvp_module_t *m, tcvp_event_t *te)
+{
+    x11_wm_t *xwm = m->private;
+    tcvp_wm_fullscreen_event_t *fse = (tcvp_wm_fullscreen_event_t *) te;
+    x11_fullscreen(xwm, fse->op);
+    return 0;
+}
+
+extern int
+x11_ev_restore(tcvp_module_t *m, tcvp_event_t *te)
+{
+    x11_wm_t *xwm = m->private;
+    x11_fullscreen(xwm, WM_STATE_REMOVE);
+    XResizeWindow(xwm->dpy, xwm->win, xwm->owidth, xwm->oheight);
+    return 0;
+}
+
 static void
 x11_key_event(x11_wm_t *xwm, XKeyEvent *k)
 {
@@ -117,19 +136,8 @@ x11_key_event(x11_wm_t *xwm, XKeyEvent *k)
     if(key != NoSymbol)
 	ks = XKeysymToString(key);
 
-    switch(key){
-    case XK_f:
-	x11_fullscreen(xwm, WM_STATE_TOGGLE);
-	break;
-    case XK_1:
-	x11_fullscreen(xwm, WM_STATE_REMOVE);
-	XResizeWindow(xwm->dpy, xwm->win, xwm->owidth, xwm->oheight);
-	break;
-    }
-
     if(ks)
 	tcvp_event_send(xwm->qs, TCVP_KEY, ks);
-
 }
 
 static void
@@ -388,6 +396,9 @@ x11_freewm(void *p)
 {
     x11_wm_t *xwm = p;
 
+    xwm->mod->private = NULL;
+    tcfree(xwm->mod);
+
     if(xwm->root){
 	Atom xa_rootpmap = XInternAtom(xwm->dpy, "_XROOTPMAP_ID", True);
 
@@ -533,6 +544,10 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 	xwm->wm_state = XInternAtom(xwm->dpy, "_NET_WM_STATE", False);
 	xwm->wm_fullscreen =
 	    XInternAtom(xwm->dpy, "_NET_WM_STATE_FULLSCREEN", False);
+
+        xwm->mod = wm_x11_new(cs);
+        xwm->mod->private = xwm;
+        xwm->mod->init(xwm->mod);
     }
 
 
