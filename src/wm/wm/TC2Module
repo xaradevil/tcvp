@@ -5,3 +5,8 @@ tc2version	0.4.0
 sources		wm.c
 implement	"wm" "open" wm_open
 import		"wm/x11" "open"
+
+TCVP {
+	event TCVP_WM_FULLSCREEN auto
+	event TCVP_WM_RESTORE auto
+}

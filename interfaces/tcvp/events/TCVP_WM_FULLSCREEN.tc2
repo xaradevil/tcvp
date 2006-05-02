@@ -1,0 +1,7 @@
+TCVP {
+    event TCVP_WM_FULLSCREEN op%i
+}
+include
+#define TCVP_WM_FULLSCREEN_OFF    0
+#define TCVP_WM_FULLSCREEN_ON     1
+#define TCVP_WM_FULLSCREEN_TOGGLE 2
