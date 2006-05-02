@@ -1,0 +1,17 @@
+module		equalizer
+name		"TCVP/filter/equalizer"
+version		0.1.0
+tc2version	0.6.0
+sources		equalizer.c
+
+TCVP {
+	filter "filter/equalizer" {
+		new eq_new
+		probe eq_probe
+		packet DATA eq_input
+		flush eq_flush
+		event control TCVP_EQ_SET eq_event
+	}
+	event TCVP_EQ_SET auto
+}
+

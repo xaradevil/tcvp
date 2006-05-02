@@ -33,6 +33,7 @@ module src/demuxer/yuv4mpeg
 module src/event
 module src/filters/crop
 module src/filters/deinterlace
+module src/filters/equalizer
 module src/filters/overlay
 module src/filters/scale
 module src/filters/threads
