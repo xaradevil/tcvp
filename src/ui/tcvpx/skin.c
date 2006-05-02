@@ -110,6 +110,8 @@ init_skins(void)
 	{"playlist_remove_selected", tcvp_playlist_remove_selected},
 	{"playlist_query", tcvp_playlist_query},
 	{"playlist_jump", tcvp_playlist_jump},
+	{"change_eq", tcvp_change_eq},
+	{"toggle_eq", tcvp_toggle_eq},
 	{NULL, NULL}
     };
     int i;
@@ -657,7 +659,7 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     int i=0;
     char *action = NULL;
     widget_data_t *wd = tcallocdz(sizeof(*wd), NULL, widgetdata_free);
-    double *position = NULL, *def = NULL, p=0;
+    double *position = NULL, *def = NULL, p=0, snap;
     xtk_widget_t *s;
     int disable = 0;
     image_t *img;
@@ -678,7 +680,6 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     tcconf_getvalue(sec, "pressed", "%s", &ind_down);
     tcconf_getvalue(sec, "scroll_direction", "%d %d %d %d", &xd, &yd,
 		    &sx, &sy);
-
     parse_variable("double", value, (void *)&position, (void *)&def);
     if(!position) {
 	if(def) {
@@ -705,6 +706,10 @@ create_skinned_seek_bar(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
     xtk_widget_slider_set_position(s, *position);
     xtk_widget_slider_set_bounds(s, sp_x, sp_y, ep_x, ep_y);
     xtk_widget_slider_set_scroll_direction(s, xd, yd, sx, sy);
+
+    if(tcconf_getvalue(sec, "snap", "%lf", &snap) == 1) {
+	xtk_widget_slider_set_snap(s, snap);
+    }
 
     img = load_image(skin->path, indicator);
     xtk_widget_slider_set_indicator_image(s, img);
@@ -1440,3 +1445,4 @@ sticky_cb(xtk_widget_t *w, int i)
 
     return 0;
 }
+

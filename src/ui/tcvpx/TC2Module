@@ -79,6 +79,7 @@ import		"xtk/widget/slider"	"set_indicator_image_hover"
 import		"xtk/widget/slider"	"set_indicator_image_pressed"
 import		"xtk/widget/slider"	"set_position"
 import		"xtk/widget/slider"	"set_scroll_direction"
+import		"xtk/widget/slider"	"set_snap"
 
 import		"xtk/widget/state"	"add_state"
 import		"xtk/widget/state"	"create"
@@ -134,4 +135,5 @@ TCVP {
 	event TCVP_PL_REMOVE
 	event TCVP_PL_QUERY
 	event TCVP_PL_SEEK
+	event TCVP_EQ_SET
 }

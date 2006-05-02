@@ -31,10 +31,13 @@
 #define playlistformat tcvp_ui_tcvpx_conf_playlistformat
 
 static int tcvpstate=-1;
-int64_t s_pos, s_length, start_time;
+static int64_t s_pos, s_length, start_time;
 static int show_time = TCTIME_ELAPSED;
 static muxed_stream_t *st = NULL;
-
+/* static char *eqbands[] = {"60", "170", "310", "600", "1k", */
+/* 			  "3k", "6k", "12k", "14k", "16k"}; */
+/* static double eq[10], preamp; */
+/* static int eqon = 1; */
 
 extern int
 tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
@@ -422,6 +425,44 @@ tcvp_playlist_jump(xtk_widget_t *w, void *p)
 {
     int entry = *((int *)p);
     tcvp_event_send(qs, TCVP_PL_SEEK, entry, TCVP_PL_SEEK_ABS);
+
+    return 0;
+}
+
+
+extern int
+tcvp_change_eq(xtk_widget_t *w, void *p)
+{
+    double pos = ((*((double*)p))-0.5)*40;
+/*     int i; */
+    widget_data_t *wd = xtk_widget_get_data(w);
+
+    tc2_print("TCVPX", TC2_PRINT_DEBUG+2, "setting %s %lf\n", (char*)wd->action_data, pos);
+
+/*     if(strcmp((char*)wd->action_data, "pre") == 0) { */
+/* 	preamp = pos; */
+/*     } else { */
+/* 	for(i=0; i<10; i++) { */
+/* 	    if(strcmp((char*)wd->action_data, eqbands[i]) == 0) { */
+/* 		eq[i] = pos; */
+/* 		break; */
+/* 	    } */
+/* 	} */
+/*     } */
+
+    tcvp_event_send(qs, TCVP_EQ_SET, wd->action_data, (int)pos);
+
+    return 0;
+}
+
+
+extern int
+tcvp_toggle_eq(xtk_widget_t *w, void *p)
+{
+/*     if(eqon) eqon = 0; */
+/*     else eqon = 1; */
+
+    /* TODO: Send event */
 
     return 0;
 }
