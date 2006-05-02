@@ -101,6 +101,8 @@ sub tc2module {
 	    TC2::tc2_export("tcvp/events/$1", "alloc", $alloc);
 	    TC2::tc2_export("tcvp/events/$1", "serialize", $ser);
 	    TC2::tc2_export("tcvp/events/$1", "deserialize", $deser);
+	    TC2::tc2_import("tcvp/event", "alloc");
+	    TC2::tc2_import("tcvp/event", "new");
 	} else {
 	    TC2::tc2_require("tcvp/events/$1");
 	}
@@ -334,11 +336,15 @@ $$_{w}new(tcconf_section_t *cs)
 {
     $$_{wtype}_t *p = tcallocdz(sizeof(*p), NULL, $$_{w}free);
     p->module.init = $$_{w}init;
+END_C
 
+	    print $fh <<END_C if $$_{new};
     if($$_{new}(&p->module, cs)){
 	tcfree(p);
 	return NULL;
     }
+END_C
+	    print $fh <<END_C;
     p->conf = tcref(cs);
     return &p->module;
 }
@@ -384,12 +390,14 @@ END_C
 extern u_char *
 $$e{ser}(char *name, void *event, int *size)
 {
-    $$e{type}_t *e = event;
     u_char *sb, *p;
     int s = strlen(name) + 1;
 END_C
-	printf $fh "    s += %s;\n", join '+',
-	  map sprintf($etypes{$$_[2]}{size}, "e->$$_[1]"), @{$$e{fields}};
+	if (@{$$e{fields}}) {
+	    print $fh "$$e{type}_t *e = event;\n";
+	    printf $fh "    s += %s;\n", join '+',
+	      map sprintf($etypes{$$_[2]}{size}, "e->$$_[1]"), @{$$e{fields}};
+	}
 	print $fh "    p = sb = malloc(s);\n";
 	print $fh qq/    p += sprintf(p, "$name") + 1;\n/;
 	for (@{$$e{fields}}) {
@@ -454,8 +462,9 @@ END_C
 END_C
 	    }
 	}
-	printf $fh "    return tcvp_event_new(type, %s);\n",
-	  join ',', map $$_[1], @{$$e{fields}};
+
+	my $args = join ', ', 'type', map $$_[1], @{$$e{fields}};
+	print $fh "    return tcvp_event_new($args);\n";
 	print $fh "}\n";
     }
 }
