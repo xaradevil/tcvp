@@ -491,9 +491,6 @@ sub hmod {
 	      "extern int $$_{new}(tcvp_module_t *, tcconf_section_t *);\n"
 		if $$_{new};
 	    print $fh "extern int $$_{init}(tcvp_module_t *);\n" if $$_{init};
-	    for my $e (values %{$$_{events}}) {
-		print $fh "extern int $$e{handler}(tcvp_module_t *, tcvp_event_t *);\n" if $$e{handler};
-	    }
 	} elsif ($$_{type} eq 'filter') {
 	    print $fh <<END_C if $$_{new};
 extern int $$_{new}(tcvp_pipe_t *, stream_t *, tcconf_section_t *,
@@ -504,9 +501,9 @@ END_C
 	    print $fh "extern int $$_{probe}(tcvp_pipe_t *, tcvp_data_packet_t *, stream_t *);\n" if $$_{probe};
 	    print $fh "extern int $$_{flush}(tcvp_pipe_t *, int);\n"
 	      if $$_{flush};
-	    for my $e (values %{$$_{events}}) {
-		print $fh "extern int $$e{handler}(tcvp_module_t *, tcvp_event_t *);\n" if $$e{handler};
-	    }
+	}
+	for my $e (values %{$$_{events}}) {
+	    print $fh "extern int $$e{handler}(tcvp_module_t *, tcvp_event_t *);\n" if $$e{handler};
 	}
     }
 }
