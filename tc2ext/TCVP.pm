@@ -319,13 +319,13 @@ END_C
     }
 END_C
 	    print $fh <<END_C;
+    p->conf = tcref(cs);
     p->module.private = p->filter.private;
-    if($$_{w}init(&p->module)){
+    if($$_{w}init((void*)p)){
         tcfree(p);
         return NULL;
     }
 
-    p->conf = tcref(cs);
     return &p->filter;
 }
 END_C
