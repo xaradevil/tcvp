@@ -322,6 +322,7 @@ eq_event(tcvp_module_t *p, tcvp_event_t *e)
 	    }
 	}
     }
+    eq_save(eq);
 
     return 0;
 }
