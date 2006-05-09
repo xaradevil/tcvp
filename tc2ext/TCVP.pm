@@ -1,4 +1,4 @@
-# Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+# Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -184,7 +184,7 @@ sub cmod {
 	print $fh "    tcvp_pipe_t filter;\n" if $$_{type} eq 'filter';
 	print $fh "    tcvp_module_t module;\n";
 	print $fh "    tcconf_section_t *conf;\n";
-	if ($$_{events}) {
+	if (%{$$_{events}}) {
 	    print $fh <<END_C;
     eventq_t qr;
     pthread_t eth;
@@ -192,7 +192,7 @@ END_C
 	}
 	print $fh "} $$_{wtype}_t;\n\n";
 
-	if ($$_{events}) {
+	if (%{$$_{events}}) {
 	    my $nh = keys(%{$$_{events}}) + 1;
 	    print $fh "static tcvp_event_type_handler_t $$_{w}event_handlers[$nh];\n";
 	}
@@ -203,7 +203,7 @@ $$_{w}free(void *p)
 {
     $$_{wtype}_t *tp = p;
 END_C
-	print $fh <<END_C if $$_{events};
+	print $fh <<END_C if %{$$_{events}};
     tcvp_event_send(tp->qr, -1);
     pthread_join(tp->eth, NULL);
     eventq_delete(tp->qr);
@@ -221,7 +221,7 @@ $$_{w}init(tcvp_module_t *m)
     int r = 0;
 END_C
 
-	if ($$_{events}) {
+	if (%{$$_{events}}) {
 	    print $fh <<END_C;
     $$_{wtype}_t *p = ($$_{wtype}_t *) m;
     char *qname, *qn;
@@ -521,7 +521,7 @@ sub postinit {
     }
 
     for (values %modules) {
-	if ($$_{events}) {
+	if (%{$$_{events}}) {
 	    my $ehi = 0;
 	    while (my($name, $e) = each %{$$_{events}}) {
 		next unless $$e{handler};
