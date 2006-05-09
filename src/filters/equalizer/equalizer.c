@@ -41,6 +41,7 @@
 typedef struct equalizer {
     int eq_on;
 
+    char *frequency[EQ_BANDS];
     float alpha[EQ_BANDS];
     float beta[EQ_BANDS];
     float gamma[EQ_BANDS];
@@ -164,6 +165,7 @@ eq_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     }
 
     for(i = 0; i < EQ_BANDS; i++) {
+	eq->frequency[i] = eqc.band[i].frequency;
 	eq->alpha[i] = eqc.band[i].alpha;	
 	eq->beta[i]  = eqc.band[i].beta;	
 	eq->gamma[i] = eqc.band[i].gamma;
@@ -299,10 +301,28 @@ eq_flush(tcvp_pipe_t *p, int drop)
 
 
 extern int
-eq_event(tcvp_module_t *tm, tcvp_event_t *te)
+eq_event(tcvp_module_t *p, tcvp_event_t *e)
 {
-    tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "Event\n");
-    
+    equalizer_t *eq = p->private;
+    tcvp_eq_set_event_t *te = (tcvp_eq_set_event_t *) e;
+
+    tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "Event set %s to %d\n",
+	      te->attribute, te->value);
+
+    if(strcmp(te->attribute, "preamp") == 0) {
+	eq->preamp = convertdB(te->value);
+	eq->preampdb = te->value;
+    } else {
+	int i;
+	for(i = 0; i < EQ_BANDS; i++) {
+	    if(strcmp(te->attribute, eq->frequency[i]) == 0) {
+		eq->ampdb[i] = te->value;
+		eq->amp[i] = fconvertdB(eq->ampdb[i]);
+		break;
+	    }
+	}
+    }
+
     return 0;
 }
 
