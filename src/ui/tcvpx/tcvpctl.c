@@ -439,17 +439,6 @@ tcvp_change_eq(xtk_widget_t *w, void *p)
 
     tc2_print("TCVPX", TC2_PRINT_DEBUG+2, "setting %s %lf\n", (char*)wd->action_data, pos);
 
-/*     if(strcmp((char*)wd->action_data, "pre") == 0) { */
-/* 	preamp = pos; */
-/*     } else { */
-/* 	for(i=0; i<10; i++) { */
-/* 	    if(strcmp((char*)wd->action_data, eqbands[i]) == 0) { */
-/* 		eq[i] = pos; */
-/* 		break; */
-/* 	    } */
-/* 	} */
-/*     } */
-
     tcvp_event_send(qs, TCVP_EQ_SET, wd->action_data, (int)pos);
 
     return 0;
