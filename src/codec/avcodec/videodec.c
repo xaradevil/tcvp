@@ -178,30 +178,29 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	p->format.video.codec = pixel_fmts[vc->ctx->pix_fmt];
 	p->format.video.width = vc->ctx->width;
 	p->format.video.height = vc->ctx->height;
+
 #if LIBAVCODEC_BUILD > 4753
 	tc2_print("AVCODEC", TC2_PRINT_DEBUG, "time_base = %i/%i\n",
 		  vc->ctx->time_base.num, vc->ctx->time_base.den);
 
-	if(vc->ctx->time_base.num){
+	if(vc->ctx->time_base.num && !p->format.video.frame_rate.num){
 	    p->format.video.frame_rate.num = vc->ctx->time_base.den;
 	    p->format.video.frame_rate.den = vc->ctx->time_base.num;
-	    vc->ptsn = (uint64_t) 27000000 * p->format.video.frame_rate.den;
-	    vc->ptsd = p->format.video.frame_rate.num;
 	}
 #else
-	if(vc->ctx->frame_rate){
-	    vc->ptsn = (uint64_t) 27000000 * vc->ctx->frame_rate_base;
-	    vc->ptsd = vc->ctx->frame_rate;
+	if(vc->ctx->frame_rate && !p->format.video.frame_rate.num){
 	    p->format.video.frame_rate.num = vc->ctx->frame_rate;
 	    p->format.video.frame_rate.den = vc->ctx->frame_rate_base;
 	}
 #endif
-	else {
-	    vc->ptsn = 27000000;
-	    vc->ptsd = 25;
+	if(!p->format.video.frame_rate.num){
 	    p->format.video.frame_rate.num = 25;
 	    p->format.video.frame_rate.den = 1;
 	}
+
+        vc->ptsn = (uint64_t) 27000000 * p->format.video.frame_rate.den;
+        vc->ptsd = p->format.video.frame_rate.num;
+
 	tcreduce(&p->format.video.frame_rate);
 	tc2_print("AVCODEC", TC2_PRINT_DEBUG, "frame rate %i/%i\n",
 		  p->format.video.frame_rate.num,
