@@ -32,14 +32,22 @@
 #include <tcvp_types.h>
 #include <math.h>
 #include <equalizer_tc2.h>
+#include <tcendian.h>
 
 #define EQ_BANDS 10
 #define EQ_CHANNELS 16
 #define EQ_IN_FACTOR 0.25
 
+#define ENDIAN_CONVERT (1<<0)
+#define S16            (1<<1)
+#define U16            (1<<2)
+#define S8             (1<<3)
+#define U8             (1<<4)
 
 typedef struct equalizer {
     int eq_on;
+
+    int flags;
 
     char *frequency[EQ_BANDS];
     float alpha[EQ_BANDS];
@@ -108,17 +116,39 @@ eq_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     equalizer_t *eq = p->private;
 
-    if(pk->data && eq->eq_on){
+    if(pk->data && eq->eq_on && eq->flags != 0){
 	int nch = p->format.audio.channels;
 	int samples = pk->sizes[0]/2;
 	int ch, i, j;
-	int16_t *ptr = (int16_t*) pk->data[0];
+
+	int16_t *ptrs16 = (int16_t*) pk->data[0];
+	uint16_t *ptru16 = (uint16_t*) pk->data[0];
+	int8_t *ptrs8 = (int8_t*) pk->data[0];
+	uint8_t *ptru8 = (uint8_t*) pk->data[0];
 
 
 	for(i = 0; i < samples; i+=nch) {
 	    for(ch = 0; ch < nch; ch++) {
-		const int16_t x = ptr[ch];
+		int16_t x = 0;
 		float o = 0.0;
+		if(eq->flags & S16) {
+		    if(eq->flags & ENDIAN_CONVERT) {
+			x = bswap_16(ptrs16[ch]);
+		    } else {
+			x = ptrs16[ch];
+		    }
+		} else if(eq->flags & U16) {
+		    if(eq->flags & ENDIAN_CONVERT) {
+			x = bswap_16(ptru16[ch]) - 0x8000;
+		    } else {
+			x = ptru16[ch] - 0x8000;
+		    }
+		} else if(eq->flags & S8) {
+		    x = ptrs8[ch];
+		} else if(eq->flags & U8) {
+		    x = ptru8[ch] - 0x80;
+		}
+
 
 		for(j = 0; j < EQ_BANDS; j++) {
 		    float y =
@@ -132,10 +162,37 @@ eq_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 		    o += y * eq->amp[j];
 		}
 		eq->x[ch][1] = eq->x[ch][0];
-		eq->x[ch][0] = x;
-		ptr[ch] = (int16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
+		eq->x[ch][0] = x;	
+		if(eq->flags & S16) {
+		    int16_t v = (int16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
+		    if(eq->flags & ENDIAN_CONVERT) {
+			ptrs16[ch] = bswap_16(v);
+		    } else {
+			ptrs16[ch] = v;
+		    }
+		} else if(eq->flags & U16) {
+		    uint16_t v = (uint16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
+		    if(eq->flags & ENDIAN_CONVERT) {
+			ptru16[ch] = bswap_16(v + 0x8000);
+		    } else {
+			ptru16[ch] = v + 0x8000;
+		    }
+		} else if(eq->flags & S8) {
+		    ptrs8[ch] = (int8_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
+		} else if(eq->flags & U8) {	
+		    ptru8[ch] = (uint8_t) (eq->preamp * (EQ_IN_FACTOR * x + o))+ 0x80;
+		}
 	    }
-	    ptr += nch;
+
+	    if(eq->flags & S16) {
+		ptrs16 += nch;
+	    } else if(eq->flags & U16) {
+		ptru16 += nch;
+	    } else if(eq->flags & S8) {
+		ptrs8 += nch;
+	    } else if(eq->flags & U8) {
+		ptru8 += nch;
+	    }
 	}
     }
 
@@ -152,7 +209,7 @@ eq_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 
     if(p->format.audio.channels > EQ_CHANNELS) {
 	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer support a maximum of %d channels\n", EQ_CHANNELS);
-	return PROBE_FAIL;
+	return PROBE_OK;
     }	
 
     if(p->format.audio.sample_rate == 48000) {
@@ -161,7 +218,27 @@ eq_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	eqc = eq_config_44100;	
     } else {
 	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer only support samplerates of 48000 Hz and 44100 Hz\n");
-	return PROBE_FAIL;
+	return PROBE_OK;
+    }
+
+    if(strncmp(p->format.audio.codec, "audio/pcm-s16", 13) == 0) {
+	eq->flags = S16;
+    } else if(strncmp(p->format.audio.codec, "audio/pcm-u16", 13) == 0) {
+	eq->flags = U16;
+	tc2_print("EQUALIZER", TC2_PRINT_INFO, "Unsigned audio is untested\n");
+    } else if(strncmp(p->format.audio.codec, "audio/pcm-s8", 12) == 0) {
+	eq->flags = S8;
+    } else if(strncmp(p->format.audio.codec, "audio/pcm-u8", 12) == 0) {
+	eq->flags = U8;
+	tc2_print("EQUALIZER", TC2_PRINT_INFO, "Unsigned audio is untested\n");
+    } else {
+	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "Audio format \"%s\" is not supported\n", p->format.audio.codec);
+	return PROBE_OK;
+    }
+
+    if(strcmp(&p->format.audio.codec[strlen(p->format.audio.codec)-2],
+	      TCVP_ENDIAN) != 0) {
+	eq->flags |= ENDIAN_CONVERT;
     }
 
     for(i = 0; i < EQ_BANDS; i++) {
