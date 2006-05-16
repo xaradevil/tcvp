@@ -46,12 +46,10 @@ typedef struct x11_wm {
     int ww, wh;
     int dx, dy;
     float aspect;
-    wm_update_t update;
-    void *cbd;
     pthread_t eth, cth;
     int color_key;
     int flags;
-    eventq_t qs;
+    eventq_t qs, qst;
     int net_wm;
     Atom wm_state;
     Atom wm_fullscreen;
@@ -235,8 +233,8 @@ x11_event(void *p)
 		y = xwm->dy;
 	    }
 
-	    xwm->update(xwm->cbd, WM_MOVE, x, y, xwm->width, xwm->height);
-
+            tcvp_event_send(xwm->qst, TCVP_WM_MOVE, x, y, xwm->width,
+                            xwm->height);
 	    break;
 	}
 	case Expose:
@@ -245,11 +243,11 @@ x11_event(void *p)
 	    while(XCheckTypedWindowEvent(xwm->dpy, xwm->win, Expose, &nxe))
 		xe = nxe;
 	case MapNotify: {
-	    xwm->update(xwm->cbd, WM_SHOW, 0, 0, 0, 0);
+            tcvp_event_send(xwm->qst, TCVP_WM_SHOW);
 	    break;
 	}
 	case UnmapNotify: {
-	    xwm->update(xwm->cbd, WM_HIDE, 0, 0, 0, 0);
+            tcvp_event_send(xwm->qst, TCVP_WM_HIDE);
 	    break;
 	}
 	case KeyPress: {
@@ -357,11 +355,6 @@ x11_hidecursor(void *p)
     return NULL;
 }
 
-static int wm_noop(void *d, int event, int x, int y, int w, int h)
-{
-    return 0;
-}
-
 static int
 x11_close(window_manager_t *wm)
 {
@@ -379,7 +372,6 @@ x11_close(window_manager_t *wm)
 	    if(xwm->swin != None)
 		XSelectInput(xwm->dpy, xwm->swin, 0);
 #endif
-	    xwm->update = wm_noop;
 	    x11_xwm = tcref(xwm);
 	}
 	pthread_mutex_unlock(&x11_lock);
@@ -445,6 +437,7 @@ x11_freewm(void *p)
     XCloseDisplay(xwm->dpy);
     free(xwm->dpyname);
     eventq_delete(xwm->qs);
+    eventq_delete(xwm->qst);
 }
 
 static int
@@ -491,8 +484,7 @@ check_wm(x11_wm_t *xwm)
 }
 
 extern window_manager_t *
-x11_open(int width, int height, wm_update_t upd, void *cbd,
-	 tcconf_section_t *cs, int flags)
+x11_open(int width, int height, tcconf_section_t *cs, int flags)
 {
     window_manager_t *wm = NULL;
     x11_wm_t *xwm = NULL;
@@ -534,9 +526,15 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
 
 	qname = tcvp_event_get_qname(cs);
 	qn = malloc(strlen(qname) + 9);
+
 	sprintf(qn, "%s/control", qname);
 	xwm->qs = eventq_new(NULL);
 	eventq_attach(xwm->qs, qn, EVENTQ_SEND);
+
+	sprintf(qn, "%s/status", qname);
+	xwm->qst = eventq_new(NULL);
+	eventq_attach(xwm->qst, qn, EVENTQ_SEND);
+
 	free(qname);
 	free(qn);
 
@@ -556,8 +554,6 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     xwm->owidth = width;
     xwm->oheight = height;
     xwm->aspect = (float) width / height;
-    xwm->update = upd;
-    xwm->cbd = cbd;
     xwm->flags = flags;
     tcconf_getvalue(cs, "video/color_key", "%i", &xwm->color_key);
     tcconf_getvalue(cs, "video/width", "%i", &xwm->vw);
@@ -609,10 +605,10 @@ x11_open(int width, int height, wm_update_t upd, void *cbd,
     }
 
     if(xwm->swin != None)
-	xwm->update(xwm->cbd, WM_MOVE, 0, 0, xwm->width, xwm->height);
+        tcvp_event_send(xwm->qst, TCVP_WM_MOVE, 0, 0, xwm->width, xwm->height);
     else
-	xwm->update(xwm->cbd, WM_MOVE, xwm->dx, xwm->dy,
-		    xwm->width, xwm->height);
+        tcvp_event_send(xwm->qst, TCVP_WM_MOVE, xwm->dx, xwm->dy,
+                        xwm->width, xwm->height);
 
     wm = malloc(sizeof(*wm));
     wm->close = x11_close;

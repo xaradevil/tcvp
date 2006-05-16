@@ -6,4 +6,13 @@ sources		xv.c
 implement	"driver/video/Xv"	"open"	xv_open
 import		"wm/x11" "open"
 import		"wm/x11" "getwindow"
+import		"driver/video/Xv" "new"
+
+TCVP {
+	module "driver/video/Xv" {
+		event status TCVP_WM_SHOW xve_show
+		event status TCVP_WM_MOVE xve_move
+	}
+}
+
 option		frames%i=64

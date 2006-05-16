@@ -1,2 +1,3 @@
 inherit "driver/video"
+inherit "tcvp/module"
 option	*attribute name%s value%i

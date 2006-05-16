@@ -33,8 +33,7 @@
 #include <wm_tc2.h>
 
 extern window_manager_t *
-wm_open(int w, int h, wm_update_t upd, void *cbd,
-	tcconf_section_t *cs, int flags)
+wm_open(int w, int h, tcconf_section_t *cs, int flags)
 {
-    return wm_x11_open(w, h, upd, cbd, cs, flags);
+    return wm_x11_open(w, h, cs, flags);
 }

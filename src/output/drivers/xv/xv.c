@@ -51,6 +51,7 @@ typedef struct xv_window {
     window_manager_t *wm;
     int last_frame;
     pthread_mutex_t flock;
+    tcvp_module_t *mod;
 } xv_window_t;
 
 static int
@@ -101,23 +102,28 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     return xi->num_planes;
 }
 
-static int
-xv_reconf(void *p, int event, int x, int y, int w, int h)
+extern int
+xve_show(tcvp_module_t *m, tcvp_event_t *te)
 {
-    xv_window_t *xvw = p;
+    xv_window_t *xvw = m->private;
+    if(xvw->last_frame > -1)
+        do_show(xvw, xvw->last_frame);
+    return 0;
+}
 
-    tc2_print("XV", TC2_PRINT_DEBUG, "xv_reconf(%i, %i, %i, %i, %i)\n",
-	      event, x, y, w, h);
+extern int
+xve_move(tcvp_module_t *m, tcvp_event_t *te)
+{
+    xv_window_t *xvw = m->private;
+    tcvp_wm_move_event_t *me = (tcvp_wm_move_event_t *) te;
 
-    if(event == WM_MOVE){
-	xvw->dx = x;
-	xvw->dy = y;
-	xvw->dw = w;
-	xvw->dh = h;
-    }
+    xvw->dx = me->x;
+    xvw->dy = me->y;
+    xvw->dw = me->w;
+    xvw->dh = me->h;
 
-    if((event == WM_MOVE || event == WM_SHOW) && xvw->last_frame > -1)
-	do_show(xvw, xvw->last_frame);
+    if(xvw->last_frame > -1)
+        do_show(xvw, xvw->last_frame);
 
     return 0;
 }
@@ -127,6 +133,9 @@ xv_close(video_driver_t *vd)
 {
     xv_window_t *xvw = vd->private;
     int i;
+
+    xvw->mod->private = NULL;
+    tcfree(xvw->mod);
 
     for(i = 0; i < vd->frames; i++){
 	XShmDetach(xvw->dpy, &xvw->shm[i]);
@@ -336,7 +345,12 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     XFree(xvattr);
     XCloseDisplay(dpy);
 
-    if(!(wm = wm_x11_open(xvw->dw, xvw->dh, xv_reconf, xvw, cs, 0))){
+    xvw->mod = driver_video_xv_new(cs);
+    xvw->mod->private = xvw;
+    xvw->mod->init(xvw->mod);
+
+    if(!(wm = wm_x11_open(xvw->dw, xvw->dh, cs, 0))){
+        tcfree(xvw->mod);
 	free(xvw);
 	return NULL;
     }

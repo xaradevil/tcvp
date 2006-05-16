@@ -9,4 +9,7 @@ import		"wm/x11" "open"
 TCVP {
 	event TCVP_WM_FULLSCREEN auto
 	event TCVP_WM_RESTORE auto
+	event TCVP_WM_SHOW auto
+	event TCVP_WM_HIDE auto
+	event TCVP_WM_MOVE auto
 }

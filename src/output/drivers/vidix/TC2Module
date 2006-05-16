@@ -5,3 +5,12 @@ tc2version	0.6.0
 sources		vidix.c
 implement	"driver/video/vidix"	"open"	vx_open
 import		"wm" "open"
+import		"driver/video/vidix" "new"
+
+TCVP {
+	module "driver/video/vidix" {
+		event status TCVP_WM_SHOW vxe_show
+		event status TCVP_WM_HIDE vxe_hide
+		event status TCVP_WM_MOVE vxe_move
+	}
+}

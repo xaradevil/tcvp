@@ -16,6 +16,9 @@ TCVP {
 	}
 	event TCVP_BUTTON
 	event TCVP_KEY
+	event TCVP_WM_SHOW
+	event TCVP_WM_HIDE
+	event TCVP_WM_MOVE
 }
 
 option		mouse_delay%i=2

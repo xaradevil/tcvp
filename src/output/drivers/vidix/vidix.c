@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -60,6 +60,7 @@ typedef struct vidix_window {
     int run;
     pthread_t dmath;
     window_manager_t *wm;
+    tcvp_module_t *mod;
 } vx_window_t;
 
 static int
@@ -215,6 +216,9 @@ vx_close(video_driver_t *vd)
     vx_window_t *vxw = vd->private;
     int i;
 
+    vxw->mod->private = NULL;
+    tcfree(vxw->mod);
+
     if(vxw->use_dma){
 	pthread_mutex_lock(&vxw->mx);
 	vxw->run = 0;
@@ -247,26 +251,35 @@ vx_close(video_driver_t *vd)
     return 0;
 }
 
-static int
-vx_reconf(void *p, int event, int x, int y, int w, int h)
+extern int
+vxe_show(tcvp_module_t *m, tcvp_event_t *te)
 {
-    vx_window_t *vxw = p;
+    vx_window_t *vxw = m->private;
+    vdlPlaybackOn(vxw->driver);
+    return 0;
+}
 
-    switch(event){
-    case WM_MOVE:
-	vxw->pbc->dest.x = x;
-	vxw->pbc->dest.y = y;
-	vxw->pbc->dest.w = w;
-	vxw->pbc->dest.h = h;
-	vdlPlaybackOff(vxw->driver);
-	vdlConfigPlayback(vxw->driver, vxw->pbc);
-    case WM_SHOW:
-	vdlPlaybackOn(vxw->driver);
-	break;
-    case WM_HIDE:
-	vdlPlaybackOff(vxw->driver);
-	break;
-    }
+extern int
+vxe_hide(tcvp_module_t *m, tcvp_event_t *te)
+{
+    vx_window_t *vxw = m->private;
+    vdlPlaybackOff(vxw->driver);
+    return 0;
+}
+
+extern int
+vxe_move(tcvp_module_t *m, tcvp_event_t *te)
+{
+    vx_window_t *vxw = m->private;
+    tcvp_wm_move_event_t *me = (tcvp_wm_move_event_t *) te;
+
+    vxw->pbc->dest.x = me->x;
+    vxw->pbc->dest.y = me->y;
+    vxw->pbc->dest.w = me->w;
+    vxw->pbc->dest.h = me->h;
+    vdlPlaybackOff(vxw->driver);
+    vdlConfigPlayback(vxw->driver, vxw->pbc);
+    vdlPlaybackOn(vxw->driver);
 
     return 0;
 }
@@ -415,8 +428,11 @@ vx_open(video_stream_t *vs, tcconf_section_t *cs)
     tc2_print("VIDIX", TC2_PRINT_DEBUG, "offsets Y %i, U %i, V %i\n",
 	      vxw->pbc->offset.y, vxw->pbc->offset.u, vxw->pbc->offset.v);
 
-    if(!(vxw->wm = wm_open(dw, dh, vx_reconf, vxw,
-			   cs, WM_ABSCOORD))){
+    vxw->mod = driver_video_vidix_new(cs);
+    vxw->mod->private = vxw;
+    vxw->mod->init(vxw->mod);
+
+    if(!(vxw->wm = wm_open(dw, dh, cs, WM_ABSCOORD))){
 	vdlClose(vxdrv);
 	free(vxw);
 	return NULL;
