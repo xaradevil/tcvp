@@ -869,7 +869,6 @@ new_player(tcconf_section_t *profile, tcconf_section_t *conf,
 	   tcvp_timer_t *timer, char *out)
 {
     tcvp_player_t *sh;
-    char *qname, *qn;
     int pt;
 
     sh = tcallocdz(sizeof(*sh), NULL, free_shared);
@@ -894,12 +893,7 @@ new_player(tcconf_section_t *profile, tcconf_section_t *conf,
     sh->synctime = tcvp_player_conf_synctime;
     tcconf_getvalue(profile, "synctime", "%i", &sh->synctime);
 
-    tcconf_getvalue(conf, "qname", "%s", &qname);
-    qn = alloca(strlen(qname) + 9);
-    sprintf(qn, "%s/status", qname);
-    free(qname);
-    sh->sq = eventq_new(NULL);
-    eventq_attach(sh->sq, qn, EVENTQ_SEND);
+    sh->sq = tcvp_event_get_sendq(conf, "status");
 
     return sh;
 }

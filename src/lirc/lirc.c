@@ -86,17 +86,10 @@ tlirc_run(void *p)
 extern int
 tlirc_init(tcvp_module_t *tm)
 {
-    char *qname, *qn;
     tcvplirc_t *tl = tm->private;
     int flags;
 
-    qname = tcvp_event_get_qname(tl->conf);
-    qn = malloc(strlen(qname) + 9);
-    sprintf(qn, "%s/control", qname);
-    tl->qs = eventq_new(NULL);
-    eventq_attach(tl->qs, qn, EVENTQ_SEND);
-    free(qname);
-    free(qn);
+    tl->qs = tcvp_event_get_sendq(tl->conf, "control");
 
     tl->sock = lirc_init("tcvp", 0);
     if(tl->sock < 0) {

@@ -544,22 +544,16 @@ extern int
 t_init(tcvp_module_t *tm)
 {
     tcvp_core_t *tp = tm->private;
-    char *qname, qn[32];
 
     if(!tcconf_getvalue(tp->conf, "features/core", ""))
 	return -1;
 
-    qname = tcvp_event_get_qname(tp->conf);
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(tp->qs, qn, EVENTQ_SEND);
-
-    sprintf(qn, "%s/timer", qname);
-    eventq_attach(tp->qt, qn, EVENTQ_SEND);
+    tp->qs = tcvp_event_get_sendq(tp->conf, "status");
+    tp->qt = tcvp_event_get_sendq(tp->conf, "timer");
 
     tcconf_setvalue(tp->conf, "features/core", "");
     tcconf_setvalue(tp->conf, "features/local/core", "");
 
-    free(qname);
     return 0;
 }
 
@@ -570,9 +564,6 @@ t_new(tcvp_module_t *tm, tcconf_section_t *cs)
 
     tp = tcallocdz(sizeof(*tp), NULL, t_free);
     tp->state = TCVP_STATE_END;
-
-    tp->qs = eventq_new(NULL);
-    tp->qt = eventq_new(NULL);
 
     pthread_mutex_init(&tp->tmx, NULL);
     pthread_cond_init(&tp->tcd, NULL);

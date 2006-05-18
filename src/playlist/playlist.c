@@ -569,27 +569,16 @@ extern int
 pl_init(tcvp_module_t *m)
 {
     tcvp_playlist_t *tpl = m->private;
-    char *qname, *qn;
 
     if(!tcconf_getvalue(tpl->conf, "features/playlist", ""))
 	return -1;
 
-    qname = tcvp_event_get_qname(tpl->conf);
-    qn = alloca(strlen(qname) + 9);
-
-    tpl->ss = eventq_new(NULL);
-    tpl->sc = eventq_new(NULL);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(tpl->sc, qn, EVENTQ_SEND);
-
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(tpl->ss, qn, EVENTQ_SEND);
+    tpl->ss = tcvp_event_get_sendq(tpl->conf, "status");
+    tpl->sc = tcvp_event_get_sendq(tpl->conf, "control");
 
     tcconf_setvalue(tpl->conf, "features/playlist", "");
     tcconf_setvalue(tpl->conf, "features/local/playlist", "");
 
-    free(qname);
     return 0;
 }
 

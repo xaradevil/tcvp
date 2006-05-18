@@ -46,7 +46,7 @@ extern int
 tcvpx_init(tcvp_module_t *tm)
 {
     tcvpx_t *tx = tm->private;
-    char *qname = NULL, *qn, *skinfile = tcvp_ui_tcvpx_conf_skin;
+    char *skinfile = tcvp_ui_tcvpx_conf_skin;
     skin_t *skin;
     widget_data_t *wd;
 
@@ -54,15 +54,7 @@ tcvpx_init(tcvp_module_t *tm)
        tcconf_getvalue(tx->conf, "force_ui", ""))
 	return -1;
 
-    qname = tcvp_event_get_qname(tx->conf);
-    tcconf_getvalue(tx->conf, "skin", "%s", &skinfile);
-
-    qs = eventq_new(NULL);
-    qn = alloca(strlen(qname) + 10);
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(qs, qn, EVENTQ_SEND);
-
-    free(qname);
+    qs = tcvp_event_get_sendq(tx->conf, "control");
 
     init_dynamic(tx->conf);
     init_skins();

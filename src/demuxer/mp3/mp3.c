@@ -399,7 +399,6 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mp3_file_t *mf;
-    char *qname, *qn;
     u_char head[4];
     int ts = 0;
 
@@ -463,14 +462,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     mf->bufsize = MAX_FRAME_SIZE;
     mf->buf = tcalloc(mf->bufsize);
-
-    if(tcconf_getvalue(cs, "qname", "%s", &qname) > 0){
-	qn = alloca(strlen(qname) + 8);
-	mf->qs = eventq_new(NULL);
-	sprintf(qn, "%s/status", qname);
-	eventq_attach(mf->qs, qn, EVENTQ_SEND);
-	free(qname);
-    }
+    mf->qs = tcvp_event_get_sendq(cs, "status");
 
     return ms;
 }

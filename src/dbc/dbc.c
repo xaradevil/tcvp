@@ -74,20 +74,10 @@ extern int
 dbc_init(tcvp_module_t *m)
 {
     tcvp_dbc_t *tdbc = m->private;
-    char *qname, *qn;
 
     tc2_print("dbc", TC2_PRINT_DEBUG+1, "dbc_init\n");
 
-    qname = tcvp_event_get_qname(tdbc->conf);
-    qn = alloca(strlen(qname) + 9);
-
-    tdbc->sc = eventq_new(NULL);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(tdbc->sc, qn, EVENTQ_SEND);
-
-    free(qname);
-
+    tdbc->sc = tcvp_event_get_sendq(tdbc->conf, "control");
     tdbc->dbrhash = tchash_new(10, 1, 0);
 
     return 0;

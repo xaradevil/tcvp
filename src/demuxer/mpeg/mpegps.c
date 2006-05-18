@@ -673,13 +673,7 @@ mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 	s->stream->seek(s->stream, 0, SEEK_SET);
 
     if(s->dvd_info){
-	char *qname, *qn;
-	qname = tcvp_event_get_qname(cs);
-	qn = alloca(strlen(qname) + 10);
-	s->qr = eventq_new(tcref);
-	sprintf(qn, "%s/control", qname);
-	eventq_attach(s->qr, qn, EVENTQ_RECV);
-	free(qname);
+        s->qr = tcvp_event_get_recvq(cs, "control", NULL);
 	pthread_create(&s->eth, NULL, mpegps_event, s);
 	s->dvd_info->enable(u, 1);
     }

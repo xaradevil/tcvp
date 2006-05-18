@@ -225,25 +225,16 @@ extern int
 keys_init(tcvp_module_t *m)
 {
     tcvp_keys_t *tk = m->private;
-    char *qname, *qn;
 
     if(!tcconf_getvalue(tk->conf, "features/keys", ""))
 	return -1;
 
     keys_init_bindings(m);
-
-    qname = tcvp_event_get_qname(tk->conf);
-    qn = alloca(strlen(qname) + 9);
-
-    tk->control = eventq_new(NULL);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(tk->control, qn, EVENTQ_SEND);
+    tk->control = tcvp_event_get_sendq(tk->conf, "control");
 
     tcconf_setvalue(tk->conf, "features/keys", "");
     tcconf_setvalue(tk->conf, "features/local/keys", "");
 
-    free(qname);
     return 0;
 }
 

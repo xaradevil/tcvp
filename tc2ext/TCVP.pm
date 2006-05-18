@@ -77,6 +77,8 @@ sub tc2module {
 	TC2::tc2_import('tcvp/event', 'format');
 	TC2::tc2_import('tcvp/event', 'get_qname');
 	TC2::tc2_import('tcvp/event', 'loop');
+	TC2::tc2_import('tcvp/event', 'get_sendq');
+	TC2::tc2_import('tcvp/event', 'get_recvq');
 	TC2::tc2_require("tcvp/events/$2");
     } elsif (not $module and
 	     /event\s+(\w+)(?:\s+(\w+)(?:\s+(\w+)\s+(\w+))?)?/) {
@@ -85,6 +87,9 @@ sub tc2module {
 			deser => $4 };
 	TC2::tc2_import('tcvp/event', $2? 'register': 'get');
 	TC2::tc2_import('tcvp/event', 'format');
+	TC2::tc2_import('tcvp/event', 'get_qname');
+	TC2::tc2_import('tcvp/event', 'get_sendq');
+	TC2::tc2_import('tcvp/event', 'get_recvq');
 	if ($2) {
 	    my($alloc, $ser, $deser);
 	    if($2 eq 'auto'){
@@ -222,24 +227,11 @@ $$_{w}init(tcvp_module_t *m)
 END_C
 
 	if (%{$$_{events}}) {
+	    my $etypes = join ', ', map qq/"$_"/, keys %{$$_{etypes}};
 	    print $fh <<END_C;
     $$_{wtype}_t *p = ($$_{wtype}_t *) m;
-    char *qname, *qn;
-    qname = tcvp_event_get_qname(p->conf);
-    qn = malloc(strlen(qname) + 10);
-    p->qr = eventq_new(tcref);
-END_C
-
-	    for (keys %{$$_{etypes}}) {
-		print $fh <<END_C;
-    sprintf(qn, "%s/$_", qname);
-    eventq_attach(p->qr, qn, EVENTQ_RECV);
-END_C
-	    }
-	    print $fh <<END_C;
+    p->qr = tcvp_event_get_recvq(p->conf, $etypes, NULL);
     tcvp_event_loop(p->qr, $$_{w}event_handlers, &p->module, &p->eth);
-    free(qn);
-    free(qname);
 END_C
 	}
 	print $fh "    r = $$_{init}(m);\n" if $$_{init};

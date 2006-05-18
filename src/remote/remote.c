@@ -345,29 +345,11 @@ static int
 rm_start(tcvp_module_t *ad)
 {
     tcvp_remote_t *rm = ad->private;
-    char *qname, *qn;
 
-    qname = tcvp_event_get_qname(rm->conf);
-    qn = alloca(strlen(qname) + 9);
-
-    rm->qr = eventq_new(tcref);
-    rm->ss = eventq_new(NULL);
-    rm->sc = eventq_new(NULL);
-    rm->st = eventq_new(NULL);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(rm->qr, qn, EVENTQ_RECV);
-    eventq_attach(rm->sc, qn, EVENTQ_SEND);
-
-    sprintf(qn, "%s/status", qname);
-    eventq_attach(rm->qr, qn, EVENTQ_RECV);
-    eventq_attach(rm->ss, qn, EVENTQ_SEND);
-
-    sprintf(qn, "%s/timer", qname);
-    eventq_attach(rm->qr, qn, EVENTQ_RECV);
-    eventq_attach(rm->st, qn, EVENTQ_SEND);
-
-    free(qname);
+    rm->sc = tcvp_event_get_sendq(rm->conf, "control");
+    rm->ss = tcvp_event_get_sendq(rm->conf, "status");
+    rm->st = tcvp_event_get_sendq(rm->conf, "timer");
+    rm->qr = tcvp_event_get_recvq(rm->conf, "control", "status", "timer",NULL);
 
     signal(SIGPIPE, SIG_IGN);
     rm->run = 1;

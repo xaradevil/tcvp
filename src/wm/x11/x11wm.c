@@ -489,7 +489,6 @@ x11_open(int width, int height, tcconf_section_t *cs, int flags)
     window_manager_t *wm = NULL;
     x11_wm_t *xwm = NULL;
     char *display = NULL;
-    char *qname, *qn;
     int fs = tcvp_wm_x11_conf_fullscreen;
     char *window = NULL;
     int subwin = tcvp_wm_x11_conf_subwindow;
@@ -523,20 +522,8 @@ x11_open(int width, int height, tcconf_section_t *cs, int flags)
 	xwm = tcallocdz(sizeof(*xwm), NULL, x11_freewm);
 	xwm->dpyname = display? strdup(display): display;
 	xwm->dpy = dpy;
-
-	qname = tcvp_event_get_qname(cs);
-	qn = malloc(strlen(qname) + 9);
-
-	sprintf(qn, "%s/control", qname);
-	xwm->qs = eventq_new(NULL);
-	eventq_attach(xwm->qs, qn, EVENTQ_SEND);
-
-	sprintf(qn, "%s/status", qname);
-	xwm->qst = eventq_new(NULL);
-	eventq_attach(xwm->qst, qn, EVENTQ_SEND);
-
-	free(qname);
-	free(qn);
+        xwm->qs = tcvp_event_get_sendq(cs, "control");
+        xwm->qst = tcvp_event_get_sendq(cs, "status");
 
 	check_wm(xwm);
 	xwm->wm_state = XInternAtom(xwm->dpy, "_NET_WM_STATE", False);

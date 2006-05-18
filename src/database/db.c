@@ -100,27 +100,18 @@ extern int
 db_init(tcvp_module_t *m)
 {
     tcvp_database_t *tdb = m->private;
-    char *qname, *qn, *dbname;
+    char *dbname;
 
     if(!tcconf_getvalue(tdb->conf, "features/database", ""))
 	return -1;
 
     tc2_print("database", TC2_PRINT_DEBUG+1, "db_init\n");
 
-    qname = tcvp_event_get_qname(tdb->conf);
-    qn = alloca(strlen(qname) + 9);
-
-    tdb->sc = eventq_new(NULL);
-
+    tdb->sc = tcvp_event_get_sendq(tdb->conf, "control");
     dbhash = tchash_new(10, 1, 0);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(tdb->sc, qn, EVENTQ_SEND);
 
     tcconf_setvalue(tdb->conf, "features/database", "");
     tcconf_setvalue(tdb->conf, "features/local/database", "");
-
-    free(qname);
 
     dbname = get_dbname(tdb->conf);
 

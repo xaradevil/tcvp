@@ -648,7 +648,6 @@ extern int
 http_init(tcvp_module_t *m)
 {
     tcvp_http_t *h = m->private;
-    char *qname, *qn;
     httpd *hd;
 
     if(!tcconf_getvalue(h->conf, "features/http", ""))
@@ -679,13 +678,7 @@ http_init(tcvp_module_t *m)
     hd->host = (char *) m;
     h->httpd = hd;
 
-    qname = tcvp_event_get_qname(h->conf);
-    qn = alloca(strlen(qname) + 9);
-
-    h->control = eventq_new(NULL);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(h->control, qn, EVENTQ_SEND);
+    h->control = tcvp_event_get_sendq(h->conf, "control");
 
     tcconf_setvalue(h->conf, "features/http", "");
     tcconf_setvalue(h->conf, "features/local/http", "");
@@ -698,7 +691,6 @@ http_init(tcvp_module_t *m)
     h->run = 1;
     pthread_create(&h->th, NULL, http_run, m);
 
-    free(qname);
     return 0;
 }
 

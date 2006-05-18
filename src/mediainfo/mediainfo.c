@@ -124,20 +124,13 @@ extern int
 mi_init(tcvp_module_t *m)
 {
     tcvp_mi_t *mi = m->private;
-    char *qname, *qn;
 
     if(!tcconf_getvalue(mi->conf, "features/mediainfo", ""))
 	return -1;
 
     tc2_print("mediainfo", TC2_PRINT_DEBUG+1, "mi_init\n");
 
-    qname = tcvp_event_get_qname(mi->conf);
-    qn = alloca(strlen(qname) + 9);
-
-    mi->control = eventq_new(NULL);
-
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(mi->control, qn, EVENTQ_SEND);
+    mi->control = tcvp_event_get_sendq(mi->conf, "control");
 
     tcconf_setvalue(mi->conf, "features/mediainfo", "");
     tcconf_setvalue(mi->conf, "features/local/mediainfo", "");
@@ -145,7 +138,6 @@ mi_init(tcvp_module_t *m)
     mi->dbc = tcvp_tcdbc_new(mi->conf);
     mi->dbc->init(mi->dbc);
 
-    free(qname);
     return 0;
 }
 

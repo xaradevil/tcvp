@@ -263,7 +263,6 @@ tcl_check(void *p)
 extern int
 tcl_init(char *p)
 {
-    char *qname = NULL, *qn;
     struct sigaction sa;
     tcconf_section_t *tcvp_conf, *prconf = NULL, *localf;
     char *profile = NULL;
@@ -343,15 +342,7 @@ tcl_init(char *p)
 	return 0;
     }
 
-    if(tcconf_getvalue(cf, "qname", "%s", &qname) < 1){
-	tc2_request(TC2_UNLOAD_ALL, 0);
-	return 0;
-    }
-
-    qn = alloca(strlen(qname)+9);
-    qs = eventq_new(NULL);
-    sprintf(qn, "%s/control", qname);
-    eventq_attach(qs, qn, EVENTQ_SEND);
+    qs = tcvp_event_get_sendq(cf, "control");
 
     if(clr_pl){
 	tcvp_event_send(qs, TCVP_PL_STOP);
@@ -387,9 +378,7 @@ tcl_init(char *p)
 	tcvp_event_send(qs, tcvp_event_get(commands[i]));
 
     if(!have_cmds && have_local){
-	qr = eventq_new(tcref);
-	sprintf(qn, "%s/status", qname);
-	eventq_attach(qr, qn, EVENTQ_RECV);
+	qr = tcvp_event_get_recvq(cf, "status", NULL);
 	pthread_create(&evt_thr, NULL, tcl_event, NULL);
 
 	tcvp_event_send(qs, TCVP_QUERY);
@@ -406,7 +395,6 @@ tcl_init(char *p)
 	tc2_request(TC2_UNLOAD_ALL, 0);
     }
 
-    free(qname);
     return 0;
 }
 

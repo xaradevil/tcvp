@@ -6,11 +6,7 @@ sources		mpeg.c mpegps.c mpegts.c mpeges.c mpegtsmux.c mpegpsmux.c crc32.c mpeg.
 implement	"video/mpeg"	"open"		mpeg_open
 implement	"video/x-mpeges" "open"		mpeges_open
 implement	"video/x-cdxa"  "open"		cdxa_open
-import		"tcvp/event"	"get"
 import		"tcvp/event"	"send"
-import		"tcvp/event"	"get_qname"
-import		"Eventq"	"new"
-import		"Eventq"	"attach"
 import		"Eventq"	"recv"
 import		"Eventq"	"delete"
 import		"URL"		"open"
