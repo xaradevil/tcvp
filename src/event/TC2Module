@@ -18,10 +18,14 @@ implement	"tcvp/event"	"serialize"	serialize_event
 implement	"tcvp/event"	"deserialize"	deserialize_event
 implement	"tcvp/event"	"get_qname"	get_qname
 implement	"tcvp/event"	"loop"		start_loop
+implement	"tcvp/event"	"get_sendq"	get_sendq
+implement	"tcvp/event"	"get_recvq"	get_recvq
 
 implement	"tcvp/events"	"alloc"		evt_alloc
 implement	"tcvp/events"	"serialize"	evt_serialize
 implement	"tcvp/events"	"deserialize"	evt_deserialize
 
+import		"Eventq"	"new"
 import		"Eventq"	"send"
 import		"Eventq"	"recv"
+import		"Eventq"	"attach"

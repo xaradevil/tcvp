@@ -59,6 +59,42 @@ get_qname(tcconf_section_t *cf)
     return qname;
 }
 
+static int
+attachq(eventq_t eq, char *qname, char *q, int dir)
+{
+    char *qn = malloc(strlen(qname) + strlen(q) + 2);
+    sprintf(qn, "%s/%s", qname, q);
+    eventq_attach(eq, qn, dir);
+    free(qn);
+    return 0;
+}
+
+extern eventq_t
+get_sendq(tcconf_section_t *cf, char *q)
+{
+    eventq_t eq = eventq_new(NULL);
+    char *qname = get_qname(cf);
+    attachq(eq, qname, q, EVENTQ_SEND);
+    free(qname);
+    return eq;
+}
+
+extern eventq_t
+get_recvq(tcconf_section_t *cf, ...)
+{
+    eventq_t eq = eventq_new(tcref);
+    char *qname = get_qname(cf), *q;
+    va_list args;
+
+    va_start(args, cf);
+    while((q = va_arg(args, char *)) != NULL)
+        attachq(eq, qname, q, EVENTQ_RECV);
+    va_end(args);
+
+    free(qname);
+    return eq;
+}
+
 extern void *
 evt_alloc(int type, va_list args)
 {

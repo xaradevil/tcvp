@@ -10,6 +10,8 @@ symbol "serialize"	u_char *(*%s)(void *event, int *size)
 symbol "deserialize"	void *(*%s)(u_char *event, int size)
 symbol "get_qname"	char *(*%s)(tcconf_section_t *cf)
 symbol "loop"           int (*%s)(eventq_t q, tcvp_event_type_handler_t *, void *, pthread_t *)
+symbol "get_sendq"	eventq_t (*%s)(tcconf_section_t *, char *)
+symbol "get_recvq"	eventq_t (*%s)(tcconf_section_t *, ...)
 require "Eventq"
 require "tcvp/core"
 include
