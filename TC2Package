@@ -40,6 +40,7 @@ module src/filters/threads
 module src/filters/xmms
 module src/input/alsa
 module src/input/cdda
+module src/input/dvb
 module src/input/dvd
 module src/input/dvdnav
 module src/input/oss

@@ -580,7 +580,7 @@ parse_options(int argc, char **argv)
 	case 'u':
 	    if(strcmp(optarg, "none")){
 		add_module("tcvp/ui/", optarg);
-		tcconf_setvalue(cf, "force_ui", "%i", 1);
+		tcconf_setvalue(cf, "features/force/ui", "");
 	    } else {
 		add_nomodule("tcvp/ui/*");
 	    }

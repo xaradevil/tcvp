@@ -56,10 +56,6 @@ tcvpx_init(tcvp_module_t *tm)
 	skinfile = strdup(tcvp_ui_tcvpx_conf_skin);
     }
 
-    if(!tcconf_getvalue(tx->conf, "features/ui", "") &&
-       tcconf_getvalue(tx->conf, "force_ui", ""))
-	return -1;
-
     qs = tcvp_event_get_sendq(tx->conf, "control");
 
     init_dynamic(tx->conf);
@@ -138,11 +134,6 @@ tcvpx_init(tcvp_module_t *tm)
     update_time();
 
     xtk_run();
-
-    tcconf_setvalue(tx->conf, "features/ui", "");
-    tcconf_setvalue(tx->conf, "features/local/ui", "");
-
-/*     tc2_request(TC2_LOAD_MODULE, 1, "Shell", NULL); */
 
     free(skinfile);
 

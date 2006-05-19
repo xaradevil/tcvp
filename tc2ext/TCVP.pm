@@ -80,6 +80,9 @@ sub tc2module {
 	TC2::tc2_import('tcvp/event', 'get_sendq');
 	TC2::tc2_import('tcvp/event', 'get_recvq');
 	TC2::tc2_require("tcvp/events/$2");
+    } elsif ($module and m,feature\s+(\+)?([[:alnum:]_/-]+),) {
+	$$module{features}{$2} = 1;
+	$$module{ufeatures}{$2} = 1 if not $1;
     } elsif (not $module and
 	     /event\s+(\w+)(?:\s+(\w+)(?:\s+(\w+)\s+(\w+))?)?/) {
 	$events{$1} = { alloc => $2,
@@ -209,9 +212,11 @@ $$_{w}free(void *p)
     $$_{wtype}_t *tp = p;
 END_C
 	print $fh <<END_C if %{$$_{events}};
-    tcvp_event_send(tp->qr, -1);
-    pthread_join(tp->eth, NULL);
-    eventq_delete(tp->qr);
+    if(tp->qr){
+        tcvp_event_send(tp->qr, -1);
+        pthread_join(tp->eth, NULL);
+        eventq_delete(tp->qr);
+    }
 END_C
 	print $fh <<END_C;
     tcfree(tp->module.private);
@@ -225,16 +230,35 @@ $$_{w}init(tcvp_module_t *m)
 {
     int r = 0;
 END_C
+	print $fh "    $$_{wtype}_t *p = ($$_{wtype}_t *) m;\n"
+	  if %{$$_{events}} or %{$$_{features}};
+
+	for my $f (keys %{$$_{ufeatures}}) {
+	    print $fh <<END_C;
+    if(!tcconf_getvalue(p->conf, "features/$f", "") &&
+       tcconf_getvalue(p->conf, "features/force/$f", ""))
+        return -1;
+END_C
+	}
 
 	if (%{$$_{events}}) {
 	    my $etypes = join ', ', map qq/"$_"/, keys %{$$_{etypes}};
 	    print $fh <<END_C;
-    $$_{wtype}_t *p = ($$_{wtype}_t *) m;
     p->qr = tcvp_event_get_recvq(p->conf, $etypes, NULL);
     tcvp_event_loop(p->qr, $$_{w}event_handlers, &p->module, &p->eth);
 END_C
 	}
 	print $fh "    r = $$_{init}(m);\n" if $$_{init};
+	if (%{$$_{features}}) {
+	    print $fh "    if(!r){\n";
+	    for my $f (keys %{$$_{features}}) {
+		print $fh <<END_C;
+        tcconf_setvalue(p->conf, "features/$f", "");
+        tcconf_setvalue(p->conf, "features/local/$f", "");
+END_C
+	    }
+	    print $fh "    }\n";
+	}
 	print $fh <<END_C;
     return r;
 }

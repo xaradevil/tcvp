@@ -28,6 +28,7 @@ TCVP {
 		event control TCVP_PL_QUERY epl_query
 		event control TCVP_QUERY epl_query
 		event control TCVP_PL_SEEK epl_seek
+		feature playlist
 	}
 	event TCVP_OPEN
 	event TCVP_START

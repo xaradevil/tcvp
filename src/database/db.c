@@ -102,21 +102,13 @@ db_init(tcvp_module_t *m)
     tcvp_database_t *tdb = m->private;
     char *dbname;
 
-    if(!tcconf_getvalue(tdb->conf, "features/database", ""))
-	return -1;
-
     tc2_print("database", TC2_PRINT_DEBUG+1, "db_init\n");
 
     tdb->sc = tcvp_event_get_sendq(tdb->conf, "control");
     dbhash = tchash_new(10, 1, 0);
 
-    tcconf_setvalue(tdb->conf, "features/database", "");
-    tcconf_setvalue(tdb->conf, "features/local/database", "");
-
     dbname = get_dbname(tdb->conf);
-
     db_create(dbname);
-
     free(dbname);
     
     return 0;

@@ -545,14 +545,8 @@ t_init(tcvp_module_t *tm)
 {
     tcvp_core_t *tp = tm->private;
 
-    if(!tcconf_getvalue(tp->conf, "features/core", ""))
-	return -1;
-
     tp->qs = tcvp_event_get_sendq(tp->conf, "status");
     tp->qt = tcvp_event_get_sendq(tp->conf, "timer");
-
-    tcconf_setvalue(tp->conf, "features/core", "");
-    tcconf_setvalue(tp->conf, "features/local/core", "");
 
     return 0;
 }

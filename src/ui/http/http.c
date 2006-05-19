@@ -650,9 +650,6 @@ http_init(tcvp_module_t *m)
     tcvp_http_t *h = m->private;
     httpd *hd;
 
-    if(!tcconf_getvalue(h->conf, "features/http", ""))
-	return -1;
-
     hd = httpdCreate(tcvp_ui_http_conf_listen.iface,
 		     tcvp_ui_http_conf_listen.port);
     if(!hd)
@@ -679,11 +676,6 @@ http_init(tcvp_module_t *m)
     h->httpd = hd;
 
     h->control = tcvp_event_get_sendq(h->conf, "control");
-
-    tcconf_setvalue(h->conf, "features/http", "");
-    tcconf_setvalue(h->conf, "features/local/http", "");
-    tcconf_setvalue(h->conf, "features/ui", "");
-    tcconf_setvalue(h->conf, "features/local/ui", "");
 
     h->dbc = tcvp_tcdbc_new(h->conf);
     h->dbc->init(h->dbc);

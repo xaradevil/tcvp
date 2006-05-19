@@ -125,15 +125,9 @@ mi_init(tcvp_module_t *m)
 {
     tcvp_mi_t *mi = m->private;
 
-    if(!tcconf_getvalue(mi->conf, "features/mediainfo", ""))
-	return -1;
-
     tc2_print("mediainfo", TC2_PRINT_DEBUG+1, "mi_init\n");
 
     mi->control = tcvp_event_get_sendq(mi->conf, "control");
-
-    tcconf_setvalue(mi->conf, "features/mediainfo", "");
-    tcconf_setvalue(mi->conf, "features/local/mediainfo", "");
 
     mi->dbc = tcvp_tcdbc_new(mi->conf);
     mi->dbc->init(mi->dbc);

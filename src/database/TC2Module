@@ -20,6 +20,7 @@ TCVP {
 		new db_new
 		init db_init
 		event control TCVP_DB_QUERY db_event_query
+		feature database
 	}
 	event TCVP_DB_QUERY
 	event TCVP_DB_REPLY

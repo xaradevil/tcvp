@@ -13,6 +13,7 @@ TCVP {
 		new mi_new
 		init mi_init
 		event status TCVP_PL_CONTENT	mi_pl_content
+		feature mediainfo
 	}
 	event TCVP_PL_QUERY
 }

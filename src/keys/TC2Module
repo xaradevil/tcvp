@@ -13,6 +13,7 @@ TCVP {
 		new keys_new
 		init keys_init
 		event control TCVP_KEY key_event
+		feature keys
 	}
 	event TCVP_KEY auto
 }

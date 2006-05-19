@@ -226,14 +226,8 @@ keys_init(tcvp_module_t *m)
 {
     tcvp_keys_t *tk = m->private;
 
-    if(!tcconf_getvalue(tk->conf, "features/keys", ""))
-	return -1;
-
     keys_init_bindings(m);
     tk->control = tcvp_event_get_sendq(tk->conf, "control");
-
-    tcconf_setvalue(tk->conf, "features/keys", "");
-    tcconf_setvalue(tk->conf, "features/local/keys", "");
 
     return 0;
 }

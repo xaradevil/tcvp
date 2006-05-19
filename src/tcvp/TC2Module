@@ -26,6 +26,7 @@ TCVP {
 		event control 	TCVP_SEEK	te_seek
 		event control	TCVP_CLOSE	te_close
 		event control	TCVP_QUERY	te_query
+		feature core
 	}
 	event TCVP_TIMER	auto
 	event TCVP_STATE	auto

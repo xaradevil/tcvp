@@ -570,14 +570,8 @@ pl_init(tcvp_module_t *m)
 {
     tcvp_playlist_t *tpl = m->private;
 
-    if(!tcconf_getvalue(tpl->conf, "features/playlist", ""))
-	return -1;
-
     tpl->ss = tcvp_event_get_sendq(tpl->conf, "status");
     tpl->sc = tcvp_event_get_sendq(tpl->conf, "control");
-
-    tcconf_setvalue(tpl->conf, "features/playlist", "");
-    tcconf_setvalue(tpl->conf, "features/local/playlist", "");
 
     return 0;
 }
