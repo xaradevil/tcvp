@@ -156,6 +156,8 @@ di_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcconf_getvalue(cs, "method", "%s", &dm);
     di = tcallocz(sizeof(*di));
 
+    fprintf(stderr, "%s\n", dm);
+
     if(!dm || !strcmp(dm, "drop")){
 	di->method = DI_DROP;
     } else if(!strcmp(dm, "none")){

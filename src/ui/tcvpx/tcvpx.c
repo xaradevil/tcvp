@@ -46,9 +46,13 @@ extern int
 tcvpx_init(tcvp_module_t *tm)
 {
     tcvpx_t *tx = tm->private;
-    char *skinfile = tcvp_ui_tcvpx_conf_skin;
+    char *skinfile = NULL;
     skin_t *skin;
     widget_data_t *wd;
+
+    if(tcconf_getvalue(tx->conf, "skin", "%s", &skinfile) == 0) {
+	skinfile = strdup(tcvp_ui_tcvpx_conf_skin);
+    }
 
     if(!tcconf_getvalue(tx->conf, "features/ui", "") &&
        tcconf_getvalue(tx->conf, "force_ui", ""))
@@ -137,6 +141,8 @@ tcvpx_init(tcvp_module_t *tm)
     tcconf_setvalue(tx->conf, "features/local/ui", "");
 
 /*     tc2_request(TC2_LOAD_MODULE, 1, "Shell", NULL); */
+
+    free(skinfile);
 
     return 0;
 }
