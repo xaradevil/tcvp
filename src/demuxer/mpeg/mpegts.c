@@ -587,7 +587,22 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     int pmtsize = 0;
     int pmtpos = 0;
     int program = -1;
+    char *tmp, *p;
+    int prog = -1;
 
+    if((tmp = strchr(name, '?'))){
+	tmp = strdup(++tmp);
+
+	while((p = strsep(&tmp, "&"))){
+	    if(!*p)
+		continue;
+	    if(!strncmp(p, "program=", 8)){
+		prog = strtol(p + 8, NULL, 0);
+	    }
+	}
+
+	free(tmp);
+    }
     ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
     ms->next_packet = mpegts_packet;
     ms->seek = mpegts_seek;
@@ -632,11 +647,23 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     pat = calloc(n, 2 * sizeof(*pat));
     dp += 8;
     for(i = 0; i < n; i++){
-	pat[2*i] = 1;
-	pat[2*i+1] = htob_16(unaligned16(dp + 2)) & 0x1fff;
+	int prg = htob_16(unaligned16(dp));
+	int pid = htob_16(unaligned16(dp + 2)) & 0x1fff;
+
 	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i => PMT pid %x\n",
-		  htob_16(unaligned16(dp)), pat[2*i+1]);
+		  prg, pid);
+
+	pat[2*i] = 1;
+	pat[2*i+1] = pid;
 	dp += 4;
+
+	if(prg == prog)
+	    pmtpid = pid;
+    }
+
+    if(pmtpid){
+	tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i [%x] selected\n",
+		  prog, pmtpid);
     }
 
     np = ns = n;
