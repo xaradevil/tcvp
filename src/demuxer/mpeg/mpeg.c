@@ -139,6 +139,7 @@ static mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x04, 0xc0, "audio/mpeg"  },
     { 0x0f, 0xc0, "audio/aac"   },
     { 0x10, 0xe0, "video/mpeg4" },
+    { 0x11, 0xc0, "audio/aac"   },
     { 0x1b, 0xe0, "video/h264"  },
     { 0x81, 0xbd, "audio/ac3"   }
 };
