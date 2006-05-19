@@ -104,7 +104,7 @@ import		"xtk/window"		"show"
 import		"URL"			"open"
 
 option		always_on_top%d=0
-option		skin%s
+option		skin%s="big_blue"
 option		sticky%d=0
 option		time_offset%d=1
 option		xposition%d=-2
