@@ -50,7 +50,9 @@ tcvpx_init(tcvp_module_t *tm)
     skin_t *skin;
     widget_data_t *wd;
 
-    if(tcconf_getvalue(tx->conf, "skin", "%s", &skinfile) == 0) {
+    tcconf_getvalue(tx->conf, "skin", "%s", &skinfile);
+
+    if(skinfile == NULL) {
 	skinfile = strdup(tcvp_ui_tcvpx_conf_skin);
     }
 
