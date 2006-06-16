@@ -208,7 +208,7 @@ avi_add_index(muxed_stream_t *ms, int s, uint64_t offset,
 	} else if(st->wavex && st->block_align){
 	    st->index[ixl].pts =
 		27000000LL * st->size / st->block_align * st->scale / st->rate;
-	} else {
+	} else if(st->sample_size && st->rate){
 	    st->index[ixl].pts =
 		27000000LL * st->size / st->sample_size * st->scale / st->rate;
 	}
