@@ -81,14 +81,6 @@ typedef struct db_attr {
 } db_attr_t;
 
 static char *
-lookup_attr(char *n, void *p)
-{
-    char *v = tcattr_get(p, n);
-    return v? strdup(v): NULL;
-}
-
-
-static char *
 escape_string(char *src)
 {
     char *ret = malloc(2*strlen(src)+1);
