@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -22,8 +22,10 @@
     DEALINGS IN THE SOFTWARE.
 **/
 
-#ifndef _CDDA_MOD_H
-#define _CDDA_MOD_H
+#ifndef CDDA_MOD_H
+#define CDDA_MOD_H
+
+#define PARANOIA_NUM_CODES 13
 
 typedef struct {
     cdrom_drive *drive;
@@ -38,7 +40,7 @@ typedef struct {
     char *buffer;
     int bufsize;
     int buffer_pos;
-    int prn_stats[13];
+    int prn_stats[PARANOIA_NUM_CODES];
     char track[4];
 } cd_data_t;
 

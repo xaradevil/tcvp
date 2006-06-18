@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -67,6 +67,15 @@ print_paranoia_stats(cd_data_t *cdt)
     return 0;
 }
 
+static __thread int *paranoia_stats;
+
+static void
+paranoia_cb(long foo, int stat)
+{
+    if(paranoia_stats && stat >= 0 && stat < PARANOIA_NUM_CODES)
+        paranoia_stats[stat]++;
+}
+
 static int
 fill_buffer(cd_data_t *cdt)
 {
@@ -75,13 +84,15 @@ fill_buffer(cd_data_t *cdt)
     nsect = cdt->bufsize / CD_FRAMESIZE_RAW;
     while(nsect){
 	if(cdt->cdprn){
-	    void cdp_cb(long foo, int stat){
-		if(stat >= 0 && stat < sizeof(cdt->prn_stats))
-		    cdt->prn_stats[stat]++;
-	    }
-	    int16_t *sect = paranoia_read_limited(cdt->cdprn, cdp_cb,
-						  max_retries);
-	    char *err = cdda_errors(cdt->drive);
+            int16_t *sect;
+            char *err;
+
+            paranoia_stats = cdt->prn_stats;
+	    sect = paranoia_read_limited(cdt->cdprn, paranoia_cb, max_retries);
+            paranoia_stats = NULL;
+
+	    err = cdda_errors(cdt->drive);
+
 	    if(err){
 		tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
 			cdt->current_sector, err);
