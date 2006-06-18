@@ -139,8 +139,8 @@ faad_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     faad_dec_t *ad = p->private;
     faacDecConfiguration *fdc;
-    u_long srate;
-    u_char channels;
+    uint32_t srate;
+    uint8_t channels;
     int err;
 
     fdc = faacDecGetCurrentConfiguration(ad->fd);
