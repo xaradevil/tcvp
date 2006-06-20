@@ -187,7 +187,7 @@ mpegps_packet(muxed_stream_t *ms, int str)
 	    int aup = htob_16(unaligned16(mp->data + 2));
 	    mp->data += 7;
 	    mp->size -= 7;
-	    if(mp->flags & PES_FLAG_PTS)
+	    if(sx >= 0 && mp->flags & PES_FLAG_PTS)
 		mp->pts -= 27000000LL * aup / ms->streams[sx].common.bit_rate;
 	} else if(ISSPU(mp->stream_id)){
 	    mp->data++;
