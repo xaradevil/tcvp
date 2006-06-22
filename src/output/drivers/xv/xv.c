@@ -285,7 +285,8 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     XvFreeAdaptorInfo(xai);
 
     if(!port){
-        tc2_print("XV", TC2_PRINT_DEBUG, "no suitable port found\n");
+        tc2_print("XV", TC2_PRINT_ERROR,
+                  "no suitable port for format %s\n", fmt);
 	return NULL;
     }
 
