@@ -157,6 +157,27 @@ ogg_find_stream(ogg_t *ogg, int serial)
 }
 
 static int
+ogg_new_buf(ogg_t *ogg, int idx)
+{
+    ogg_stream_t *os = ogg->streams + idx;
+    u_char *nb = tcalloc(os->bufsize);
+    int size = os->bufpos - os->pstart;
+
+    tc2_print("OGG", TC2_PRINT_DEBUG+2, "new buffer stream %i, psize %i\n",
+              idx, os->psize);
+
+    if(os->buf){
+        memcpy(nb, os->buf + os->pstart, size);
+        tcfree(os->buf);
+    }
+    os->buf = nb;
+    os->bufpos = size;
+    os->pstart = 0;
+
+    return 0;
+}
+
+static int
 ogg_read_page(muxed_stream_t *ms, int *str)
 {
     ogg_t *ogg = ms->private;
@@ -213,6 +234,9 @@ ogg_read_page(muxed_stream_t *ms, int *str)
 
     os = ogg->streams + idx;
 
+    if(os->pstart > 0)
+        ogg_new_buf(ogg, idx);
+
     if(ogg->f->read(os->segments, 1, nsegs, ogg->f) < nsegs)
 	return -1;
 
@@ -222,6 +246,9 @@ ogg_read_page(muxed_stream_t *ms, int *str)
     size = 0;
     for(i = 0; i < nsegs; i++)
 	size += os->segments[i];
+
+    tc2_print("OGG", TC2_PRINT_DEBUG+2, "stream %i, page size %i\n",
+              idx, size);
 
     if(flags & OGG_FLAG_CONT){
 	if(!os->psize){
@@ -241,6 +268,9 @@ ogg_read_page(muxed_stream_t *ms, int *str)
 	memcpy(nb, os->buf, os->bufpos);
 	tcfree(os->buf);
 	os->buf = nb;
+        tc2_print("OGG", TC2_PRINT_DEBUG+1,
+                  "ogg_read_page: stream %i buffer size %i\n",
+                  idx, os->bufsize);
     }
 
     if(ogg->f->read(os->buf + os->bufpos, 1, size, ogg->f) < size)
@@ -258,7 +288,7 @@ ogg_read_page(muxed_stream_t *ms, int *str)
 }
 
 static int
-ogg_packet(muxed_stream_t *ms, int *str)
+ogg_packet(muxed_stream_t *ms, int *str, int *dstart, int *dsize)
 {
     ogg_t *ogg = ms->private;
     int idx;
@@ -307,16 +337,9 @@ ogg_packet(muxed_stream_t *ms, int *str)
 	    }
 	}
 
-	if(!complete && os->segp == os->nsegs){
-	    u_char *nb = tcalloc(os->bufsize);
-	    int size = os->bufpos - os->pstart;
-	    memcpy(nb, os->buf + os->pstart, size);
-	    tcfree(os->buf);
-	    os->buf = nb;
-	    os->bufpos = size;
-	    os->pstart = 0;
-	    ogg->curidx = -1;
-	}
+        if(!complete && os->segp == os->nsegs){
+            ogg->curidx = -1;
+        }
     } while(!complete);
 
     tc2_print("OGG", TC2_PRINT_DEBUG+2,
@@ -345,11 +368,17 @@ ogg_packet(muxed_stream_t *ms, int *str)
 	    os->codec->packet(ms, idx);
 	if(str)
 	    *str = idx;
+        if(dstart)
+            *dstart = os->pstart;
+        if(dsize)
+            *dsize = os->psize;
+        os->pstart += os->psize;
+        os->psize = 0;
     }
 
     os->seq++;
     if(os->segp == os->nsegs)
-	ogg->curidx = -1;
+        ogg->curidx = -1;
 
     return 0;
 }
@@ -368,9 +397,10 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     ogg_stream_t *os;
     ogg_data_packet_t *pk;
     int idx = -1;
+    int pstart, psize;
 
     do {
-	if(ogg_packet(ms, &idx) < 0)
+	if(ogg_packet(ms, &idx, &pstart, &psize) < 0)
 	    return NULL;
     } while(idx < 0 || !ms->used_streams[idx]);
 
@@ -381,8 +411,8 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     pk->pk.data = &pk->data;
     pk->pk.sizes = &pk->size;
     pk->pk.planes = 1;
-    pk->size = os->psize;
-    pk->data = os->buf + os->pstart;
+    pk->size = psize;
+    pk->data = os->buf + pstart;
     pk->buf = tcref(os->buf);
 
     if(os->lastgp != -1LL){
@@ -390,9 +420,6 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
 	pk->pk.pts = ogg_gptopts(ms, idx, os->lastgp);
 	os->lastgp = -1;
     }
-
-    os->pstart += os->psize;
-    os->psize = 0;
 
     return (tcvp_packet_t *) pk;
 }
@@ -477,7 +504,7 @@ ogg_get_headers(muxed_stream_t *ms)
     ogg_t *ogg = ms->private;
 
     do {
-	if(ogg_packet(ms, NULL) < 0)
+	if(ogg_packet(ms, NULL, NULL, NULL) < 0)
 	    return -1;
     } while(!ogg->headers);
 
