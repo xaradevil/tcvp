@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -53,6 +53,8 @@ avc_free_pipe(void *p)
     avc_codec_t *vc = p;
     avcodec_close(vc->ctx);
     av_free(vc->ctx);
+    if(vc->pctx)
+        av_parser_close(vc->pctx);
     free(vc->buf);
     free(vc->frame);
 }
@@ -75,6 +77,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     avc_codec_t *ac;
     AVCodec *avc = NULL;
     AVCodecContext *avctx;
+    AVCodecParserContext *pctx = NULL;
     char *avcname;
 
     avcname = avc_codec_name(s->common.codec);
@@ -91,10 +94,9 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     }
 
     avctx = avcodec_alloc_context();
-    if((avc->capabilities & CODEC_CAP_TRUNCATED) &&
-       (s->common.flags & TCVP_STREAM_FLAG_TRUNCATED)){
-	tc2_print("AVCODEC", TC2_PRINT_DEBUG, "setting truncated flag\n");
-	avctx->flags |= CODEC_FLAG_TRUNCATED;
+
+    if(s->common.flags & TCVP_STREAM_FLAG_TRUNCATED){
+        pctx = av_parser_init(avc->id);
     }
 
 #define ctx_conf(n, f) tcconf_getvalue(cs, #n, "%"#f, &avctx->n)
@@ -106,6 +108,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     ac = tcallocdz(sizeof(*ac), NULL, avc_free_pipe);
     ac->ctx = avctx;
+    ac->pctx = pctx;
     p->private = ac;
 
     switch(s->stream_type){

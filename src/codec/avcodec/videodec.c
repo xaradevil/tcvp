@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -48,31 +48,46 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 	return 0;
     }
 
-    if(pk->flags & TCVP_PKT_FLAG_PTS && !probe){
-	if(!(vc->ctx->flags & CODEC_FLAG_TRUNCATED)){
-	    int cpn = vc->ctx->coded_frame?
-		(vc->ctx->coded_frame->coded_picture_number + 1) &
-		(PTSQSIZE - 1): 0;
-	    vc->ptsq[cpn] = pk->pts;
-	    tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "set pts %lli @%i\n",
-		      pk->pts, cpn);
-	} else {
-	    vc->pts = pk->pts * vc->ptsd;
-	}
+    if(pk->flags & TCVP_PKT_FLAG_PTS && !probe && vc->ctx->coded_frame){
+        int cpn =
+            vc->ctx->coded_frame->coded_picture_number + 1 + !vc->complete;
+        cpn &= PTSQSIZE - 1;
+        vc->ptsq[cpn] = pk->pts;
+        tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "set pts %lli @%i\n",
+                  pk->pts, cpn);
     }
 
     while(insize > 0){
-	int l, gp = 0;
+        uint8_t *buf = NULL;
+        int bufsize = 0;
+	int s;
 
-	l = avcodec_decode_video(vc->ctx, vc->frame, &gp, inbuf, insize);
+        if(vc->pctx){
+            s = av_parser_parse(vc->pctx, vc->ctx, &buf, &bufsize,
+                                inbuf, insize, 0, 0);
+            if(s < 0)
+                return probe? s: 0;
+            inbuf += s;
+            insize -= s;
 
-	if(l < 0)
-	    return probe? l: 0;
+            vc->complete = 0;
+        } else {
+            buf = inbuf;
+            bufsize = insize;
+        }
 
-	inbuf += l;
-	insize -= l;
+        if(bufsize){
+            s = avcodec_decode_video(vc->ctx, vc->frame, &vc->complete,
+                                     buf, bufsize);
+            if(s < 0)
+                return probe? s: 0;
+            if(!vc->pctx){
+                inbuf += s;
+                insize -= s;
+            }
+        }
 
-	if(gp){
+	if(vc->complete){
 	    int cpn = vc->frame->coded_picture_number & (PTSQSIZE - 1);
 	    int i;
 

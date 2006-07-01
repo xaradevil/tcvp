@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -32,6 +32,7 @@
 
 typedef struct avc_codec {
     AVCodecContext *ctx;
+    AVCodecParserContext *pctx;
 
     /* audio */
     char *buf;
@@ -41,6 +42,7 @@ typedef struct avc_codec {
     uint64_t ptsn, ptsd;
     AVFrame *frame;
     uint64_t ptsq[PTSQSIZE];
+    int complete;
 
     int have_params;
 } avc_codec_t;
