@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2006  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -115,6 +115,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 	    pes->stream_id = 0xbc;
 	    pes->data = malloc(pklen);
 	    pes->hdr = pes->data;
+            pes->flags = 0;
 	    pklen = u->read(pes->data, 1, pklen, u);
 	    if(pklen < 0)
 		return NULL;
@@ -527,8 +528,22 @@ mpegps_findstreams(muxed_stream_t *ms, int ns)
 			  pk->stream_id, pc - 1);
 
 		if(ISVIDEO(pk->stream_id)){
+                    u_int scode = -1;
+                    u_char *p;
+
 		    sp->stream_type = STREAM_TYPE_VIDEO;
 		    sp->common.codec = "video/mpeg";
+
+                    for(p = pk->data; p < pk->data + pk->size - 5; p++){
+                        scode <<= 8;
+                        scode |= *p;
+                        if((scode & ~0xff) == 0x100){
+                            if(scode == 0x1b0 && (p[3] != 0 || p[4] != 1)){
+                                sp->common.codec = "video/cavs";
+                                break;
+                            }
+                        }
+                    }
 		} else if(ISMPEGAUDIO(pk->stream_id)){
 		    sp->stream_type = STREAM_TYPE_AUDIO;
 		    sp->common.codec = "audio/mpeg";
