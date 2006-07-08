@@ -36,7 +36,7 @@
 
 #define EQ_BANDS 10
 #define EQ_CHANNELS 16
-#define EQ_IN_FACTOR 0.25
+#define EQ_IN_FACTOR 1
 
 #define ENDIAN_CONVERT (1<<0)
 #define S16            (1<<1)
