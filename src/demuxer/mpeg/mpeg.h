@@ -47,8 +47,6 @@ typedef struct mpeg_stream_type {
     char *codec;
 } mpeg_stream_type_t;
 
-extern tcfraction_t frame_rates[16];
-
 #define MPEGTS_SYNC 0x47
 
 #define PACK_HEADER              0xba
