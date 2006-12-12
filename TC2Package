@@ -19,7 +19,6 @@ module src/database
 module src/dbc
 module src/demuxer/avformat
 module src/demuxer/avi
-module src/demuxer/avimage
 module src/demuxer/flac
 module src/demuxer/libogg
 module src/demuxer/matroska
