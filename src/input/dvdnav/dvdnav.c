@@ -44,7 +44,7 @@ typedef struct dvd {
     int64_t pts, pts_offset;
     int angle;
     int64_t pos;
-    char *buf;
+    u_char *buf;
     int bufsize;
     int bbytes;
     int bpos;
@@ -59,8 +59,8 @@ typedef struct dvd {
 static void
 write_pes(dvd_t *d, void *data, int16_t size)
 {
-    char *buf = d->buf + d->bbytes;
-    char *p = buf;
+    u_char *buf = d->buf + d->bbytes;
+    u_char *p = buf;
 
     if(!d->dvdnav)
 	return;

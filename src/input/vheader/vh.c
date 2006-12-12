@@ -28,7 +28,7 @@
 #include <vheader_tc2.h>
 
 typedef struct vheader {
-    char *header;
+    uint8_t *header;
     int hsize;
     int pos;
     url_t *url;
@@ -126,7 +126,7 @@ vh_free(void *p)
 }
 
 extern url_t *
-vh_new(url_t *u, char *header, int hsize)
+vh_new(url_t *u, uint8_t *header, int hsize)
 {
     url_t *vhu;
     vheader_t *vh;

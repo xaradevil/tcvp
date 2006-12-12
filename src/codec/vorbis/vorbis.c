@@ -63,7 +63,7 @@ float2int(float f)
 }
 
 static inline int
-conv(int samples, float **pcm, char *buf, int channels) {
+conv(int samples, float **pcm, uint8_t *buf, int channels) {
     int16_t *data = (int16_t *) buf;
     int i, j;
 
@@ -115,8 +115,7 @@ conv(int samples, float **pcm, char *buf, int channels) {
 	break;
     }
 
-
-    return (char *) data - buf;
+    return (uint8_t *) data - buf;
 }
 
 extern int

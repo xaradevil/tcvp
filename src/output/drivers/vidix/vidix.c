@@ -49,7 +49,7 @@ typedef struct vidix_window {
     int frames;
     int vframes;
     int use_dma;
-    char **dmabufs;
+    u_char **dmabufs;
     int *vfmap;
     int *vfq, vfh, vft, vfc;
     int *ffq, ffh, fft, ffc;
@@ -180,13 +180,13 @@ static int
 vx_get(video_driver_t *vd, int frame, u_char **data, int *strides)
 {
     vx_window_t *vxw = vd->private;
-    char *fbase;
+    u_char *fbase;
     int planes = 0;
 
     if(vxw->use_dma){
 	fbase = vxw->dmabufs[frame];
     } else {
-	fbase = (char *)vxw->pbc->dga_addr + vxw->pbc->offsets[frame];
+	fbase = (u_char *)vxw->pbc->dga_addr + vxw->pbc->offsets[frame];
     }
 
     data[0] = fbase + vxw->pbc->offset.y;

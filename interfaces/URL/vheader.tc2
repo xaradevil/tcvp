@@ -1,2 +1,2 @@
-symbol "new" url_t *(*%s)(url_t *u, char *header, int hsize)
+symbol "new" url_t *(*%s)(url_t *u, uint8_t *header, int hsize)
 require "URL"

@@ -188,7 +188,7 @@ mpegps_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     mpegps_mux_t *psm = p->private;
     struct mpegps_output_stream *os;
     int pesflags = 0;
-    char *data;
+    uint8_t *data;
     int size;
     uint64_t dts;
 

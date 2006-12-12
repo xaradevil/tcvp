@@ -214,7 +214,7 @@ dts_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     dts_decode_t *dts = p->private;
     int srate, brate;
     int psize;
-    char *pdata;
+    uint8_t *pdata;
     int rs;
     int flength;
 

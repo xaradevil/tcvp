@@ -58,8 +58,8 @@ getss32(url_t *f, int version)
 #define ID3v2_FFLAG_USYNC (1<<1)
 #define ID3v2_FFLAG_DLEN  (1<<0)
 
-static char *
-id3v2_getframe(url_t *f, int *fsize, int fflags)
+static u_char *
+id3v2_getframe(url_t *f, uint32_t *fsize, int fflags)
 {
     u_char *buf;
 
@@ -387,7 +387,7 @@ id3v1_tag(url_t *f, muxed_stream_t *ms)
 
     f->seek(f, -128, SEEK_END);
     f->read(buf, 1, 128, f);
-    if(!strncmp(buf, "TAG", 3)){
+    if(!memcmp(buf, "TAG", 3)){
 	int trk = buf[126];
 
 	id3v1_setattr(ms, "title", buf + 3, 30);

@@ -37,7 +37,7 @@ typedef struct a52_decode {
     sample_t *out;
     sample_t level, bias;
     int flags;
-    char buf[3840];
+    uint8_t buf[3840];
     int fsize, fpos;
     uint64_t pts;
     int ptsf;
@@ -218,7 +218,7 @@ a52_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     a52_decode_t *ad = p->private;
     int srate, brate;
     int psize;
-    char *pdata;
+    uint8_t *pdata;
     int rs;
     int ret = 0;
 

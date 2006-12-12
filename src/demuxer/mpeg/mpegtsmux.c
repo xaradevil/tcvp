@@ -376,7 +376,7 @@ mpegts_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 	  tsm->streams[nst].sts < tsm->streams[nst].tailtime){
 	struct mpegts_output_stream *os = tsm->streams + nst;
 	uint64_t ppts = -1, pdts = -1;
-	char *data;
+	uint8_t *data;
 	int size, psize;
 
 	pk = tclist_shift(os->packets);

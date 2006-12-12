@@ -78,7 +78,7 @@ getuint(64)
 #define AVI_INDEX_CHUNK 1
 
 typedef struct avi_idx1 {
-    char tag[4];
+    uint8_t tag[4];
     uint32_t flags;
     uint32_t offset;
     uint32_t size;
@@ -155,7 +155,7 @@ static char xval[] = {
 };
 
 static inline int
-valid_tag(char *t, int strict)
+valid_tag(uint8_t *t, int strict)
 {
     return (isxdigit(t[0]) || t[0] == ' ') && isxdigit(t[1]) &&
 	(strict? (t[2] == 'w' || t[2] == 'd') &&
@@ -164,7 +164,7 @@ valid_tag(char *t, int strict)
 }
 
 static inline int
-tag2str(u_char *tag)
+tag2str(uint8_t *tag)
 {
     return (xval[tag[0]] << 4) + xval[tag[1]];    
 }
@@ -328,7 +328,7 @@ avi_read_indx(muxed_stream_t *ms)
     avi_file_t *af = ms->private;
     int str;
     int idxtype, entries;
-    u_char tag[4];
+    uint8_t tag[4];
 
     getu16(af->file);
     url_getc(af->file);
@@ -696,7 +696,7 @@ avi_alloc_packet(size_t size)
 }
 
 static char *
-strtag(u_char *tag, u_char *str)
+strtag(uint8_t *tag, char *str)
 {
     int i;
     for(i = 0; i < 4; i++){
@@ -709,7 +709,8 @@ strtag(u_char *tag, u_char *str)
 static tcvp_packet_t *
 avi_packet(muxed_stream_t *ms, int stream)
 {
-    u_char tag[5] = {[4] = 0}, stag[5];
+    uint8_t tag[4];
+    char stag[5];
     uint32_t size;
     avi_file_t *af = ms->private;
     int str;
@@ -731,18 +732,18 @@ avi_packet(muxed_stream_t *ms, int stream)
 	return NULL;
 
     if(!valid_tag(tag, scan)){
-	if(!strcmp(tag, "RIFF")){
+	if(!memcmp(tag, "RIFF", 4)){
 	    af->file->seek(af->file, 8, SEEK_CUR);
 	    goto again;
-	} else if(!strcmp(tag, "LIST")){
+	} else if(!memcmp(tag, "LIST", 4)){
 	    int ls = getu32(af->file); /* size */
 	    get4c(tag, af->file);
-	    if(strcmp(tag, "rec ") && strcmp(tag, "movi"))
+	    if(memcmp(tag, "rec ", 4) && memcmp(tag, "movi", 4))
 		af->file->seek(af->file, ls - 4, SEEK_CUR);
 	    goto again;
-	} else if(!strcmp(tag, "JUNK") ||
-		  !strcmp(tag, "idx1") ||
-		  !strncmp(tag, "ix", 2)){
+	} else if(!memcmp(tag, "JUNK", 4) ||
+		  !memcmp(tag, "idx1", 4) ||
+		  !memcmp(tag, "ix", 2)){
 	    size = getu32(af->file);
 	    af->file->seek(af->file, size, SEEK_CUR);
 	    goto again;
@@ -797,7 +798,7 @@ avi_packet(muxed_stream_t *ms, int stream)
 	goto again;
 
     if(!(size & ~0x12)){
-	char tag[4];
+	uint8_t tag[4];
 	af->file->seek(af->file, 8, SEEK_CUR);
 	if(!get4c(tag, af->file))
 	    return NULL;

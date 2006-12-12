@@ -31,10 +31,10 @@
 
 #define TAG(a,b,c,d) (a + (b << 8) + (c << 16) + (d << 24))
 
-static char *aid2codec(int id, int bits, const char *guid);
+static char *aid2codec(int id, int bits, const uint8_t *guid);
 
 static char *
-tag2str(uint32_t tag, u_char *s)
+tag2str(uint32_t tag, char *s)
 {
     int i;
     for(i = 0; i < 5; i++){
@@ -54,7 +54,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     int data_size = 0;
     int data = 0;
     u_char guid[16], *gp = NULL;
-    u_char tags[5];
+    char tags[5];
     uint64_t pos;
 
     url_getu32l(u, &tag);
@@ -246,7 +246,7 @@ static struct {
 };
 
 static char *
-aid2codec(int id, int bits, const char *guid)
+aid2codec(int id, int bits, const uint8_t *guid)
 {
     int i;
 

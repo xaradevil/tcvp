@@ -31,9 +31,9 @@
 #include "ogg.h"
 
 extern int
-vorbis_comment(muxed_stream_t *ms, char *buf, int size)
+vorbis_comment(muxed_stream_t *ms, uint8_t *buf, int size)
 {
-    char *p = buf;
+    u_char *p = buf;
     int s, n, j;
 
     if(size < 4)
@@ -54,7 +54,7 @@ vorbis_comment(muxed_stream_t *ms, char *buf, int size)
     size -= 4;
 
     while(size >= 4){
-	char *t, *v;
+	uint8_t *t, *v;
 	int tl, vl;
 
 	s = htol_32(unaligned32(p));

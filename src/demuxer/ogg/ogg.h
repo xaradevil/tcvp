@@ -82,6 +82,6 @@ extern ogg_codec_t ogm_old_codec;
 extern ogg_codec_t flac_codec;
 extern ogg_codec_t theora_codec;
 
-extern int vorbis_comment(muxed_stream_t *ms, char *buf, int size);
+extern int vorbis_comment(muxed_stream_t *ms, uint8_t *buf, int size);
 
 #endif

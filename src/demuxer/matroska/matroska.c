@@ -87,7 +87,7 @@ typedef struct matroska_track {
     char *name;
     char *lang;
     char *codecid;
-    char *codecprivate;
+    uint8_t *codecprivate;
     u_int codecprivate_size;
     char *codecname;
     char *codecsettings;

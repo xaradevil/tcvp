@@ -61,7 +61,7 @@ typedef struct dvd {
     int angle;
     int state;
     int64_t pos;
-    char *buf;
+    u_char *buf;
     int bufsize;
     int bbytes;
     int bpos;
@@ -96,7 +96,7 @@ next_cell(pgc_t *pgc, int cell, int angle)
 static int
 read_nav(dvd_file_t *df, int sector, int *next)
 {
-    char buf[DVD_VIDEO_LB_LEN];
+    u_char buf[DVD_VIDEO_LB_LEN];
     dsi_t dsi_pack;
     int blocks;
 

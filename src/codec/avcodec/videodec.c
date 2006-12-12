@@ -37,7 +37,7 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 {
     tcvp_data_packet_t *out;
     avc_codec_t *vc = p->private;
-    char *inbuf;
+    uint8_t *inbuf;
     int insize;
 
     if(pk->data){

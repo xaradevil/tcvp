@@ -95,7 +95,7 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
     pthread_mutex_unlock(&xvw->flock);
 
     for(i = 0; i < xi->num_planes; i++){
-	data[i] = xi->data + xi->offsets[i];
+	data[i] = (u_char*)xi->data + xi->offsets[i];
 	strides[i] = xi->pitches[i];
     }
 
@@ -203,7 +203,8 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     unsigned int ver, rev, rb, evb, erb;
     XvAdaptorInfo *xai;
     XvAttribute *xvattr;
-    int na, nattr;
+    u_int na;
+    int nattr;
     Window win;
     int i;
     int frames = tcvp_driver_video_xv_conf_frames?: FRAMES;

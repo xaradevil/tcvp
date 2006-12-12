@@ -362,7 +362,7 @@ xing_header(muxed_stream_t *ms)
     size = min(fr.size, XING_SIZE) - 4;
 
     for(i = 0; i < size; i++)
-	if(!strncmp(x + i, "Xing", 4))
+	if(!memcmp(x + i, "Xing", 4))
 	    break;
 
     if(i == size)
@@ -418,7 +418,7 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 	ts = id3v1_tag(f, ms);
 
     f->read(head, 1, 4, f);
-    if(strncmp(head, "RIFF", 4)){
+    if(memcmp(head, "RIFF", 4)){
 	f->seek(f, -4, SEEK_CUR);
     } else {
 	uint32_t tag, size;

@@ -59,7 +59,7 @@ extern uint64_t ebml_get_vint(url_t *u, int *s);
 extern uint64_t ebml_get_int(url_t *u, int size);
 extern double ebml_get_float(url_t *u, int size);
 extern char *ebml_get_string(url_t *u, int size);
-extern char *ebml_get_binary(url_t *u, int size);
+extern uint8_t *ebml_get_binary(url_t *u, int size);
 
 extern int ebml_readheader(url_t *u, ebml_header_t *eh);
 extern int ebml_element(url_t *u, uint64_t *id, uint64_t *size, uint64_t *ps);

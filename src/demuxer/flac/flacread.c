@@ -259,7 +259,7 @@ flr_streaminfo(muxed_stream_t *ms, stream_t *st, u_char *p, int size)
 }
 
 static int
-flr_comment(muxed_stream_t *ms, char *p, int size)
+flr_comment(muxed_stream_t *ms, uint8_t *p, int size)
 {
     int s, n, j;
 
@@ -281,7 +281,7 @@ flr_comment(muxed_stream_t *ms, char *p, int size)
     size -= 4;
 
     while(size >= 4){
-	char *t, *v;
+	uint8_t *t, *v;
 	int tl, vl;
 
 	s = htol_32(unaligned32(p));
