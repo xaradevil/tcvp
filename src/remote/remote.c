@@ -261,7 +261,7 @@ rm_listen(void *p)
 
 	if(rm->ssock >= 0 && FD_ISSET(rm->ssock, &tmp)){
 	    struct sockaddr_in sa;
-	    int sl = sizeof(sa);
+	    socklen_t sl = sizeof(sa);
 	    int s;
 
 	    s = accept(rm->ssock, (struct sockaddr *) &sa, &sl);
