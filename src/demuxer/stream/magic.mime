@@ -20,6 +20,9 @@
 8	string			8SVX		audio/x-aiff	
 4	string			moov		video/quicktime
 4	string			mdat		video/quicktime
+4	string			ftypavc1	video/quicktime
+4	string			ftypisom	video/quicktime
+4	string			ftypmp42	video/quicktime
 0	string			YUV4MPEG2	video/x-yuv4mpeg
 0	string			MP+		audio/x-mpc
 0	belong			0x00000001
