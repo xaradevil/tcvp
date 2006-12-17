@@ -32,6 +32,8 @@
 #include <avcodec_tc2.h>
 #include "avc.h"
 
+static pthread_mutex_t avc_lock = PTHREAD_MUTEX_INITIALIZER;
+
 extern int
 avc_init(char *arg)
 {
@@ -51,7 +53,11 @@ extern void
 avc_free_pipe(void *p)
 {
     avc_codec_t *vc = p;
+
+    pthread_mutex_lock(&avc_lock);
     avcodec_close(vc->ctx);
+    pthread_mutex_unlock(&avc_lock);
+
     av_free(vc->ctx);
     if(vc->pctx)
         av_parser_close(vc->pctx);
@@ -149,7 +155,9 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     avctx->extradata = s->common.codec_data;
     avctx->extradata_size = s->common.codec_data_size;
 
+    pthread_mutex_lock(&avc_lock);
     avcodec_open(avctx, avc);
+    pthread_mutex_unlock(&avc_lock);
 
     return 0;
 }
