@@ -122,17 +122,11 @@ avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     p->format.common.codec = enc->codec;
     p->format.common.bit_rate = ctx->bit_rate;
 
-#if LIBAVCODEC_BUILD > 4753
     ctx->time_base.den = s->video.frame_rate.num;
     ctx->time_base.num = s->video.frame_rate.den;
-#else
-    ctx->frame_rate = s->video.frame_rate.num;
-    ctx->frame_rate_base = s->video.frame_rate.den;
-#endif
     ctx->width = s->video.width;
     ctx->height = s->video.height;
     if(s->video.aspect.num){
-#if LIBAVCODEC_BUILD >= 4687
 	tcfraction_t asp = { s->video.height * s->video.aspect.num,
 			     s->video.width * s->video.aspect.den };
 	tcreduce(&asp);
@@ -153,9 +147,6 @@ avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	ctx->sample_aspect_ratio.den = asp.den;
 	tc2_print("AVCODEC", TC2_PRINT_DEBUG,
 		  "SAR = %i/%i\n", asp.num, asp.den);
-#else
-	ctx->aspect_ratio = (float) s->video.aspect.num / s->video.aspect.den;
-#endif
     }
 
     ctx->pix_fmt = PIX_FMT_YUV420P;
@@ -288,20 +279,12 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     ctx_conf(mb_decision, i);
     ctx_conf(scenechange_threshold, i);
     ctx_conf(strict_std_compliance, i);
-#if LIBAVCODEC_BUILD >= 4684
     ctx_conf(lmin, i);
     ctx_conf(lmax, i);
-#endif
-#if LIBAVCODEC_BUILD >= 4690
     ctx_conf(noise_reduction, i);
-#endif
-#if LIBAVCODEC_BUILD >= 4694
     ctx_conf(rc_initial_buffer_occupancy, i);
     ctx_conf(inter_threshold, i);
-#endif
-#if LIBAVCODEC_BUILD >= 4700
     ctx_conf(quantizer_noise_shaping, i);
-#endif
 
 #define ctx_flag(c, f) if(!tcconf_getvalue(cf, #c, ""))	\
     ctx->flags |= CODEC_FLAG_##f
@@ -315,28 +298,14 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     ctx_flag(interlaced_dct, INTERLACED_DCT);
     ctx_flag(alt_scan, ALT_SCAN);
     ctx_flag(trellis_quant, TRELLIS_QUANT);
-#if LIBAVCODEC_BUILD >= 4681
     ctx_flag(cbp_rd, CBP_RD);
-#endif
-#if LIBAVCODEC_BUILD >= 4682
     ctx_flag(ac_pred, AC_PRED);
-#endif
-#if LIBAVCODEC_BUILD >= 4683
     ctx_flag(mv0, MV0);
-#endif
-#if LIBAVCODEC_BUILD >= 4693
     ctx_flag(qp_rd, QP_RD);
-#endif
-#if LIBAVCODEC_BUILD >= 4694
     ctx_flag(obmc, OBMC);
     ctx_flag(loop_filter, LOOP_FILTER);
-#endif
-#if LIBAVCODEC_BUILD >= 4698
     ctx_flag(interlaced_me, INTERLACED_ME);
-#endif
-#if LIBAVCODEC_BUILD >= 4700
     ctx_flag(closed_gop, CLOSED_GOP);
-#endif
 
 #ifdef CODEC_FLAG2_32_PULLDOWN
     ctx_flag2(pulldown, 32_PULLDOWN);

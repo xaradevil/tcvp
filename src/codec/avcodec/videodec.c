@@ -194,7 +194,6 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	p->format.video.width = vc->ctx->width;
 	p->format.video.height = vc->ctx->height;
 
-#if LIBAVCODEC_BUILD > 4753
 	tc2_print("AVCODEC", TC2_PRINT_DEBUG, "time_base = %i/%i\n",
 		  vc->ctx->time_base.num, vc->ctx->time_base.den);
 
@@ -202,12 +201,6 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	    p->format.video.frame_rate.num = vc->ctx->time_base.den;
 	    p->format.video.frame_rate.den = vc->ctx->time_base.num;
 	}
-#else
-	if(vc->ctx->frame_rate && !p->format.video.frame_rate.num){
-	    p->format.video.frame_rate.num = vc->ctx->frame_rate;
-	    p->format.video.frame_rate.den = vc->ctx->frame_rate_base;
-	}
-#endif
 	if(!p->format.video.frame_rate.num){
 	    p->format.video.frame_rate.num = 25;
 	    p->format.video.frame_rate.den = 1;
@@ -220,7 +213,6 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	tc2_print("AVCODEC", TC2_PRINT_DEBUG, "frame rate %i/%i\n",
 		  p->format.video.frame_rate.num,
 		  p->format.video.frame_rate.den);
-#if LIBAVCODEC_BUILD >= 4687
 	if(vc->ctx->sample_aspect_ratio.num){
 	    p->format.video.aspect.num =
 		vc->ctx->width * vc->ctx->sample_aspect_ratio.num;
@@ -228,14 +220,6 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 		vc->ctx->height * vc->ctx->sample_aspect_ratio.den;
 	    tcreduce(&p->format.video.aspect);
 	}
-#else
-	if(vc->ctx->aspect_ratio){
-	    p->format.video.aspect.num =
-		vc->ctx->height * vc->ctx->aspect_ratio;
-	    p->format.video.aspect.den = vc->ctx->height;
-	    tcreduce(&p->format.video.aspect);
-	}
-#endif
 	ret = PROBE_OK;
 	avcodec_flush_buffers(vc->ctx);
     } else {
