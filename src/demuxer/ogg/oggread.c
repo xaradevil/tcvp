@@ -50,6 +50,7 @@ ogg_save(ogg_t *ogg)
     ost->pos = ogg->f->tell(ogg->f);
     ost->curidx = ogg->curidx;
     ost->next = ogg->state;
+    ost->nstreams = ogg->nstreams;
     memcpy(ost->streams, ogg->streams, ogg->nstreams * sizeof(*ogg->streams));
 
     for(i = 0; i < ogg->nstreams; i++){
@@ -80,6 +81,7 @@ ogg_restore(ogg_t *ogg, int discard)
 
 	ogg->f->seek(ogg->f, ost->pos, SEEK_SET);
 	ogg->curidx = ost->curidx;
+        ogg->nstreams = ost->nstreams;
 	memcpy(ogg->streams, ost->streams,
 	       ogg->nstreams * sizeof(*ogg->streams));
     }
@@ -121,9 +123,11 @@ ogg_gptopts(muxed_stream_t *ms, int i, uint64_t gp)
 
     if(os->codec->gptopts){
 	pts = os->codec->gptopts(ms, i, gp);
-    } else if(st->stream_type == STREAM_TYPE_AUDIO){
+    } else if(st->stream_type == STREAM_TYPE_AUDIO &&
+              st->audio.sample_rate){
 	pts = gp * 27000000LL / st->audio.sample_rate;
-    } else if(st->stream_type == STREAM_TYPE_VIDEO){
+    } else if(st->stream_type == STREAM_TYPE_VIDEO &&
+              st->video.frame_rate.num){
 	pts = gp * st->video.frame_rate.den * 27000000LL /
 	    st->video.frame_rate.num;
     }
@@ -532,7 +536,7 @@ ogg_get_length(muxed_stream_t *ms)
 
     while(!ogg_read_page(ms, &i)){
 	if(i >= 0 && ogg->streams[i].granule != -1 &&
-	   ogg->streams[i].granule != 0)
+	   ogg->streams[i].granule != 0 && ogg->streams[i].codec)
 	    ms->time = ogg_gptopts(ms, i, ogg->streams[i].granule);
     }
 
