@@ -101,6 +101,9 @@ ac3_header(u_char *head, mp3_frame_t *mf)
     fscod = tcvp_bits_get(&bits, 2);
     frmsizecod = tcvp_bits_get(&bits, 6);
 
+    if(!ac3_frame_sizes[frmsizecod][fscod])
+        return -1;
+
     if(!ac3_sample_rates[fscod])
 	return -1;
 
