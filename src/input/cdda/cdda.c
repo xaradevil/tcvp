@@ -331,12 +331,13 @@ list_open(char *url, char *mode, char *options)
     cdt = calloc(sizeof(cd_data_t), 1);
 
     cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
+    if(!cdt->drive)
+        goto err;
+
     cdda_verbose_set(cdt->drive, CDDA_MESSAGE_PRINTIT, CDDA_MESSAGE_FORGETIT);
 
     if(cdda_open(cdt->drive) != 0) {
-	free(cdt);
-	free(u);
-	return NULL;
+        goto err;
     }
 
     cdt->pos = 0;
@@ -366,6 +367,11 @@ list_open(char *url, char *mode, char *options)
     u->size = 0;
 
     return url_vheader_new(u, cdt->header, cdt->header_length);
+
+err:
+    free(cdt);
+    tcfree(u);
+    return NULL;
 }
 
 
