@@ -107,9 +107,10 @@ fill_buffer(cd_data_t *cdt)
 	    int s = cdda_read(cdt->drive, cdt->buffer + bpos,
 			      cdt->current_sector, nsect);
 	    char *err = cdda_errors(cdt->drive);
-	    if(s < 0 || err){
+	    if(err)
 		tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
 			cdt->current_sector, err);
+            if(s < 0){
 		return -1;
 	    } else {
 		nsect -= s;
