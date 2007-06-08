@@ -102,7 +102,6 @@ typedef struct avi_stream {
     uint64_t blocknum;
     uint64_t size;
     int pkt;
-    int spts;
 } avi_stream_t;
 
 typedef struct avi_file {
@@ -852,13 +851,8 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    flags = af->index[af->pkt]->flags;
 	    if(flags & AVI_FLAG_KEYFRAME)
 		pflags |= TCVP_PKT_FLAG_KEY;
-	    if(!af->streams[str].spts || flags & AVI_FLAG_KEYFRAME){
-		pts = af->index[af->pkt]->pts + starttime;
-		pflags |= TCVP_PKT_FLAG_PTS;
-		af->streams[str].spts = 250;
-	    } else {
-		af->streams[str].spts--;
-	    }
+            pts = af->index[af->pkt]->pts + starttime;
+            pflags |= TCVP_PKT_FLAG_DTS;
 	} else if(af->idxok){
 	    tc2_print("AVI", TC2_PRINT_WARNING,
 		      "index mismatch stream %i\n", str);
@@ -875,8 +869,13 @@ avi_packet(muxed_stream_t *ms, int stream)
 
     pk->pk.stream = str;
     pk->pk.flags = pflags;
-    pk->pk.pts = pts;
+    pk->pk.dts = pts;
     pk->flags = flags;
+
+    if(ms->streams[str].stream_type == STREAM_TYPE_AUDIO){
+        pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+        pk->pk.pts = pts;
+    }
 
     af->pkt++;
 
@@ -924,7 +923,6 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	if(ms->used_streams[i])
 	    cfi++;
 	fi[i] = 0;
-	af->streams[i].spts = 0;
     }
 
     while(cfi){
@@ -936,13 +934,11 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 
 	s = pk->pk.stream;
 
-	if(time <= pk->pk.pts){
+	if(time <= pk->pk.dts){
 	    if(!fi[s]){
 		fi[s] = 1;
 		cfi--;
 	    }
-	} else {
-	    af->streams[s].spts = 0;
 	}
 
 	if(fi[s]){
@@ -975,11 +971,8 @@ avi_packet_ni(muxed_stream_t *ms, int str)
 	pk->pk.flags = 0;
 	if(ai->flags & AVI_FLAG_KEYFRAME)
 	    pk->pk.flags |= TCVP_PKT_FLAG_KEY;
-	if(!as->spts || ai->flags & AVI_FLAG_KEYFRAME){
-	    pk->pk.flags |= TCVP_PKT_FLAG_PTS;
-	    pk->pk.pts = ai->pts;
-	    as->spts = 1;
-	}
+        pk->pk.flags |= TCVP_PKT_FLAG_DTS;
+        pk->pk.dts = ai->pts;
 	pk->flags = ai->flags;
     }
 
@@ -1004,7 +997,6 @@ avi_seek_ni(muxed_stream_t *ms, uint64_t time)
 	    if(ms->streams[j].stream_type == STREAM_TYPE_VIDEO)
 		time = af->streams[j].index[i].pts;
 	}
-	af->streams[j].spts = 0;
     }
 
     for(j = 0; j < ms->n_streams; j++){
