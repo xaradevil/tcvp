@@ -38,6 +38,7 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
     tcvp_data_packet_t *out;
     avc_codec_t *vc = p->private;
     uint8_t *inbuf;
+    uint64_t dts = -1LL;
     int insize;
 
     if(pk->data){
@@ -55,6 +56,9 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
         vc->ptsq[cpn] = pk->pts;
         tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "set pts %lli @%i\n",
                   pk->pts, cpn);
+    } else if(pk->flags & TCVP_PKT_FLAG_DTS){
+        tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "dts %lli\n", pk->dts);
+        dts = pk->dts;
     }
 
     while(insize > 0){
@@ -118,6 +122,11 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
 		vc->pts = out->pts * vc->ptsd;
 		tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "get pts %lli @%i\n",
 			  out->pts, cpn);
+            } else if(dts != -1LL){
+                tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "pts %lli\n", dts);
+                out->pts = dts;
+                vc->pts = dts * vc->ptsd;
+                dts = -1LL;
 	    } else {
 		out->pts = vc->pts / vc->ptsd;
 	    }
