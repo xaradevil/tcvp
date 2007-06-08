@@ -14,3 +14,6 @@ TCVP {
 
 option downmix%i=1
 Downmix to two channels
+
+option dynrange%i=0
+Dynamic range compression

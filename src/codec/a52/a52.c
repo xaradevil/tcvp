@@ -42,6 +42,7 @@ typedef struct a52_decode {
     uint64_t pts;
     int ptsf;
     int downmix;
+    int dynrange;
 } a52_decode_t;
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -182,6 +183,8 @@ decode_frame(tcvp_pipe_t *p, u_char *frame, int str)
 
     a52_frame(ad->state, frame, &ad->flags, &ad->level, ad->bias);
     ad->flags &= ~A52_ADJUST_LEVEL;
+    if(!ad->dynrange)
+        a52_dynrng(ad->state, NULL, NULL);
 
     for(i = 0; i < 6; i++){
 	int s;
@@ -396,9 +399,11 @@ a52_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     ad->out = a52_samples(ad->state);
     ad->level = 1;
     ad->bias = 384;
-    ad->flags = A52_ADJUST_LEVEL;
+    ad->flags = 0;
     ad->downmix = tcvp_codec_a52_conf_downmix;
+    ad->dynrange = tcvp_codec_a52_conf_dynrange;
     tcconf_getvalue(cs, "downmix", "%i", &ad->downmix);
+    tcconf_getvalue(cs, "dynrange", "%i", &ad->dynrange);
     if(ad->downmix)
 	ad->flags |= A52_STEREO;
 
