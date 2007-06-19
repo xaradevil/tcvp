@@ -60,12 +60,12 @@ typedef struct mpegts_packet {
         int splice_countdown;
     } adaptation_field;
     int data_length;
-    u_char *data;
+    uint8_t *data;
 } mpegts_packet_t;
 
 typedef struct mpegts_stream {
     url_t *stream;
-    u_char *tsbuf, *tsp;
+    uint8_t *tsbuf, *tsp;
     int tsnbuf;
     int extra;
     int *imap;
@@ -73,7 +73,7 @@ typedef struct mpegts_stream {
     struct tsbuf {
         int flags;
         uint64_t pts, dts;
-        u_char *buf;
+        uint8_t *buf;
         int bpos;
         int hlen;
         int cc;
@@ -87,7 +87,7 @@ typedef struct mpegts_stream {
 
 typedef struct mpegts_pk {
     tcvp_data_packet_t pk;
-    u_char *buf, *data;
+    uint8_t *buf, *data;
     int size;
 } mpegts_pk_t;
 
@@ -132,7 +132,7 @@ resync(mpegts_stream_t *s)
 
     while(s->tsp[0] != MPEGTS_SYNC || s->tsp[188] != MPEGTS_SYNC){
         ptrdiff_t bpos = s->tsp - s->tsbuf;
-        u_char *bufmax =
+        uint8_t *bufmax =
             s->tsp - bpos % 188 + (s->tsnbuf - 1) * TS_PACKET_SIZE + s->extra;
         int sync = 0;
         int nb;
@@ -186,7 +186,7 @@ skip_packet(mpegts_stream_t *s)
 }
 
 static uint64_t
-get_pcr(u_char *p)
+get_pcr(uint8_t *p)
 {
     uint64_t pcr;
 
@@ -221,8 +221,8 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 } while(0)
 
     do {
-        u_char *pkstart;
-        u_int v;
+        uint8_t *pkstart;
+        unsigned v;
 
         error = 0;
 
@@ -269,7 +269,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
                          "invalid adaptation field length %i\n");
 
             if(al > 0){
-                u_char *afstart = s->tsp;
+                uint8_t *afstart = s->tsp;
                 int stuffing;
 
                 v = *s->tsp++;
@@ -578,12 +578,12 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     mpegts_stream_t *s;
     mpegts_packet_t mp;
     int seclen, ptr;
-    u_char *dp;
+    uint8_t *dp;
     int *pat = NULL;
     int i, n, ns, np;
     stream_t *sp;
     int pmtpid = 0;
-    u_char *pmt = NULL;
+    uint8_t *pmt = NULL;
     int pmtsize = 0;
     int pmtpos = 0;
     int program = -1;
