@@ -826,9 +826,6 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     s->start_time = -1LL;
 
-    if(!u->seek(u, 0, SEEK_SET))
-        s->tsnbuf = 0;
-
   out:
     free(pat);
     free(pmt);
