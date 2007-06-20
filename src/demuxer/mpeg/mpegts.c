@@ -71,12 +71,19 @@ typedef struct mpegts_program {
 
 #define MPEGTS_PRG_FLAG_PMT 1
 
+#define MPEGTS_PID_TYPE_PMT 1
+#define MPEGTS_PID_TYPE_ES  2
+
+#define MPEGTS_PID_TYPE(x)  ((x) & 255)
+#define MPEGTS_PID_INDEX(x) ((x) >> 8)
+#define MPEGTS_PID_MAP(type, idx) ((type) | (idx) << 8)
+
 typedef struct mpegts_stream {
     url_t *stream;
     uint8_t *tsbuf, *tsp;
     int tsnbuf;
     int extra;
-    int *imap;
+    uint32_t *pidmap;
     int pcrpid;
     mpegts_program_t *programs;
     unsigned int num_programs;
@@ -407,7 +414,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 {
     mpegts_stream_t *s = ms->private;
     tcvp_packet_t *pk = NULL;
-    int sx = -1;
+    unsigned int sx, stype;
     struct tsbuf *tb;
 #define mp s->mp
 
@@ -423,7 +430,9 @@ mpegts_packet(muxed_stream_t *ms, int str)
                     return mpegts_endpacket(ms);
                 }
             }
-            sx = s->imap[mp.pid];
+
+            sx = MPEGTS_PID_INDEX(s->pidmap[mp.pid]);
+            stype = MPEGTS_PID_TYPE(s->pidmap[mp.pid]);
 
             if(mp.pid == s->pcrpid &&
                (mp.adaptation & 2) && mp.adaptation_field.pcr_flag){
@@ -446,7 +455,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
             }
             pid = mp.pid;
             mp.pid = -1;
-        } while(sx < 0 || !ms->used_streams[sx]);
+        } while(stype != MPEGTS_PID_TYPE_ES || !ms->used_streams[sx]);
 
         tb = &s->streams[sx];
 
@@ -554,8 +563,7 @@ mpegts_free(void *p)
 
     if(s->stream)
         s->stream->close(s->stream);
-    if(s->imap)
-        free(s->imap);
+    free(s->pidmap);
     if(s->streams){
         for(i = 0; i < ms->n_streams; i++)
             free(s->streams[i].buf);
@@ -618,6 +626,9 @@ mpegts_parse_pat(mpegts_stream_t *s, uint8_t *pat_data, unsigned int size)
 
         s->programs[i].program_number = prg;
         s->programs[i].program_map_pid = pid;
+
+        s->pidmap[pid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_PMT, i);
+
         dp += 4;
     }
 
@@ -680,6 +691,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->tsp = s->tsbuf;
     s->end = -1;
     s->mp.pid = -1;
+    s->pidmap = calloc((1 << 13), sizeof(*s->pidmap));
 
     ms->private = s;
 
@@ -718,8 +730,6 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     ns = s->num_programs;
     ms->streams = calloc(ns, sizeof(*ms->streams));
-    s->imap = malloc((1 << 13) * sizeof(*s->imap));
-    memset(s->imap, 0xff, (1 << 13) * sizeof(*s->imap));
     sp = ms->streams;
 
     while(program < 0){
@@ -847,7 +857,8 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
                     j += tl;
                 }
 
-                s->imap[epid] = ms->n_streams++;
+                s->pidmap[epid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_ES,
+                                                 ms->n_streams++);
                 sp++;
             } else {
                 dp += esil;
