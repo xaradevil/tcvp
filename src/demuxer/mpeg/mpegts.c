@@ -63,10 +63,20 @@ typedef struct mpegts_packet {
     uint8_t *data;
 } mpegts_packet_t;
 
+typedef struct mpegts_elem_stream {
+    unsigned int stream_type;
+    unsigned int pid;
+    unsigned int es_info_length;
+    uint8_t *descriptors;
+} mpegts_elem_stream_t;
+
 typedef struct mpegts_program {
     unsigned int program_number;
     unsigned int program_map_pid;
+    unsigned int pcr_pid;
     unsigned int flags;
+    unsigned int num_streams;
+    mpegts_elem_stream_t *streams;
 } mpegts_program_t;
 
 #define MPEGTS_PRG_FLAG_PMT 1
@@ -559,7 +569,7 @@ mpegts_free(void *p)
 {
     muxed_stream_t *ms = p;
     mpegts_stream_t *s = ms->private;
-    int i;
+    int i, j;
 
     if(s->stream)
         s->stream->close(s->stream);
@@ -569,6 +579,13 @@ mpegts_free(void *p)
             free(s->streams[i].buf);
         free(s->streams);
     }
+
+    for(i = 0; i < s->num_programs; i++){
+        for(j = 0; j < s->programs[i].num_streams; j++)
+            free(s->programs[i].streams[j].descriptors);
+        free(s->programs[i].streams);
+    }
+
     free(s->programs);
     free(s->tsbuf);
     free(s);
@@ -636,6 +653,126 @@ mpegts_parse_pat(mpegts_stream_t *s, uint8_t *pat_data, unsigned int size)
 }
 
 static int
+mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
+                 unsigned int size)
+{
+    mpegts_program_t *mp = NULL;
+    uint8_t *dp = data;
+    unsigned int val;
+    unsigned int seclen;
+    unsigned int program;
+    unsigned int pi_len;
+    unsigned int ns;
+    unsigned int i;
+
+    if(*dp != 2)                 /* table_id */
+        return -1;
+
+    val = htob_16(unaligned16(dp + 1));
+    if((val & 0x8000) != 0x8000) /* section_syntax_indicator */
+        return -1;
+    if((val & 0x4000) != 0)      /* '0' */
+        return -1;
+    if((val & 0x3000) != 0x3000) /* reserved */
+        return -1;
+
+    seclen = val & 0xfff;
+
+    if(seclen + 3 > size || seclen < 13)
+        return -1;
+
+    if(mpeg_crc32(dp, seclen + 3) != 0){
+        tc2_print("MPEGTS", TC2_PRINT_WARNING, "Bad CRC in PMT\n");
+    }
+
+    program = htob_16(unaligned16(dp + 3));
+
+    for(i = 0; i < s->num_programs; i++){
+        if(s->programs[i].program_number == program){
+            mp = s->programs + i;
+            break;
+        }
+    }
+
+    if(!mp){
+        tc2_print("MPEGTS", TC2_PRINT_WARNING,
+                  "PMT PID %x: program %x not found\n",
+                  pid, program);
+        return -1;
+    }
+
+    mp->pcr_pid = htob_16(unaligned16(dp + 8)) & 0x1fff;
+    pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
+
+    if(pi_len + 13 > seclen)
+        return -1;
+
+    dp += 12;
+
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", program);
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", mp->pcr_pid);
+
+    for(i = 0; i + 2 < pi_len;){
+        int tag = dp[0];
+        int tl = dp[1];
+
+        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    descriptor %i\n", tag);
+        dp += tl + 2;
+        i += tl + 2;
+    }
+
+    if(i != pi_len){
+        tc2_print("MPEGTS", TC2_PRINT_WARNING,
+                  "PMT program %x: program descriptor overflow\n");
+        return -1;
+    }
+
+    seclen -= 13 + pi_len;
+
+    ns = seclen / 5;
+    mp->streams = calloc(ns, sizeof(*mp->streams));
+    if(!mp->streams)
+        return -1;
+
+    for(i = 0; i + 5 <= seclen; mp->num_streams++){
+        mpegts_elem_stream_t *es = mp->streams + mp->num_streams;
+        unsigned int stype, epid, esil;
+
+        stype = dp[0];
+        epid = htob_16(unaligned16(dp + 1)) & 0x1fff;
+        esil = htob_16(unaligned16(dp + 3)) & 0xfff;
+        dp += 5;
+        i += 5;
+
+        if(esil + i > seclen)
+            return -1;
+
+        es->stream_type = stype;
+        es->pid = epid;
+        es->es_info_length = esil;
+        if(esil > 0){
+            es->descriptors = malloc(esil);
+            if(!es->descriptors)
+                return -1;
+            memcpy(es->descriptors, dp, esil);
+        }
+
+        dp += esil;
+        i += esil;
+
+        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PID %x, type %x\n",
+                  epid, stype);
+    }
+
+    mp->streams = realloc(mp->streams, mp->num_streams * sizeof(*mp->streams));
+
+    if(i != seclen)
+        return -1;
+
+    return 0;
+}
+
+static int
 ispmt(mpegts_stream_t *s, mpegts_packet_t *mp){
     int i;
     for(i = 0; i < s->num_programs; i++){
@@ -654,17 +791,16 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegts_stream_t *s;
+    mpegts_program_t *pg = NULL;
     mpegts_packet_t mp;
     int ptr;
     uint8_t *dp;
-    unsigned int seclen;
-    int i, n, ns;
+    int i;
     stream_t *sp;
     int pmtpid = 0;
     uint8_t *pmt = NULL;
     int pmtsize = 0;
     int pmtpos = 0;
-    int program = -1;
     char *tmp, *p;
     int prog = -1;
 
@@ -718,23 +854,19 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     if(prog != -1){
         for(i = 0; i < s->num_programs; i++){
             if(s->programs[i].program_number == prog){
-                pmtpid = s->programs[i].program_map_pid;
+                pg = s->programs + i;
+                pmtpid = pg->program_map_pid;
                 break;
             }
         }
-        if(pmtpid){
+        if(pg){
             tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i [%x] selected\n",
                       prog, pmtpid);
         }
     }
 
-    ns = s->num_programs;
-    ms->streams = calloc(ns, sizeof(*ms->streams));
-    sp = ms->streams;
-
-    while(program < 0){
-        int pi_len, prg, ip = 0, pcrpid;
-        uint32_t crc, ccrc;
+    while(pmtpid == 0 || pmtpos < pmtsize){
+        int ip = 0;
         int dsize;
 
         do {
@@ -744,7 +876,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
                 !(ip = ispmt(s, &mp)));
 
         if(ip > 1 && !pmtpos)
-            break;
+            goto err;
 
         if(!pmtpos && !mp.unit_start)
             continue;
@@ -770,114 +902,56 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
         tc2_print("MPEGTS", TC2_PRINT_DEBUG, "got %x bytes from PMT\n", dsize);
         memcpy(pmt + pmtpos, dp, dsize);
         pmtpos += dsize;
+    }
 
-        if(pmtpos < pmtsize)
-            continue;
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "got PMT, %x bytes\n", pmtpos);
 
-        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "got PMT, %x bytes\n", pmtpos);
+    if(mpegts_parse_pmt(s, pmtpid, pmt, pmtpos) < 0)
+        goto err;
 
-        dp = pmt;
-        seclen = htob_16(unaligned16(dp + 1)) & 0xfff;
-        if(seclen > pmtsize - 3 || seclen < 13)
-            goto err;
-        crc = htob_32(unaligned32(dp + seclen - 1));
-
-        if(crc && (ccrc = mpeg_crc32(dp, seclen + 3)) != 0){
-            tc2_print("MPEGTS", TC2_PRINT_WARNING,
-                      "Bad CRC in PMT, got %x, expected %x\n", ccrc, crc);
-/*          continue; */
+    if(!pg){
+        for(i = 0; i < s->num_programs; i++){
+            if(s->programs[i].num_streams){
+                pg = s->programs + i;
+                break;
+            }
         }
+    }
 
-        prg = htob_16(unaligned16(dp + 3));
-        pcrpid = htob_16(unaligned16(dp + 8)) & 0x1fff;
-        pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
-        if(pi_len > seclen - 13)
-            goto err;
-        dp += 12;
+    ms->streams = calloc(pg->num_streams, sizeof(*ms->streams));
+    sp = ms->streams;
 
-        program = prg;
-        s->pcrpid = pcrpid;
+    for(i = 0; i < pg->num_streams; i++){
+        mpegts_elem_stream_t *es = pg->streams + i;
+        mpeg_stream_type_t *mst = mpeg_stream_type_id(es->stream_type);
+        uint8_t *dp = es->descriptors;
+        unsigned int j;
 
-        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", prg);
-        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", pcrpid);
+        if(mst){
+            if(!strncmp(mst->codec, "video/", 6))
+                sp->stream_type = STREAM_TYPE_VIDEO;
+            else if(!strncmp(mst->codec, "audio/", 6))
+                sp->stream_type = STREAM_TYPE_AUDIO;
+            else if(!strncmp(mst->codec, "subtitle/", 9))
+                sp->stream_type = STREAM_TYPE_SUBTITLE;
+            sp->common.codec = mst->codec;
+            sp->common.index = ms->n_streams;
+            sp->common.start_time = -1;
+            sp->common.flags = TCVP_STREAM_FLAG_TRUNCATED;
 
-        for(i = 0; i < pi_len - 2;){
-            int tag = dp[0];
-            int tl = dp[1];
-
-            tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    descriptor %i\n", tag);
-            dp += tl + 2;
-            i += tl + 2;
-        }
-
-        if(i != pi_len)
-            goto err;
-
-        seclen -= 13 + pi_len;
-        for(i = 0; i < seclen - 4;){
-            mpeg_stream_type_t *mst;
-            int stype, epid, esil;
-            int j;
-
-            if(ms->n_streams == ns){
-                ns *= 2;
-                ms->streams = realloc(ms->streams, ns * sizeof(*ms->streams));
-                sp = &ms->streams[ms->n_streams];
+            for(j = 0; j < es->es_info_length;){
+                int tl = dp[1] + 2;
+                if(j + tl > es->es_info_length)
+                    goto err;
+                mpeg_descriptor(sp, dp);
+                dp += tl;
+                j += tl;
             }
 
-            memset(sp, 0, sizeof(*sp));
-
-            stype = dp[0];
-            epid = htob_16(unaligned16(dp + 1)) & 0x1fff;
-            esil = htob_16(unaligned16(dp + 3)) & 0xfff;
-            dp += 5;
-            i += 5;
-
-            if(esil > seclen - i)
-                goto err;
-
-            if((mst = mpeg_stream_type_id(stype)) != NULL){
-                if(!strncmp(mst->codec, "video/", 6))
-                    sp->stream_type = STREAM_TYPE_VIDEO;
-                else if(!strncmp(mst->codec, "audio/", 6))
-                    sp->stream_type = STREAM_TYPE_AUDIO;
-                else if(!strncmp(mst->codec, "subtitle/", 9))
-                    sp->stream_type = STREAM_TYPE_SUBTITLE;
-                sp->common.codec = mst->codec;
-                sp->common.index = ms->n_streams;
-                sp->common.start_time = -1;
-                sp->common.flags = TCVP_STREAM_FLAG_TRUNCATED;
-
-                for(j = 0; j < esil;){
-                    int tl = dp[1] + 2;
-                    if(j + tl > esil)
-                        goto err;
-                    mpeg_descriptor(sp, dp);
-                    dp += tl;
-                    j += tl;
-                }
-
-                s->pidmap[epid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_ES,
-                                                 ms->n_streams++);
-                sp++;
-            } else {
-                dp += esil;
-            }
-
-            i += esil;
-
-            tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PID %x, type %x\n",
-                      epid, stype);
+            s->pidmap[es->pid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_ES,
+                                                ms->n_streams++);
+            sp++;
         }
-
-        if(i != seclen)
-            goto err;
-
-        free(pmt);
-        pmt = NULL;
-        pmtpid = 0;
-        pmtpos = 0;
-        n--;
     }
 
     s->streams = calloc(ms->n_streams, sizeof(*s->streams));
