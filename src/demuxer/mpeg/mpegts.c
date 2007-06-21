@@ -615,6 +615,9 @@ mpegts_parse_pat(mpegts_stream_t *s, uint8_t *pat_data, unsigned int size)
     unsigned int n;
     unsigned int i;
 
+    if(size < 12)
+        return -1;
+
     if(*dp != 0){                /* table_id */
         tc2_print("MPEGTS", TC2_PRINT_ERROR, "wrong PAT table_id %d\n", *dp);
         return -1;
@@ -678,6 +681,9 @@ mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
     unsigned int pi_len;
     unsigned int ns;
     unsigned int i;
+
+    if(size < 16)
+        return -1;
 
     if(*dp != 2)                 /* table_id */
         return -1;
