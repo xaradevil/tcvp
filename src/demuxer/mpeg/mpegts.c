@@ -592,6 +592,20 @@ mpegts_free(void *p)
     mpeg_free(ms);
 }
 
+static mpegts_program_t *
+mpegts_find_program(mpegts_stream_t *s, unsigned int program)
+{
+    unsigned int i;
+
+    for(i = 0; i < s->num_programs; i++){
+        if(s->programs[i].program_number == program){
+            return s->programs + i;
+        }
+    }
+
+    return NULL;
+}
+
 static int
 mpegts_parse_pat(mpegts_stream_t *s, uint8_t *pat_data, unsigned int size)
 {
@@ -687,12 +701,7 @@ mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
 
     program = htob_16(unaligned16(dp + 3));
 
-    for(i = 0; i < s->num_programs; i++){
-        if(s->programs[i].program_number == program){
-            mp = s->programs + i;
-            break;
-        }
-    }
+    mp = mpegts_find_program(s, program);
 
     if(!mp){
         tc2_print("MPEGTS", TC2_PRINT_WARNING,
@@ -852,14 +861,9 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     }
 
     if(prog != -1){
-        for(i = 0; i < s->num_programs; i++){
-            if(s->programs[i].program_number == prog){
-                pg = s->programs + i;
-                pmtpid = pg->program_map_pid;
-                break;
-            }
-        }
+        pg = mpegts_find_program(s, prog);
         if(pg){
+            pmtpid = pg->program_map_pid;
             tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i [%x] selected\n",
                       prog, pmtpid);
         }
