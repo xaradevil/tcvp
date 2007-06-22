@@ -1073,6 +1073,9 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
         }
     }
 
+    if(!pg)
+        goto err;
+
     ms->streams = calloc(pg->num_streams, sizeof(*ms->streams));
     sp = ms->streams;
 
