@@ -63,6 +63,25 @@ typedef struct mpegts_packet {
     uint8_t *data;
 } mpegts_packet_t;
 
+#define MPEGTS_SECTION_COMMON_LEN 8
+
+#define MPEGTS_TABLE_ID_PAT 0
+#define MPEGTS_TABLE_ID_PMT 2
+
+#define MPEGTS_PSI_NO_VERSION 0x20
+
+typedef struct mpegts_section {
+    unsigned int table_id;
+    unsigned int length;
+    unsigned int id;
+    unsigned int version;
+    unsigned int current;
+    unsigned int number;
+    unsigned int last;
+    unsigned int read;
+    uint8_t buf[1024];
+} mpegts_section_t;
+
 typedef struct mpegts_elem_stream {
     unsigned int stream_type;
     unsigned int pid;
@@ -74,19 +93,22 @@ typedef struct mpegts_program {
     unsigned int program_number;
     unsigned int program_map_pid;
     unsigned int pcr_pid;
-    unsigned int flags;
+    unsigned int pmt_version;
     unsigned int num_streams;
     mpegts_elem_stream_t *streams;
+    mpegts_section_t *psi;
 } mpegts_program_t;
 
-#define MPEGTS_PRG_FLAG_PMT 1
-
-#define MPEGTS_PID_TYPE_PMT 1
+#define MPEGTS_PID_TYPE_PSI 1
 #define MPEGTS_PID_TYPE_ES  2
 
 #define MPEGTS_PID_TYPE(x)  ((x) & 255)
-#define MPEGTS_PID_INDEX(x) ((x) >> 8)
+#define MPEGTS_PID_INDEX(x) ((unsigned)(x) >> 8)
 #define MPEGTS_PID_MAP(type, idx) ((type) | (idx) << 8)
+
+#define MPEGTS_PID_NO_INDEX 0xffffff
+#define MPEGTS_PID_PSI_NO_INDEX                                 \
+    MPEGTS_PID_MAP(MPEGTS_PID_TYPE_PSI, MPEGTS_PID_NO_INDEX)
 
 typedef struct mpegts_stream {
     url_t *stream;
@@ -95,8 +117,10 @@ typedef struct mpegts_stream {
     int extra;
     uint32_t *pidmap;
     int pcrpid;
+    unsigned int pat_version;
     mpegts_program_t *programs;
     unsigned int num_programs;
+    mpegts_section_t *psi;
     struct tsbuf {
         int flags;
         uint64_t pts, dts;
@@ -565,11 +589,40 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 }
 
 static void
+mpegts_free_program(mpegts_program_t *p)
+{
+    int i;
+
+    for(i = 0; i < p->num_streams; i++){
+        free(p->streams[i].descriptors);
+    }
+
+    free(p->streams);
+    free(p->psi);
+
+    p->pmt_version = MPEGTS_PSI_NO_VERSION;
+}
+
+static void
+mpegts_free_programs(mpegts_stream_t *s)
+{
+    int i;
+
+    for(i = 0; i < s->num_programs; i++){
+        mpegts_free_program(s->programs + i);
+    }
+
+    free(s->programs);
+
+    s->pat_version = MPEGTS_PSI_NO_VERSION;
+}
+
+static void
 mpegts_free(void *p)
 {
     muxed_stream_t *ms = p;
     mpegts_stream_t *s = ms->private;
-    int i, j;
+    int i;
 
     if(s->stream)
         s->stream->close(s->stream);
@@ -580,14 +633,10 @@ mpegts_free(void *p)
         free(s->streams);
     }
 
-    for(i = 0; i < s->num_programs; i++){
-        for(j = 0; j < s->programs[i].num_streams; j++)
-            free(s->programs[i].streams[j].descriptors);
-        free(s->programs[i].streams);
-    }
+    mpegts_free_programs(s);
 
-    free(s->programs);
     free(s->tsbuf);
+    free(s->psi);
     free(s);
     mpeg_free(ms);
 }
@@ -607,48 +656,35 @@ mpegts_find_program(mpegts_stream_t *s, unsigned int program)
 }
 
 static int
-mpegts_parse_pat(mpegts_stream_t *s, uint8_t *pat_data, unsigned int size)
+mpegts_parse_pat(mpegts_stream_t *s, mpegts_section_t *psi)
 {
-    unsigned int seclen;
-    uint8_t *dp = pat_data;
-    unsigned int val;
+    uint8_t *dp = psi->buf;
+    unsigned int size = psi->length;
     unsigned int n;
     unsigned int i;
+
+    if(psi->version == s->pat_version)
+        return 0;
 
     if(size < 12)
         return -1;
 
-    if(*dp != 0){                /* table_id */
-        tc2_print("MPEGTS", TC2_PRINT_ERROR, "wrong PAT table_id %d\n", *dp);
-        return -1;
-    }
-
-    val = htob_16(unaligned16(dp + 1));
-    if((val & 0x8000) != 0x8000) /* section_syntax_indicator */
-        return -1;
-    if((val & 0x4000) != 0)      /* '0' */
-        return -1;
-    if((val & 0x3000) != 0x3000) /* reserved */
-        return -1;
-
-    seclen = val & 0xfff;
-
-    if(seclen > size - 3 || seclen < 9)
-        return -1;
-
-    if(mpeg_crc32(dp, seclen + 3)){
+    if(mpeg_crc32(dp, size)){
         tc2_print("MPEGTS", TC2_PRINT_WARNING, "Bad CRC in PAT.\n");
     }
 
-    if(dp[6] || dp[7]){         /* section_number, last_section_number */
+    if(psi->number || psi->last){
         tc2_print("MPEGTS", TC2_PRINT_ERROR,
                   "BUG: Multi-section PAT not supported.\n");
         return -1;
     }
 
-    n = (seclen - 9) / 4;
+    mpegts_free_programs(s);
+
+    n = (size - 12) / 4;
     s->programs = calloc(n, sizeof(*s->programs));
     s->num_programs = n;
+    s->pat_version = psi->version;
 
     dp += 8;
     for(i = 0; i < n; i++){
@@ -660,8 +696,9 @@ mpegts_parse_pat(mpegts_stream_t *s, uint8_t *pat_data, unsigned int size)
 
         s->programs[i].program_number = prg;
         s->programs[i].program_map_pid = pid;
+        s->programs[i].pmt_version = MPEGTS_PSI_NO_VERSION;
 
-        s->pidmap[pid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_PMT, i);
+        s->pidmap[pid] = MPEGTS_PID_PSI_NO_INDEX;
 
         dp += 4;
     }
@@ -670,14 +707,11 @@ mpegts_parse_pat(mpegts_stream_t *s, uint8_t *pat_data, unsigned int size)
 }
 
 static int
-mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
-                 unsigned int size)
+mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
 {
     mpegts_program_t *mp = NULL;
-    uint8_t *dp = data;
-    unsigned int val;
-    unsigned int seclen;
-    unsigned int program;
+    uint8_t *dp = psi->buf;
+    unsigned int size = psi->length;
     unsigned int pi_len;
     unsigned int ns;
     unsigned int i;
@@ -685,46 +719,31 @@ mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
     if(size < 16)
         return -1;
 
-    if(*dp != 2)                 /* table_id */
-        return -1;
-
-    val = htob_16(unaligned16(dp + 1));
-    if((val & 0x8000) != 0x8000) /* section_syntax_indicator */
-        return -1;
-    if((val & 0x4000) != 0)      /* '0' */
-        return -1;
-    if((val & 0x3000) != 0x3000) /* reserved */
-        return -1;
-
-    seclen = val & 0xfff;
-
-    if(seclen + 3 > size || seclen < 13)
-        return -1;
-
-    if(mpeg_crc32(dp, seclen + 3) != 0){
+    if(mpeg_crc32(dp, size) != 0){
         tc2_print("MPEGTS", TC2_PRINT_WARNING, "Bad CRC in PMT\n");
     }
 
-    program = htob_16(unaligned16(dp + 3));
-
-    mp = mpegts_find_program(s, program);
+    mp = mpegts_find_program(s, psi->id);
 
     if(!mp){
-        tc2_print("MPEGTS", TC2_PRINT_WARNING,
-                  "PMT PID %x: program %x not found\n",
-                  pid, program);
+        tc2_print("MPEGTS", TC2_PRINT_WARNING, "PMT: program %x not found\n",
+                  psi->id);
         return -1;
     }
 
+    if(psi->version == mp->pmt_version)
+        return 0;
+
+    mp->pmt_version = psi->version;
     mp->pcr_pid = htob_16(unaligned16(dp + 8)) & 0x1fff;
     pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
 
-    if(pi_len + 13 > seclen)
+    if(pi_len + 10 > size)
         return -1;
 
     dp += 12;
 
-    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", program);
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", psi->id);
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", mp->pcr_pid);
 
     for(i = 0; i + 2 < pi_len;){
@@ -742,14 +761,16 @@ mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
         return -1;
     }
 
-    seclen -= 13 + pi_len;
+    size -= 10 + pi_len;
 
-    ns = seclen / 5;
+    mpegts_free_program(mp);
+
+    ns = size / 5;
     mp->streams = calloc(ns, sizeof(*mp->streams));
     if(!mp->streams)
         return -1;
 
-    for(i = 0; i + 5 <= seclen; mp->num_streams++){
+    for(i = 0; i + 5 <= size; mp->num_streams++){
         mpegts_elem_stream_t *es = mp->streams + mp->num_streams;
         unsigned int stype, epid, esil;
 
@@ -759,7 +780,7 @@ mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
         dp += 5;
         i += 5;
 
-        if(esil + i > seclen)
+        if(esil + i > size)
             return -1;
 
         es->stream_type = stype;
@@ -779,25 +800,191 @@ mpegts_parse_pmt(mpegts_stream_t *s, unsigned int pid, uint8_t *data,
                   epid, stype);
     }
 
+    if(i != size)
+        return -1;
+
     mp->streams = realloc(mp->streams, mp->num_streams * sizeof(*mp->streams));
 
-    if(i != seclen)
+    return 0;
+}
+
+static void
+mpegts_section_clear(mpegts_section_t *s)
+{
+    memset(s, 0, offsetof(mpegts_section_t, buf));
+}
+
+static mpegts_section_t *
+mpegts_section_alloc(void)
+{
+    mpegts_section_t *s = malloc(sizeof(*s));
+    if(s)
+        mpegts_section_clear(s);
+    return s;
+}
+
+static mpegts_section_t *
+mpegts_section_get(mpegts_stream_t *s, unsigned int pid)
+{
+    unsigned int idx = MPEGTS_PID_INDEX(s->pidmap[pid]);
+    mpegts_section_t *psi;
+    mpegts_program_t *pg;
+
+    if(idx == MPEGTS_PID_NO_INDEX){
+        psi = s->psi;
+        s->psi = NULL;
+    } else {
+        pg = s->programs + idx;
+        psi = pg->psi;
+        pg->psi = NULL;
+    }
+
+    return psi;
+}
+
+static int
+mpegts_section_init(mpegts_section_t *psi)
+{
+    uint8_t *dp = psi->buf;
+    unsigned int val;
+
+    psi->table_id = *dp;
+
+    val = htob_16(unaligned16(dp + 1));
+    if((val & 0x8000) != 0x8000) /* section_syntax_indicator */
         return -1;
+    if((val & 0x4000) != 0)      /* '0' */
+        return -1;
+    if((val & 0x3000) != 0x3000) /* reserved */
+        return -1;
+
+    psi->length = (val & 0xfff) + 3;
+    psi->id = htob_16(unaligned16(dp + 3));
+
+    val = dp[5];
+    if((val & 0xc0) != 0xc0)     /* reserved */
+        return -1;
+
+    psi->version = (val >> 1) & 0x1f;
+    psi->current = val & 1;
+    psi->number = dp[6];
+    psi->last = dp[7];
+
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG,
+              "PSI table_id=%x length=%d id=%x version=%d section=%d/%d\n",
+              psi->table_id, psi->length, psi->id, psi->version,
+              psi->number, psi->last);
 
     return 0;
 }
 
 static int
-ispmt(mpegts_stream_t *s, mpegts_packet_t *mp){
-    int i;
-    for(i = 0; i < s->num_programs; i++){
-        if(s->programs[i].program_map_pid == mp->pid){
-            int r = 1 + !!(s->programs[i].flags & MPEGTS_PRG_FLAG_PMT);
-            if(mp->unit_start)
-                s->programs[i].flags |= MPEGTS_PRG_FLAG_PMT;
-            return r;
+mpegts_do_section(mpegts_stream_t *s, mpegts_section_t *psi, unsigned int pid)
+{
+    switch(psi->table_id){
+    case MPEGTS_TABLE_ID_PAT:
+        return mpegts_parse_pat(s, psi);
+    case MPEGTS_TABLE_ID_PMT:
+        return mpegts_parse_pmt(s, psi);
+    }
+
+    return 0;
+}
+
+static int
+mpegts_do_psi(mpegts_stream_t *s, mpegts_packet_t *mp)
+{
+    mpegts_section_t *psi;
+    unsigned int size;
+    uint8_t *d;
+    int err = 0;
+
+    psi = mpegts_section_get(s, mp->pid);
+
+    if(!psi && !mp->unit_start)
+        return 0;
+
+    d = mp->data;
+    size = mp->data_length;
+
+    if(mp->unit_start){
+        unsigned int pointer = *d++;
+        size--;
+
+        if(!psi){
+            d += pointer;
+            size -= pointer;
         }
     }
+
+    if(!psi)
+        psi = mpegts_section_alloc();
+    if(!psi)
+        return -1;
+
+    while(size && *d != 255){
+        unsigned int len;
+
+        if(psi->length){
+            len = min(size, psi->length - psi->read);
+        } else {
+            len = min(size, MPEGTS_SECTION_COMMON_LEN);
+        }
+
+        if(psi->read + len > sizeof(psi->buf)){
+            err = -1;
+            goto out;
+        }
+
+        memcpy(psi->buf + psi->read, d, len);
+        psi->read += len;
+        d += len;
+        size -= len;
+
+        if(!psi->length && psi->read >= MPEGTS_SECTION_COMMON_LEN){
+            if(mpegts_section_init(psi) < 0){
+                err = -1;
+                goto out;
+            }
+        }
+
+        if(psi->length && psi->read == psi->length){
+            mpegts_do_section(s, psi, mp->pid);
+            mpegts_section_clear(psi);
+        }
+    }
+
+    if(psi->length){
+        if(psi->table_id == MPEGTS_TABLE_ID_PMT){
+            mpegts_program_t *pg = mpegts_find_program(s, psi->id);
+            if(pg){
+                s->pidmap[mp->pid] =
+                    MPEGTS_PID_MAP(MPEGTS_PID_TYPE_PSI, pg - s->programs);
+                pg->psi = psi;
+                psi = NULL;
+            }
+        } else {
+            s->psi = psi;
+            psi = NULL;
+        }
+    }
+
+out:
+    free(psi);
+    return err;
+}
+
+static int
+mpegts_do_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
+{
+    unsigned int type = MPEGTS_PID_TYPE(s->pidmap[mp->pid]);
+
+    switch(type){
+    case MPEGTS_PID_TYPE_PSI:
+        mpegts_do_psi(s, mp);
+        break;
+    }
+
     return 0;
 }
 
@@ -808,14 +995,9 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     mpegts_stream_t *s;
     mpegts_program_t *pg = NULL;
     mpegts_packet_t mp;
-    int ptr;
-    uint8_t *dp;
     int i;
     stream_t *sp;
     int pmtpid = 0;
-    uint8_t *pmt = NULL;
-    int pmtsize = 0;
-    int pmtpos = 0;
     char *tmp, *p;
     int prog = -1;
 
@@ -843,28 +1025,17 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->end = -1;
     s->mp.pid = -1;
     s->pidmap = calloc((1 << 13), sizeof(*s->pidmap));
+    s->pidmap[0] = MPEGTS_PID_PSI_NO_INDEX;
+    s->pat_version = MPEGTS_PSI_NO_VERSION;
 
     ms->private = s;
 
     do {
         if(mpegts_read_packet(s, &mp) < 0)
             goto err;
-    } while(mp.pid != 0);
-
-    if(!mp.unit_start){
-        tc2_print("MPEGTS", TC2_PRINT_ERROR,
-                  "BUG: Large PAT not supported.\n");
-        goto err;
-    }
-
-    ptr = mp.data[0];
-    if(ptr > mp.data_length - 4)
-        goto err;
-
-    if(mpegts_parse_pat(s, mp.data + ptr + 1, mp.data_length - ptr - 1) < 0){
-        tc2_print("MPEGTS", TC2_PRINT_ERROR, "Error parsing PAT.\n");
-        goto err;
-    }
+        if(mpegts_do_packet(s, &mp) < 0)
+            goto err;
+    } while(!s->num_programs || !s->programs[0].num_streams);
 
     if(prog != -1){
         pg = mpegts_find_program(s, prog);
@@ -874,50 +1045,6 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
                       prog, pmtpid);
         }
     }
-
-    while(pmtpid == 0 || pmtpos < pmtsize){
-        int ip = 0;
-        int dsize;
-
-        do {
-            if(mpegts_read_packet(s, &mp) < 0)
-                goto err;
-        } while((pmtpid && mp.pid != pmtpid) ||
-                !(ip = ispmt(s, &mp)));
-
-        if(ip > 1 && !pmtpos)
-            goto err;
-
-        if(!pmtpos && !mp.unit_start)
-            continue;
-
-        if(mp.unit_start){
-            if(mp.data[0] > mp.data_length - 4)
-                goto err;
-
-            dp = mp.data + mp.data[0] + 1;
-            pmtsize = (htob_16(unaligned16(dp + 1)) & 0xfff) + 3;
-            pmt = malloc(pmtsize);
-            pmtpos = 0;
-            pmtpid = mp.pid;
-            dsize = min(pmtsize, mp.data_length - mp.data[0] - 1);
-
-            tc2_print("MPEGTS", TC2_PRINT_DEBUG,
-                      "reading PMT PID %x, size %#x\n", pmtpid, pmtsize);
-        } else {
-            dp = mp.data;
-            dsize = min(pmtsize - pmtpos, mp.data_length);
-        }
-
-        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "got %x bytes from PMT\n", dsize);
-        memcpy(pmt + pmtpos, dp, dsize);
-        pmtpos += dsize;
-    }
-
-    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "got PMT, %x bytes\n", pmtpos);
-
-    if(mpegts_parse_pmt(s, pmtpid, pmt, pmtpos) < 0)
-        goto err;
 
     if(!pg){
         for(i = 0; i < s->num_programs; i++){
@@ -973,7 +1100,6 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     s->start_time = -1LL;
 
   out:
-    free(pmt);
     return ms;
 
   err:
