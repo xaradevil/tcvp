@@ -990,6 +990,19 @@ mpegts_do_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
     return 0;
 }
 
+static int
+mpegts_num_pmt(mpegts_stream_t *s)
+{
+    unsigned int pmt_count = 0;
+    unsigned int i;
+
+    for(i = 0; i < s->num_programs; i++)
+        if(s->programs[i].pmt_version != MPEGTS_PSI_NO_VERSION)
+            pmt_count++;
+
+    return pmt_count;
+}
+
 extern muxed_stream_t *
 mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
@@ -997,6 +1010,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     mpegts_stream_t *s;
     mpegts_program_t *pg = NULL;
     mpegts_packet_t mp;
+    unsigned int numpat = 0;
     int i;
     stream_t *sp;
     int pmtpid = 0;
@@ -1037,7 +1051,9 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
             goto err;
         if(mpegts_do_packet(s, &mp) < 0)
             goto err;
-    } while(!s->num_programs || !s->programs[0].num_streams);
+        if(s->pat_version != MPEGTS_PSI_NO_VERSION && mp.pid == 0)
+            numpat++;
+    } while((!numpat || mpegts_num_pmt(s) < s->num_programs) && numpat < 2);
 
     if(prog != -1){
         pg = mpegts_find_program(s, prog);
