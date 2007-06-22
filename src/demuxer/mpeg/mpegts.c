@@ -734,14 +734,14 @@ mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
     if(psi->version == mp->pmt_version)
         return 0;
 
-    mp->pmt_version = psi->version;
     mp->pcr_pid = htob_16(unaligned16(dp + 8)) & 0x1fff;
     pi_len = htob_16(unaligned16(dp + 10)) & 0xfff;
 
-    if(pi_len + 10 > size)
-        return -1;
-
     dp += 12;
+    size -= 12;
+
+    if(pi_len + 4 > size)
+        return -1;
 
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", psi->id);
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", mp->pcr_pid);
@@ -761,16 +761,17 @@ mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
         return -1;
     }
 
-    size -= 10 + pi_len;
+    size -= pi_len;
 
     mpegts_free_program(mp);
+    mp->pmt_version = psi->version;
 
     ns = size / 5;
     mp->streams = calloc(ns, sizeof(*mp->streams));
     if(!mp->streams)
         return -1;
 
-    for(i = 0; i + 5 <= size; mp->num_streams++){
+    for(i = 0; i + 9 <= size; mp->num_streams++){
         mpegts_elem_stream_t *es = mp->streams + mp->num_streams;
         unsigned int stype, epid, esil;
 
