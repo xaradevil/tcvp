@@ -261,7 +261,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
     skip_packet(s);                             \
     error = -1;                                 \
     skip++;                                     \
-    continue;                                   \
+    goto next;                                  \
 } while(0)
 
 #define check_length(l, start, len, m) do {                             \
@@ -385,6 +385,7 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 
         s->tsp += mp->data_length;
         s->tsnbuf--;
+      next:;
     } while(error && skip < tcvp_demux_mpeg_conf_ts_max_skip);
 
     return error;
