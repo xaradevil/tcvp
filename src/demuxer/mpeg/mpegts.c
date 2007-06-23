@@ -93,6 +93,8 @@ typedef struct mpegts_program {
     unsigned int program_number;
     unsigned int program_map_pid;
     unsigned int pcr_pid;
+    unsigned int program_info_length;
+    uint8_t *descriptors;
     unsigned int pmt_version;
     unsigned int num_streams;
     mpegts_elem_stream_t *streams;
@@ -598,6 +600,7 @@ mpegts_free_program(mpegts_program_t *p)
         free(p->streams[i].descriptors);
     }
 
+    free(p->descriptors);
     free(p->streams);
     free(p->psi);
 
@@ -747,25 +750,19 @@ mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", psi->id);
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", mp->pcr_pid);
 
-    for(i = 0; i + 2 < pi_len;){
-        int tag = dp[0];
-        int tl = dp[1];
-
-        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    descriptor %i\n", tag);
-        dp += tl + 2;
-        i += tl + 2;
-    }
-
-    if(i != pi_len){
-        tc2_print("MPEGTS", TC2_PRINT_WARNING,
-                  "PMT program %x: program descriptor overflow\n");
-        return -1;
-    }
-
-    size -= pi_len;
-
     mpegts_free_program(mp);
     mp->pmt_version = psi->version;
+    mp->program_info_length = pi_len;
+
+    if(pi_len > 0){
+        mp->descriptors = malloc(pi_len);
+        if(!mp->descriptors)
+            return -1;
+        memcpy(mp->descriptors, dp, pi_len);
+    }
+
+    dp += pi_len;
+    size -= pi_len;
 
     ns = size / 5;
     mp->streams = calloc(ns, sizeof(*mp->streams));
