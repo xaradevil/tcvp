@@ -162,6 +162,15 @@ static tcfraction_t aspect_ratios[16] = {
     [4] = { 221, 100 }
 };
 
+static const struct {
+    uint32_t tag;
+    char *codec;
+} reg_desc_tags[] = {
+    { 0x41432d33, "audio/ac3" },
+    { 0x44545331, "audio/dts" },
+    { 0, NULL }
+};
+
 static int nstream_types =
     sizeof(mpeg_stream_types) / sizeof(mpeg_stream_types[0]);
 
@@ -231,6 +240,8 @@ mpeg_descriptor(stream_t *s, u_char *d)
 {
     int tag = d[0];
     int len = d[1];
+    unsigned int i;
+    unsigned int v;
 
     tc2_print("MPEG", TC2_PRINT_DEBUG, "descriptor %3d [%2x], %d bytes\n",
               tag, tag, len);
@@ -274,6 +285,19 @@ mpeg_descriptor(stream_t *s, u_char *d)
         if(len > 3)
             memcpy(s->audio.language, d + 2, 3);
 	break;
+
+    case REGISTRATION_DESCRIPTOR:
+        v = htob_32(unaligned32(d + 2));
+        for(i = 0; reg_desc_tags[i].tag; i++){
+            if(reg_desc_tags[i].tag == v){
+                s->common.codec = reg_desc_tags[i].codec;
+                break;
+            }
+        }
+        if(!s->common.codec)
+            tc2_print("MPEG", TC2_PRINT_DEBUG, "registration_descriptor: "
+                      "unknown format_identifier %08x\n", v);
+        break;
     }
 
     if(tag >= 64){
