@@ -1119,7 +1119,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
             goto err;
         numpmt = mpegts_num_pmt(s);
         if(numpmt < 1)
-            numpat = 0;
+            numpat = !!numpat;
         if(s->pat_version != MPEGTS_PSI_NO_VERSION && mp.pid == 0)
             numpat++;
     } while((!numpat || numpmt < s->num_programs) && numpat < 4);
