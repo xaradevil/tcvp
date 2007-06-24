@@ -1000,33 +1000,84 @@ mpegts_num_pmt(mpegts_stream_t *s)
     return pmt_count;
 }
 
+static int
+mpegts_num_streams(mpegts_stream_t *s)
+{
+    unsigned int ns = 0;
+    unsigned int i;
+
+    for(i = 0; i < s->num_programs; i++)
+        ns += s->programs[i].num_streams;
+
+    return ns;
+}
+
+static int
+mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
+{
+    mpegts_stream_t *s = ms->private;
+    stream_t *sp = ms->streams + ms->n_streams;
+    unsigned int i;
+
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "adding program %d [%x]\n",
+              pg->program_number, pg->program_number);
+
+    for(i = 0; i < pg->num_streams; i++){
+        mpegts_elem_stream_t *es = pg->streams + i;
+        mpeg_stream_type_t *mst = mpeg_stream_type_id(es->stream_type);
+        uint8_t *dp = es->descriptors;
+        unsigned int j;
+
+        tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PID %x, type %x\n",
+                  es->pid, es->stream_type);
+
+        memset(sp, 0, sizeof(*sp));
+
+        if(mst)
+            sp->common.codec = mst->codec;
+
+        for(j = 0; j < es->es_info_length;){
+            int tl = dp[1] + 2;
+            if(j + tl > es->es_info_length)
+                return -1;
+            mpeg_descriptor(sp, dp);
+            dp += tl;
+            j += tl;
+        }
+
+        if(sp->common.codec){
+            if(!strncmp(sp->common.codec, "video/", 6))
+                sp->stream_type = STREAM_TYPE_VIDEO;
+            else if(!strncmp(sp->common.codec, "audio/", 6))
+                sp->stream_type = STREAM_TYPE_AUDIO;
+            else if(!strncmp(sp->common.codec, "subtitle/", 9))
+                sp->stream_type = STREAM_TYPE_SUBTITLE;
+
+            sp->common.index = ms->n_streams;
+            sp->common.start_time = -1;
+            sp->common.flags = TCVP_STREAM_FLAG_TRUNCATED;
+            sp->common.program = pg->program_number;
+
+            s->pidmap[es->pid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_ES,
+                                                ms->n_streams++);
+            sp++;
+        }
+    }
+
+    return 0;
+}
+
 extern muxed_stream_t *
 mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
     mpegts_stream_t *s;
-    mpegts_program_t *pg = NULL;
     mpegts_packet_t mp;
     unsigned int numpat = 0;
+    unsigned int numpmt;
+    unsigned int ns;
     int i;
-    stream_t *sp;
-    int pmtpid = 0;
-    char *tmp, *p;
-    int prog = -1;
 
-    if((tmp = strchr(name, '?'))){
-        tmp = strdup(++tmp);
-
-        while((p = strsep(&tmp, "&"))){
-            if(!*p)
-                continue;
-            if(!strncmp(p, "program=", 8)){
-                prog = strtol(p + 8, NULL, 0);
-            }
-        }
-
-        free(tmp);
-    }
     ms = tcallocdz(sizeof(*ms), NULL, mpegts_free);
     ms->next_packet = mpegts_packet;
     ms->seek = mpegts_seek;
@@ -1048,70 +1099,19 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
             goto err;
         if(mpegts_do_packet(s, &mp) < 0)
             goto err;
+        numpmt = mpegts_num_pmt(s);
+        if(numpmt < 1)
+            numpat = 0;
         if(s->pat_version != MPEGTS_PSI_NO_VERSION && mp.pid == 0)
             numpat++;
-    } while((!numpat || mpegts_num_pmt(s) < s->num_programs) && numpat < 2);
+    } while((!numpat || numpmt < s->num_programs) && numpat < 4);
 
-    if(prog != -1){
-        pg = mpegts_find_program(s, prog);
-        if(pg){
-            pmtpid = pg->program_map_pid;
-            tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i [%x] selected\n",
-                      prog, pmtpid);
-        }
-    }
+    ns = mpegts_num_streams(s);
+    ms->streams = calloc(ns, sizeof(*ms->streams));
 
-    if(!pg){
-        for(i = 0; i < s->num_programs; i++){
-            if(s->programs[i].num_streams){
-                pg = s->programs + i;
-                break;
-            }
-        }
-    }
-
-    if(!pg)
-        goto err;
-
-    ms->streams = calloc(pg->num_streams, sizeof(*ms->streams));
-    sp = ms->streams;
-
-    for(i = 0; i < pg->num_streams; i++){
-        mpegts_elem_stream_t *es = pg->streams + i;
-        mpeg_stream_type_t *mst = mpeg_stream_type_id(es->stream_type);
-        uint8_t *dp = es->descriptors;
-        unsigned int j;
-
-        memset(sp, 0, sizeof(*sp));
-
-        if(mst)
-            sp->common.codec = mst->codec;
-
-        for(j = 0; j < es->es_info_length;){
-            int tl = dp[1] + 2;
-            if(j + tl > es->es_info_length)
-                goto err;
-            mpeg_descriptor(sp, dp);
-            dp += tl;
-            j += tl;
-        }
-
-        if(sp->common.codec){
-            if(!strncmp(sp->common.codec, "video/", 6))
-                sp->stream_type = STREAM_TYPE_VIDEO;
-            else if(!strncmp(sp->common.codec, "audio/", 6))
-                sp->stream_type = STREAM_TYPE_AUDIO;
-            else if(!strncmp(sp->common.codec, "subtitle/", 9))
-                sp->stream_type = STREAM_TYPE_SUBTITLE;
-
-            sp->common.index = ms->n_streams;
-            sp->common.start_time = -1;
-            sp->common.flags = TCVP_STREAM_FLAG_TRUNCATED;
-
-            s->pidmap[es->pid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_ES,
-                                                ms->n_streams++);
-            sp++;
-        }
+    for(i = 0; i < s->num_programs; i++){
+        if(mpegts_add_streams(ms, s->programs + i) < 0)
+            goto err;
     }
 
     s->streams = calloc(ms->n_streams, sizeof(*s->streams));
