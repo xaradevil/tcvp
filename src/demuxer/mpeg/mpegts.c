@@ -103,6 +103,7 @@ typedef struct mpegts_program {
 
 #define MPEGTS_PID_TYPE_PSI 1
 #define MPEGTS_PID_TYPE_ES  2
+#define MPEGTS_PID_TYPE_NIT 3
 
 #define MPEGTS_PID_TYPE(x)  ((x) & 255)
 #define MPEGTS_PID_INDEX(x) ((unsigned)(x) >> 8)
@@ -123,6 +124,7 @@ typedef struct mpegts_stream {
     mpegts_program_t *programs;
     unsigned int num_programs;
     mpegts_section_t *psi;
+    unsigned int nit_pid;
     struct tsbuf {
         int flags;
         uint64_t pts, dts;
@@ -687,7 +689,7 @@ mpegts_parse_pat(mpegts_stream_t *s, mpegts_section_t *psi)
 
     n = (size - 12) / 4;
     s->programs = calloc(n, sizeof(*s->programs));
-    s->num_programs = n;
+    s->num_programs = 0;
     s->pat_version = psi->version;
 
     dp += 8;
@@ -698,11 +700,16 @@ mpegts_parse_pat(mpegts_stream_t *s, mpegts_section_t *psi)
         tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i => PMT pid %x\n",
                   prg, pid);
 
-        s->programs[i].program_number = prg;
-        s->programs[i].program_map_pid = pid;
-        s->programs[i].pmt_version = MPEGTS_PSI_NO_VERSION;
-
-        s->pidmap[pid] = MPEGTS_PID_PSI_NO_INDEX;
+        if(prg){
+            mpegts_program_t *pg = s->programs + s->num_programs++;
+            s->pidmap[pid] = MPEGTS_PID_PSI_NO_INDEX;
+            pg->program_number = prg;
+            pg->program_map_pid = pid;
+            pg->pmt_version = MPEGTS_PSI_NO_VERSION;
+        } else {
+            s->pidmap[pid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_NIT, i);
+            s->nit_pid = pid;
+        }
 
         dp += 4;
     }
