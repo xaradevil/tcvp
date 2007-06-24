@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2004  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2007  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -208,11 +208,32 @@ aspect_ratio_index(tcfraction_t *f)
     return 0;
 }
 
+static int
+dvb_descriptor(stream_t *s, uint8_t *d, unsigned int tag, unsigned int len)
+{
+    switch(tag){
+    case DVB_AC_3_DESCRIPTOR:
+        s->audio.codec = "audio/ac3";
+        break;
+    case DVB_DTS_DESCRIPTOR:
+        s->audio.codec = "audio/dts";
+        break;
+    case DVB_AAC_DESCRIPTOR:
+        s->audio.codec = "audio/aac";
+        break;
+    }
+
+    return 0;
+}
+
 extern int
 mpeg_descriptor(stream_t *s, u_char *d)
 {
     int tag = d[0];
     int len = d[1];
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "descriptor %3d [%2x], %d bytes\n",
+              tag, tag, len);
 
     switch(tag){
     case VIDEO_STREAM_DESCRIPTOR:
@@ -260,6 +281,11 @@ mpeg_descriptor(stream_t *s, u_char *d)
     }
     case ISO_639_LANGUAGE_DESCRIPTOR:
 	break;
+    }
+
+    if(tag >= 64){
+        if(tcvp_demux_mpeg_conf_dvb)
+            dvb_descriptor(s, d, tag, len);
     }
 
     return len + 2;
