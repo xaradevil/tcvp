@@ -247,6 +247,7 @@ use_stream(tcvp_player_t *sh, int s, stream_t *str)
     int ss, u = 0, shs;
     char *c;
     char *lang = NULL, *clang = NULL;
+    int program = -1;
 
     if(t == STREAM_TYPE_AUDIO){
 	c = "audio/stream";
@@ -264,6 +265,9 @@ use_stream(tcvp_player_t *sh, int s, stream_t *str)
     }
 
     if(tcconf_getvalue(sh->conf, c, "")){
+        if(tcconf_getvalue(sh->conf, "program", "%i", &program) > 0)
+            if(program != str->common.program)
+                return 0;
 	switch(t){
 	case STREAM_TYPE_VIDEO:
 	    return sh->vs < 0;
