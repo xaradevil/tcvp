@@ -1140,11 +1140,9 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     s->start_time = -1LL;
 
-  out:
     return ms;
 
   err:
     tcfree(ms);
-    ms = NULL;
-    goto out;
+    return NULL;
 }
