@@ -180,7 +180,7 @@ t_free(void *p)
 static void
 print_stream(stream_t *s)
 {
-    printf("%s", s->common.codec);
+    printf("0x%-4x %s", s->common.program, s->common.codec);
 
     switch(s->stream_type){
     case STREAM_TYPE_AUDIO:
