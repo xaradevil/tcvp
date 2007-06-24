@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2007  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -1082,26 +1082,31 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
         uint8_t *dp = es->descriptors;
         unsigned int j;
 
-        if(mst){
-            if(!strncmp(mst->codec, "video/", 6))
-                sp->stream_type = STREAM_TYPE_VIDEO;
-            else if(!strncmp(mst->codec, "audio/", 6))
-                sp->stream_type = STREAM_TYPE_AUDIO;
-            else if(!strncmp(mst->codec, "subtitle/", 9))
-                sp->stream_type = STREAM_TYPE_SUBTITLE;
+        memset(sp, 0, sizeof(*sp));
+
+        if(mst)
             sp->common.codec = mst->codec;
+
+        for(j = 0; j < es->es_info_length;){
+            int tl = dp[1] + 2;
+            if(j + tl > es->es_info_length)
+                goto err;
+            mpeg_descriptor(sp, dp);
+            dp += tl;
+            j += tl;
+        }
+
+        if(sp->common.codec){
+            if(!strncmp(sp->common.codec, "video/", 6))
+                sp->stream_type = STREAM_TYPE_VIDEO;
+            else if(!strncmp(sp->common.codec, "audio/", 6))
+                sp->stream_type = STREAM_TYPE_AUDIO;
+            else if(!strncmp(sp->common.codec, "subtitle/", 9))
+                sp->stream_type = STREAM_TYPE_SUBTITLE;
+
             sp->common.index = ms->n_streams;
             sp->common.start_time = -1;
             sp->common.flags = TCVP_STREAM_FLAG_TRUNCATED;
-
-            for(j = 0; j < es->es_info_length;){
-                int tl = dp[1] + 2;
-                if(j + tl > es->es_info_length)
-                    goto err;
-                mpeg_descriptor(sp, dp);
-                dp += tl;
-                j += tl;
-            }
 
             s->pidmap[es->pid] = MPEGTS_PID_MAP(MPEGTS_PID_TYPE_ES,
                                                 ms->n_streams++);
