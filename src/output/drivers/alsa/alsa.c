@@ -166,11 +166,14 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     alsa_out_t *ao;
     snd_pcm_hw_params_t *hwp;
     snd_pcm_t *pcm;
-    u_int rate = as->sample_rate, channels = as->channels, ptime;
+    u_int rate = as->sample_rate, channels = as->channels;
     int tmp = 0;
     snd_pcm_format_t afmt;
     char *format;
     char *device = NULL;
+    snd_pcm_uframes_t psize;
+    snd_pcm_uframes_t bsize;
+    unsigned int align;
 
     tcconf_getvalue(cs, "audio/device", "%s", &device);
     if(!device){
@@ -229,8 +232,16 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     snd_pcm_hw_params_set_rate_near(pcm, hwp, &rate, &tmp);
     snd_pcm_hw_params_set_channels_near(pcm, hwp, &channels);
 
-    ptime = 10000;
-    snd_pcm_hw_params_set_period_time_near(pcm, hwp, &ptime, &tmp);
+    psize = rate * tcvp_driver_audio_alsa_conf_period_time / 1000;
+    align = 1;
+    while(align < tcvp_driver_audio_alsa_conf_period_align)
+        align <<= 1;
+    psize = (psize + align - 1) & ~(align - 1);
+    psize *= snd_pcm_format_width(afmt) / 8;
+    bsize = psize * tcvp_driver_audio_alsa_conf_buffer_periods;
+
+    snd_pcm_hw_params_set_period_size(pcm, hwp, psize, 1);
+    snd_pcm_hw_params_set_buffer_size(pcm, hwp, bsize);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
 	tc2_print("ALSA", TC2_PRINT_ERROR, "snd_pcm_hw_parameters failed\n");
