@@ -279,7 +279,10 @@ mpeg_descriptor(stream_t *s, u_char *d)
 	}
 	break;
     }
+
     case ISO_639_LANGUAGE_DESCRIPTOR:
+        if(len > 3)
+            memcpy(s->audio.language, d + 2, 3);
 	break;
     }
 
