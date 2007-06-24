@@ -523,6 +523,7 @@ parse_options(int argc, char **argv)
 	{"artist", required_argument, 0, OPT_ATTR},
 	{"album", required_argument, 0, OPT_ATTR},
 	{"port", required_argument, 0, OPT_PORT},
+        {"program", required_argument, 0, 'i'},
 	{0, 0, 0, 0}
     };
 
@@ -530,7 +531,7 @@ parse_options(int argc, char **argv)
 	int c, opt_index = 0, s;
 	char *ot;
      
-	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:DrRS:",
+	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:DrRS:i:",
 			long_options, &opt_index);
 	
 	if(c == -1)
@@ -563,6 +564,12 @@ parse_options(int argc, char **argv)
 
 	case 'S':
 	    set_number_or_string(cf, "subtitle/stream", optarg);
+	    break;
+
+        case 'i':
+            s = strtol(optarg, &ot, 0);
+	    if(!*ot)
+                tcconf_setvalue(cf, "program", "%i", s);
 	    break;
 
 	case 'C':
