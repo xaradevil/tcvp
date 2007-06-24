@@ -749,6 +749,8 @@ mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
 
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "program %i\n", psi->id);
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PCR PID %x\n", mp->pcr_pid);
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    program_info_length %d\n",
+              pi_len);
 
     mpegts_free_program(mp);
     mp->pmt_version = psi->version;
@@ -858,6 +860,12 @@ mpegts_section_init(mpegts_section_t *psi)
         return -1;
 
     psi->length = (val & 0xfff) + 3;
+    if(psi->length > 1024){
+        tc2_print("MPEGTS", TC2_PRINT_WARNING,
+                  "invalid PSI section length %d\n", psi->length);
+        return -1;
+    }
+
     psi->id = htob_16(unaligned16(dp + 3));
 
     val = dp[5];
@@ -870,9 +878,10 @@ mpegts_section_init(mpegts_section_t *psi)
     psi->last = dp[7];
 
     tc2_print("MPEGTS", TC2_PRINT_DEBUG,
-              "PSI table_id=%x length=%d id=%x version=%d section=%d/%d\n",
+              "PSI table_id=%x length=%d id=%x version=%d "
+              "current=%d section=%d/%d\n",
               psi->table_id, psi->length, psi->id, psi->version,
-              psi->number, psi->last);
+              psi->current, psi->number, psi->last);
 
     return 0;
 }
@@ -921,11 +930,13 @@ mpegts_do_psi(mpegts_stream_t *s, mpegts_packet_t *mp)
     if(!psi)
         return -1;
 
-    while(size && *d != 255){
+    while(size){
         unsigned int len;
 
         if(psi->length){
             len = min(size, psi->length - psi->read);
+        } else if(*d == 255){
+            break;
         } else {
             len = min(size, MPEGTS_SECTION_COMMON_LEN);
         }
