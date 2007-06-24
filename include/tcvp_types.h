@@ -96,7 +96,8 @@ typedef union tcvp_packet {
     uint64_t start_time;			\
     int index;					\
     int flags;					\
-    int bit_rate
+    int bit_rate;                               \
+    unsigned program
 
 typedef struct video_stream {
     STREAM_COMMON;
