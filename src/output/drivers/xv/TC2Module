@@ -16,3 +16,4 @@ TCVP {
 }
 
 option		frames%i=64
+option          format%s

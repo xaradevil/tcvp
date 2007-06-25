@@ -169,6 +169,20 @@ static struct {
 
 #define NUMFORMATS (sizeof(formats) / sizeof(formats[0]))
 
+static uint32_t
+xv_get_format(const char *fmt)
+{
+    unsigned int i;
+
+    for(i = 0; i < NUMFORMATS; i++){
+	if(!strcmp(fmt, formats[i].name)){
+	    return formats[i].tag;
+	}
+    }
+
+    return 0;
+}
+
 static int
 xv_valid_attr(XvAttribute *attr, int n, char *name, int set, int value)
 {
@@ -222,11 +236,12 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 	return NULL;
     fmt += 4;
 
-    for(i = 0; i < NUMFORMATS; i++){
-	if(!strcmp(fmt, formats[i].name)){
-	    fmtid = formats[i].tag;
-	    break;
-	}
+    fmtid = xv_get_format(fmt);
+
+    if(!fmtid && tcvp_driver_video_xv_conf_format){
+        fmt = tcvp_driver_video_xv_conf_format;
+        tc2_print("XV", TC2_PRINT_WARNING, "using default format '%s'\n", fmt);
+        fmtid = xv_get_format(fmt);
     }
 
     if(!fmtid){
