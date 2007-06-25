@@ -116,6 +116,7 @@ typedef struct avi_file {
     int idxlen;
     int pkt;
     int has_video;
+    uint64_t fpos;
 } avi_file_t;
 
 typedef struct avi_packet {
@@ -759,10 +760,11 @@ avi_packet(muxed_stream_t *ms, int stream)
 	    af->file->seek(af->file, p, SEEK_SET);
 	    tried_index++;
 	    goto again;
-	} else if(!tried_bkup){
+	} else if(!tried_bkup && pos - backup > af->fpos){
 	    tc2_print("AVI", TC2_PRINT_DEBUG,
 		      "Backing up %i bytes.\n", backup);
 	    af->file->seek(af->file, -backup - 4, SEEK_CUR);
+            af->fpos = pos;
 	    tried_bkup++;
 	    goto again;
 	} else if(skipped < max_skip && af->idxok > 256 &&
@@ -862,6 +864,8 @@ avi_packet(muxed_stream_t *ms, int stream)
 	tc2_print("AVI", TC2_PRINT_WARNING, "truncated index\n");
     }
 
+    af->fpos = pos;
+
     pk = avi_alloc_packet(size);
     af->file->read(pk->data, 1, size, af->file);
     if(size & 1)
@@ -918,6 +922,7 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
 	avi_free_packet(&pk->pk);
 
     af->file->seek(af->file, pos, SEEK_SET);
+    af->fpos = pos;
 
     for(i = 0; i < ms->n_streams; i++){
 	if(ms->used_streams[i])
