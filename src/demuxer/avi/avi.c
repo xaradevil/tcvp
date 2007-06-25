@@ -1,5 +1,5 @@
 /**
-    Copyright (C) 2003-2005  Michael Ahlberg, Måns Rullgård
+    Copyright (C) 2003-2007  Michael Ahlberg, Måns Rullgård
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -497,6 +497,13 @@ avi_header(url_t *f)
 
 	    sidx++;
 
+            if(sidx >= ms->n_streams){
+                tc2_print("AVI", TC2_PRINT_WARNING,
+                          "unexpected 'strh' chunk\n");
+                next = 0;
+                break;
+            }
+
 	    stype = getu32(f);
 	    get4c(st, f);	/* tag */
 	    getval(f, "flags", 32);
@@ -558,6 +565,10 @@ avi_header(url_t *f)
 	}
 	case TAG('s','t','r','f'):{
 	    size_t cds;
+
+            if(sidx >= ms->n_streams)
+                break;
+
 	    switch(stype){
 	    case TAG('v','i','d','s'):
 		getval(f, "size", 32);
@@ -626,6 +637,7 @@ avi_header(url_t *f)
 		tc2_print("AVI", TC2_PRINT_WARNING, "bad stream type\n");
 	    }
 
+            stype = 0;
 	    next = 0;
 	    break;
 	}
