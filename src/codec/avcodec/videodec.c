@@ -164,6 +164,8 @@ static char *pixel_fmts[] = {
     [PIX_FMT_MONOWHITE] = 0,
     [PIX_FMT_MONOBLACK] = 0,
     [PIX_FMT_PAL8] = 0,
+    [PIX_FMT_YUVJ420P] = "video/raw-i420",
+    [PIX_FMT_YUVJ422P] = "video/raw-yuv422p",
     [PIX_FMT_NB] = 0,
 };
 
