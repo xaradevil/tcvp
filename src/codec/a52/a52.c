@@ -261,11 +261,13 @@ a52_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 	    }
 	}
 
-	rs = min(ad->fsize - ad->fpos, psize);
-	memcpy(ad->buf + ad->fpos, pdata, rs);
-	pdata += rs;
-	ad->fpos += rs;
-	psize -= rs;
+        if(ad->fsize){
+            rs = min(ad->fsize - ad->fpos, psize);
+            memcpy(ad->buf + ad->fpos, pdata, rs);
+            pdata += rs;
+            ad->fpos += rs;
+            psize -= rs;
+        }
 
 	if(ad->fpos == ad->fsize){
 	    decode_frame(p, ad->buf, pk->stream);
@@ -283,7 +285,7 @@ a52_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 	    psize--;
 	    pdata++;
 	}
-	if(psize < fsize)
+	if(!fsize || psize < fsize)
 	    break;
 	decode_frame(p, pdata, pk->stream);
 	pdata += fsize;
