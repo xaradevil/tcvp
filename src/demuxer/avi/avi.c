@@ -663,6 +663,32 @@ avi_header(url_t *f)
 	case TAG('J','U','N','K'):{
 	    break;
 	}
+        case TAG('W','N','P','I'):{
+            static const char twp_key[] =
+                "UIERYQWORTWEHLKDNKDBISGLZNCBZCVNBADFIEYLJ";
+            unsigned offset, start;
+            url_t *ut;
+
+            getjunk(f, 32);
+            offset = getu32(f);
+            start = getu32(f);
+
+            tc2_print("AVI", TC2_PRINT_WARNING, "3wPlayer file\n");
+
+            f->seek(f, start + offset, SEEK_SET);
+            ut = url_xor_new(f, twp_key, sizeof(twp_key));
+
+            tcfree(ms);
+
+            if(ut){
+                ms = avi_header(ut);
+                tcfree(ut);
+            } else {
+                ms = NULL;
+            }
+
+            return ms;
+        }
 	default:
 	    tc2_print("AVI", TC2_PRINT_WARNING,
 		      "unknown tag '%s' @%llx\n", st, pos);

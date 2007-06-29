@@ -8,6 +8,8 @@ implement	"video/x-msvideo"	"open"	avi_open
 implement	"video/x-msvideo"	"vcodec" vtag2codec
 implement	"video/x-msvideo"	"acodec" aid2codec
 import		"URL"			"getc"
+import          "URL/xor"               "new"
+
 option		max_skip%i=16
 Maximum number of chunks to skip in damaged files.
 option		max_scan%i=2048
