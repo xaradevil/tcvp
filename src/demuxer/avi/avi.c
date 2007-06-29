@@ -1037,22 +1037,21 @@ avi_free(void *p)
     avi_file_t *af = ms->private;
     int i;
 
-    free(ms->streams);
-    free(ms->used_streams);
-
     tclist_destroy(af->packets, (tcfree_fn) avi_free_packet);
 
     for(i = 0; i < ms->n_streams; i++){
-	if(af->streams[i].index){
-	    free(af->streams[i].index);
-	}
+        free(ms->streams[i].common.codec_data);
+        free(af->streams[i].index);
     }
 
-    if(af->index)
-	free(af->index);
+    free(af->streams);
+    free(af->index);
 
-    af->file->close(af->file);
+    tcfree(af->file);
     free(af);
+
+    free(ms->streams);
+    free(ms->used_streams);
 }
 
 extern muxed_stream_t *
