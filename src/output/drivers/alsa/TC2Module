@@ -13,3 +13,4 @@ Use sound card as master timer.
 option          period_time%i=10
 option          period_align%i=128
 option          buffer_periods%i=4
+option		period_size%i=0

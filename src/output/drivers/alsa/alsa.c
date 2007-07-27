@@ -232,15 +232,20 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     snd_pcm_hw_params_set_rate_near(pcm, hwp, &rate, &tmp);
     snd_pcm_hw_params_set_channels_near(pcm, hwp, &channels);
 
-    psize = rate * tcvp_driver_audio_alsa_conf_period_time / 1000;
-    align = 1;
-    while(align < tcvp_driver_audio_alsa_conf_period_align)
-        align <<= 1;
-    psize = (psize + align - 1) & ~(align - 1);
-    psize *= snd_pcm_format_width(afmt) / 8;
+    if(tcvp_driver_audio_alsa_conf_period_size) {
+        psize = tcvp_driver_audio_alsa_conf_period_size;
+    } else {
+        psize = rate * tcvp_driver_audio_alsa_conf_period_time / 1000;
+        align = 1;
+        while(align < tcvp_driver_audio_alsa_conf_period_align)
+            align <<= 1;
+        psize = (psize + align - 1) & ~(align - 1);
+        psize *= snd_pcm_format_width(afmt) / 8;
+    }
+
     bsize = psize * tcvp_driver_audio_alsa_conf_buffer_periods;
 
-    snd_pcm_hw_params_set_period_size(pcm, hwp, psize, 1);
+    snd_pcm_hw_params_set_period_size(pcm, hwp, psize, 0);
     snd_pcm_hw_params_set_buffer_size(pcm, hwp, bsize);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
