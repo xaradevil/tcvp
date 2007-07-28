@@ -1,0 +1,13 @@
+INSTALL
+Makefile.am
+aclocal.m4
+autom4te.cache
+compile
+config.guess
+config.sub
+configure
+configure.ac
+depcomp
+install-sh
+ltmain.sh
+missing
