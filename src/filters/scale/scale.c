@@ -26,13 +26,14 @@
 #include <tcmath.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
-#include <ffmpeg/avcodec.h>
+#include <ffmpeg/swscale.h>
 #include <scale_tc2.h>
 
 typedef struct scale {
-    ImgReSampleContext *irs;
+    struct SwsContext *sws;
     int w, h;
     int keepaspect;
+    int sh;
 } scale_t;
 
 typedef struct scale_packet {
@@ -58,7 +59,6 @@ scale_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int i;
 
     if(pk->data){
-	AVPicture in, out;
 	scale_packet_t *op;
 
 	op = tcallocdz(sizeof(*op), NULL, scale_free_pk);
@@ -72,15 +72,11 @@ scale_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 	for(i = 0; i < 3; i++){
 	    int d = i? 2: 1;
-
-	    in.data[i] = pk->data[i];
-	    in.linesize[i] = pk->sizes[i];
-
-	    op->data[i] = out.data[i] = malloc(s->w * s->h / (d * d));
-	    op->sizes[i] = out.linesize[i] = s->w / d;
+	    op->data[i] = malloc(s->w * s->h / (d * d));
+	    op->sizes[i] = s->w / d;
 	}
 
-	img_resample(s->irs, &out, &in);
+	sws_scale(s->sws, pk->data, pk->sizes, 0, s->sh, op->data, op->sizes);
 
 	tcfree(pk);
 	pk = &op->pk;
@@ -100,7 +96,10 @@ scale_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     if(!p->next)
 	return PROBE_FAIL;
 
-    sc->irs = img_resample_init(sc->w, sc->h, vs->width, vs->height);
+    sc->sws = sws_getContext(vs->width, vs->height, PIX_FMT_YUV420P,
+                             sc->w, sc->h, PIX_FMT_YUV420P,
+                             SWS_BILINEAR, NULL, NULL, NULL);
+    sc->sh = vs->height;
     vs->width = sc->w;
     vs->height = sc->h;
 
@@ -118,8 +117,8 @@ scale_free(void *p)
 {
     scale_t *s = p;
 
-    if(s->irs)
-	img_resample_close(s->irs);
+    if(s->sws)
+	sws_freeContext(s->sws);
 }
 
 extern int

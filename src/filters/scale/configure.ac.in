@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS([ffmpeg, avcodec, img_resample_init,, ffmpeg/avcodec.h])
+TC2_CHECK_LIBS([ffmpeg, swscale, sws_getContext,, ffmpeg/swscale.h])
