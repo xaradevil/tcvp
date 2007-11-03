@@ -37,6 +37,7 @@ module src/filters/ffpostproc
 module src/filters/overlay
 module src/filters/scale
 module src/filters/threads
+module src/filters/timeshift
 module src/filters/xmms
 module src/input/alsa
 module src/input/cdda

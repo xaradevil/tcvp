@@ -1,0 +1,12 @@
+module		timeshift
+name		"TCVP/filter/timeshift"
+version		0.1.0
+tc2version	0.6.0
+sources		timeshift.c
+
+TCVP {
+	filter "filter/timeshift" {
+		new ts_new
+		packet DATA ts_input
+	}
+}
