@@ -235,6 +235,63 @@ dvb_descriptor(stream_t *s, uint8_t *d, unsigned int tag, unsigned int len)
     return 0;
 }
 
+static int
+initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
+{
+    unsigned od_id, url_flag, ipl_flag;
+    unsigned val;
+
+    if (size < 2)
+        return -1;
+    if (d[1] > size - 2)
+        return -1;
+
+    d += 2;
+    size -= 2;
+
+    val = htob_16(unaligned16(d));
+    d += 2;
+    size -= 2;
+
+    od_id = val >> 6;
+    url_flag = (val >> 5) & 1;
+    ipl_flag = (val >> 4) & 1;
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "InitialObjectDescriptor\n");
+    tc2_print("MPEG", TC2_PRINT_DEBUG,
+              "  ObjectDescriptorID             %2x\n", od_id);
+    tc2_print("MPEG", TC2_PRINT_DEBUG,
+              "  URL_Flag                       %2d\n", url_flag);
+    tc2_print("MPEG", TC2_PRINT_DEBUG,
+              "  includeInlineProfileLevelFlag  %2d\n", ipl_flag);
+
+    if (url_flag) {
+        unsigned url_length = *d++;
+        d += url_length;
+        size -= url_length;
+    } else {
+        unsigned od_pl       = *d++;
+        unsigned scene_pl    = *d++;
+        unsigned audio_pl    = *d++;
+        unsigned visual_pl   = *d++;
+        unsigned graphics_pl = *d++;
+        size -= 5;
+
+        tc2_print("MPEG", TC2_PRINT_DEBUG,
+                  "  ODProfileLevelIndication       %2x\n", od_pl);
+        tc2_print("MPEG", TC2_PRINT_DEBUG,
+                  "  sceneProfileLevelIndication    %2x\n", scene_pl);
+        tc2_print("MPEG", TC2_PRINT_DEBUG,
+                  "  audioProfileLevelIndication    %2x\n", audio_pl);
+        tc2_print("MPEG", TC2_PRINT_DEBUG,
+                  "  visualProfileLevelIndication   %2x\n", visual_pl);
+        tc2_print("MPEG", TC2_PRINT_DEBUG,
+                  "  graphicsProfileLevelIndication %2x\n", graphics_pl);
+    }
+
+    return 0;
+}
+
 extern int
 mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
 {
@@ -297,6 +354,18 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
         if(!s->common.codec)
             tc2_print("MPEG", TC2_PRINT_DEBUG, "registration_descriptor: "
                       "unknown format_identifier %08x\n", v);
+        break;
+
+    case IOD_DESCRIPTOR:
+        tc2_print("MPEG", TC2_PRINT_DEBUG,
+                  "IOD_descriptor: scope=%x IOD_label=%x\n", d[2], d[3]);
+        d += 4;
+        initial_object_descriptor(ms, d, len - 2);
+        break;
+
+    case SL_DESCRIPTOR:
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "SL_descriptor: ES_ID=%x\n",
+                  htob_16(unaligned16(d + 2)));
         break;
     }
 
