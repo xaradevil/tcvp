@@ -253,6 +253,104 @@ parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d, unsigned size,
     return p - d;
 }
 
+static int mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d);
+
+static int
+mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
+{
+    unsigned es_id;
+    unsigned stream_dep_flag;
+    unsigned url_flag;
+    unsigned ocr_stream_flag;
+    unsigned stream_priority;
+    unsigned dep_es_id;
+    unsigned ocr_es_id;
+
+    if (size < 3)
+        return -1;
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "MPEG4 ES_Descriptor\n");
+
+    es_id = htob_16(unaligned16(d));
+    d += 2;
+
+    stream_dep_flag = *d >> 7;
+    url_flag        = (*d >> 6) & 1;
+    ocr_stream_flag = (*d >> 5) & 1;
+    stream_priority = *d & 0x1f;
+    d++;
+
+    size -= 3;
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  ES_ID %x\n", es_id);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamDependenceFlag %d\n",
+              stream_dep_flag);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  URL_Flag             %d\n",
+              url_flag);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  OCRstreamFlag        %d\n",
+              ocr_stream_flag);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamPriority       %d\n",
+              stream_priority);
+
+    if (stream_dep_flag) {
+        dep_es_id = htob_16(unaligned16(d));
+        d += 2;
+        size -= 2;
+    }
+
+    if (url_flag) {
+        unsigned url_length = *d++;
+        d += url_length;
+        size -= url_length;
+    }
+
+    if (ocr_stream_flag) {
+        ocr_es_id = htob_16(unaligned16(d));
+        d += 2;
+        size -= 2;
+    }
+
+    parse_descriptors(ms, NULL, d, size, mpeg4_descriptor);
+
+    return 0;
+}
+
+static int
+mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
+{
+    unsigned tag = d[0];
+    unsigned len = d[1];
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG,
+              "MPEG4 descriptor %3d [%2x], %d bytes\n", tag, tag, len);
+
+    d += 2;
+
+    switch (tag) {
+    case ES_DESCRTAG:
+        mpeg4_es_descriptor(ms, d, len);
+        break;
+
+    case DECODERCONFIGDESCRTAG: {
+        unsigned obj_type    = *d++;
+        unsigned stream_type = *d >> 2;
+        unsigned up_stream   = (*d >> 1) & 1;
+
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "  objectTypeIndication %x\n",
+                  obj_type);
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamType           %x\n",
+                  stream_type);
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "  upStream             %d\n",
+                  up_stream);
+        break;
+    }
+    case SLCONFIGDESCRTAG:
+        break;
+    }
+
+    return 0;
+}
+
 static int
 initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
 {
@@ -305,6 +403,8 @@ initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
                   "  visualProfileLevelIndication   %2x\n", visual_pl);
         tc2_print("MPEG", TC2_PRINT_DEBUG,
                   "  graphicsProfileLevelIndication %2x\n", graphics_pl);
+
+        parse_descriptors(ms, NULL, d, size, mpeg4_descriptor);
     }
 
     return 0;
