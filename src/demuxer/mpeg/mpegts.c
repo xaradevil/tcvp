@@ -1058,7 +1058,7 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
             int tl = dp[1] + 2;
             if(j + tl > es->es_info_length)
                 return -1;
-            mpeg_descriptor(sp, dp);
+            mpeg_descriptor(ms, sp, dp);
             dp += tl;
             j += tl;
         }

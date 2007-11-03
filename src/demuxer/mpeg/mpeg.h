@@ -182,7 +182,7 @@ typedef struct mpeg_stream_type {
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
 extern mpeg_stream_type_t *mpeg_stream_type_id(int st);
 extern mpeg_stream_type_t *mpeg_stream_type(char *codec);
-extern int mpeg_descriptor(stream_t *s, u_char *d);
+extern int mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d);
 extern int write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size);
 extern int write_pes_header(u_char *p, int stream_id, int size,
 			    int flags, ...);

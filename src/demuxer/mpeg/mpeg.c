@@ -236,7 +236,7 @@ dvb_descriptor(stream_t *s, uint8_t *d, unsigned int tag, unsigned int len)
 }
 
 extern int
-mpeg_descriptor(stream_t *s, u_char *d)
+mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
 {
     int tag = d[0];
     int len = d[1];

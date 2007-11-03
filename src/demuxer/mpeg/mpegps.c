@@ -475,7 +475,7 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 		      "stream %x type %02x\n", sid, stype);
 
 	    while(il > 0){
-		int dl = mpeg_descriptor(sp, pm);
+		int dl = mpeg_descriptor(ms, sp, pm);
 		pm += dl;
 		il -= dl;
 		l -= dl;
