@@ -51,7 +51,7 @@ flac_free_pk(void *p)
 }
 
 static FLAC__StreamDecoderReadStatus
-flac_read(const FLAC__StreamDecoder *fsd, FLAC__byte buf[], unsigned *rb,
+flac_read(const FLAC__StreamDecoder *fsd, FLAC__byte buf[], size_t *rb,
 	  void *d)
 {
     tcvp_pipe_t *p = d;
@@ -203,13 +203,12 @@ flacdec_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     fd = tcallocdz(sizeof(*fd), NULL, flac_free_codec);
     fd->fsd = FLAC__stream_decoder_new();
-    FLAC__stream_decoder_set_read_callback(fd->fsd, flac_read);
-    FLAC__stream_decoder_set_write_callback(fd->fsd, flac_write);
-    FLAC__stream_decoder_set_metadata_callback(fd->fsd, flac_metadata);
-    FLAC__stream_decoder_set_error_callback(fd->fsd, flac_error);
-    FLAC__stream_decoder_set_client_data(fd->fsd, p);
 
-    status = FLAC__stream_decoder_init(fd->fsd);
+    status = FLAC__stream_decoder_init_stream(fd->fsd, flac_read,
+                                              NULL, NULL, NULL, NULL,
+                                              flac_write, flac_metadata,
+                                              flac_error, p);
+
     tc2_print("FLACDEC", TC2_PRINT_DEBUG, "state %s\n",
 	      FLAC__stream_decoder_get_resolved_state_string(fd->fsd));
 
