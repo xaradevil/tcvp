@@ -1040,6 +1040,8 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "adding program %d [%x]\n",
               pg->program_number, pg->program_number);
 
+    mpeg_parse_descriptors(ms, NULL, pg->descriptors, pg->program_info_length);
+
     for(i = 0; i < pg->num_streams; i++){
         mpegts_elem_stream_t *es = pg->streams + i;
         mpeg_stream_type_t *mst = mpeg_stream_type_id(es->stream_type);
