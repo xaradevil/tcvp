@@ -1043,8 +1043,6 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
     for(i = 0; i < pg->num_streams; i++){
         mpegts_elem_stream_t *es = pg->streams + i;
         mpeg_stream_type_t *mst = mpeg_stream_type_id(es->stream_type);
-        uint8_t *dp = es->descriptors;
-        unsigned int j;
 
         tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PID %x, type %x\n",
                   es->pid, es->stream_type);
@@ -1054,14 +1052,7 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
         if(mst)
             sp->common.codec = mst->codec;
 
-        for(j = 0; j < es->es_info_length;){
-            int tl = dp[1] + 2;
-            if(j + tl > es->es_info_length)
-                return -1;
-            mpeg_descriptor(ms, sp, dp);
-            dp += tl;
-            j += tl;
-        }
+        mpeg_parse_descriptors(ms, sp, es->descriptors, es->es_info_length);
 
         if(sp->common.codec){
             if(!strncmp(sp->common.codec, "video/", 6))
