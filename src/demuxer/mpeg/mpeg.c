@@ -309,6 +309,24 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
 }
 
 extern int
+mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d,
+                       unsigned size)
+{
+    u_char *p = d;
+
+    while (size > 1) {
+        unsigned dl = p[1] + 2;
+        if (dl > size)
+            break;
+        mpeg_descriptor(ms, s, p);
+        p += dl;
+        size -= dl;
+    }
+
+    return p - d;
+}
+
+extern int
 write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size)
 {
     u_char *p = d;
