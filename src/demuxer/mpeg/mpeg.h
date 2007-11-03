@@ -169,6 +169,38 @@ typedef struct mpeg_stream_type {
 #define DVB_AAC_DESCRIPTOR                          0x7c
 #define DVB_EXTENSION_DESCRIPTOR                    0x7f
 
+#define OBJECTDESCRTAG                      0x01
+#define INITIALOBJECTDESCRTAG               0x02
+#define ES_DESCRTAG                         0x03
+#define DECODERCONFIGDESCRTAG               0x04
+#define DECSPECIFICINFOTAG                  0x05
+#define SLCONFIGDESCRTAG                    0x06
+#define CONTENTIDENTDESCRTAG                0x07
+#define SUPPLCONTENTIDENTDESCRTAG           0x08
+#define IPI_DESCRPOINTERTAG                 0x09
+#define IPMP_DESCRPOINTERTAG                0x0a
+#define IPMP_DESCRTAG                       0x0b
+#define QOS_DESCRTAG                        0x0c
+#define REGISTRATIONDESCRTAG                0x0d
+#define ES_ID_INCTAG                        0x0e
+#define ES_ID_REFTAG                        0x0f
+#define MP4_IOD_TAG                         0x10
+#define MP4_OD_TAG                          0x11
+#define IPL_DESCRPOINTERREFTAG              0x12
+#define EXTENDEDPROFILELEVELDESCRTAG        0x13
+#define PROFILELEVELINDICATIONINDEXDESCRTAG 0x14
+#define CONTENTCLASSIFICATIONDESCRTAG       0x40
+#define KEYWORDDESCRTAG                     0x41
+#define RATINGDESCRTAG                      0x42
+#define LANGUAGEDESCRTAG                    0x43
+#define SHORTTEXTUALDESCRTAG                0x44
+#define EXPANDEDTEXTUALDESCRTAG             0x45
+#define CONTENTCREATORNAMEDESCRTAG          0x46
+#define CONTENTCREATIONDATEDESCRTAG         0x47
+#define OCICREATORNAMEDESCRTAG              0x48
+#define OCICREATIONDATEDESCRTAG             0x49
+#define SMPTECAMERAPOSITIONDESCRTAG         0x4a
+
 #define ISVIDEO(id) ((id & 0xf0) == 0xe0)
 #define ISMPEGAUDIO(id) ((id & 0xe0) == 0xc0)
 #define ISAC3(id) ((id & 0xf8) == 0x80)
