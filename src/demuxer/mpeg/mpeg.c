@@ -236,6 +236,24 @@ dvb_descriptor(stream_t *s, uint8_t *d, unsigned int tag, unsigned int len)
 }
 
 static int
+parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d, unsigned size,
+                  int (*parser)(muxed_stream_t *, stream_t *, u_char *))
+{
+    u_char *p = d;
+
+    while (size > 1) {
+        unsigned dl = p[1] + 2;
+        if (dl > size)
+            break;
+        parser(ms, s, p);
+        p += dl;
+        size -= dl;
+    }
+
+    return p - d;
+}
+
+static int
 initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
 {
     unsigned od_id, url_flag, ipl_flag;
@@ -381,18 +399,7 @@ extern int
 mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d,
                        unsigned size)
 {
-    u_char *p = d;
-
-    while (size > 1) {
-        unsigned dl = p[1] + 2;
-        if (dl > size)
-            break;
-        mpeg_descriptor(ms, s, p);
-        p += dl;
-        size -= dl;
-    }
-
-    return p - d;
+    return parse_descriptors(ms, s, d, size, mpeg_descriptor);
 }
 
 extern int
