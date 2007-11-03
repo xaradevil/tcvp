@@ -87,6 +87,24 @@ typedef struct mpeg_stream_type {
 #define SMOOTHING_BUFFER_DESCRIPTOR             16
 #define STD_DESCRIPTOR                          17
 #define IBP_DESCRIPTOR                          18
+#define MPEG_4_VIDEO_DESCRIPTOR                 27
+#define MPEG_4_AUDIO_DESCRIPTOR                 28
+#define IOD_DESCRIPTOR                          29
+#define SL_DESCRIPTOR                           30
+#define FMC_DESCRIPTOR                          31
+#define EXTERNAL_ES_ID_DESCRIPTOR               32
+#define MUXCODE_DESCRIPTOR                      33
+#define FMXBUFFERSIZE_DESCRIPTOR                34
+#define MULTIPLEXBUFFER_DESCRIPTOR              35
+#define CONTENT_LABELING_DESCRIPTOR             36
+#define METADATA_POINTER_DESCRIPTOR             37
+#define METADATA_DESCRIPTOR                     38
+#define METADATA_STD_DESCRIPTOR                 39
+#define AVC_VIDEO_DESCRIPTOR                    40
+#define IPMP_DESCRIPTOR                         41
+#define AVC_TIMING_AND_HRD_DESCRIPTOR           42
+#define MPEG_2_AAC_AUDIO_DESCRIPTOR             43
+#define FLEXMUXTIMING_DESCRIPTOR                44
 
 #define DVB_NETWORK_NAME_DESCRIPTOR                 0x40
 #define DVB_SERVICE_LIST_DESCRIPTOR                 0x41
