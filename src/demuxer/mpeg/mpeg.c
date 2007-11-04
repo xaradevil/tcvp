@@ -235,14 +235,40 @@ dvb_descriptor(stream_t *s, uint8_t *d, unsigned int tag, unsigned int len)
     return 0;
 }
 
+#define DESCR_MPEG2 0
+#define DESCR_MPEG4 1
+
+static unsigned
+get_mpeg4_size(u_char **d)
+{
+    unsigned v = 0;
+
+    do {
+        v <<= 7;
+        v += **d & 0x7f;
+    } while (*(*d)++ & 0x80);
+
+    return v;
+}
+
 static int
 parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d, unsigned size,
-                  int (*parser)(muxed_stream_t *, stream_t *, u_char *))
+                  int (*parser)(muxed_stream_t *, stream_t *, u_char *),
+                  int type)
 {
     u_char *p = d;
 
     while (size > 1) {
-        unsigned dl = p[1] + 2;
+        unsigned dl;
+
+        if (type == DESCR_MPEG4) {
+            u_char *q = p + 1;
+            dl = get_mpeg4_size(&q);
+            dl += q - p;
+        } else {
+            dl = p[1] + 2;
+        }
+
         if (dl > size)
             break;
         parser(ms, s, p);
@@ -310,7 +336,7 @@ mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
         size -= 2;
     }
 
-    parse_descriptors(ms, NULL, d, size, mpeg4_descriptor);
+    parse_descriptors(ms, NULL, d, size, mpeg4_descriptor, DESCR_MPEG4);
 
     return 0;
 }
@@ -318,13 +344,11 @@ mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
 static int
 mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
 {
-    unsigned tag = d[0];
-    unsigned len = d[1];
+    unsigned tag = *d++;
+    unsigned len = get_mpeg4_size(&d);
 
     tc2_print("MPEG", TC2_PRINT_DEBUG,
               "MPEG4 descriptor %3d [%2x], %d bytes\n", tag, tag, len);
-
-    d += 2;
 
     switch (tag) {
     case ES_DESCRTAG:
@@ -357,13 +381,8 @@ initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
     unsigned od_id, url_flag, ipl_flag;
     unsigned val;
 
-    if (size < 2)
-        return -1;
-    if (d[1] > size - 2)
-        return -1;
-
-    d += 2;
-    size -= 2;
+    d++;
+    size = get_mpeg4_size(&d);
 
     val = htob_16(unaligned16(d));
     d += 2;
@@ -404,7 +423,7 @@ initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
         tc2_print("MPEG", TC2_PRINT_DEBUG,
                   "  graphicsProfileLevelIndication %2x\n", graphics_pl);
 
-        parse_descriptors(ms, NULL, d, size, mpeg4_descriptor);
+        parse_descriptors(ms, NULL, d, size, mpeg4_descriptor, DESCR_MPEG4);
     }
 
     return 0;
@@ -499,7 +518,7 @@ extern int
 mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d,
                        unsigned size)
 {
-    return parse_descriptors(ms, s, d, size, mpeg_descriptor);
+    return parse_descriptors(ms, s, d, size, mpeg_descriptor, DESCR_MPEG2);
 }
 
 extern int
