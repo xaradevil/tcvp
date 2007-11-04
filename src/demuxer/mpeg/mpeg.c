@@ -504,6 +504,18 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
         tc2_print("MPEG", TC2_PRINT_DEBUG, "SL_descriptor: ES_ID=%x\n",
                   htob_16(unaligned16(d + 2)));
         break;
+
+    case FMC_DESCRIPTOR:
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "FMC_descriptor\n");
+        d += 2;
+        while (len >= 3) {
+            tc2_print("MPEG", TC2_PRINT_DEBUG,
+                      "  ES_ID=%x FlexMuxChannel=%x\n",
+                      htob_16(unaligned16(d)), d[2]);
+            d += 3;
+            len -= 3;
+        }
+        break;
     }
 
     if(tag >= 64){
