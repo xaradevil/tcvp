@@ -129,6 +129,8 @@ pcm_open(url_t *u, char *codec, int channels, int srate, int samples,
     pcm->s.audio.bit_rate = brate;
     pcm->s.audio.samples = samples;
     pcm->s.audio.block_align = channels * bits / 8;
+    pcm->s.audio.codec_data = cd;
+    pcm->s.audio.codec_data_size = cds;
 
     if(tcattr_get(u, "tcvp/timestamp")){
 	tc2_print("PCM", TC2_PRINT_DEBUG, "timestamps present\n");
