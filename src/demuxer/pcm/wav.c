@@ -241,6 +241,7 @@ static struct {
     { 0x55, "audio/mpeg" },
     { 0x160, "audio/wmav1" },
     { 0x161, "audio/wmav2" },
+    { 0x270, "audio/atrac 3" },
     { 0x2000, "audio/ac3" },
     { 0, NULL },
 };
