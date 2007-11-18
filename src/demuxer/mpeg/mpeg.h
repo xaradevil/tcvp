@@ -47,6 +47,63 @@ typedef struct mpeg_stream_type {
     char *codec;
 } mpeg_stream_type_t;
 
+struct sl_config {
+    uint8_t  predefined;
+
+    uint8_t  useAccessUnitStartFlag;
+    uint8_t  useAccessUnitEndFlag;
+    uint8_t  useRandomAccessPointFlag;
+    uint8_t  hasRandomAccessUnitsOnlyFlag;
+    uint8_t  usePaddingFlag;
+    uint8_t  useTimeStampsFlag;
+    uint8_t  useIdleFlag;
+    uint8_t  durationFlag;
+    unsigned timeStampResolution;
+    unsigned OCRResolution;
+    uint8_t  timeStampLength;
+    uint8_t  OCRLength;
+    uint8_t  AU_Length;
+    uint8_t  instantBitrateLength;
+    uint8_t  degradationPriorityLength;
+    uint8_t  AU_seqNumLength;
+    uint8_t  packetSeqNumLength;
+
+    unsigned timeScale;
+    uint16_t accessUnitDuration;
+    uint16_t compositionUnitDuration;
+
+    uint64_t startDecodingTimeStamp;
+    uint64_t startCompositionTimeStamp;
+};
+
+struct mpeg4_es {
+    uint16_t es_id;
+    uint8_t objectType;
+    uint8_t streamType;
+    struct sl_config sl;
+};
+
+#define MPEG_COMMON                             \
+    unsigned num_mpeg4_es;                      \
+    struct mpeg4_es *mpeg4_es
+
+#define MPEG_STREAM_COMMON                      \
+    unsigned type;                              \
+    struct mpeg4_es *mpeg4_es
+
+#define MPEG_STREAM_TYPE_PES           0
+#define MPEG_STREAM_TYPE_14496_SECTION 1
+#define MPEG_STREAM_TYPE_ES            (0<<2)
+#define MPEG_STREAM_TYPE_SL            (1<<2)
+
+struct mpeg_common {
+    MPEG_COMMON;
+};
+
+struct mpeg_stream_common {
+    MPEG_STREAM_COMMON;
+};
+
 #define MPEGTS_SYNC 0x47
 
 #define PACK_HEADER              0xba
@@ -214,9 +271,8 @@ typedef struct mpeg_stream_type {
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
 extern mpeg_stream_type_t *mpeg_stream_type_id(int st);
 extern mpeg_stream_type_t *mpeg_stream_type(char *codec);
-extern int mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d);
-extern int mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d,
-                                  unsigned size);
+extern int mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p,
+                                  u_char *d, unsigned size);
 extern int write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size);
 extern int write_pes_header(u_char *p, int stream_id, int size,
 			    int flags, ...);

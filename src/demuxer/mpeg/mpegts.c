@@ -83,6 +83,7 @@ typedef struct mpegts_section {
 } mpegts_section_t;
 
 typedef struct mpegts_elem_stream {
+    MPEG_STREAM_COMMON;
     unsigned int stream_type;
     unsigned int pid;
     unsigned int es_info_length;
@@ -114,6 +115,7 @@ typedef struct mpegts_program {
     MPEGTS_PID_MAP(MPEGTS_PID_TYPE_PSI, MPEGTS_PID_NO_INDEX)
 
 typedef struct mpegts_stream {
+    MPEG_COMMON;
     url_t *stream;
     uint8_t *tsbuf, *tsp;
     int tsnbuf;
@@ -641,6 +643,7 @@ mpegts_free(void *p)
 
     mpegts_free_programs(s);
 
+    free(s->mpeg4_es);
     free(s->tsbuf);
     free(s->psi);
     free(s);
@@ -1040,7 +1043,8 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
     tc2_print("MPEGTS", TC2_PRINT_DEBUG, "adding program %d [%x]\n",
               pg->program_number, pg->program_number);
 
-    mpeg_parse_descriptors(ms, NULL, pg->descriptors, pg->program_info_length);
+    mpeg_parse_descriptors(ms, NULL, NULL, pg->descriptors,
+                           pg->program_info_length);
 
     for(i = 0; i < pg->num_streams; i++){
         mpegts_elem_stream_t *es = pg->streams + i;
@@ -1054,7 +1058,8 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
         if(mst)
             sp->common.codec = mst->codec;
 
-        mpeg_parse_descriptors(ms, sp, es->descriptors, es->es_info_length);
+        mpeg_parse_descriptors(ms, sp, es, es->descriptors,
+                               es->es_info_length);
 
         if(sp->common.codec){
             if(!strncmp(sp->common.codec, "video/", 6))

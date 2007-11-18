@@ -35,6 +35,7 @@
 #include "mpeg.h"
 
 typedef struct mpegps_stream {
+    MPEG_COMMON;
     url_t *stream;
     int *imap, *map;
     int ps1substr;
@@ -474,7 +475,7 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 	    tc2_print("MPEGPS", TC2_PRINT_DEBUG,
 		      "stream %x type %02x\n", sid, stype);
 
-            mpeg_parse_descriptors(ms, sp, pm, il);
+            mpeg_parse_descriptors(ms, sp, NULL, pm, il);
             pm += il;
 
 	    sp++;

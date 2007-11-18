@@ -30,6 +30,7 @@
 #include <tcendian.h>
 #include <stdarg.h>
 #include <tcvp_types.h>
+#include <tcvp_bits.h>
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
@@ -252,8 +253,9 @@ get_mpeg4_size(u_char **d)
 }
 
 static int
-parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d, unsigned size,
-                  int (*parser)(muxed_stream_t *, stream_t *, u_char *),
+parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
+                  u_char *d, unsigned size,
+                  int (*parser)(muxed_stream_t *, stream_t *, void*, u_char *),
                   int type)
 {
     u_char *p = d;
@@ -271,7 +273,7 @@ parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d, unsigned size,
 
         if (dl > size)
             break;
-        parser(ms, s, p);
+        parser(ms, s, es, p);
         p += dl;
         size -= dl;
     }
@@ -279,12 +281,14 @@ parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d, unsigned size,
     return p - d;
 }
 
-static int mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d);
+static int mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *es,
+                            u_char *d);
 
 static int
 mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
 {
-    unsigned es_id;
+    struct mpeg_common *mp = ms->private;
+    struct mpeg4_es *es;
     unsigned stream_dep_flag;
     unsigned url_flag;
     unsigned ocr_stream_flag;
@@ -297,7 +301,13 @@ mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
 
     tc2_print("MPEG", TC2_PRINT_DEBUG, "MPEG4 ES_Descriptor\n");
 
-    es_id = htob_16(unaligned16(d));
+    mp->num_mpeg4_es++;
+    mp->mpeg4_es = realloc(mp->mpeg4_es,
+                           mp->num_mpeg4_es * sizeof(*mp->mpeg4_es));
+    es = mp->mpeg4_es + mp->num_mpeg4_es - 1;
+    memset(es, 0, sizeof(*es));
+
+    es->es_id = htob_16(unaligned16(d));
     d += 2;
 
     stream_dep_flag = *d >> 7;
@@ -308,7 +318,7 @@ mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
 
     size -= 3;
 
-    tc2_print("MPEG", TC2_PRINT_DEBUG, "  ES_ID %x\n", es_id);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  ES_ID %x\n", es->es_id);
     tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamDependenceFlag %d\n",
               stream_dep_flag);
     tc2_print("MPEG", TC2_PRINT_DEBUG, "  URL_Flag             %d\n",
@@ -336,39 +346,126 @@ mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
         size -= 2;
     }
 
-    parse_descriptors(ms, NULL, d, size, mpeg4_descriptor, DESCR_MPEG4);
+    parse_descriptors(ms, NULL, es, d, size, mpeg4_descriptor, DESCR_MPEG4);
 
     return 0;
 }
 
-static int
-mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
+static void
+sl_config_descriptor(struct mpeg4_es *es, uint8_t *d, unsigned size)
 {
+    struct tcvp_bits bits;
+    tcvp_bits_init(&bits, d, size);
+
+    es->sl.predefined = tcvp_bits_get(&bits, 8);
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "SLConfigDescriptor: predefined %x\n",
+              es->sl.predefined);
+
+    switch (es->sl.predefined) {
+    case 0:
+        es->sl.useAccessUnitStartFlag       = tcvp_bits_get(&bits, 1);
+        es->sl.useAccessUnitEndFlag         = tcvp_bits_get(&bits, 1);
+        es->sl.useRandomAccessPointFlag     = tcvp_bits_get(&bits, 1);
+        es->sl.hasRandomAccessUnitsOnlyFlag = tcvp_bits_get(&bits, 1);
+        es->sl.usePaddingFlag               = tcvp_bits_get(&bits, 1);
+        es->sl.useTimeStampsFlag            = tcvp_bits_get(&bits, 1);
+        es->sl.useIdleFlag                  = tcvp_bits_get(&bits, 1);
+        es->sl.durationFlag                 = tcvp_bits_get(&bits, 1);
+        es->sl.timeStampResolution          = tcvp_bits_get(&bits, 32);
+        es->sl.OCRResolution                = tcvp_bits_get(&bits, 32);
+        es->sl.timeStampLength              = tcvp_bits_get(&bits, 8);
+        es->sl.OCRLength                    = tcvp_bits_get(&bits, 8);
+        es->sl.AU_Length                    = tcvp_bits_get(&bits, 8);
+        es->sl.instantBitrateLength         = tcvp_bits_get(&bits, 8);
+        es->sl.degradationPriorityLength    = tcvp_bits_get(&bits, 4);
+        es->sl.AU_seqNumLength              = tcvp_bits_get(&bits, 5);
+        es->sl.packetSeqNumLength           = tcvp_bits_get(&bits, 5);
+
+        if (es->sl.durationFlag) {
+            es->sl.timeScale                = tcvp_bits_get(&bits, 32);
+            es->sl.accessUnitDuration       = tcvp_bits_get(&bits, 16);
+            es->sl.compositionUnitDuration  = tcvp_bits_get(&bits, 16);
+        }
+
+        if (!es->sl.useTimeStampsFlag) {
+            es->sl.startDecodingTimeStamp =
+                tcvp_bits_get(&bits, es->sl.timeStampLength);
+            es->sl.startCompositionTimeStamp =
+                tcvp_bits_get(&bits, es->sl.timeStampLength);
+        }
+        break;
+
+    case 1:
+        es->sl.timeStampResolution = 1000;
+        es->sl.timeStampLength = 32;
+        break;
+
+    case 2:
+        es->sl.useTimeStampsFlag = 1;
+        break;
+
+    default:
+        tc2_print("MPEG", TC2_PRINT_WARNING,
+                  "unknown SLConfig predefined valued %x\n",
+                  es->sl.predefined);
+        break;
+    }
+
+#define slprint(n) tc2_print("MPEG", TC2_PRINT_DEBUG, "  %-30s %d\n", #n, \
+                             es->sl.n)
+
+    slprint(useAccessUnitStartFlag);
+    slprint(useAccessUnitEndFlag);
+    slprint(useRandomAccessPointFlag);
+    slprint(hasRandomAccessUnitsOnlyFlag);
+    slprint(usePaddingFlag);
+    slprint(useTimeStampsFlag);
+    slprint(useIdleFlag);
+    slprint(durationFlag);
+    slprint(timeStampResolution);
+    slprint(OCRResolution);
+    slprint(timeStampLength);
+    slprint(OCRLength);
+    slprint(AU_Length);
+    slprint(instantBitrateLength);
+    slprint(degradationPriorityLength);
+    slprint(AU_seqNumLength);
+    slprint(packetSeqNumLength);
+    slprint(timeScale);
+    slprint(accessUnitDuration);
+    slprint(compositionUnitDuration);
+}
+
+static int
+mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
+{
+    struct mpeg4_es *es = p;
     unsigned tag = *d++;
     unsigned len = get_mpeg4_size(&d);
 
     tc2_print("MPEG", TC2_PRINT_DEBUG,
-              "MPEG4 descriptor %3d [%2x], %d bytes\n", tag, tag, len);
+              "MPEG4 descriptor %3d [%2x], %x bytes\n", tag, tag, len);
 
     switch (tag) {
     case ES_DESCRTAG:
         mpeg4_es_descriptor(ms, d, len);
         break;
 
-    case DECODERCONFIGDESCRTAG: {
-        unsigned obj_type    = *d++;
-        unsigned stream_type = *d >> 2;
-        unsigned up_stream   = (*d >> 1) & 1;
+    case DECODERCONFIGDESCRTAG:
+        es->objectType = *d++;
+        es->streamType = *d >> 2;
 
         tc2_print("MPEG", TC2_PRINT_DEBUG, "  objectTypeIndication %x\n",
-                  obj_type);
+                  es->objectType);
         tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamType           %x\n",
-                  stream_type);
+                  es->streamType);
         tc2_print("MPEG", TC2_PRINT_DEBUG, "  upStream             %d\n",
-                  up_stream);
+                  (*d >> 1) & 1);
         break;
-    }
+
     case SLCONFIGDESCRTAG:
+        sl_config_descriptor(es, d, len);
         break;
     }
 
@@ -423,15 +520,30 @@ initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
         tc2_print("MPEG", TC2_PRINT_DEBUG,
                   "  graphicsProfileLevelIndication %2x\n", graphics_pl);
 
-        parse_descriptors(ms, NULL, d, size, mpeg4_descriptor, DESCR_MPEG4);
+        parse_descriptors(ms, NULL, NULL, d, size, mpeg4_descriptor,
+                          DESCR_MPEG4);
     }
 
     return 0;
 }
 
-extern int
-mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
+static struct mpeg4_es *
+find_mpeg4_es(const struct mpeg_common *m, unsigned es_id)
 {
+    unsigned i;
+
+    for (i = 0; i < m->num_mpeg4_es; i++)
+        if (m->mpeg4_es[i].es_id == es_id)
+            return m->mpeg4_es + i;
+
+    return NULL;
+}
+
+extern int
+mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
+{
+    struct mpeg_common *mp = ms->private;
+    struct mpeg_stream_common *es = p;
     int tag = d[0];
     int len = d[1];
     unsigned int i;
@@ -484,11 +596,12 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
         v = htob_32(unaligned32(d + 2));
         for(i = 0; reg_desc_tags[i].tag; i++){
             if(reg_desc_tags[i].tag == v){
-                s->common.codec = reg_desc_tags[i].codec;
+                if (s)
+                    s->common.codec = reg_desc_tags[i].codec;
                 break;
             }
         }
-        if(!s->common.codec)
+        if(s && !s->common.codec)
             tc2_print("MPEG", TC2_PRINT_DEBUG, "registration_descriptor: "
                       "unknown format_identifier %08x\n", v);
         break;
@@ -501,13 +614,19 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
         break;
 
     case SL_DESCRIPTOR:
-        tc2_print("MPEG", TC2_PRINT_DEBUG, "SL_descriptor: ES_ID=%x\n",
-                  htob_16(unaligned16(d + 2)));
+        v = htob_16(unaligned16(d + 2));
+        es->mpeg4_es = find_mpeg4_es(mp, v);
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "SL_descriptor: ES_ID=%x\n", v);
         break;
 
     case FMC_DESCRIPTOR:
         tc2_print("MPEG", TC2_PRINT_DEBUG, "FMC_descriptor\n");
         d += 2;
+
+        if (len == 2) {
+            es->mpeg4_es = find_mpeg4_es(mp, htob_16(unaligned16(d)));
+        }
+
         while (len >= 3) {
             tc2_print("MPEG", TC2_PRINT_DEBUG,
                       "  ES_ID=%x FlexMuxChannel=%x\n",
@@ -527,10 +646,10 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, u_char *d)
 }
 
 extern int
-mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, u_char *d,
+mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p, u_char *d,
                        unsigned size)
 {
-    return parse_descriptors(ms, s, d, size, mpeg_descriptor, DESCR_MPEG2);
+    return parse_descriptors(ms, s, p, d, size, mpeg_descriptor, DESCR_MPEG2);
 }
 
 extern int
