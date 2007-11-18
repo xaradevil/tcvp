@@ -127,7 +127,7 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 	return audio_mpeg_open(name, u, conf, tm);
 
     return pcm_open(u, codec, channels, srate, data_size / align, brate,
-		    bits, extra, extrasize);
+		    align * 8 / channels, extra, extrasize);
 }
 
 #define WAV_HEADER_SIZE 44
