@@ -159,7 +159,7 @@ avfw_free(void *p)
     avf_write_t *avf = p;
     int i;
 
-    url_fclose(&avf->fc.pb);
+    url_fclose(avf->fc.pb);
     free(avf->streams);
 
     for(i = 0; i < avf->fc.nb_streams; i++){
