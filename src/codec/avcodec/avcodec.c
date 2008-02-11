@@ -163,6 +163,7 @@ static char *codec_names[][2] = {
     { "video/dv", "dvvideo" },
     { "video/msmpeg4v3", "msmpeg4" },
     { "audio/mpeg", "mp2" },
+    { "audio/dts", "dca" },
     { }
 };
 
