@@ -145,6 +145,11 @@ mpeg_stream_type_t mpeg_stream_types[] = {
     { }
 };
 
+static struct mpeg_stream_type hdmv_stream_types[] = {
+    { 0x82, EXTENDED_STREAM_ID, "audio/dts" },
+    { }
+};
+
 static tcfraction_t frame_rates[16] = {
     { 0,     0    },
     { 24000, 1001 },
@@ -170,6 +175,7 @@ static const struct {
 } reg_desc_tags[] = {
     { 0x41432d33, "audio/ac3" },
     { 0x44545331, "audio/dts" },
+    { 0x48444d56, NULL,       hdmv_stream_types },
     { 0, NULL }
 };
 
