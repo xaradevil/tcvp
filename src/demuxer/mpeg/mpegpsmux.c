@@ -278,7 +278,7 @@ extern int
 mpegps_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     mpegps_mux_t *psm = p->private;
-    mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
+    const mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
 
     if(!str_type)
 	return PROBE_FAIL;

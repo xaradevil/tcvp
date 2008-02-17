@@ -487,7 +487,7 @@ extern int
 mpegts_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     mpegts_mux_t *tsm = p->private;
-    mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
+    const mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
     struct mpegts_output_stream *os;
     int pid;
     uint32_t crc;

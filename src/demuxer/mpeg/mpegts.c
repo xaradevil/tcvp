@@ -1048,7 +1048,7 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
 
     for(i = 0; i < pg->num_streams; i++){
         mpegts_elem_stream_t *es = pg->streams + i;
-        mpeg_stream_type_t *mst;
+        const mpeg_stream_type_t *mst;
 
         tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PID %x, type %x\n",
                   es->pid, es->stream_type);

@@ -446,7 +446,7 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 	u_int stype = *pm++;
 	u_int sid = *pm++;
 	u_int il = htob_16(unaligned16(pm));
-	mpeg_stream_type_t *mst;
+	const mpeg_stream_type_t *mst;
 
 	pm += 2;
 

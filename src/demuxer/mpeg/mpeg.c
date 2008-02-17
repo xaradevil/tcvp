@@ -38,7 +38,7 @@ extern int
 mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
 {
     int hl, pkl = 0;
-    u_char *pts = NULL, *dts = NULL;
+    const u_char *pts = NULL, *dts = NULL;
     u_char c;
 
     data -= h;
@@ -131,7 +131,7 @@ mpeg_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *t)
     return ms;
 }
 
-mpeg_stream_type_t mpeg_stream_types[] = {
+const mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x01, 0xe0, "video/mpeg"  },
     { 0x02, 0xe0, "video/mpeg2" },
     { 0x03, 0xc0, "audio/mpeg"  },
@@ -145,12 +145,12 @@ mpeg_stream_type_t mpeg_stream_types[] = {
     { }
 };
 
-static struct mpeg_stream_type hdmv_stream_types[] = {
+static const struct mpeg_stream_type hdmv_stream_types[] = {
     { 0x82, EXTENDED_STREAM_ID, "audio/dts" },
     { }
 };
 
-static tcfraction_t frame_rates[16] = {
+static const tcfraction_t frame_rates[16] = {
     { 0,     0    },
     { 24000, 1001 },
     { 24,    1    },
@@ -162,7 +162,7 @@ static tcfraction_t frame_rates[16] = {
     { 60,    1    }
 };
 
-static tcfraction_t aspect_ratios[16] = {
+static const tcfraction_t aspect_ratios[16] = {
     [2] = { 4,   3   },
     [3] = { 16,  9   },
     [4] = { 221, 100 }
@@ -171,7 +171,7 @@ static tcfraction_t aspect_ratios[16] = {
 static const struct {
     uint32_t tag;
     char *codec;
-    struct mpeg_stream_type *stream_types;
+    const struct mpeg_stream_type *stream_types;
 } reg_desc_tags[] = {
     { 0x41432d33, "audio/ac3" },
     { 0x44545331, "audio/dts" },
@@ -179,7 +179,7 @@ static const struct {
     { 0, NULL }
 };
 
-extern mpeg_stream_type_t *
+extern const mpeg_stream_type_t *
 mpeg_stream_type(char *codec)
 {
     int i;
@@ -197,7 +197,7 @@ mpeg_stream_type(char *codec)
 }
 
 static int
-frame_rate_index(tcfraction_t *f)
+frame_rate_index(const tcfraction_t *f)
 {
     int i;
 
@@ -210,7 +210,7 @@ frame_rate_index(tcfraction_t *f)
 }
 
 static int
-aspect_ratio_index(tcfraction_t *f)
+aspect_ratio_index(const tcfraction_t *f)
 {
     int i;
 
@@ -223,7 +223,8 @@ aspect_ratio_index(tcfraction_t *f)
 }
 
 static int
-dvb_descriptor(stream_t *s, uint8_t *d, unsigned int tag, unsigned int len)
+dvb_descriptor(stream_t *s, const uint8_t *d, unsigned int tag,
+               unsigned int len)
 {
     switch(tag){
     case DVB_AC_3_DESCRIPTOR:
@@ -244,7 +245,7 @@ dvb_descriptor(stream_t *s, uint8_t *d, unsigned int tag, unsigned int len)
 #define DESCR_MPEG4 1
 
 static unsigned
-get_mpeg4_size(u_char **d)
+get_mpeg4_size(const u_char **d)
 {
     unsigned v = 0;
 
@@ -258,17 +259,17 @@ get_mpeg4_size(u_char **d)
 
 static int
 parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
-                  u_char *d, unsigned size,
-                  int (*parser)(muxed_stream_t *, stream_t *, void*, u_char *),
+                  const u_char *d, unsigned size,
+                  int (*parser)(muxed_stream_t *, stream_t *, void*, const u_char *),
                   int type)
 {
-    u_char *p = d;
+    const u_char *p = d;
 
     while (size > 1) {
         unsigned dl;
 
         if (type == DESCR_MPEG4) {
-            u_char *q = p + 1;
+            const u_char *q = p + 1;
             dl = get_mpeg4_size(&q);
             dl += q - p;
         } else {
@@ -286,10 +287,10 @@ parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
 }
 
 static int mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *es,
-                            u_char *d);
+                            const u_char *d);
 
 static int
-mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
+mpeg4_es_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
 {
     struct mpeg_common *mp = ms->private;
     struct mpeg4_es *es;
@@ -356,7 +357,7 @@ mpeg4_es_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
 }
 
 static void
-sl_config_descriptor(struct mpeg4_es *es, uint8_t *d, unsigned size)
+sl_config_descriptor(struct mpeg4_es *es, const uint8_t *d, unsigned size)
 {
     struct tcvp_bits bits;
     tcvp_bits_init(&bits, d, size);
@@ -442,7 +443,7 @@ sl_config_descriptor(struct mpeg4_es *es, uint8_t *d, unsigned size)
 }
 
 static int
-mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
+mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
 {
     struct mpeg4_es *es = p;
     unsigned tag = *d++;
@@ -477,7 +478,7 @@ mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
 }
 
 static int
-initial_object_descriptor(muxed_stream_t *ms, u_char *d, unsigned size)
+initial_object_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
 {
     unsigned od_id, url_flag, ipl_flag;
     unsigned val;
@@ -544,7 +545,7 @@ find_mpeg4_es(const struct mpeg_common *m, unsigned es_id)
 }
 
 extern int
-mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
+mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
 {
     struct mpeg_common *mp = ms->private;
     struct mpeg_stream_common *es = p;
@@ -655,8 +656,8 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
 }
 
 extern int
-mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p, u_char *d,
-                       unsigned size)
+mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p,
+                       const u_char *d, unsigned size)
 {
     return parse_descriptors(ms, s, p, d, size, mpeg_descriptor, DESCR_MPEG2);
 }
@@ -711,8 +712,8 @@ write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size)
     return 0;
 }
 
-extern mpeg_stream_type_t *
-mpeg_stream_type_id(int st, struct mpeg_stream_type *types)
+extern const mpeg_stream_type_t *
+mpeg_stream_type_id(int st, const struct mpeg_stream_type *types)
 {
     int i;
 
