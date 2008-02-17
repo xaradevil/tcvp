@@ -131,7 +131,7 @@ mpeg_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *t)
     return ms;
 }
 
-static mpeg_stream_type_t mpeg_stream_types[] = {
+mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x01, 0xe0, "video/mpeg"  },
     { 0x02, 0xe0, "video/mpeg2" },
     { 0x03, 0xc0, "audio/mpeg"  },
@@ -142,7 +142,7 @@ static mpeg_stream_type_t mpeg_stream_types[] = {
     { 0x10, 0xe0, "video/mpeg4" },
     { 0x11, 0xc0, "audio/aac"   },
     { 0x1b, 0xe0, "video/h264"  },
-    { 0x81, 0xbd, "audio/ac3"   }
+    { }
 };
 
 static tcfraction_t frame_rates[16] = {
@@ -166,21 +166,19 @@ static tcfraction_t aspect_ratios[16] = {
 static const struct {
     uint32_t tag;
     char *codec;
+    struct mpeg_stream_type *stream_types;
 } reg_desc_tags[] = {
     { 0x41432d33, "audio/ac3" },
     { 0x44545331, "audio/dts" },
     { 0, NULL }
 };
 
-static int nstream_types =
-    sizeof(mpeg_stream_types) / sizeof(mpeg_stream_types[0]);
-
 extern mpeg_stream_type_t *
 mpeg_stream_type(char *codec)
 {
     int i;
 
-    for(i = 0; i < nstream_types; i++)
+    for(i = 0; mpeg_stream_types[i].codec; i++)
 	if(!strcmp(codec, mpeg_stream_types[i].codec))
 	    return &mpeg_stream_types[i];
 
@@ -596,8 +594,14 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
         v = htob_32(unaligned32(d + 2));
         for(i = 0; reg_desc_tags[i].tag; i++){
             if(reg_desc_tags[i].tag == v){
-                if (s)
+                if (s && reg_desc_tags[i].codec) {
                     s->common.codec = reg_desc_tags[i].codec;
+                } else if (reg_desc_tags[i].stream_types) {
+                    if (es)
+                        es->stream_types = reg_desc_tags[i].stream_types;
+                    else
+                        mp->stream_types = reg_desc_tags[i].stream_types;
+                }
                 break;
             }
         }
@@ -702,13 +706,13 @@ write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size)
 }
 
 extern mpeg_stream_type_t *
-mpeg_stream_type_id(int st)
+mpeg_stream_type_id(int st, struct mpeg_stream_type *types)
 {
     int i;
 
-    for(i = 0; i < nstream_types; i++)
-	if(mpeg_stream_types[i].mpeg_stream_type == st)
-	    return mpeg_stream_types + i;
+    for(i = 0; types[i].codec; i++)
+	if(types[i].mpeg_stream_type == st)
+	    return types + i;
 
     for(i = 0; i < tcvp_demux_mpeg_conf_private_type_count; i++)
 	if(tcvp_demux_mpeg_conf_private_type[i].id == st)

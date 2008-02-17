@@ -459,7 +459,7 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 	s->imap[sid] = ms->n_streams;
 	s->map[ms->n_streams] = sid;
 
-	if((mst = mpeg_stream_type_id(stype)) != NULL){
+	if((mst = mpeg_stream_type_id(stype, mpeg_stream_types)) != NULL){
 	    memset(sp, 0, sizeof(*sp));
 	    if(!strncmp(mst->codec, "video/", 6))
 		sp->stream_type = STREAM_TYPE_VIDEO;

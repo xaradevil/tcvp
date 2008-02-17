@@ -85,11 +85,13 @@ struct mpeg4_es {
 
 #define MPEG_COMMON                             \
     unsigned num_mpeg4_es;                      \
-    struct mpeg4_es *mpeg4_es
+    struct mpeg4_es *mpeg4_es;                  \
+    struct mpeg_stream_type *stream_types
 
 #define MPEG_STREAM_COMMON                      \
     unsigned type;                              \
-    struct mpeg4_es *mpeg4_es
+    struct mpeg4_es *mpeg4_es;                  \
+    struct mpeg_stream_type *stream_types
 
 #define MPEG_STREAM_TYPE_PES           0
 #define MPEG_STREAM_TYPE_14496_SECTION 1
@@ -270,8 +272,11 @@ struct mpeg_stream_common {
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
+extern struct mpeg_stream_type mpeg_stream_types[];
+
 extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
-extern mpeg_stream_type_t *mpeg_stream_type_id(int st);
+extern mpeg_stream_type_t *mpeg_stream_type_id(int st,
+                                               struct mpeg_stream_type *);
 extern mpeg_stream_type_t *mpeg_stream_type(char *codec);
 extern int mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p,
                                   u_char *d, unsigned size);
