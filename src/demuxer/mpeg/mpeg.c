@@ -174,7 +174,11 @@ static const struct {
     const struct mpeg_stream_type *stream_types;
 } reg_desc_tags[] = {
     { 0x41432d33, "audio/ac3" },
+    { 0x41565356, "video/cavs" },
     { 0x44545331, "audio/dts" },
+    { 0x44545332, "audio/dts" },
+    { 0x44545332, "audio/dts" },
+    { 0x56432d31, "video/vc1" },
     { 0x48444d56, NULL,       hdmv_stream_types },
     { 0, NULL }
 };
