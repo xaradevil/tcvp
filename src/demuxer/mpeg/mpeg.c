@@ -601,9 +601,8 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, u_char *d)
                 break;
             }
         }
-        if(s && !s->common.codec)
-            tc2_print("MPEG", TC2_PRINT_DEBUG, "registration_descriptor: "
-                      "unknown format_identifier %08x\n", v);
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "  registration_descriptor: "
+                  "format_identifier %08x\n", v);
         break;
 
     case IOD_DESCRIPTOR:
