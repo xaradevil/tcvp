@@ -34,7 +34,7 @@
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
-typedef struct mpegps_stream {
+struct mpegps_stream {
     MPEG_COMMON;
     url_t *stream;
     int *imap, *map;
@@ -45,13 +45,13 @@ typedef struct mpegps_stream {
     eventq_t qr;
     dvd_functions_t *dvd_info;
     pthread_t eth;
-} mpegps_stream_t;
+};
 
-static mpegpes_packet_t *
-mpegpes_packet(mpegps_stream_t *s, int pedantic)
+static struct mpegpes_packet *
+mpegpes_packet(struct mpegps_stream *s, int pedantic)
 {
     url_t *u = s->stream;
-    mpegpes_packet_t *pes = NULL;
+    struct mpegpes_packet *pes = NULL;
 
     do {
 	uint32_t stream_id;
@@ -152,7 +152,7 @@ mpegpes_packet(mpegps_stream_t *s, int pedantic)
 }
 
 static void
-mpegpes_free(mpegpes_packet_t *p)
+mpegpes_free(struct mpegpes_packet *p)
 {
     free(p->hdr);
     free(p);
@@ -162,15 +162,15 @@ static void
 mpegps_free_pk(void *v)
 {
     tcvp_data_packet_t *p = v;
-    mpegpes_packet_t *mp = p->private;
+    struct mpegpes_packet *mp = p->private;
     mpegpes_free(mp);
 }
 
 extern tcvp_packet_t *
 mpegps_packet(muxed_stream_t *ms, int str)
 {
-    mpegps_stream_t *s = ms->private;
-    mpegpes_packet_t *mp = NULL;
+    struct mpegps_stream *s = ms->private;
+    struct mpegpes_packet *mp = NULL;
     tcvp_data_packet_t *pk;
     int sx = -1;
 
@@ -255,9 +255,9 @@ mpegps_packet(muxed_stream_t *ms, int str)
 }
 
 static uint64_t
-get_time(mpegps_stream_t *s)
+get_time(struct mpegps_stream *s)
 {
-    mpegpes_packet_t *mp;
+    struct mpegpes_packet *mp;
     uint64_t ts = -1;
     int bc = 0;
 
@@ -277,7 +277,7 @@ get_time(mpegps_stream_t *s)
 static uint64_t
 mpegps_seek(muxed_stream_t *ms, uint64_t time)
 {
-    mpegps_stream_t *s = ms->private;
+    struct mpegps_stream *s = ms->private;
     int64_t p, st, lp, lt, op;
     int64_t tt, d;
     url_t *u = s->stream;
@@ -363,7 +363,7 @@ mpegps_seek(muxed_stream_t *ms, uint64_t time)
 static void *
 mpegps_event(void *p)
 {
-    mpegps_stream_t *s = p;
+    struct mpegps_stream *s = p;
     int run = 1;
 
     while(run){
@@ -390,7 +390,7 @@ static void
 mpegps_free(void *p)
 {
     muxed_stream_t *ms = p;
-    mpegps_stream_t *s = ms->private;
+    struct mpegps_stream *s = ms->private;
 
     if(s->stream)
 	tcfree(s->stream);
@@ -410,9 +410,9 @@ mpegps_free(void *p)
 static int
 mpegps_findpsm(muxed_stream_t *ms, int ns)
 {
-    mpegps_stream_t *s = ms->private;
+    struct mpegps_stream *s = ms->private;
     stream_t *sp = ms->streams;
-    mpegpes_packet_t *pk = NULL;
+    struct mpegpes_packet *pk = NULL;
     u_char *pm;
     int l, pc = 0;
 
@@ -446,7 +446,7 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 	u_int stype = *pm++;
 	u_int sid = *pm++;
 	u_int il = htob_16(unaligned16(pm));
-	const mpeg_stream_type_t *mst;
+	const struct mpeg_stream_type *mst;
 
 	pm += 2;
 
@@ -492,9 +492,9 @@ mpegps_findpsm(muxed_stream_t *ms, int ns)
 static int
 mpegps_findstreams(muxed_stream_t *ms, int ns)
 {
-    mpegps_stream_t *s = ms->private;
+    struct mpegps_stream *s = ms->private;
     stream_t *sp = ms->streams;
-    mpegpes_packet_t *pk = NULL;
+    struct mpegpes_packet *pk = NULL;
     int pc = 0;
 
     tc2_print("MPEGPS", TC2_PRINT_DEBUG, "searching for streams\n");
@@ -591,7 +591,7 @@ extern muxed_stream_t *
 mpegps_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
-    mpegps_stream_t *s;
+    struct mpegps_stream *s;
     int ns, i;
     int nonspu = 0;
 

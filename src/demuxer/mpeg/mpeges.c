@@ -31,30 +31,30 @@
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
-typedef struct mpeges {
+struct mpeges {
     url_t *u;
     stream_t s;
     int used;
-} mpeges_t;
+};
 
-typedef struct mpeges_packet {
+struct mpeges_packet {
     tcvp_data_packet_t pk;
     int size;
     u_char *data;
-} mpeges_packet_t;
+};
 
 static void
 mpeges_free_pk(void *p)
 {
-    mpeges_packet_t *ep = p;
+    struct mpeges_packet *ep = p;
     free(ep->data);
 }
 
 static tcvp_packet_t *
 mpeges_packet(muxed_stream_t *ms, int str)
 {
-    mpeges_t *me = ms->private;
-    mpeges_packet_t *ep;
+    struct mpeges *me = ms->private;
+    struct mpeges_packet *ep;
     int size = 1024;
     u_char *buf = malloc(1024);
 
@@ -78,7 +78,7 @@ static void
 mpeges_free(void *p)
 {
     muxed_stream_t *ms = p;
-    mpeges_t *me = ms->private;
+    struct mpeges *me = ms->private;
     if(me->u)
 	tcfree(me->u);
 }
@@ -87,7 +87,7 @@ extern muxed_stream_t *
 mpeges_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
-    mpeges_t *me;
+    struct mpeges *me;
     char h[3] = {0, 0, 1}, b[3];
 
     u->read(b, 1, 3, u);

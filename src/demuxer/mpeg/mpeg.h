@@ -29,23 +29,23 @@
 #include <tcvp_types.h>
 #include <mpeg_tc2.h>
 
-typedef struct mpegpes_packet {
+struct mpegpes_packet {
     int stream_id;
     int flags;
     uint64_t pts, dts;
     int size;
     u_char *data;
     u_char *hdr;
-} mpegpes_packet_t;
+};
 
 #define PES_FLAG_PTS 0x1
 #define PES_FLAG_DTS 0x2
 
-typedef struct mpeg_stream_type {
+struct mpeg_stream_type {
     int mpeg_stream_type;
     int stream_id_base;
     char *codec;
-} mpeg_stream_type_t;
+};
 
 struct sl_config {
     uint8_t  predefined;
@@ -274,10 +274,10 @@ struct mpeg_stream_common {
 
 extern const struct mpeg_stream_type mpeg_stream_types[];
 
-extern int mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h);
-extern const mpeg_stream_type_t *mpeg_stream_type_id(int st,
+extern int mpegpes_header(struct mpegpes_packet *pes, u_char *data, int h);
+extern const struct mpeg_stream_type *mpeg_stream_type_id(int st,
                                             const struct mpeg_stream_type *);
-extern const mpeg_stream_type_t *mpeg_stream_type(char *codec);
+extern const struct mpeg_stream_type *mpeg_stream_type(char *codec);
 extern int mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p,
                                   const u_char *d, unsigned size);
 extern int write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size);

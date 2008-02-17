@@ -35,7 +35,7 @@
 #include "mpeg.h"
 
 extern int
-mpegpes_header(mpegpes_packet_t *pes, u_char *data, int h)
+mpegpes_header(struct mpegpes_packet *pes, u_char *data, int h)
 {
     int hl, pkl = 0;
     const u_char *pts = NULL, *dts = NULL;
@@ -131,7 +131,7 @@ mpeg_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *t)
     return ms;
 }
 
-const mpeg_stream_type_t mpeg_stream_types[] = {
+const struct mpeg_stream_type mpeg_stream_types[] = {
     { 0x01, 0xe0, "video/mpeg"  },
     { 0x02, 0xe0, "video/mpeg2" },
     { 0x03, 0xc0, "audio/mpeg"  },
@@ -179,7 +179,7 @@ static const struct {
     { 0, NULL }
 };
 
-extern const mpeg_stream_type_t *
+extern const struct mpeg_stream_type *
 mpeg_stream_type(char *codec)
 {
     int i;
@@ -190,7 +190,7 @@ mpeg_stream_type(char *codec)
 
     for(i = 0; i < tcvp_demux_mpeg_conf_private_type_count; i++)
 	if(!strcmp(codec, tcvp_demux_mpeg_conf_private_type[i].codec))
-	    return (mpeg_stream_type_t *)
+	    return (struct mpeg_stream_type *)
 		tcvp_demux_mpeg_conf_private_type + i;
 
     return NULL;
@@ -712,7 +712,7 @@ write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size)
     return 0;
 }
 
-extern const mpeg_stream_type_t *
+extern const struct mpeg_stream_type *
 mpeg_stream_type_id(int st, const struct mpeg_stream_type *types)
 {
     int i;
@@ -723,7 +723,7 @@ mpeg_stream_type_id(int st, const struct mpeg_stream_type *types)
 
     for(i = 0; i < tcvp_demux_mpeg_conf_private_type_count; i++)
 	if(tcvp_demux_mpeg_conf_private_type[i].id == st)
-	    return (mpeg_stream_type_t *)
+	    return (struct mpeg_stream_type *)
 		tcvp_demux_mpeg_conf_private_type + i;
 
     return NULL;

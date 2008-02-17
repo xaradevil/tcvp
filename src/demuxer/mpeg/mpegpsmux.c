@@ -32,7 +32,7 @@
 #include <mpeg_tc2.h>
 #include "mpeg.h"
 
-typedef struct mpegps_mux {
+struct mpegps_mux {
     url_t *out;
     int bitrate;
     int pessize;
@@ -49,7 +49,7 @@ typedef struct mpegps_mux {
     int psm, syshdr;
     int vid, aid, ac3id;
     int pts_interval;
-} mpegps_mux_t;
+};
 
 static int
 write_pack_header(u_char *d, uint64_t scr, int rate)
@@ -77,7 +77,7 @@ write_pack_header(u_char *d, uint64_t scr, int rate)
 }
 
 static int
-write_system_header(u_char *d, mpegps_mux_t *psm)
+write_system_header(u_char *d, struct mpegps_mux *psm)
 {
     int i, ns = 0;
     u_char *l;
@@ -118,7 +118,7 @@ write_system_header(u_char *d, mpegps_mux_t *psm)
 }
 
 static int
-write_psm(u_char *d, mpegps_mux_t *psm, int size)
+write_psm(u_char *d, struct mpegps_mux *psm, int size)
 {
     u_char *p = d;
     u_char *ml, *el;
@@ -185,7 +185,7 @@ write_psm(u_char *d, mpegps_mux_t *psm, int size)
 extern int
 mpegps_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
-    mpegps_mux_t *psm = p->private;
+    struct mpegps_mux *psm = p->private;
     struct mpegps_output_stream *os;
     int pesflags = 0;
     uint8_t *data;
@@ -277,8 +277,8 @@ mpegps_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 extern int
 mpegps_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
-    mpegps_mux_t *psm = p->private;
-    const mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
+    struct mpegps_mux *psm = p->private;
+    const struct mpeg_stream_type *str_type = mpeg_stream_type(s->common.codec);
 
     if(!str_type)
 	return PROBE_FAIL;
@@ -321,7 +321,7 @@ mpegps_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 static void
 pmx_free(void *p)
 {
-    mpegps_mux_t *psm = p;
+    struct mpegps_mux *psm = p;
 
     psm->out->close(psm->out);
     if(psm->streams)
@@ -332,7 +332,7 @@ extern int
 mpegps_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	   muxed_stream_t *ms)
 {
-    mpegps_mux_t *psm;
+    struct mpegps_mux *psm;
     char *url;
     url_t *out;
 

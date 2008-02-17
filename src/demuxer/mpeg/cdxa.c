@@ -34,18 +34,18 @@
 #define SECTOR_DATA 2324
 #define SECTOR_PAD  (SECTOR_SIZE - SECTOR_DATA)
 
-typedef struct cdxa {
+struct cdxa {
     url_t *u;
     uint64_t data_start;
     int sector_pos;
-} cdxa_t;
+};
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
 static int
 cdxa_read(void *buf, size_t size, size_t count, url_t *u)
 {
-    cdxa_t *cdxa = u->private;
+    struct cdxa *cdxa = u->private;
     size_t bytes = size * count, rb = bytes;
 
     while(rb){
@@ -69,7 +69,7 @@ cdxa_read(void *buf, size_t size, size_t count, url_t *u)
 static int
 cdxa_seek(url_t *u, int64_t offset, int how)
 {
-    cdxa_t *cdxa = u->private;
+    struct cdxa *cdxa = u->private;
     int64_t pos;
     uint64_t sector, xaoffset;
     int sector_pos;
@@ -109,7 +109,7 @@ cdxa_seek(url_t *u, int64_t offset, int how)
 static uint64_t
 cdxa_tell(url_t *u)
 {
-    cdxa_t *cdxa = u->private;
+    struct cdxa *cdxa = u->private;
     uint64_t pos, sector;
     int sector_pos;
 
@@ -127,7 +127,7 @@ cdxa_tell(url_t *u)
 static int
 cdxa_close(url_t *u)
 {
-    cdxa_t *cdxa = u->private;
+    struct cdxa *cdxa = u->private;
     int r = cdxa->u->close(cdxa->u);
     cdxa->u = NULL;
     tcfree(u);
@@ -138,7 +138,7 @@ static void
 cdxa_free(void *p)
 {
     url_t *u = p;
-    cdxa_t *cdxa = u->private;
+    struct cdxa *cdxa = u->private;
     if(cdxa->u)
 	tcfree(cdxa->u);
     free(cdxa);
@@ -147,7 +147,7 @@ cdxa_free(void *p)
 extern muxed_stream_t *
 cdxa_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *t)
 {
-    cdxa_t *cdxa;
+    struct cdxa *cdxa;
     char buf[28];
     int32_t s;
     url_t *cu;

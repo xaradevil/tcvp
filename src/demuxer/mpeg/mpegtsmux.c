@@ -35,7 +35,7 @@
 #define TS_PACKET_SIZE 188
 #define outbuf_size (mux_mpeg_ts_conf_outbuf * 188)
 
-typedef struct mpegts_mux {
+struct mpegts_mux {
     url_t *out;
     tcvp_timer_t *timer;
     u_char *outbuf;
@@ -83,7 +83,7 @@ typedef struct mpegts_mux {
     double padding;
     int audio_rate;
     int video_rate;
-} mpegts_mux_t;
+};
 
 static void
 inc_cc(u_char *p)
@@ -167,7 +167,7 @@ pcr_packet(int pid)
 }
 
 static void
-init_pmt(mpegts_mux_t *tsm, int pid, int pcr_pid)
+init_pmt(struct mpegts_mux *tsm, int pid, int pcr_pid)
 {
     u_char *pmt = malloc(TS_PACKET_SIZE);
     tsm->pmt = pmt;
@@ -197,7 +197,7 @@ init_pmt(mpegts_mux_t *tsm, int pid, int pcr_pid)
 }
 
 static int
-write_ts_packet(mpegts_mux_t *tsm, int str, u_char *data, size_t size, 
+write_ts_packet(struct mpegts_mux *tsm, int str, u_char *data, size_t size, 
 		int ustart, uint64_t pts, uint64_t dts)
 {
     struct mpegts_output_stream *os = tsm->streams + str;
@@ -266,7 +266,7 @@ write_ts_packet(mpegts_mux_t *tsm, int str, u_char *data, size_t size,
 }
 
 static int
-next_stream(mpegts_mux_t *tsm)
+next_stream(struct mpegts_mux *tsm)
 {
     uint64_t ts = -1;
     int s = -1, i;
@@ -284,7 +284,7 @@ next_stream(mpegts_mux_t *tsm)
 }
 
 static void
-post_packet(mpegts_mux_t *tsm)
+post_packet(struct mpegts_mux *tsm)
 {
     tsm->bpos += TS_PACKET_SIZE;
     if(tsm->bpos == tsm->bsize){
@@ -306,7 +306,7 @@ post_packet(mpegts_mux_t *tsm)
 extern int
 mpegts_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
-    mpegts_mux_t *tsm = p->private;
+    struct mpegts_mux *tsm = p->private;
     int64_t dts;
     int nst;
 
@@ -486,8 +486,8 @@ mpegts_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 extern int
 mpegts_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
-    mpegts_mux_t *tsm = p->private;
-    const mpeg_stream_type_t *str_type = mpeg_stream_type(s->common.codec);
+    struct mpegts_mux *tsm = p->private;
+    const struct mpeg_stream_type *str_type = mpeg_stream_type(s->common.codec);
     struct mpegts_output_stream *os;
     int pid;
     uint32_t crc;
@@ -581,7 +581,7 @@ mpegts_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 extern int
 mpegts_flush(tcvp_pipe_t *p, int drop)
 {
-    mpegts_mux_t *tsm = p->private;
+    struct mpegts_mux *tsm = p->private;
 
     if(drop){
 	tsm->bpos = 0;
@@ -598,7 +598,7 @@ mpegts_flush(tcvp_pipe_t *p, int drop)
 static void
 tmx_free(void *p)
 {
-    mpegts_mux_t *tsm = p;
+    struct mpegts_mux *tsm = p;
     int i;
 
     tsm->out->close(tsm->out);
@@ -620,7 +620,7 @@ extern int
 mpegts_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	   muxed_stream_t *ms)
 {
-    mpegts_mux_t *tsm;
+    struct mpegts_mux *tsm;
     char *url;
     url_t *out;
 

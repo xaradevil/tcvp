@@ -38,7 +38,7 @@
 
 #define MAX_PACKET_SIZE 0x10000
 
-typedef struct mpegts_packet {
+struct mpegts_packet {
     int transport_error;
     int unit_start;
     int priority;
@@ -61,7 +61,7 @@ typedef struct mpegts_packet {
     } adaptation_field;
     int data_length;
     uint8_t *data;
-} mpegts_packet_t;
+};
 
 #define MPEGTS_SECTION_COMMON_LEN 8
 
@@ -70,7 +70,7 @@ typedef struct mpegts_packet {
 
 #define MPEGTS_PSI_NO_VERSION 0x20
 
-typedef struct mpegts_section {
+struct mpegts_section {
     unsigned int table_id;
     unsigned int length;
     unsigned int id;
@@ -80,17 +80,17 @@ typedef struct mpegts_section {
     unsigned int last;
     unsigned int read;
     uint8_t buf[1024];
-} mpegts_section_t;
+};
 
-typedef struct mpegts_elem_stream {
+struct mpegts_elem_stream {
     MPEG_STREAM_COMMON;
     unsigned int stream_type;
     unsigned int pid;
     unsigned int es_info_length;
     uint8_t *descriptors;
-} mpegts_elem_stream_t;
+};
 
-typedef struct mpegts_program {
+struct mpegts_program {
     unsigned int program_number;
     unsigned int program_map_pid;
     unsigned int pcr_pid;
@@ -98,9 +98,9 @@ typedef struct mpegts_program {
     uint8_t *descriptors;
     unsigned int pmt_version;
     unsigned int num_streams;
-    mpegts_elem_stream_t *streams;
-    mpegts_section_t *psi;
-} mpegts_program_t;
+    struct mpegts_elem_stream *streams;
+    struct mpegts_section *psi;
+};
 
 #define MPEGTS_PID_TYPE_PSI 1
 #define MPEGTS_PID_TYPE_ES  2
@@ -114,7 +114,7 @@ typedef struct mpegts_program {
 #define MPEGTS_PID_PSI_NO_INDEX                                 \
     MPEGTS_PID_MAP(MPEGTS_PID_TYPE_PSI, MPEGTS_PID_NO_INDEX)
 
-typedef struct mpegts_stream {
+struct mpegts_stream {
     MPEG_COMMON;
     url_t *stream;
     uint8_t *tsbuf, *tsp;
@@ -123,9 +123,9 @@ typedef struct mpegts_stream {
     uint32_t *pidmap;
     int pcrpid;
     unsigned int pat_version;
-    mpegts_program_t *programs;
+    struct mpegts_program *programs;
     unsigned int num_programs;
-    mpegts_section_t *psi;
+    struct mpegts_section *psi;
     unsigned int nit_pid;
     struct tsbuf {
         int flags;
@@ -139,19 +139,19 @@ typedef struct mpegts_stream {
     int rate;
     uint64_t start_time;
     int end;
-    mpegts_packet_t mp;
-} mpegts_stream_t;
+    struct mpegts_packet mp;
+};
 
-typedef struct mpegts_pk {
+struct mpegts_pk {
     tcvp_data_packet_t pk;
     uint8_t *buf, *data;
     int size;
-} mpegts_pk_t;
+};
 
 #define getbit(v, b) ((v >> b) & 1)
 
 static int
-fill_buf(mpegts_stream_t *s)
+fill_buf(struct mpegts_stream *s)
 {
     int bpos = (s->tsp - s->tsbuf) % 188;
     int n = s->tsnbuf * TS_PACKET_SIZE + s->extra;
@@ -180,7 +180,7 @@ fill_buf(mpegts_stream_t *s)
 }
 
 static int
-resync(mpegts_stream_t *s)
+resync(struct mpegts_stream *s)
 {
     if(s->tsnbuf < 2){
         if(fill_buf(s) < 0)
@@ -235,7 +235,7 @@ resync(mpegts_stream_t *s)
 }
 
 static void
-skip_packet(mpegts_stream_t *s)
+skip_packet(struct mpegts_stream *s)
 {
     ptrdiff_t bp = s->tsp - s->tsbuf;
     s->tsp += TS_PACKET_SIZE - bp % TS_PACKET_SIZE;
@@ -259,7 +259,7 @@ get_pcr(uint8_t *p)
 }
 
 static int
-mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
+mpegts_read_packet(struct mpegts_stream *s, struct mpegts_packet *mp)
 {
     int error = 0, skip = 0;
 
@@ -402,15 +402,15 @@ mpegts_read_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 static void
 mpegts_free_pk(void *p)
 {
-    mpegts_pk_t *mp = p;
+    struct mpegts_pk *mp = p;
     free(mp->buf);
 }
 
 static tcvp_packet_t *
-mpegts_mkpacket(mpegts_stream_t *s, int sx)
+mpegts_mkpacket(struct mpegts_stream *s, int sx)
 {
     struct tsbuf *tb = s->streams + sx;
-    mpegts_pk_t *pk;
+    struct mpegts_pk *pk;
 
     pk = tcallocdz(sizeof(*pk), NULL, mpegts_free_pk);
     pk->pk.stream = sx;
@@ -436,7 +436,7 @@ mpegts_mkpacket(mpegts_stream_t *s, int sx)
 static tcvp_packet_t *
 mpegts_endpacket(muxed_stream_t *ms)
 {
-    mpegts_stream_t *s = ms->private;
+    struct mpegts_stream *s = ms->private;
     tcvp_packet_t *pk = NULL;
 
     while(++s->end < ms->n_streams && !ms->used_streams[s->end]);
@@ -453,7 +453,7 @@ mpegts_endpacket(muxed_stream_t *ms)
 static tcvp_packet_t *
 mpegts_packet(muxed_stream_t *ms, int str)
 {
-    mpegts_stream_t *s = ms->private;
+    struct mpegts_stream *s = ms->private;
     tcvp_packet_t *pk = NULL;
     unsigned int sx, stype;
     struct tsbuf *tb;
@@ -528,7 +528,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
         tb->bpos += mp.data_length;
 
         if(mp.unit_start){
-            mpegpes_packet_t pes;
+            struct mpegpes_packet pes;
             if(mpegpes_header(&pes, tb->buf, 0) < 0)
                 return NULL;
             tb->hlen = pes.data - tb->buf;
@@ -555,7 +555,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
 static uint64_t
 mpegts_seek(muxed_stream_t *ms, uint64_t time)
 {
-    mpegts_stream_t *s = ms->private;
+    struct mpegts_stream *s = ms->private;
     int64_t p, st;
     int i, sm = SEEK_SET, c = 0;
 
@@ -596,7 +596,7 @@ mpegts_seek(muxed_stream_t *ms, uint64_t time)
 }
 
 static void
-mpegts_free_program(mpegts_program_t *p)
+mpegts_free_program(struct mpegts_program *p)
 {
     int i;
 
@@ -612,7 +612,7 @@ mpegts_free_program(mpegts_program_t *p)
 }
 
 static void
-mpegts_free_programs(mpegts_stream_t *s)
+mpegts_free_programs(struct mpegts_stream *s)
 {
     int i;
 
@@ -629,7 +629,7 @@ static void
 mpegts_free(void *p)
 {
     muxed_stream_t *ms = p;
-    mpegts_stream_t *s = ms->private;
+    struct mpegts_stream *s = ms->private;
     int i;
 
     if(s->stream)
@@ -650,8 +650,8 @@ mpegts_free(void *p)
     mpeg_free(ms);
 }
 
-static mpegts_program_t *
-mpegts_find_program(mpegts_stream_t *s, unsigned int program)
+static struct mpegts_program *
+mpegts_find_program(struct mpegts_stream *s, unsigned int program)
 {
     unsigned int i;
 
@@ -665,7 +665,7 @@ mpegts_find_program(mpegts_stream_t *s, unsigned int program)
 }
 
 static int
-mpegts_parse_pat(mpegts_stream_t *s, mpegts_section_t *psi)
+mpegts_parse_pat(struct mpegts_stream *s, struct mpegts_section *psi)
 {
     uint8_t *dp = psi->buf;
     unsigned int size = psi->length;
@@ -704,7 +704,7 @@ mpegts_parse_pat(mpegts_stream_t *s, mpegts_section_t *psi)
                   prg, pid);
 
         if(prg){
-            mpegts_program_t *pg = s->programs + s->num_programs++;
+            struct mpegts_program *pg = s->programs + s->num_programs++;
             s->pidmap[pid] = MPEGTS_PID_PSI_NO_INDEX;
             pg->program_number = prg;
             pg->program_map_pid = pid;
@@ -721,9 +721,9 @@ mpegts_parse_pat(mpegts_stream_t *s, mpegts_section_t *psi)
 }
 
 static int
-mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
+mpegts_parse_pmt(struct mpegts_stream *s, struct mpegts_section *psi)
 {
-    mpegts_program_t *mp = NULL;
+    struct mpegts_program *mp = NULL;
     uint8_t *dp = psi->buf;
     unsigned int size = psi->length;
     unsigned int pi_len;
@@ -782,7 +782,7 @@ mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
         return -1;
 
     for(i = 0; i + 9 <= size; mp->num_streams++){
-        mpegts_elem_stream_t *es = mp->streams + mp->num_streams;
+        struct mpegts_elem_stream *es = mp->streams + mp->num_streams;
         unsigned int stype, epid, esil;
 
         stype = dp[0];
@@ -820,26 +820,26 @@ mpegts_parse_pmt(mpegts_stream_t *s, mpegts_section_t *psi)
 }
 
 static void
-mpegts_section_clear(mpegts_section_t *s)
+mpegts_section_clear(struct mpegts_section *s)
 {
-    memset(s, 0, offsetof(mpegts_section_t, buf));
+    memset(s, 0, offsetof(struct mpegts_section, buf));
 }
 
-static mpegts_section_t *
+static struct mpegts_section *
 mpegts_section_alloc(void)
 {
-    mpegts_section_t *s = malloc(sizeof(*s));
+    struct mpegts_section *s = malloc(sizeof(*s));
     if(s)
         mpegts_section_clear(s);
     return s;
 }
 
-static mpegts_section_t *
-mpegts_section_get(mpegts_stream_t *s, unsigned int pid)
+static struct mpegts_section *
+mpegts_section_get(struct mpegts_stream *s, unsigned int pid)
 {
     unsigned int idx = MPEGTS_PID_INDEX(s->pidmap[pid]);
-    mpegts_section_t *psi;
-    mpegts_program_t *pg;
+    struct mpegts_section *psi;
+    struct mpegts_program *pg;
 
     if(idx == MPEGTS_PID_NO_INDEX){
         psi = s->psi;
@@ -854,7 +854,7 @@ mpegts_section_get(mpegts_stream_t *s, unsigned int pid)
 }
 
 static int
-mpegts_section_init(mpegts_section_t *psi)
+mpegts_section_init(struct mpegts_section *psi)
 {
     uint8_t *dp = psi->buf;
     unsigned int val;
@@ -897,7 +897,7 @@ mpegts_section_init(mpegts_section_t *psi)
 }
 
 static int
-mpegts_do_section(mpegts_stream_t *s, mpegts_section_t *psi, unsigned int pid)
+mpegts_do_section(struct mpegts_stream *s, struct mpegts_section *psi, unsigned int pid)
 {
     switch(psi->table_id){
     case MPEGTS_TABLE_ID_PAT:
@@ -910,9 +910,9 @@ mpegts_do_section(mpegts_stream_t *s, mpegts_section_t *psi, unsigned int pid)
 }
 
 static int
-mpegts_do_psi(mpegts_stream_t *s, mpegts_packet_t *mp)
+mpegts_do_psi(struct mpegts_stream *s, struct mpegts_packet *mp)
 {
-    mpegts_section_t *psi;
+    struct mpegts_section *psi;
     unsigned int size;
     uint8_t *d;
     int err = 0;
@@ -976,7 +976,7 @@ mpegts_do_psi(mpegts_stream_t *s, mpegts_packet_t *mp)
 
     if(psi->length){
         if(psi->table_id == MPEGTS_TABLE_ID_PMT){
-            mpegts_program_t *pg = mpegts_find_program(s, psi->id);
+            struct mpegts_program *pg = mpegts_find_program(s, psi->id);
             if(pg){
                 s->pidmap[mp->pid] =
                     MPEGTS_PID_MAP(MPEGTS_PID_TYPE_PSI, pg - s->programs);
@@ -995,7 +995,7 @@ out:
 }
 
 static int
-mpegts_do_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
+mpegts_do_packet(struct mpegts_stream *s, struct mpegts_packet *mp)
 {
     unsigned int type = MPEGTS_PID_TYPE(s->pidmap[mp->pid]);
 
@@ -1009,7 +1009,7 @@ mpegts_do_packet(mpegts_stream_t *s, mpegts_packet_t *mp)
 }
 
 static int
-mpegts_num_pmt(mpegts_stream_t *s)
+mpegts_num_pmt(struct mpegts_stream *s)
 {
     unsigned int pmt_count = 0;
     unsigned int i;
@@ -1022,7 +1022,7 @@ mpegts_num_pmt(mpegts_stream_t *s)
 }
 
 static int
-mpegts_num_streams(mpegts_stream_t *s)
+mpegts_num_streams(struct mpegts_stream *s)
 {
     unsigned int ns = 0;
     unsigned int i;
@@ -1034,9 +1034,9 @@ mpegts_num_streams(mpegts_stream_t *s)
 }
 
 static int
-mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
+mpegts_add_streams(muxed_stream_t *ms, struct mpegts_program *pg)
 {
-    mpegts_stream_t *s = ms->private;
+    struct mpegts_stream *s = ms->private;
     stream_t *sp = ms->streams + ms->n_streams;
     unsigned int i;
 
@@ -1047,8 +1047,8 @@ mpegts_add_streams(muxed_stream_t *ms, mpegts_program_t *pg)
                            pg->program_info_length);
 
     for(i = 0; i < pg->num_streams; i++){
-        mpegts_elem_stream_t *es = pg->streams + i;
-        const mpeg_stream_type_t *mst;
+        struct mpegts_elem_stream *es = pg->streams + i;
+        const struct mpeg_stream_type *mst;
 
         tc2_print("MPEGTS", TC2_PRINT_DEBUG, "    PID %x, type %x\n",
                   es->pid, es->stream_type);
@@ -1092,8 +1092,8 @@ extern muxed_stream_t *
 mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
     muxed_stream_t *ms;
-    mpegts_stream_t *s;
-    mpegts_packet_t mp;
+    struct mpegts_stream *s;
+    struct mpegts_packet mp;
     unsigned int numpat = 0;
     unsigned int numpmt;
     unsigned int ns;
