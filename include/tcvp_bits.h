@@ -29,7 +29,10 @@
 #include <tcendian.h>
 
 typedef struct tcvp_bits {
-    u_char *data;
+    union {
+        const u_char *r;
+        u_char *w;
+    } data;
     size_t size;
     uint32_t bits;
     int bs;
@@ -38,9 +41,9 @@ typedef struct tcvp_bits {
 #define bs_min(a,b) ((a)<(b)?(a):(b))
 
 static inline void
-tcvp_bits_init(tcvp_bits_t *s, u_char *bits, size_t size)
+tcvp_bits_init(tcvp_bits_t *s, const u_char *bits, size_t size)
 {
-    s->data = bits;
+    s->data.r = bits;
     s->size = size;
     s->bits = 0;
     s->bs = 0;
@@ -59,8 +62,8 @@ tcvp_bits_get(tcvp_bits_t *s, int bits)
 	    if(s->size * 8 < bits)
 		return -1;
 
-	    s->bits = htob_32(unaligned32(s->data));
-	    s->data += 4;
+	    s->bits = htob_32(unaligned32(s->data.r));
+	    s->data.r += 4;
 	    s->size -= 4;
 	    s->bs = 32;
 	}
@@ -89,8 +92,8 @@ tcvp_bits_put(tcvp_bits_t *s, uint32_t d, int bits)
 	bits -= b;
 
 	if(s->bs == 32){
-	    st_unaligned32(htob_32(s->bits), s->data);
-	    s->data += 4;
+	    st_unaligned32(htob_32(s->bits), s->data.w);
+	    s->data.w += 4;
 	    s->size -= 4;
 	    s->bs = 0;
 	}
@@ -104,13 +107,13 @@ tcvp_bits_flush(tcvp_bits_t *s)
 	return;
 
     while(s->bs > 7){
-	*s->data++ = s->bits >> (s->bs - 8);
+	*s->data.w++ = s->bits >> (s->bs - 8);
 	s->bs -= 8;
 	s->size--;
     }
 
     if(s->bs){
-	*s->data++ = s->bits << (8 - s->bs);
+	*s->data.w++ = s->bits << (8 - s->bs);
 	s->bs = 0;
 	s->size--;
     }
