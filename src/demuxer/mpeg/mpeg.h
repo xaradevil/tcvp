@@ -125,6 +125,8 @@ struct mpeg_stream_common {
 #define ANCILLARY_STREAM         0xf9
 #define ISO_14496_SL_STREAM      0xfa
 #define ISO_14496_FLEXMUX_STREAM 0xfb
+#define METADATA_STREAM          0xfc
+#define EXTENDED_STREAM_ID       0xfd
 #define PROGRAM_STREAM_DIRECTORY 0xff
 
 #define VIDEO_STREAM_DESCRIPTOR                  2
