@@ -502,6 +502,12 @@ mpegts_free(void *p)
 
     mpegts_free_programs(s);
 
+    while (s->packets) {
+        struct mpegts_pk *pk = s->packets;
+        s->packets = pk->next;
+        tcfree(pk);
+    }
+
     free(s->mpeg4_es);
     free(s->tsbuf);
     free(s->psi);
