@@ -548,7 +548,7 @@ find_mpeg4_es(const struct mpeg_common *m, unsigned es_id)
     return NULL;
 }
 
-extern int
+static int
 mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
 {
     struct mpeg_common *mp = ms->private;
