@@ -226,27 +226,32 @@ aspect_ratio_index(const tcfraction_t *f)
     return 0;
 }
 
-static int
-dvb_descriptor(stream_t *s, const uint8_t *d, unsigned int tag,
-               unsigned int len)
+static struct mpeg4_es *
+find_mpeg4_es(const struct mpeg_common *m, unsigned es_id)
 {
-    switch(tag){
-    case DVB_AC_3_DESCRIPTOR:
-        s->audio.codec = "audio/ac3";
-        break;
-    case DVB_DTS_DESCRIPTOR:
-        s->audio.codec = "audio/dts";
-        break;
-    case DVB_AAC_DESCRIPTOR:
-        s->audio.codec = "audio/aac";
-        break;
-    }
+    unsigned i;
 
-    return 0;
+    for (i = 0; i < m->num_mpeg4_es; i++)
+        if (m->mpeg4_es[i].es_id == es_id)
+            return m->mpeg4_es + i;
+
+    return NULL;
 }
+
+#define EXT_DVB 1
+
+struct mpeg_descriptor {
+    unsigned tag;
+    unsigned min_len;
+    int (*parser)(unsigned tag, muxed_stream_t *, stream_t *, void*,
+                  const u_char *, const u_char *end);
+    unsigned extension;
+};
 
 #define DESCR_MPEG2 0
 #define DESCR_MPEG4 1
+
+static const struct mpeg_descriptor mpeg4_descriptors[];
 
 static unsigned
 get_mpeg4_size(const u_char **d, const u_char *end)
@@ -264,38 +269,46 @@ get_mpeg4_size(const u_char **d, const u_char *end)
 static int
 parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
                   const u_char *d, unsigned size,
-                  int (*parser)(muxed_stream_t *, stream_t *, void*,
-                                const u_char *, const u_char *end),
-                  int type)
+                  const struct mpeg_descriptor *descr,
+                  int type, unsigned ext_mask)
 {
+    static const char *type_str[] = { "MPEG2", "MPEG4" };
     const u_char *p = d;
+    const u_char *end = p + size;
 
-    while (size > 1) {
-        unsigned dl;
+    while (p + 1 < end) {
+        unsigned dl, i;
+        unsigned tag = *p++;
 
         if (type == DESCR_MPEG4) {
-            const u_char *q = p + 1;
-            dl = get_mpeg4_size(&q, d + size);
-            dl += q - p;
+            dl = get_mpeg4_size(&p, end);
         } else {
-            dl = p[1] + 2;
+            dl = *p++;
         }
 
-        if (dl > size)
+        if (p + dl > end)
             break;
-        parser(ms, s, es, p, p + dl);
+
+        tc2_print("MPEG", TC2_PRINT_DEBUG, "%s descriptor %3d [%2x] size %d\n",
+                  type_str[type], tag, tag, dl);
+
+        for (i = 0; descr[i].tag; i++) {
+            if (descr[i].tag == tag &&
+                (descr[i].extension & ext_mask) == descr[i].extension) {
+                descr[i].parser(tag, ms, s, es, p, p + dl);
+                break;
+            }
+        }
+
         p += dl;
-        size -= dl;
     }
 
     return p - d;
 }
 
-static int mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *es,
-                            const u_char *d, const u_char *end);
-
 static int
-mpeg4_es_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
+mpeg4_es_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
+                    const u_char *d, const u_char *end)
 {
     struct mpeg_common *mp = ms->private;
     struct mpeg4_es *es;
@@ -305,9 +318,6 @@ mpeg4_es_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
     unsigned stream_priority;
     unsigned dep_es_id;
     unsigned ocr_es_id;
-
-    if (size < 3)
-        return -1;
 
     tc2_print("MPEG", TC2_PRINT_DEBUG, "MPEG4 ES_Descriptor\n");
 
@@ -326,8 +336,6 @@ mpeg4_es_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
     stream_priority = *d & 0x1f;
     d++;
 
-    size -= 3;
-
     tc2_print("MPEG", TC2_PRINT_DEBUG, "  ES_ID %x\n", es->es_id);
     tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamDependenceFlag %d\n",
               stream_dep_flag);
@@ -341,31 +349,31 @@ mpeg4_es_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
     if (stream_dep_flag) {
         dep_es_id = htob_16(unaligned16(d));
         d += 2;
-        size -= 2;
     }
 
     if (url_flag) {
         unsigned url_length = *d++;
         d += url_length;
-        size -= url_length;
     }
 
     if (ocr_stream_flag) {
         ocr_es_id = htob_16(unaligned16(d));
         d += 2;
-        size -= 2;
     }
 
-    parse_descriptors(ms, NULL, es, d, size, mpeg4_descriptor, DESCR_MPEG4);
+    parse_descriptors(ms, NULL, es, d, end - d, mpeg4_descriptors,
+                      DESCR_MPEG4, 0);
 
     return 0;
 }
 
-static void
-sl_config_descriptor(struct mpeg4_es *es, const uint8_t *d, unsigned size)
+static int
+sl_config_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
+                     const u_char *d, const u_char *end)
 {
+    struct mpeg4_es *es = p;
     struct tcvp_bits bits;
-    tcvp_bits_init(&bits, d, size);
+    tcvp_bits_init(&bits, d, end - d);
 
     es->sl.predefined = tcvp_bits_get(&bits, 8);
 
@@ -445,43 +453,110 @@ sl_config_descriptor(struct mpeg4_es *es, const uint8_t *d, unsigned size)
     slprint(timeScale);
     slprint(accessUnitDuration);
     slprint(compositionUnitDuration);
+
+    return 0;
 }
 
 static int
-mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d,
-                 const u_char *end)
+decoder_config_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s,
+                          void *p, const u_char *d, const u_char *end)
 {
     struct mpeg4_es *es = p;
-    unsigned tag = *d++;
-    unsigned len = get_mpeg4_size(&d, end);
 
-    tc2_print("MPEG", TC2_PRINT_DEBUG,
-              "MPEG4 descriptor %3d [%2x], %x bytes\n", tag, tag, len);
+    es->objectType = *d++;
+    es->streamType = *d >> 2;
 
-    switch (tag) {
-    case ES_DESCRTAG:
-        mpeg4_es_descriptor(ms, d, len);
-        break;
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  objectTypeIndication %x\n",
+              es->objectType);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamType           %x\n",
+              es->streamType);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  upStream             %d\n",
+              (*d >> 1) & 1);
 
-    case DECODERCONFIGDESCRTAG:
-        if (len < 2)
-            break;
+    return 0;
+}
 
-        es->objectType = *d++;
-        es->streamType = *d >> 2;
+static const struct mpeg_descriptor mpeg4_descriptors[] = {
+    { ES_DESCRTAG,           3, mpeg4_es_descriptor       },
+    { DECODERCONFIGDESCRTAG, 2, decoder_config_descriptor },
+    { SLCONFIGDESCRTAG,      1, sl_config_descriptor      },
+    { }
+};
 
-        tc2_print("MPEG", TC2_PRINT_DEBUG, "  objectTypeIndication %x\n",
-                  es->objectType);
-        tc2_print("MPEG", TC2_PRINT_DEBUG, "  streamType           %x\n",
-                  es->streamType);
-        tc2_print("MPEG", TC2_PRINT_DEBUG, "  upStream             %d\n",
-                  (*d >> 1) & 1);
-        break;
-
-    case SLCONFIGDESCRTAG:
-        sl_config_descriptor(es, d, len);
-        break;
+static int
+video_stream_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s,
+                        void *p, const u_char *d, const u_char *end)
+{
+    s->video.frame_rate = frame_rates[(d[0] >> 3) & 0xf];
+#if 0
+    if(d[0] & 0x4)
+        fprintf(stderr, "MPEG: MPEG 1 only\n");
+    if(d[0] & 0x2)
+        fprintf(stderr, "MPEG: constrained parameter\n");
+    if(!(d[0] & 0x4)){
+        fprintf(stderr, "MPEG: esc %i profile %i, level %i\n",
+                d[1] >> 7, (d[1] >> 4) & 0x7, d[1] & 0xf);
     }
+#endif
+
+    return 0;
+}
+
+static int
+target_bg_grid_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s,
+                          void *p, const u_char *d, const u_char *end)
+{
+    unsigned v = htob_32(unaligned32(d));
+
+    s->video.width = (v >> 18) & 0x3fff;
+    s->video.height = (v >> 4) & 0x3fff;
+
+    v &= 0xf;
+    if(v == 1){
+        s->video.aspect.num = s->video.width;
+        s->video.aspect.den = s->video.height;
+        tcreduce(&s->video.aspect);
+    } else if(aspect_ratios[v].num){
+        s->video.aspect = aspect_ratios[v];
+    }
+
+    return 0;
+}
+
+static int
+iso_639_language_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s,
+                            void *p, const u_char *d, const u_char *end)
+{
+    memcpy(s->audio.language, d, 3);
+    s->audio.language[3] = 0;
+    return 0;
+}
+
+static int
+registration_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s,
+                        void *p, const u_char *d, const u_char *end)
+{
+    struct mpeg_common *mp = ms->private;
+    struct mpeg_stream_common *es = p;
+    unsigned v = htob_32(unaligned32(d));
+    unsigned i;
+
+    for(i = 0; reg_desc_tags[i].tag; i++){
+        if(reg_desc_tags[i].tag == v){
+            if (s && reg_desc_tags[i].codec) {
+                s->common.codec = reg_desc_tags[i].codec;
+            } else if (reg_desc_tags[i].stream_types) {
+                if (es)
+                    es->stream_types = reg_desc_tags[i].stream_types;
+                else
+                    mp->stream_types = reg_desc_tags[i].stream_types;
+            }
+            break;
+        }
+    }
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "  registration_descriptor: "
+              "format_identifier %08x\n", v);
 
     return 0;
 }
@@ -539,156 +614,106 @@ initial_object_descriptor(muxed_stream_t *ms, const u_char *d, unsigned len)
         tc2_print("MPEG", TC2_PRINT_DEBUG,
                   "  graphicsProfileLevelIndication %2x\n", graphics_pl);
 
-        parse_descriptors(ms, NULL, NULL, d, size, mpeg4_descriptor,
-                          DESCR_MPEG4);
+        parse_descriptors(ms, NULL, NULL, d, size, mpeg4_descriptors,
+                          DESCR_MPEG4, 0);
     }
 
     return 0;
 }
 
-static struct mpeg4_es *
-find_mpeg4_es(const struct mpeg_common *m, unsigned es_id)
+static int
+iod_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
+               const u_char *d, const u_char *end)
 {
-    unsigned i;
-
-    for (i = 0; i < m->num_mpeg4_es; i++)
-        if (m->mpeg4_es[i].es_id == es_id)
-            return m->mpeg4_es + i;
-
-    return NULL;
+    tc2_print("MPEG", TC2_PRINT_DEBUG,
+              "IOD_descriptor: scope=%x IOD_label=%x\n", d[0], d[1]);
+    d += 2;
+    return initial_object_descriptor(ms, d, end - d);
 }
 
 static int
-mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d,
-                const u_char *end)
+sl_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
+              const u_char *d, const u_char *end)
 {
     struct mpeg_common *mp = ms->private;
     struct mpeg_stream_common *es = p;
-    int tag = d[0];
-    int len = d[1];
-    unsigned int i;
-    unsigned int v;
+    unsigned v = htob_16(unaligned16(d));
 
-    tc2_print("MPEG", TC2_PRINT_DEBUG, "descriptor %3d [%2x], %d bytes\n",
-              tag, tag, len);
+    es->mpeg4_es = find_mpeg4_es(mp, v);
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "SL_descriptor: ES_ID=%x\n", v);
 
-    switch(tag){
-    case VIDEO_STREAM_DESCRIPTOR:
-        if (len < 1)
-            break;
-
-	s->video.frame_rate = frame_rates[(d[2] >> 3) & 0xf];
-#if 0
-	if(d[2] & 0x4)
-	    fprintf(stderr, "MPEG: MPEG 1 only\n");
-	if(d[2] & 0x2)
-	    fprintf(stderr, "MPEG: constrained parameter\n");
-	if(!(d[2] & 0x4)){
-	    fprintf(stderr, "MPEG: esc %i profile %i, level %i\n",
-		    d[3] >> 7, (d[3] >> 4) & 0x7, d[3] & 0xf);
-	}
-#endif
-	break;
-
-    case AUDIO_STREAM_DESCRIPTOR:
-	break;
-
-    case TARGET_BACKGROUND_GRID_DESCRIPTOR:
-        if (len < 4)
-            break;
-
-	v = htob_32(unaligned32(d + 2));
-
-	s->video.width = (v >> 18) & 0x3fff;
-	s->video.height = (v >> 4) & 0x3fff;
-
-	v &= 0xf;
-	if(v == 1){
-	    s->video.aspect.num = s->video.width;
-	    s->video.aspect.den = s->video.height;
-	    tcreduce(&s->video.aspect);
-	} else if(aspect_ratios[v].num){
-	    s->video.aspect = aspect_ratios[v];
-	}
-	break;
-
-    case ISO_639_LANGUAGE_DESCRIPTOR:
-        if(len > 3)
-            memcpy(s->audio.language, d + 2, 3);
-	break;
-
-    case REGISTRATION_DESCRIPTOR:
-        if (len < 4)
-            break;
-
-        v = htob_32(unaligned32(d + 2));
-        for(i = 0; reg_desc_tags[i].tag; i++){
-            if(reg_desc_tags[i].tag == v){
-                if (s && reg_desc_tags[i].codec) {
-                    s->common.codec = reg_desc_tags[i].codec;
-                } else if (reg_desc_tags[i].stream_types) {
-                    if (es)
-                        es->stream_types = reg_desc_tags[i].stream_types;
-                    else
-                        mp->stream_types = reg_desc_tags[i].stream_types;
-                }
-                break;
-            }
-        }
-        tc2_print("MPEG", TC2_PRINT_DEBUG, "  registration_descriptor: "
-                  "format_identifier %08x\n", v);
-        break;
-
-    case IOD_DESCRIPTOR:
-        if (len < 2)
-            break;
-
-        tc2_print("MPEG", TC2_PRINT_DEBUG,
-                  "IOD_descriptor: scope=%x IOD_label=%x\n", d[2], d[3]);
-        d += 4;
-        initial_object_descriptor(ms, d, len - 2);
-        break;
-
-    case SL_DESCRIPTOR:
-        if (len < 2)
-            break;
-
-        v = htob_16(unaligned16(d + 2));
-        es->mpeg4_es = find_mpeg4_es(mp, v);
-        tc2_print("MPEG", TC2_PRINT_DEBUG, "SL_descriptor: ES_ID=%x\n", v);
-        break;
-
-    case FMC_DESCRIPTOR:
-        tc2_print("MPEG", TC2_PRINT_DEBUG, "FMC_descriptor\n");
-        d += 2;
-
-        if (len == 2) {
-            es->mpeg4_es = find_mpeg4_es(mp, htob_16(unaligned16(d)));
-        }
-
-        while (len >= 3) {
-            tc2_print("MPEG", TC2_PRINT_DEBUG,
-                      "  ES_ID=%x FlexMuxChannel=%x\n",
-                      htob_16(unaligned16(d)), d[2]);
-            d += 3;
-            len -= 3;
-        }
-        break;
-    }
-
-    if(tag >= 64){
-        if(tcvp_demux_mpeg_conf_dvb)
-            dvb_descriptor(s, d, tag, len);
-    }
-
-    return len + 2;
+    return 0;
 }
+
+static int
+fmc_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
+               const u_char *d, const u_char *end)
+{
+    struct mpeg_common *mp = ms->private;
+    struct mpeg_stream_common *es = p;
+
+    tc2_print("MPEG", TC2_PRINT_DEBUG, "FMC_descriptor\n");
+
+    if (end - d == 2) {
+        es->mpeg4_es = find_mpeg4_es(mp, htob_16(unaligned16(d)));
+    }
+
+    while (d + 3 < end) {
+        tc2_print("MPEG", TC2_PRINT_DEBUG,
+                  "  ES_ID=%x FlexMuxChannel=%x\n",
+                  htob_16(unaligned16(d)), d[2]);
+        d += 3;
+    }
+
+    return 0;
+}
+
+static int
+dvb_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
+               const u_char *d, const u_char *end)
+{
+    switch(tag){
+    case DVB_AC_3_DESCRIPTOR:
+        s->audio.codec = "audio/ac3";
+        break;
+    case DVB_DTS_DESCRIPTOR:
+        s->audio.codec = "audio/dts";
+        break;
+    case DVB_AAC_DESCRIPTOR:
+        s->audio.codec = "audio/aac";
+        break;
+    }
+
+    return 0;
+}
+
+static const struct mpeg_descriptor mpeg_descriptors[] = {
+    { VIDEO_STREAM_DESCRIPTOR,           1, video_stream_descriptor     },
+    { TARGET_BACKGROUND_GRID_DESCRIPTOR, 4, target_bg_grid_descriptor   },
+    { ISO_639_LANGUAGE_DESCRIPTOR,       4, iso_639_language_descriptor },
+    { REGISTRATION_DESCRIPTOR,           4, registration_descriptor     },
+    { IOD_DESCRIPTOR,                    2, iod_descriptor              },
+    { SL_DESCRIPTOR,                     2, sl_descriptor               },
+    { FMC_DESCRIPTOR,                    2, fmc_descriptor              },
+
+    { DVB_AC_3_DESCRIPTOR, 0, dvb_descriptor, EXT_DVB },
+    { DVB_DTS_DESCRIPTOR,  0, dvb_descriptor, EXT_DVB },
+    { DVB_AAC_DESCRIPTOR,  0, dvb_descriptor, EXT_DVB },
+
+    { }
+};
 
 extern int
 mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p,
                        const u_char *d, unsigned size)
 {
-    return parse_descriptors(ms, s, p, d, size, mpeg_descriptor, DESCR_MPEG2);
+    unsigned ext_mask = 0;
+
+    if (tcvp_demux_mpeg_conf_dvb)
+        ext_mask |= EXT_DVB;
+
+    return parse_descriptors(ms, s, p, d, size, mpeg_descriptors,
+                             DESCR_MPEG2, ext_mask);
 }
 
 extern int
