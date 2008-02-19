@@ -746,7 +746,7 @@ mpegts_section_init(struct mpegts_section *psi)
     psi->number = dp[6];
     psi->last = dp[7];
 
-    tc2_print("MPEGTS", TC2_PRINT_DEBUG,
+    tc2_print("MPEGTS", TC2_PRINT_DEBUG + 1,
               "PSI table_id=%x length=%d id=%x version=%d "
               "current=%d section=%d/%d\n",
               psi->table_id, psi->length, psi->id, psi->version,
