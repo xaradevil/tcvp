@@ -888,12 +888,17 @@ mpegts_mkpacket(struct mpegts_stream *s, int sx)
 }
 
 static int
-mpegts_do_es(struct mpegts_stream *s, struct mpegts_packet *mp)
+mpegts_do_es(muxed_stream_t *ms, struct mpegts_packet *mp)
 {
+    struct mpegts_stream *s = ms->private;
     unsigned int sx;
     struct tsbuf *tb;
 
     sx = MPEGTS_PID_INDEX(s->pidmap[mp->pid]);
+
+    if (!ms->used_streams[sx])
+        return 0;
+
     tb = &s->streams[sx];
 
     if(tb->cc > -1){
@@ -942,8 +947,9 @@ mpegts_do_es(struct mpegts_stream *s, struct mpegts_packet *mp)
 }
 
 static int
-mpegts_do_packet(struct mpegts_stream *s, struct mpegts_packet *mp)
+mpegts_do_packet(muxed_stream_t *ms, struct mpegts_packet *mp)
 {
+    struct mpegts_stream *s = ms->private;
     unsigned int type = MPEGTS_PID_TYPE(s->pidmap[mp->pid]);
 
     switch(type){
@@ -951,7 +957,7 @@ mpegts_do_packet(struct mpegts_stream *s, struct mpegts_packet *mp)
         mpegts_do_psi(s, mp);
         break;
     case MPEGTS_PID_TYPE_ES:
-        mpegts_do_es(s, mp);
+        mpegts_do_es(ms, mp);
         break;
     }
 
@@ -987,7 +993,7 @@ mpegts_packet(muxed_stream_t *ms, int str)
             mpegts_end(ms);
             break;
         }
-        if(mpegts_do_packet(s, &mp) < 0)
+        if(mpegts_do_packet(ms, &mp) < 0)
             break;
     }
 
@@ -1110,7 +1116,7 @@ mpegts_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     do {
         if(mpegts_read_packet(s, &mp) < 0)
             goto err;
-        if(mpegts_do_packet(s, &mp) < 0)
+        if(mpegts_do_packet(ms, &mp) < 0)
             goto err;
         numpmt = mpegts_num_pmt(s);
         if(numpmt < 1)
