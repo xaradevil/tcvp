@@ -249,14 +249,14 @@ dvb_descriptor(stream_t *s, const uint8_t *d, unsigned int tag,
 #define DESCR_MPEG4 1
 
 static unsigned
-get_mpeg4_size(const u_char **d)
+get_mpeg4_size(const u_char **d, const u_char *end)
 {
     unsigned v = 0;
 
     do {
         v <<= 7;
         v += **d & 0x7f;
-    } while (*(*d)++ & 0x80);
+    } while (*d < end && *(*d)++ & 0x80);
 
     return v;
 }
@@ -264,7 +264,8 @@ get_mpeg4_size(const u_char **d)
 static int
 parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
                   const u_char *d, unsigned size,
-                  int (*parser)(muxed_stream_t *, stream_t *, void*, const u_char *),
+                  int (*parser)(muxed_stream_t *, stream_t *, void*,
+                                const u_char *, const u_char *end),
                   int type)
 {
     const u_char *p = d;
@@ -274,7 +275,7 @@ parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
 
         if (type == DESCR_MPEG4) {
             const u_char *q = p + 1;
-            dl = get_mpeg4_size(&q);
+            dl = get_mpeg4_size(&q, d + size);
             dl += q - p;
         } else {
             dl = p[1] + 2;
@@ -282,7 +283,7 @@ parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
 
         if (dl > size)
             break;
-        parser(ms, s, es, p);
+        parser(ms, s, es, p, p + dl);
         p += dl;
         size -= dl;
     }
@@ -291,7 +292,7 @@ parse_descriptors(muxed_stream_t *ms, stream_t *s, void *es,
 }
 
 static int mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *es,
-                            const u_char *d);
+                            const u_char *d, const u_char *end);
 
 static int
 mpeg4_es_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
@@ -447,11 +448,12 @@ sl_config_descriptor(struct mpeg4_es *es, const uint8_t *d, unsigned size)
 }
 
 static int
-mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
+mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d,
+                 const u_char *end)
 {
     struct mpeg4_es *es = p;
     unsigned tag = *d++;
-    unsigned len = get_mpeg4_size(&d);
+    unsigned len = get_mpeg4_size(&d, end);
 
     tc2_print("MPEG", TC2_PRINT_DEBUG,
               "MPEG4 descriptor %3d [%2x], %x bytes\n", tag, tag, len);
@@ -462,6 +464,9 @@ mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
         break;
 
     case DECODERCONFIGDESCRTAG:
+        if (len < 2)
+            break;
+
         es->objectType = *d++;
         es->streamType = *d >> 2;
 
@@ -482,13 +487,18 @@ mpeg4_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
 }
 
 static int
-initial_object_descriptor(muxed_stream_t *ms, const u_char *d, unsigned size)
+initial_object_descriptor(muxed_stream_t *ms, const u_char *d, unsigned len)
 {
     unsigned od_id, url_flag, ipl_flag;
     unsigned val;
+    unsigned size;
+    const u_char *end = d + len;
 
     d++;
-    size = get_mpeg4_size(&d);
+
+    size = get_mpeg4_size(&d, end);
+    if (d + size > end)
+        return -1;
 
     val = htob_16(unaligned16(d));
     d += 2;
@@ -549,7 +559,8 @@ find_mpeg4_es(const struct mpeg_common *m, unsigned es_id)
 }
 
 static int
-mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
+mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d,
+                const u_char *end)
 {
     struct mpeg_common *mp = ms->private;
     struct mpeg_stream_common *es = p;
@@ -563,6 +574,9 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
 
     switch(tag){
     case VIDEO_STREAM_DESCRIPTOR:
+        if (len < 1)
+            break;
+
 	s->video.frame_rate = frame_rates[(d[2] >> 3) & 0xf];
 #if 0
 	if(d[2] & 0x4)
@@ -580,6 +594,9 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
 	break;
 
     case TARGET_BACKGROUND_GRID_DESCRIPTOR:
+        if (len < 4)
+            break;
+
 	v = htob_32(unaligned32(d + 2));
 
 	s->video.width = (v >> 18) & 0x3fff;
@@ -601,6 +618,9 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
 	break;
 
     case REGISTRATION_DESCRIPTOR:
+        if (len < 4)
+            break;
+
         v = htob_32(unaligned32(d + 2));
         for(i = 0; reg_desc_tags[i].tag; i++){
             if(reg_desc_tags[i].tag == v){
@@ -620,6 +640,9 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
         break;
 
     case IOD_DESCRIPTOR:
+        if (len < 2)
+            break;
+
         tc2_print("MPEG", TC2_PRINT_DEBUG,
                   "IOD_descriptor: scope=%x IOD_label=%x\n", d[2], d[3]);
         d += 4;
@@ -627,6 +650,9 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
         break;
 
     case SL_DESCRIPTOR:
+        if (len < 2)
+            break;
+
         v = htob_16(unaligned16(d + 2));
         es->mpeg4_es = find_mpeg4_es(mp, v);
         tc2_print("MPEG", TC2_PRINT_DEBUG, "SL_descriptor: ES_ID=%x\n", v);
