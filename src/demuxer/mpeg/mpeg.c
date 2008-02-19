@@ -579,22 +579,21 @@ mpeg_descriptor(muxed_stream_t *ms, stream_t *s, void *p, const u_char *d)
     case AUDIO_STREAM_DESCRIPTOR:
 	break;
 
-    case TARGET_BACKGROUND_GRID_DESCRIPTOR: {
-	int n = htob_32(unaligned32(d + 2));
+    case TARGET_BACKGROUND_GRID_DESCRIPTOR:
+	v = htob_32(unaligned32(d + 2));
 
-	s->video.width = (n >> 18) & 0x3fff;
-	s->video.height = (n >> 4) & 0x3fff;
+	s->video.width = (v >> 18) & 0x3fff;
+	s->video.height = (v >> 4) & 0x3fff;
 
-	n &= 0xf;
-	if(n == 1){
+	v &= 0xf;
+	if(v == 1){
 	    s->video.aspect.num = s->video.width;
 	    s->video.aspect.den = s->video.height;
 	    tcreduce(&s->video.aspect);
-	} else if(aspect_ratios[n].num){
-	    s->video.aspect = aspect_ratios[n];
+	} else if(aspect_ratios[v].num){
+	    s->video.aspect = aspect_ratios[v];
 	}
 	break;
-    }
 
     case ISO_639_LANGUAGE_DESCRIPTOR:
         if(len > 3)
