@@ -34,6 +34,8 @@ typedef struct theora_params {
     int gpmask;
 } theora_params_t;
 
+#define HEADER_PADDING 8
+
 static int
 theora_header(muxed_stream_t *ms, int idx)
 {
@@ -52,11 +54,13 @@ theora_header(muxed_stream_t *ms, int idx)
 	os->private = thp;
     }
 
-    st->common.codec_data = realloc(st->common.codec_data, cds);
+    st->common.codec_data = realloc(st->common.codec_data, cds+HEADER_PADDING);
     cdp = st->common.codec_data + st->common.codec_data_size;
     *cdp++ = os->psize >> 8;
     *cdp++ = os->psize & 0xff;
     memcpy(cdp, os->buf + os->pstart, os->psize);
+    memset(cdp + os->psize, 0, HEADER_PADDING);
+
     st->common.codec_data_size = cds;
 
     if(os->buf[os->pstart] == 0x80){
