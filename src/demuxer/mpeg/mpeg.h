@@ -230,6 +230,8 @@ struct mpeg_stream_common {
 #define DVB_AAC_DESCRIPTOR                          0x7c
 #define DVB_EXTENSION_DESCRIPTOR                    0x7f
 
+#define ATSC_AC3_DESCRIPTOR 0x81
+
 #define OBJECTDESCRTAG                      0x01
 #define INITIALOBJECTDESCRTAG               0x02
 #define ES_DESCRTAG                         0x03

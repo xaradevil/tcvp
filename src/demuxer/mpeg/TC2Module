@@ -41,3 +41,4 @@ option		ts_rate_lookahead%i=500
 option		*private_type id%i pesbase%i codec%s
 option		ps_search_packets%i=256
 option		dvb%i
+option		atsc%i

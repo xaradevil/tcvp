@@ -239,6 +239,7 @@ find_mpeg4_es(const struct mpeg_common *m, unsigned es_id)
 }
 
 #define EXT_DVB 1
+#define EXT_ATSC 2
 
 struct mpeg_descriptor {
     unsigned tag;
@@ -687,6 +688,14 @@ dvb_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
     return 0;
 }
 
+static int
+atsc_ac3_descriptor(unsigned tag, muxed_stream_t *ms, stream_t *s, void *p,
+                    const u_char *d, const u_char *end)
+{
+    s->audio.codec = "audio/ac3";
+    return 0;
+}
+
 static const struct mpeg_descriptor mpeg_descriptors[] = {
     { VIDEO_STREAM_DESCRIPTOR,           1, video_stream_descriptor     },
     { TARGET_BACKGROUND_GRID_DESCRIPTOR, 4, target_bg_grid_descriptor   },
@@ -700,6 +709,8 @@ static const struct mpeg_descriptor mpeg_descriptors[] = {
     { DVB_DTS_DESCRIPTOR,  0, dvb_descriptor, EXT_DVB },
     { DVB_AAC_DESCRIPTOR,  0, dvb_descriptor, EXT_DVB },
 
+    { ATSC_AC3_DESCRIPTOR, 3, atsc_ac3_descriptor, EXT_ATSC },
+
     { }
 };
 
@@ -711,6 +722,8 @@ mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p,
 
     if (tcvp_demux_mpeg_conf_dvb)
         ext_mask |= EXT_DVB;
+    if (tcvp_demux_mpeg_conf_atsc)
+        ext_mask |= EXT_ATSC;
 
     return parse_descriptors(ms, s, p, d, size, mpeg_descriptors,
                              DESCR_MPEG2, ext_mask);
