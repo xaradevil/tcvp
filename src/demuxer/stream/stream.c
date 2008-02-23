@@ -104,7 +104,7 @@ isplaylist(url_t *u, char *mime, char *name)
 	strncpy(buf1, name, sizeof(buf1));
 	p = strrchr(buf1, '/');
 	if(p)
-	    *p++ = 0;
+            p++;
 	else
 	    p = buf1;
 	strncpy(p, buf, sizeof(buf1) - (p - buf1));
