@@ -92,9 +92,8 @@ ogg_restore(ogg_t *ogg, int discard)
 }
 
 static int
-ogg_new_stream(muxed_stream_t *ms, uint32_t serial)
+ogg_new_stream(ogg_t *ogg, uint32_t serial)
 {
-    ogg_t *ogg = ms->private;
     int idx = ogg->nstreams++;
     ogg_stream_t *os;
 
@@ -105,10 +104,6 @@ ogg_new_stream(muxed_stream_t *ms, uint32_t serial)
     os->bufsize = BUFSIZE;
     os->buf = tcalloc(os->bufsize);
     os->header = -1;
-
-    ms->n_streams = ogg->nstreams;
-    ms->streams = realloc(ms->streams, ogg->nstreams * sizeof(*ms->streams));
-    memset(ms->streams + idx, 0, sizeof(*ms->streams));
 
     return idx;
 }
@@ -182,9 +177,26 @@ ogg_new_buf(ogg_t *ogg, int idx)
 }
 
 static int
-ogg_read_page(muxed_stream_t *ms, int *str)
+ogg_skip_page(ogg_t *ogg, int nsegs)
 {
-    ogg_t *ogg = ms->private;
+    uint8_t segments[255];
+    int size = 0;
+    int i;
+
+    if (ogg->f->read(segments, 1, nsegs, ogg->f) < nsegs)
+        return -1;
+
+    for (i = 0; i < nsegs; i++)
+        size += segments[i];
+
+    ogg->f->seek(ogg->f, size, SEEK_CUR);
+
+    return 0;
+}
+
+static int
+ogg_read_page(ogg_t *ogg, int *str)
+{
     ogg_stream_t *os;
     int i = 0;
     int flags, nsegs;
@@ -195,6 +207,8 @@ ogg_read_page(muxed_stream_t *ms, int *str)
     int size, idx;
     char sync[4];
     int sp = 0;
+
+    *str = -1;
 
     if(ogg->f->read(sync, 1, 4, ogg->f) < 4)
 	return -1;
@@ -229,9 +243,17 @@ ogg_read_page(muxed_stream_t *ms, int *str)
     url_getu32l(ogg->f, &crc);
     nsegs = url_getc(ogg->f);
 
+    tc2_print("OGG", TC2_PRINT_DEBUG+1,
+              "page serial %08x, flags %02x, seq %d\n",
+              serial, flags, seq);
+
     idx = ogg_find_stream(ogg, serial);
     if(idx < 0){
-	idx = ogg_new_stream(ms, serial);
+        if(!(flags & OGG_FLAG_BOS)){
+            ogg_skip_page(ogg, nsegs);
+            return 0;
+        }
+        idx = ogg_new_stream(ogg, serial);
 	if(idx < 0)
 	    return -1;
     }
@@ -292,6 +314,27 @@ ogg_read_page(muxed_stream_t *ms, int *str)
 }
 
 static int
+ogg_update_streams(muxed_stream_t *ms)
+{
+    ogg_t *ogg = ms->private;
+    int d = ogg->nstreams - ms->n_streams;
+
+    if (!d)
+        return 0;
+
+    ms->streams = realloc(ms->streams, ogg->nstreams * sizeof(*ms->streams));
+    memset(ms->streams + ms->n_streams, 0, d * sizeof(*ms->streams));
+
+    ms->used_streams =
+        realloc(ms->used_streams, ogg->nstreams * sizeof(*ms->used_streams));
+    memset(ms->used_streams + ms->n_streams, 0, d * sizeof(*ms->used_streams));
+
+    ms->n_streams = ogg->nstreams;
+
+    return 0;
+}
+
+static int
 ogg_packet(muxed_stream_t *ms, int *str, int *dstart, int *dsize)
 {
     ogg_t *ogg = ms->private;
@@ -307,7 +350,7 @@ ogg_packet(muxed_stream_t *ms, int *str, int *dstart, int *dsize)
 	idx = ogg->curidx;
 
 	while(idx < 0){
-	    if(ogg_read_page(ms, &idx) < 0)
+	    if(ogg_read_page(ogg, &idx) < 0)
 		return -1;
 	}
 
@@ -353,7 +396,9 @@ ogg_packet(muxed_stream_t *ms, int *str, int *dstart, int *dsize)
     ogg->curidx = idx;
 
     if(os->header == -1){
-	int hdr = os->codec->header(ms, idx);
+        int hdr;
+        ogg_update_streams(ms);
+	hdr = os->codec->header(ms, idx);
 	if(!hdr){
 	    os->header = os->seq;
 	    os->segp = segp;
@@ -467,7 +512,7 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
 
 	ogg->f->seek(ogg->f, p, SEEK_SET);
 
-	while(!ogg_read_page(ms, &i)){
+	while(!ogg_read_page(ogg, &i)){
 	    if(i >= 0 && ogg->streams[i].granule != 0 &&
 	       ogg->streams[i].granule != -1)
 		break;
@@ -534,7 +579,7 @@ ogg_get_length(muxed_stream_t *ms)
     ogg_save(ogg);
     ogg->f->seek(ogg->f, -MAX_PAGE_SIZE, SEEK_END);
 
-    while(!ogg_read_page(ms, &i)){
+    while(!ogg_read_page(ogg, &i)){
 	if(i >= 0 && ogg->streams[i].granule != -1 &&
 	   ogg->streams[i].granule != 0 && ogg->streams[i].codec)
 	    ms->time = ogg_gptopts(ms, i, ogg->streams[i].granule);
@@ -590,8 +635,6 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     }
 
     ogg_get_length(ms);
-
-    ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
 
     return ms;
 }
