@@ -260,6 +260,18 @@ ogg_read_page(ogg_t *ogg, int *str)
 
     os = ogg->streams + idx;
 
+    if(flags & OGG_FLAG_CONT){
+        size = 0;
+        while(os->segp < os->nsegs){
+            int s = os->segments[os->segp++];
+            size += s;
+            if(s < 255)
+                os->pstart = size;
+        }
+    } else {
+        os->pstart = os->bufpos;
+    }
+
     if(os->pstart > 0)
         ogg_new_buf(ogg, idx);
 
