@@ -244,8 +244,8 @@ ogg_read_page(ogg_t *ogg, int *str)
     nsegs = url_getc(ogg->f);
 
     tc2_print("OGG", TC2_PRINT_DEBUG+1,
-              "page serial %08x, flags %02x, seq %d\n",
-              serial, flags, seq);
+              "page serial %08x, flags %02x, %3d segs, seq %d\n",
+              serial, flags, nsegs, seq);
 
     idx = ogg_find_stream(ogg, serial);
     if(idx < 0){
