@@ -150,6 +150,11 @@ static const struct mpeg_stream_type hdmv_stream_types[] = {
     { }
 };
 
+static const struct mpeg_stream_type atsc_stream_types[] = {
+    { 0x81, PRIVATE_STREAM_1, "audio/ac3" },
+    { }
+};
+
 static const tcfraction_t frame_rates[16] = {
     { 0,     0    },
     { 24000, 1001 },
@@ -180,6 +185,7 @@ static const struct {
     { 0x44545332, "audio/dts" },
     { 0x56432d31, "video/vc1" },
     { 0x48444d56, NULL,       hdmv_stream_types },
+    { 0x47413934, NULL,       atsc_stream_types },
     { 0, NULL }
 };
 
