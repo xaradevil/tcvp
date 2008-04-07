@@ -25,7 +25,7 @@
 #ifndef AVC_H
 #define AVC_H
 
-#include <ffmpeg/avcodec.h>
+#include <libavcodec/avcodec.h>
 #include <tcvp_types.h>
 
 #define PTSQSIZE 32

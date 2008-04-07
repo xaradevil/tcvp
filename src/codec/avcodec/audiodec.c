@@ -28,7 +28,7 @@
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
-#include <ffmpeg/avcodec.h>
+#include <libavcodec/avcodec.h>
 #include <avcodec_tc2.h>
 #include "avc.h"
 
