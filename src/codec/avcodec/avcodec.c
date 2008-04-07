@@ -85,6 +85,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     AVCodecContext *avctx;
     AVCodecParserContext *pctx = NULL;
     char *avcname;
+    int err;
 
     avcname = avc_codec_name(s->common.codec);
     if(!avcname)
@@ -151,10 +152,10 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     avctx->extradata_size = s->common.codec_data_size;
 
     pthread_mutex_lock(&avc_lock);
-    avcodec_open(avctx, avc);
+    err = avcodec_open(avctx, avc);
     pthread_mutex_unlock(&avc_lock);
 
-    return 0;
+    return err;
 }
 
 static char *codec_names[][2] = {
