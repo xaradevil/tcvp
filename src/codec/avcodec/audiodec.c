@@ -49,16 +49,33 @@ do_decaudio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
     }
 
     while(insize > 0){
+        uint8_t *buf = NULL;
+        int bufsize = 0;
 	int l, outsize;
 
-	l = avcodec_decode_audio(ac->ctx, (int16_t *) ac->buf, &outsize,
-				 inbuf, insize);
-	if(l < 0){
-	    return -1;
-	}
+        if(ac->pctx){
+            l = av_parser_parse(ac->pctx, ac->ctx, &buf, &bufsize,
+                                inbuf, insize, 0, 0);
+            if(l < 0)
+                return probe? l: 0;
+            inbuf += l;
+            insize -= l;
+            outsize = 0;
+        } else {
+            buf = inbuf;
+            bufsize = insize;
+        }
 
-	inbuf += l;
-	insize -= l;
+        if(bufsize){
+            l = avcodec_decode_audio(ac->ctx, (int16_t *) ac->buf, &outsize,
+                                     buf, bufsize);
+            if(l < 0)
+                return probe? l: 0;
+            if(!ac->pctx){
+                inbuf += l;
+                insize -= l;
+            }
+        }
 
 	if(outsize > 0){
 	    if(probe){
