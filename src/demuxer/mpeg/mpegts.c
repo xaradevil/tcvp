@@ -744,8 +744,10 @@ mpegts_section_init(struct mpegts_section *psi)
     psi->id = htob_16(unaligned16(dp + 3));
 
     val = dp[5];
-    if((val & 0xc0) != 0xc0)     /* reserved */
+    if((val & 0xc0) != 0xc0){   /* reserved */
+        tc2_print("MPEGTS", TC2_PRINT_WARNING, "invalid 'reserved' value\n");
         return -1;
+    }
 
     psi->version = (val >> 1) & 0x1f;
     psi->current = val & 1;
@@ -817,6 +819,9 @@ mpegts_do_psi(struct mpegts_stream *s, struct mpegts_packet *mp)
         }
 
         if(psi->read + len > sizeof(psi->buf)){
+            tc2_print("MPEGTS", TC2_PRINT_WARNING,
+                      "PSI section overflow %d > %zd\n",
+                      psi->read + len, sizeof(psi->buf));
             err = -1;
             goto out;
         }
@@ -828,6 +833,8 @@ mpegts_do_psi(struct mpegts_stream *s, struct mpegts_packet *mp)
 
         if(!psi->length && psi->read >= MPEGTS_SECTION_COMMON_LEN){
             if(mpegts_section_init(psi) < 0){
+                tc2_print("MPEGTS", TC2_PRINT_WARNING,
+                          "PSI section syntax error\n");
                 err = -1;
                 goto out;
             }
