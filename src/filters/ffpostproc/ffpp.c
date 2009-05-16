@@ -29,7 +29,7 @@
 #include <tctypes.h>
 #include <tclist.h>
 #include <tcalloc.h>
-#include <postproc/postprocess.h>
+#include <libpostproc/postprocess.h>
 #include <tcvp_types.h>
 #include <ffpostproc_tc2.h>
 

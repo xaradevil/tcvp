@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS([libpostproc, postproc, pp_get_context,, postproc/postprocess.h])
+TC2_CHECK_LIBS([libpostproc, postproc, pp_get_context,, libpostproc/postprocess.h])
