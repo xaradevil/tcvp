@@ -149,6 +149,15 @@ static inline int float_to_int (float * _f, int16_t * s16, int flags)
 	    s16[6*i+5] = convert (f[i]);
 	}
 	return 6;
+    case A52_3F1R | A52_LFE:
+        for(i = 0; i < 256; i++){
+            s16[6*i] = convert(f[i+256]);
+            s16[6*i+1] = convert(f[i+768]);
+            s16[6*i+2] = s16[6*i+3] = convert(f[i+1024]);
+            s16[6*i+4] = convert(f[i+512]);
+            s16[6*i+5] = convert(f[i]);
+        }
+        return 6;
     case A52_3F2R | A52_LFE:
 	for (i = 0; i < 256; i++) {
 	    s16[6*i] = convert (f[i+256]);
@@ -346,6 +355,7 @@ a52_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	case A52_DOLBY | A52_LFE:
 	case A52_3F | A52_LFE:
 	case A52_2F2R | A52_LFE:
+        case A52_3F1R | A52_LFE:
 	case A52_3F2R | A52_LFE:
 	    channels = 6;
 	    break;
@@ -355,7 +365,8 @@ a52_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	}
     }
 
-    tc2_print("A52", TC2_PRINT_DEBUG, "flags %x\n", flags);
+    tc2_print("A52", TC2_PRINT_DEBUG, "flags %x, channels %d\n",
+              flags, channels);
 
     p->format = *s;
     p->format.stream_type = STREAM_TYPE_AUDIO;
