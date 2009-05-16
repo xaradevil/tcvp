@@ -1,7 +1,7 @@
-symbol	"add"		tcvp_pipe_t *(*%s)(tcvp_player_t *, muxed_stream_t *)
-symbol	"new"		tcvp_player_t *(*%s)(tcconf_section_t *profile, tcconf_section_t *conf, tcvp_timer_t *timer, char *out)
-symbol	"new_pipe"	tcvp_pipe_t *(*%s)(tcvp_player_t *sh, muxed_stream_t *ms, stream_t *s)
-symbol	"close_pipe"	void (*%s)(tcvp_pipe_t *)
+symbol  "add"           tcvp_pipe_t *(*%s)(tcvp_player_t *, muxed_stream_t *)
+symbol  "new"           tcvp_player_t *(*%s)(tcconf_section_t *profile, tcconf_section_t *conf, tcvp_timer_t *timer, char *out)
+symbol  "new_pipe"      tcvp_pipe_t *(*%s)(tcvp_player_t *sh, muxed_stream_t *ms, stream_t *s)
+symbol  "close_pipe"    void (*%s)(tcvp_pipe_t *)
 require "timer"
 include
 #include <tcvp_types.h>

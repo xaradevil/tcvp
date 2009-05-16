@@ -1,7 +1,7 @@
 inherit "tcvp/module"
-symbol	"get_dbname"	char *(*%s)(tcconf_section_t *cf)
-symbol	"get_dbref"	tcdb_t *(*%s)(char *name)
-symbol	"query"		tcdb_reply_t *(*%s)(tcdb_t *db, char *query)
+symbol  "get_dbname"    char *(*%s)(tcconf_section_t *cf)
+symbol  "get_dbref"     tcdb_t *(*%s)(char *name)
+symbol  "query"         tcdb_reply_t *(*%s)(tcdb_t *db, char *query)
 include
 typedef struct tcdb tcdb_t;
 typedef struct tcdb_reply {
@@ -10,7 +10,7 @@ typedef struct tcdb_reply {
     char *reply;
     int rtype;
 } tcdb_reply_t;
-#define TCDB_FAIL	0
-#define TCDB_OK		1
-#define TCDB_STRING	2
+#define TCDB_FAIL       0
+#define TCDB_OK         1
+#define TCDB_STRING     2
 

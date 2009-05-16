@@ -42,12 +42,12 @@ dec_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     codec = s->common.codec;
 
     if(!codec)
-	return NULL;
+        return NULL;
 
     buf = alloca(strlen(codec) + 9);
     sprintf(buf, "decoder/%s", codec);
     if(!(cnew = tc2_get_symbol(buf, "new")))
-	return NULL;
+        return NULL;
 
     return cnew(s, cs, t, ms);
 }
@@ -60,29 +60,29 @@ enc_new(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t, muxed_stream_t *ms)
     char *m = NULL;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &name) <= 0)
-	return NULL;
+        return NULL;
 
     if((sf = strrchr(name, '.'))){
-	int i;
-	for(i = 0; i < suffix_map_size; i++){
-	    if(!strcmp(sf, suffix_map[i].suffix)){
-		if(s->stream_type == STREAM_TYPE_VIDEO)
-		    m = suffix_map[i].vcodec;
-		else if(s->stream_type == STREAM_TYPE_AUDIO)
-		    m = suffix_map[i].acodec;
-		else
-		    tc2_print("ENCODE", TC2_PRINT_ERROR, "unknown stream type %i\n",
-			      s->stream_type);
-		break;
-	    }
-	}
+        int i;
+        for(i = 0; i < suffix_map_size; i++){
+            if(!strcmp(sf, suffix_map[i].suffix)){
+                if(s->stream_type == STREAM_TYPE_VIDEO)
+                    m = suffix_map[i].vcodec;
+                else if(s->stream_type == STREAM_TYPE_AUDIO)
+                    m = suffix_map[i].acodec;
+                else
+                    tc2_print("ENCODE", TC2_PRINT_ERROR, "unknown stream type %i\n",
+                              s->stream_type);
+                break;
+            }
+        }
     }
 
     if(m){
-	char mb[strlen(m) + 8];
-	sprintf(mb, "encoder/%s", m);
-	cnew = tc2_get_symbol(mb, "new");
-	tcconf_setvalue(cs, "type", "%s", mb);
+        char mb[strlen(m) + 8];
+        sprintf(mb, "encoder/%s", m);
+        cnew = tc2_get_symbol(mb, "new");
+        tcconf_setvalue(cs, "type", "%s", mb);
     }
 
     free(name);

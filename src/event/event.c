@@ -51,9 +51,9 @@ get_qname(tcconf_section_t *cf)
     char *qname;
 
     if(tcconf_getvalue(cf, "qname", "%s", &qname) < 1){
-	qname = malloc(16);
-	snprintf(qname, 16, "TCVP-%i", qnum++);
-	tcconf_setvalue(cf, "qname", "%s", qname);
+        qname = malloc(16);
+        snprintf(qname, 16, "TCVP-%i", qnum++);
+        tcconf_setvalue(cf, "qname", "%s", qname);
     }
 
     return qname;
@@ -117,7 +117,7 @@ evt_deserialize(int type, u_char *event, int size)
 
 static tcvp_event_type_t *
 new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
-	 tcvp_deserialize_event_t df, char *fmt)
+         tcvp_deserialize_event_t df, char *fmt)
 {
     tcvp_event_type_t *e;
 
@@ -134,33 +134,33 @@ new_type(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
     tchash_replace(event_types, name, -1, e, NULL);
 
     tc2_print("EVENT", TC2_PRINT_DEBUG,
-	      "registered %s as %i\n", name, e->num);
+              "registered %s as %i\n", name, e->num);
 
     return e;
 }
 
 extern int
 reg_event(char *name, tcvp_alloc_event_t af, tcvp_serialize_event_t sf,
-	  tcvp_deserialize_event_t df, char *fmt)
+          tcvp_deserialize_event_t df, char *fmt)
 {
     tcvp_event_type_t *e;
 
     if(!af){
-	af = evt_alloc;
-	if(!sf)
-	    sf = evt_serialize;
-	if(!df)
-	    df = evt_deserialize;
+        af = evt_alloc;
+        if(!sf)
+            sf = evt_serialize;
+        if(!df)
+            df = evt_deserialize;
     }
 
     if(!tchash_find(event_types, name, -1, &e)){
-	if(e->alloc)
-	    return -1;
-	e->alloc = af;
-	e->serialize = sf;
-	e->deserialize = df;
-	e->format = fmt;
-	return e->num;
+        if(e->alloc)
+            return -1;
+        e->alloc = af;
+        e->serialize = sf;
+        e->deserialize = df;
+        e->format = fmt;
+        return e->num;
     }
 
     e = new_type(name, af, sf, df, fmt);
@@ -174,12 +174,12 @@ get_event(char *name)
     tcvp_event_type_t *e;
 
     if(tchash_find(event_types, name, -1, &e))
-	e = new_type(name, NULL, NULL, NULL, NULL);
+        e = new_type(name, NULL, NULL, NULL, NULL);
     if(!e->alloc){
-	char *m = malloc(strlen(name) + sizeof("tcvp/events/") + 1);
-	sprintf(m, "tcvp/events/%s", name);
-	tc2_request(TC2_LOAD_MODULE, 1, m, NULL);
-	free(m);
+        char *m = malloc(strlen(name) + sizeof("tcvp/events/") + 1);
+        sprintf(m, "tcvp/events/%s", name);
+        tc2_request(TC2_LOAD_MODULE, 1, m, NULL);
+        free(m);
     }
 
     return e->num;
@@ -189,7 +189,7 @@ extern char *
 get_format(int type)
 {
     if(type <= event_num && event_tab[type])
-	return event_tab[type]->format;
+        return event_tab[type]->format;
     return NULL;
 }
 
@@ -208,7 +208,7 @@ del_event(char *name)
     tcvp_event_type_t *e;
 
     if(!tchash_delete(event_types, name, -1, &e))
-	free_event(e);
+        free_event(e);
 
     return 0;
 }
@@ -222,9 +222,9 @@ new_event(int type, ...)
     va_start(args, type);
 
     if(type <= event_num && event_tab[type]){
-	te = event_tab[type]->alloc(type, args);
+        te = event_tab[type]->alloc(type, args);
     } else {
-	tc2_print("EVENT", TC2_PRINT_WARNING, "unknown event #%i\n", type);
+        tc2_print("EVENT", TC2_PRINT_WARNING, "unknown event #%i\n", type);
     }
 
     va_end(args);
@@ -239,20 +239,20 @@ send_eventv(eventq_t q, int type, va_list args)
     int ret = -1;
 
     if(type == -1){
-	te = tcalloc(sizeof(*te));
-	te->type = -1;
+        te = tcalloc(sizeof(*te));
+        te->type = -1;
     } else if(type <= event_num && event_tab[type] && event_tab[type]->alloc){
-	te = event_tab[type]->alloc(type, args);
+        te = event_tab[type]->alloc(type, args);
     } else {
-	tc2_print("EVENT", TC2_PRINT_WARNING, "unknown event #%i\n", type);
+        tc2_print("EVENT", TC2_PRINT_WARNING, "unknown event #%i\n", type);
     }
 
     if(te){
-	if(type >= 0)
-	    tc2_print("EVENT", TC2_PRINT_DEBUG,
-		      "sending %s\n", event_tab[type]->name);
-	ret = eventq_send(q, te);
-	tcfree(te);
+        if(type >= 0)
+            tc2_print("EVENT", TC2_PRINT_DEBUG,
+                      "sending %s\n", event_tab[type]->name);
+        ret = eventq_send(q, te);
+        tcfree(te);
     }
 
     return ret;
@@ -278,18 +278,18 @@ serialize_event(void *event, int *size)
 
 
     if(te->type < 0 || te->type > event_num)
-	return NULL;
+        return NULL;
     if(!event_tab[te->type])
-	return NULL;
+        return NULL;
 
     if(!event_tab[te->type]->serialize){
-	tc2_print("EVENT", TC2_PRINT_DEBUG, "no serializer for %s\n",
-		  event_tab[te->type]->name);
-	return NULL;
+        tc2_print("EVENT", TC2_PRINT_DEBUG, "no serializer for %s\n",
+                  event_tab[te->type]->name);
+        return NULL;
     }
 
     return event_tab[te->type]->serialize(event_tab[te->type]->name,
-					  event, size);
+                                          event, size);
 }
 
 extern void *
@@ -298,13 +298,13 @@ deserialize_event(u_char *event, int size)
     tcvp_event_type_t *e;
 
     if(!memchr(event, 0, size))
-	return NULL;
+        return NULL;
 
     if(tchash_find(event_types, event, -1, &e))
-	return NULL;
+        return NULL;
 
     if(!e->deserialize)
-	return NULL;
+        return NULL;
 
     return e->deserialize(e->num, event, size);
 }
@@ -332,7 +332,7 @@ event_free(void)
 {
     tchash_destroy(event_types, free_event);
     if(event_tab)
-	free(event_tab);
+        free(event_tab);
     event_num = 0;
 
     return 0;
@@ -358,7 +358,7 @@ event_loop(void *p)
     eh = NULL;
 
     while(run){
-	tcvp_event_t *te = eventq_recv(q);
+        tcvp_event_t *te = eventq_recv(q);
         tcvp_event_type_handler_t *h = handlers;
         while(h->handler){
             if(h->type == te->type){

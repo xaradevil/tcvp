@@ -44,40 +44,40 @@ cddb_cmd(char *cmd)
 
     p = cmd = strdup(cmd);
     while(*p){
-	*p = *p == ' '? '+': *p;
-	p++;
+        *p = *p == ' '? '+': *p;
+        p++;
     }
 
     snprintf(url, sizeof(url), "http://%s/~cddb/cddb.cgi?"
-	     "cmd=%s&hello=%s+%s+%s+%s&proto=6",
-	     tcvp_input_cdda_conf_cddb_server, cmd,
-	     tcvp_input_cdda_conf_cddb_user,
-	     tcvp_input_cdda_conf_cddb_hostname,
-	     tcvp_input_cdda_conf_cddb_client.name,
-	     tcvp_input_cdda_conf_cddb_client.version);
+             "cmd=%s&hello=%s+%s+%s+%s&proto=6",
+             tcvp_input_cdda_conf_cddb_server, cmd,
+             tcvp_input_cdda_conf_cddb_user,
+             tcvp_input_cdda_conf_cddb_hostname,
+             tcvp_input_cdda_conf_cddb_client.name,
+             tcvp_input_cdda_conf_cddb_client.version);
 
     for(p = url; *p; p++)
-	if(*p == ' ')
-	    *p = '+';
+        if(*p == ' ')
+            *p = '+';
 
     free(cmd);
 /*     tc2_print("CDDA", TC2_PRINT_DEBUG, "%s\n", url); */
 
     u = url_http_open(url, "r");
     if(!u)
-	return NULL;
+        return NULL;
 
     rsize = 1024;
     reply = malloc(rsize);
     p = reply;
 
     while((n = u->read(p, 1, rsize - (p - reply), u)) > 0){
-	p += n;
-	if(p - reply == rsize){
-	    int s = p - reply;
-	    reply = realloc(reply, rsize += 1024);
-	    p = reply + s;
-	}
+        p += n;
+        if(p - reply == rsize){
+            int s = p - reply;
+            reply = realloc(reply, rsize += 1024);
+            p = reply + s;
+        }
     }
 
     *p = 0;
@@ -97,7 +97,7 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track, char *options)
     uint32_t id;
     char *rep, *cat = NULL;
     char *artist = NULL, *album = NULL, *title = NULL,
-	*genre = NULL, *year = NULL;
+        *genre = NULL, *year = NULL;
     char *tmp;
     int entry = 1;
 
@@ -105,22 +105,22 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track, char *options)
     p = qry;
 
     while(tracks > 0 && !IS_AUDIO(d, tracks-1))
-	tracks--;
+        tracks--;
 
     p += sprintf(qry, "cddb query XXXXXXXX %i", tracks);
 
     for(i = 0; i < tracks; i++){
-	sect = d->disc_toc[i].dwStartSector + 150;
-	p += sprintf(p, " %i", sect);
-	s = sect / 75;
-	while(s){
-	    sum += s % 10;
-	    s /= 10;
-	}
+        sect = d->disc_toc[i].dwStartSector + 150;
+        p += sprintf(p, " %i", sect);
+        s = sect / 75;
+        while(s){
+            sum += s % 10;
+            s /= 10;
+        }
     }
 
     s = d->disc_toc[tracks].dwStartSector / 75 -
-	d->disc_toc[0].dwStartSector / 75;
+        d->disc_toc[0].dwStartSector / 75;
     id = (sum & 0xff) << 24 | s << 8 | tracks;
     secs = (d->disc_toc[tracks].dwStartSector + 150) / 75;
 
@@ -129,113 +129,113 @@ cdda_freedb(url_t *u, cd_data_t *cdt, int track, char *options)
     qry[19] = ' ';
 
     if(options) {
-	options = strdup(options);
+        options = strdup(options);
 
-	tmp = options;
+        tmp = options;
 
-	while((p = strsep(&tmp, "&"))){
-	    if(!*p)
-		continue;
-	    if(!strncmp(p, "cddb_entry=", 11)){
-		entry = strtol(p + 11, NULL, 0);
-		if(entry<1) {
-		    tc2_print("CDDA", TC2_PRINT_ERROR, "no such entry\n");
-		    entry = 1;
-		}
-	    }
-	}
+        while((p = strsep(&tmp, "&"))){
+            if(!*p)
+                continue;
+            if(!strncmp(p, "cddb_entry=", 11)){
+                entry = strtol(p + 11, NULL, 0);
+                if(entry<1) {
+                    tc2_print("CDDA", TC2_PRINT_ERROR, "no such entry\n");
+                    entry = 1;
+                }
+            }
+        }
 
-	free(options);
+        free(options);
     }
 
     if((rep = cddb_cmd(qry))){
-	char *rp;
-	int status = strtol(rep, &rp, 0);
-	char *first;
+        char *rp;
+        int status = strtol(rep, &rp, 0);
+        char *first;
 
-	switch(status){
-	case 210:
-	case 211:
-	    first = strchr(rp, '\n');
-	    while(rp && entry > 0 && *(rp+1) != '.') {
-		rp = strchr(rp+1, '\n');
-		entry--;
-	    }
+        switch(status){
+        case 210:
+        case 211:
+            first = strchr(rp, '\n');
+            while(rp && entry > 0 && *(rp+1) != '.') {
+                rp = strchr(rp+1, '\n');
+                entry--;
+            }
 
-	    if(entry != 0 || rp == NULL || (rp && *(rp+1) == '.')) {
-		tc2_print("CDDA", TC2_PRINT_ERROR, "no such entry\n");
-		rp = first;
-	    }
+            if(entry != 0 || rp == NULL || (rp && *(rp+1) == '.')) {
+                tc2_print("CDDA", TC2_PRINT_ERROR, "no such entry\n");
+                rp = first;
+            }
 
-	    if(!rp)
-		break;
+            if(!rp)
+                break;
 
-	    cat = rp +1;
-	    break;
+            cat = rp +1;
+            break;
 
-	case 200:
-	    if(entry != 1) tc2_print("CDDA", TC2_PRINT_ERROR,
-				     "no such entry\n");
-	    cat = rp + 1;
-	    break;
-	}
+        case 200:
+            if(entry != 1) tc2_print("CDDA", TC2_PRINT_ERROR,
+                                     "no such entry\n");
+            cat = rp + 1;
+            break;
+        }
 
-	if(cat){
-	    char *c = strchr(cat, ' ');
+        if(cat){
+            char *c = strchr(cat, ' ');
 
-	    if(c)
-		c = strchr(c + 1, ' ');
-	    if(c)
-		*c = 0;
+            if(c)
+                c = strchr(c + 1, ' ');
+            if(c)
+                *c = 0;
 
-	    snprintf(qry, 40, "cddb read %s", cat);
-	    free(rep);
-	    if((rep = cddb_cmd(qry))){
-		char *l, *tmp = rep;
-		char ttitle[12];
-		int ttl;
+            snprintf(qry, 40, "cddb read %s", cat);
+            free(rep);
+            if((rep = cddb_cmd(qry))){
+                char *l, *tmp = rep;
+                char ttitle[12];
+                int ttl;
 
-		ttl = sprintf(ttitle, "TTITLE%i=", track - 1);
+                ttl = sprintf(ttitle, "TTITLE%i=", track - 1);
 
-		while((l = strsep(&tmp, "\r\n"))){
-		    if(!*l)
-			continue;
-		    if(*l == '#')
-			continue;
+                while((l = strsep(&tmp, "\r\n"))){
+                    if(!*l)
+                        continue;
+                    if(*l == '#')
+                        continue;
 
-		    if(!strncmp(l, "DTITLE=", 7)){
-			char *t = strstr(l, " / ");
-			if(t){
-			    *t = 0;
-			    album = strdup(t + 3);
-			}
-			artist = strdup(l + 7);
-		    } else if(!strncmp(l, "DYEAR=", 6)) {
-			year = strdup(l+6);
-		    } else if(!strncmp(l, "DGENRE=", 7)) {
-			genre = strdup(l+7);
-		    } else if(!strncmp(l, ttitle, ttl)){
-			char *t = strstr(l, " / ");
-			if(t)
-			    *t = 0;
-			title = strdup(l + ttl);
-		    }
-		}
-	    }
-	}
-	free(rep);
+                    if(!strncmp(l, "DTITLE=", 7)){
+                        char *t = strstr(l, " / ");
+                        if(t){
+                            *t = 0;
+                            album = strdup(t + 3);
+                        }
+                        artist = strdup(l + 7);
+                    } else if(!strncmp(l, "DYEAR=", 6)) {
+                        year = strdup(l+6);
+                    } else if(!strncmp(l, "DGENRE=", 7)) {
+                        genre = strdup(l+7);
+                    } else if(!strncmp(l, ttitle, ttl)){
+                        char *t = strstr(l, " / ");
+                        if(t)
+                            *t = 0;
+                        title = strdup(l + ttl);
+                    }
+                }
+            }
+        }
+        free(rep);
     }
 
     if(artist)
-	tcattr_set(u, "performer", artist, NULL, free);
+        tcattr_set(u, "performer", artist, NULL, free);
     if(album)
-	tcattr_set(u, "album", album, NULL, free);
+        tcattr_set(u, "album", album, NULL, free);
     if(title)
-	tcattr_set(u, "title", title, NULL, free);
+        tcattr_set(u, "title", title, NULL, free);
     if(year)
-	tcattr_set(u, "year", year, NULL, free);
+        tcattr_set(u, "year", year, NULL, free);
     if(genre)
-	tcattr_set(u, "genre", genre, NULL, free);
+        tcattr_set(u, "genre", genre, NULL, free);
 
     free(qry);
     return 0;

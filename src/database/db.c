@@ -57,7 +57,7 @@ get_dbref(char *name)
     void *p;
 
     if(!dbhash) {
-	return NULL;
+        return NULL;
     }
 
     tchash_find(dbhash, name, -1, &p);
@@ -91,7 +91,7 @@ db_free(void *p)
     pthread_mutex_destroy(&tdb->lock);
 
     if(dbhash) {
-	tchash_destroy(dbhash, dbfree);
+        tchash_destroy(dbhash, dbfree);
     }
     tcfree(tdb->conf);
 }
@@ -142,7 +142,7 @@ db_event_query(tcvp_module_t *p, tcvp_event_t *e)
     if(re == NULL) return -1;
 
     tcvp_event_send(tdb->sc, TCVP_DB_REPLY, re->dbname, re->query,
-		    re->reply, re->rtype);
+                    re->reply, re->rtype);
 
     tcfree(re);
 
@@ -166,10 +166,10 @@ unescape(char *s)
     char *p = s;
 
     do {
-	if(s[0] == '\\' && s[1] == '\'') {
-	    s++;
-	}
-	*p++ = *s;
+        if(s[0] == '\\' && s[1] == '\'') {
+            s++;
+        }
+        *p++ = *s;
     } while(*s++);
 }
 
@@ -179,95 +179,95 @@ db_query(tcdb_t *db, char *query)
     tcdb_reply_t *r = NULL;
 
     tc2_print("database", TC2_PRINT_DEBUG+5, "dbname='%s' query='%s'\n",
-	      db->name, query);
+              db->name, query);
 
     if(strncmp(query, "ADD", 3) == 0) {
-	char *q, *t, *k = NULL, *v = NULL;
-	t = q = strdup(query);
+        char *q, *t, *k = NULL, *v = NULL;
+        t = q = strdup(query);
 
-	k = strchr(q, '\'');
-	if(k) {
-	    q=k;
-	    do {
-		q = strchr(q+1, '\'');
-	    } while(q[-1]=='\\');
+        k = strchr(q, '\'');
+        if(k) {
+            q=k;
+            do {
+                q = strchr(q+1, '\'');
+            } while(q[-1]=='\\');
 
-	    if(k && q) {
-		*q=0;
-		v = strchr(q+1, '\'');
-		if(v) {
-		    q=v+1;
-		    do {
-			q = strchr(q+1, '\'');
-		    } while(q && q[-1]=='\\');
-		    if(q) {
-			*q=0;
-		    }
-		}
-	    }
-	}
+            if(k && q) {
+                *q=0;
+                v = strchr(q+1, '\'');
+                if(v) {
+                    q=v+1;
+                    do {
+                        q = strchr(q+1, '\'');
+                    } while(q && q[-1]=='\\');
+                    if(q) {
+                        *q=0;
+                    }
+                }
+            }
+        }
 
-	if(k && v) {
-	    void *p = NULL;
-	    k++;
-	    v++;
+        if(k && v) {
+            void *p = NULL;
+            k++;
+            v++;
 
-	    unescape(k);
-	    unescape(v);
+            unescape(k);
+            unescape(v);
 
-	    tc2_print("database", TC2_PRINT_DEBUG+2, "ADD \"%s\" \"%s\"\n",
-		      k, v);
+            tc2_print("database", TC2_PRINT_DEBUG+2, "ADD \"%s\" \"%s\"\n",
+                      k, v);
 
-	    tchash_replace(db->hash, k, -1, strdup(v), &p);
-	    if(p) free(p);
+            tchash_replace(db->hash, k, -1, strdup(v), &p);
+            if(p) free(p);
 
-	    r = tcallocdz(sizeof(*r), NULL, db_reply_free);
+            r = tcallocdz(sizeof(*r), NULL, db_reply_free);
 
-	    r->query = strdup(query);
-	    r->dbname = strdup(db->name);
-	    r->reply = strdup("");
-	    r->rtype = TCDB_OK;
-	}
+            r->query = strdup(query);
+            r->dbname = strdup(db->name);
+            r->reply = strdup("");
+            r->rtype = TCDB_OK;
+        }
 
-	free(t);
+        free(t);
     } else if(strncmp(query, "FIND", 4) == 0) {
-	char *q, *t, *k = NULL;
-	t = q = strdup(query);
+        char *q, *t, *k = NULL;
+        t = q = strdup(query);
 
-	k = strchr(q, '\'');
-	if(k) {
-	    q=k;
-	    do {
-		q = strchr(q+1, '\'');
-	    } while(q[-1]=='\\');
+        k = strchr(q, '\'');
+        if(k) {
+            q=k;
+            do {
+                q = strchr(q+1, '\'');
+            } while(q[-1]=='\\');
 
-	    if(k && q) {
-		*q=0;
-	    }
-	}
+            if(k && q) {
+                *q=0;
+            }
+        }
 
-	if(k) {
-	    void *p = NULL;
-	    k++;
+        if(k) {
+            void *p = NULL;
+            k++;
 
-	    unescape(k);
+            unescape(k);
 
-	    tc2_print("database", TC2_PRINT_DEBUG+2, "FIND \"%s\"\n", k);
+            tc2_print("database", TC2_PRINT_DEBUG+2, "FIND \"%s\"\n", k);
 
-	    tchash_find(db->hash, k, -1, &p);
+            tchash_find(db->hash, k, -1, &p);
 
-	    r = tcallocdz(sizeof(*r), NULL, db_reply_free);
+            r = tcallocdz(sizeof(*r), NULL, db_reply_free);
 
-	    r->query = strdup(query);
-	    r->dbname = strdup(db->name);
-	    r->reply = strdup(p?p:"");
-	    r->rtype = p?TCDB_STRING:TCDB_FAIL;
-	}
+            r->query = strdup(query);
+            r->dbname = strdup(db->name);
+            r->reply = strdup(p?p:"");
+            r->rtype = p?TCDB_STRING:TCDB_FAIL;
+        }
 
-	free(t);
+        free(t);
     } else {
-	tc2_print("database", TC2_PRINT_WARNING, "error in query '%s'\n",
-		  query);
+        tc2_print("database", TC2_PRINT_WARNING, "error in query '%s'\n",
+                  query);
     }
 
 

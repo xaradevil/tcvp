@@ -38,8 +38,8 @@ tag2str(uint32_t tag, char *s)
 {
     int i;
     for(i = 0; i < 5; i++){
-	s[i] = tag & 0xff;
-	tag >>= 8;
+        s[i] = tag & 0xff;
+        tag >>= 8;
     }
     return s;
 }
@@ -59,82 +59,82 @@ wav_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
 
     url_getu32l(u, &tag);
     if(tag != TAG('R','I','F','F'))
-	return NULL;
+        return NULL;
     url_getu32l(u, &size);
     url_getu32l(u, &tag);
     if(tag != TAG('W','A','V','E'))
-	return NULL;
+        return NULL;
 
     memset(guid, 0, sizeof(guid));
 
     while(!data && !url_getu32l(u, &tag)){
-	url_getu32l(u, &size);
-	pos = u->tell(u);
-	tc2_print("WAV", TC2_PRINT_DEBUG, "tag '%s', size %i @ %llx\n",
-		  tag2str(tag, tags), size, pos);
-	switch(tag){
-	case TAG('f','m','t',' '): {
-	    url_getu16l(u, &fmt);
-	    url_getu16l(u, &channels);
-	    url_getu32l(u, &srate);
-	    url_getu32l(u, &brate);
-	    url_getu16l(u, &align);
-	    url_getu16l(u, &bits);
-	    if(size > 16){
-		url_getu16l(u, &extrasize);
-		if(extrasize){
-		    if(fmt == 0xfffe){
-			uint32_t cm;
-			uint16_t s;
-			url_getu16l(u, &s);
-			url_getu32l(u, &cm);
-			u->read(guid, 1, 16, u);
-			gp = guid;
-			extrasize -= 22;
-		    }
-		    extra = malloc(extrasize);
-		    u->read(extra, 1, extrasize, u);
-		}
-	    }
-	    u->seek(u, pos + size, SEEK_SET);
-	    break;
-	}
-	case TAG('d','a','t','a'):
-	    data_size = size;
-	    data = 1;
-	    break;
-	default:
-	    tag2str(tag, tags);
-	    tc2_print("WAV", TC2_PRINT_WARNING,
-		      "unknown tag %02x%02x%02x%02x:%s, size %i\n",
-		      tags[0], tags[1], tags[2], tags[3], tags, size);
-	    u->seek(u, size, SEEK_CUR);
-	    break;
-	}
-	if(size & 1)
-	    u->seek(u, 1, SEEK_CUR);
+        url_getu32l(u, &size);
+        pos = u->tell(u);
+        tc2_print("WAV", TC2_PRINT_DEBUG, "tag '%s', size %i @ %llx\n",
+                  tag2str(tag, tags), size, pos);
+        switch(tag){
+        case TAG('f','m','t',' '): {
+            url_getu16l(u, &fmt);
+            url_getu16l(u, &channels);
+            url_getu32l(u, &srate);
+            url_getu32l(u, &brate);
+            url_getu16l(u, &align);
+            url_getu16l(u, &bits);
+            if(size > 16){
+                url_getu16l(u, &extrasize);
+                if(extrasize){
+                    if(fmt == 0xfffe){
+                        uint32_t cm;
+                        uint16_t s;
+                        url_getu16l(u, &s);
+                        url_getu32l(u, &cm);
+                        u->read(guid, 1, 16, u);
+                        gp = guid;
+                        extrasize -= 22;
+                    }
+                    extra = malloc(extrasize);
+                    u->read(extra, 1, extrasize, u);
+                }
+            }
+            u->seek(u, pos + size, SEEK_SET);
+            break;
+        }
+        case TAG('d','a','t','a'):
+            data_size = size;
+            data = 1;
+            break;
+        default:
+            tag2str(tag, tags);
+            tc2_print("WAV", TC2_PRINT_WARNING,
+                      "unknown tag %02x%02x%02x%02x:%s, size %i\n",
+                      tags[0], tags[1], tags[2], tags[3], tags, size);
+            u->seek(u, size, SEEK_CUR);
+            break;
+        }
+        if(size & 1)
+            u->seek(u, 1, SEEK_CUR);
     }
 
     if(!data)
-	return NULL;
+        return NULL;
 
     codec = aid2codec(fmt, bits, gp);
     if(!codec)
-	return NULL;
+        return NULL;
     brate *= 8;
 
     if(!strcmp(codec, "audio/mpeg"))
-	return audio_mpeg_open(name, u, conf, tm);
+        return audio_mpeg_open(name, u, conf, tm);
 
     return pcm_open(u, codec, channels, srate, data_size / align, brate,
-		    align * 8 / channels, extra, extrasize);
+                    align * 8 / channels, extra, extrasize);
 }
 
 #define WAV_HEADER_SIZE 44
 
-#define store(v,d,s) do {			\
-    *(uint##s##_t *)d = v;			\
-    d += s / 8;					\
+#define store(v,d,s) do {                       \
+    *(uint##s##_t *)d = v;                      \
+    d += s / 8;                                 \
 } while(0)
 
 extern u_char *
@@ -144,14 +144,14 @@ wav_header(stream_t *s, int *size)
     int bits, ssize, dsize;
 
     if(s->stream_type != STREAM_TYPE_AUDIO)
-	return NULL;
+        return NULL;
 
     if(!strcmp(s->audio.codec, "audio/pcm-u8")){
-	bits = 8;
+        bits = 8;
     } else if(!strcmp(s->audio.codec, "audio/pcm-s16le")){
-	bits = 16;
+        bits = 16;
     } else {
-	return NULL;
+        return NULL;
     }
 
     ssize = bits * s->audio.channels / 8;
@@ -164,12 +164,12 @@ wav_header(stream_t *s, int *size)
     store(TAG('W','A','V','E'), p, 32);
 
     store(TAG('f','m','t',' '), p, 32);
-    store(16, p, 32);		/* size */
-    store(1, p, 16);		/* format */
+    store(16, p, 32);           /* size */
+    store(1, p, 16);            /* format */
     store(s->audio.channels, p, 16);
     store(s->audio.sample_rate, p, 32);
     store(s->audio.bit_rate / 8, p, 32);
-    store(ssize, p, 16);	/* block align */
+    store(ssize, p, 16);        /* block align */
     store(bits, p, 16);
 
     store(TAG('d','a','t','a'), p, 32);
@@ -205,10 +205,10 @@ wav_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     int hsize;
 
     if(pcm->probed)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     if(!(head = wav_header(s, &hsize)))
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     pcm->u->write(head, 1, hsize, pcm->u);
     free(head);
@@ -226,11 +226,11 @@ static struct {
 } acodec_ids[] = {
     { 0x01, "audio/pcm-s16le",
       { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
-	0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } },
+        0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } },
     { 0x02, "audio/adpcm-ms" },
     { 0x03, "audio/pcm-f32le",
       { 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
-	0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } },
+        0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71 } },
     { 0x06, "audio/pcm-alaw" },
     { 0x07, "audio/pcm-ulaw" },
     { 0x11, "audio/adpcm-ima-wav" },
@@ -254,12 +254,12 @@ aid2codec(int id, int bits, const uint8_t *guid)
     int i;
 
     if(id == 1)
-	return bits == 8? "audio/pcm-u8": "audio/pcm-s16le";
+        return bits == 8? "audio/pcm-u8": "audio/pcm-s16le";
 
     for(i = 0; acodec_ids[i].codec; i++)
-	if(id == acodec_ids[i].id ||
-	   (guid && !memcmp(guid, acodec_ids[i].guid, 16)))
-	    break;
+        if(id == acodec_ids[i].id ||
+           (guid && !memcmp(guid, acodec_ids[i].guid, 16)))
+            break;
 
     return acodec_ids[i].codec;
 }

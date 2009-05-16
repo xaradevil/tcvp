@@ -37,9 +37,9 @@ typedef struct mux {
     int nstreams, tstreams;
     int waiting;
     struct {
-	int used;
-	int rate;
-	uint64_t time;
+        int used;
+        int rate;
+        uint64_t time;
     } *streams;
     pthread_mutex_t lock;
     pthread_cond_t cond;
@@ -52,10 +52,10 @@ next_stream(mux_t *mx)
     int i, s = -1;
 
     for(i = 0; i < mx->tstreams; i++){
-	if(mx->streams[i].used && mx->streams[i].time < t){
-	    t = mx->streams[i].time;
-	    s = i;
-	}
+        if(mx->streams[i].used && mx->streams[i].time < t){
+            t = mx->streams[i].time;
+            s = i;
+        }
     }
 
     return s;
@@ -69,36 +69,36 @@ mux_packet(tcvp_pipe_t *tp, tcvp_packet_t *pk)
     pthread_mutex_lock(&mx->lock);
 
     if(pk->type == TCVP_PKT_TYPE_DATA){
-	if(pk->data.flags & TCVP_PKT_FLAG_DTS)
-	    mx->streams[pk->data.stream].time = pk->data.dts;
-	else if(pk->data.flags & TCVP_PKT_FLAG_PTS)
-	    mx->streams[pk->data.stream].time = pk->data.pts;
+        if(pk->data.flags & TCVP_PKT_FLAG_DTS)
+            mx->streams[pk->data.stream].time = pk->data.dts;
+        else if(pk->data.flags & TCVP_PKT_FLAG_PTS)
+            mx->streams[pk->data.stream].time = pk->data.pts;
     }
 
     mx->waiting++;
     pthread_cond_broadcast(&mx->cond);
 
 /*     tc2_print("MUX", TC2_PRINT_DEBUG + 1, */
-/* 	      "%i time %llu, ns=%i, w=%i\n", pk->stream, */
-/* 	      mx->streams[pk->stream].time, mx->nstreams, mx->waiting); */
+/*            "%i time %llu, ns=%i, w=%i\n", pk->stream, */
+/*            mx->streams[pk->stream].time, mx->nstreams, mx->waiting); */
 
     while(mx->waiting < mx->nstreams || (pk->type == TCVP_PKT_TYPE_DATA &&
-					 next_stream(mx) != pk->data.stream))
-	pthread_cond_wait(&mx->cond, &mx->lock);
+                                         next_stream(mx) != pk->data.stream))
+        pthread_cond_wait(&mx->cond, &mx->lock);
 
 /*     tc2_print("MUX", TC2_PRINT_DEBUG + 1, */
-/* 	      "sending packet %i, w=%i\n", pk->stream, mx->waiting); */
+/*            "sending packet %i, w=%i\n", pk->stream, mx->waiting); */
 
     if(pk->type == TCVP_PKT_TYPE_DATA){
-	if(pk->data.data){
-	    mx->streams[pk->data.stream].time +=
-		pk->data.sizes[0] * mx->streams[pk->data.stream].rate;
-	} else {
-	    mx->nstreams--;
-	    mx->streams[pk->data.stream].time = -1LL;
-	    tc2_print("MUX", TC2_PRINT_DEBUG,
-		      "stream %i end, ns=%i\n", pk->data.stream, mx->nstreams);
-	}
+        if(pk->data.data){
+            mx->streams[pk->data.stream].time +=
+                pk->data.sizes[0] * mx->streams[pk->data.stream].rate;
+        } else {
+            mx->nstreams--;
+            mx->streams[pk->data.stream].time = -1LL;
+            tc2_print("MUX", TC2_PRINT_DEBUG,
+                      "stream %i end, ns=%i\n", pk->data.stream, mx->nstreams);
+        }
     }
 
     mx->waiting--;
@@ -119,19 +119,19 @@ mux_probe(tcvp_pipe_t *tp, tcvp_data_packet_t *pk, stream_t *s)
     tc2_print("MUX", TC2_PRINT_DEBUG, "probe %i\n", idx);
 
     if(idx >= mx->tstreams){
-	int ts = idx + 1, ns = ts - mx->tstreams;
-	mx->streams = realloc(mx->streams, ts * sizeof(*mx->streams));
-	memset(mx->streams + mx->tstreams, 0, ns * sizeof(*mx->streams));
-	mx->tstreams = ts;
+        int ts = idx + 1, ns = ts - mx->tstreams;
+        mx->streams = realloc(mx->streams, ts * sizeof(*mx->streams));
+        memset(mx->streams + mx->tstreams, 0, ns * sizeof(*mx->streams));
+        mx->tstreams = ts;
     }
 
     if(s->common.bit_rate)
-	mx->streams[idx].rate = 27000000LL * 8 / s->common.bit_rate;
+        mx->streams[idx].rate = 27000000LL * 8 / s->common.bit_rate;
 
     ps = tp->next->probe(tp->next, pk, s);
     if(ps == PROBE_OK){
-	mx->streams[idx].used = 1;
-	mx->nstreams++;
+        mx->streams[idx].used = 1;
+        mx->nstreams++;
     }
 
     return ps;

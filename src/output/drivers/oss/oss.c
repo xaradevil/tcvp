@@ -52,7 +52,7 @@ static int
 oss_reset(oss_out_t *oo)
 {
     if(oo->fd >= 0)
-	close(oo->fd);
+        close(oo->fd);
     oo->fd = open(oo->device, O_WRONLY);
     ioctl(oo->fd, SNDCTL_DSP_SETFMT, &oo->format);
     ioctl(oo->fd, SNDCTL_DSP_CHANNELS, &oo->channels);
@@ -106,22 +106,22 @@ oss_write(audio_driver_t *ad, void *data, int samples)
     FD_SET(oo->fd, &fds);
 
     if(select(FD_SETSIZE, NULL, &fds, NULL, &tv) <= 0)
-	return -EAGAIN;
+        return -EAGAIN;
 
     if(ioctl(oo->fd, SNDCTL_DSP_GETOSPACE, &abi) < 0){
-	oss_reset(oo);
-	return -EAGAIN;
+        oss_reset(oo);
+        return -EAGAIN;
     }
 
     r = min(abi.fragments * abi.fragsize, samples * oo->ssize);
     if(r > 0){
-	r = write(oo->fd, data, r);
-	if(r < 0)
-	    r = -errno;
-	else
-	    r /= oo->ssize;
+        r = write(oo->fd, data, r);
+        if(r < 0)
+            r = -errno;
+        else
+            r /= oo->ssize;
     } else {
-	r = -EAGAIN;
+        r = -EAGAIN;
     }
 
     return r;
@@ -166,73 +166,73 @@ oss_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 
     tcconf_getvalue(cs, "audio/device", "%s", &device);
     if(!device){
-	if(tcvp_driver_audio_oss_conf_device)
-	    device = strdup(tcvp_driver_audio_oss_conf_device);
-	else
-	    return NULL;
+        if(tcvp_driver_audio_oss_conf_device)
+            device = strdup(tcvp_driver_audio_oss_conf_device);
+        else
+            return NULL;
     }
 
     if((dsp = open(device, O_WRONLY | O_NONBLOCK)) < 0){
-	perror(device);
-	return NULL;
+        perror(device);
+        return NULL;
     }
 
     fcntl(dsp, F_SETFL, 0);
 
     if(strstr(as->codec, "pcm-s16le")){
-	ofmt = AFMT_S16_LE;
-	format = "s16le";
-	ssize = 2;
+        ofmt = AFMT_S16_LE;
+        format = "s16le";
+        ssize = 2;
     } else if(strstr(as->codec, "pcm-u16le")){
-	ofmt = AFMT_U16_LE;
-	format = "u16le";
-	ssize = 2;
+        ofmt = AFMT_U16_LE;
+        format = "u16le";
+        ssize = 2;
     } else if(strstr(as->codec, "pcm-s16be")){
-	ofmt = AFMT_S16_BE;
-	format = "s16be";
-	ssize = 2;
+        ofmt = AFMT_S16_BE;
+        format = "s16be";
+        ssize = 2;
     } else if(strstr(as->codec, "pcm-u16be")){
-	ofmt = AFMT_U16_BE;
-	format = "u16be";
-	ssize = 2;
+        ofmt = AFMT_U16_BE;
+        format = "u16be";
+        ssize = 2;
     } else if(strstr(as->codec, "pcm-u8")){
-	ofmt = AFMT_U8;
-	format = "u8";
-	ssize = 1;
+        ofmt = AFMT_U8;
+        format = "u8";
+        ssize = 1;
     } else {
-	tc2_print("OSS", TC2_PRINT_ERROR, "unsupported format %s\n", as->codec);
-	goto err;
+        tc2_print("OSS", TC2_PRINT_ERROR, "unsupported format %s\n", as->codec);
+        goto err;
     }
 
 
     if(ioctl(dsp, SNDCTL_DSP_SETFMT, &ofmt) == -1){
-	perror("ioctl");
-	goto err;
+        perror("ioctl");
+        goto err;
     }
 
     if(ioctl(dsp, SNDCTL_DSP_CHANNELS, &channels) == -1){
-	perror("ioctl");
-	goto err;
+        perror("ioctl");
+        goto err;
     }
 
     if(ioctl(dsp, SNDCTL_DSP_SPEED, &rate) == -1){
-	perror("ioctl");
-	goto err;
+        perror("ioctl");
+        goto err;
     }
 
     if(channels != as->channels){
-	tc2_print("OSS", TC2_PRINT_WARNING,
-		  "%i channels not supported.\n", as->channels);
+        tc2_print("OSS", TC2_PRINT_WARNING,
+                  "%i channels not supported.\n", as->channels);
     }
 
     if(rate != as->sample_rate){
-	tc2_print("OSS", TC2_PRINT_WARNING, "%i Hz sample rate not supported.\n",
-		as->sample_rate);
+        tc2_print("OSS", TC2_PRINT_WARNING, "%i Hz sample rate not supported.\n",
+                as->sample_rate);
     }
 
     ioctl(dsp, SNDCTL_DSP_GETOSPACE, &abi);
     tc2_print("OSS", TC2_PRINT_VERBOSE, "%i fragments of %i bytes\n",
-	    abi.fragstotal, abi.fragsize);
+            abi.fragstotal, abi.fragsize);
 
     oo = calloc(1, sizeof(*oo));
     oo->fd = dsp;

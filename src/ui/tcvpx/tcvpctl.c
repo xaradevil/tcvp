@@ -35,7 +35,7 @@ static int64_t s_pos, s_length, start_time;
 static int show_time = TCTIME_ELAPSED;
 static muxed_stream_t *st = NULL;
 /* static char *eqbands[] = {"60", "170", "310", "600", "1k", */
-/* 			  "3k", "6k", "12k", "14k", "16k"}; */
+/*                        "3k", "6k", "12k", "14k", "16k"}; */
 /* static double eq[10], preamp; */
 /* static int eqon = 1; */
 
@@ -43,149 +43,149 @@ extern int
 tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 {
     if(te->type == TCVP_STATE) {
-	tcvpstate = ((tcvp_state_event_t *)te)->state;
+        tcvpstate = ((tcvp_state_event_t *)te)->state;
 
-	switch(tcvpstate) {
-	case TCVP_STATE_PLAYING:
-	    change_text("state", "play");
-	    break;
+        switch(tcvpstate) {
+        case TCVP_STATE_PLAYING:
+            change_text("state", "play");
+            break;
 
-	case TCVP_STATE_STOPPED:
-	    change_text("state", "pause");
-	    break;
+        case TCVP_STATE_STOPPED:
+            change_text("state", "pause");
+            break;
 
-	case TCVP_STATE_END:
-	    change_text("state", "stop");
-	    s_pos = -1;
-	    update_time();
-	    if(st)
-		tcfree(st);
-	    st = NULL;
-	    break;
-	}
+        case TCVP_STATE_END:
+            change_text("state", "stop");
+            s_pos = -1;
+            update_time();
+            if(st)
+                tcfree(st);
+            st = NULL;
+            break;
+        }
     } else if(te->type == TCVP_PL_STATE){
-	tcvp_pl_state_event_t *pls = (tcvp_pl_state_event_t *) te;
+        tcvp_pl_state_event_t *pls = (tcvp_pl_state_event_t *) te;
 
-	if(pls->state == TCVP_PL_STATE_END){
-	    tcfree(st);
-	    st = NULL;
-	    tcvp_stop(NULL, NULL);
-	} else {
-	    int32_t *plc = tcalloc(sizeof(*plc));
-	    *plc = pls->current;
-	    change_variable("playlist_current_position", "integer", plc);
-	}
+        if(pls->state == TCVP_PL_STATE_END){
+            tcfree(st);
+            st = NULL;
+            tcvp_stop(NULL, NULL);
+        } else {
+            int32_t *plc = tcalloc(sizeof(*plc));
+            *plc = pls->current;
+            change_variable("playlist_current_position", "integer", plc);
+        }
     } else if(te->type == TCVP_TIMER) {
-	s_pos = ((tcvp_timer_event_t *)te)->time;
-	if(s_pos-start_time > s_length)
-	    s_length = s_pos-start_time;
-	update_time();
+        s_pos = ((tcvp_timer_event_t *)te)->time;
+        if(s_pos-start_time > s_length)
+            s_length = s_pos-start_time;
+        update_time();
 
     } else if(te->type == TCVP_LOAD || te->type == TCVP_STREAM_INFO) {
-	if(te->type == TCVP_LOAD) {
-	    char *title;
+        if(te->type == TCVP_LOAD) {
+            char *title;
 
-	    if(st) tcfree(st);
-	    st = ((tcvp_load_event_t *)te)->stream;
-	    tcref(st);
+            if(st) tcfree(st);
+            st = ((tcvp_load_event_t *)te)->stream;
+            tcref(st);
 
-	    s_length = 0;
+            s_length = 0;
 
-	    if((title = tcattr_get(st, "title"))){
-		change_text("title", title);
-	    } else {
-		char *ext;
-		char *file = tcattr_get(st, "file");
+            if((title = tcattr_get(st, "title"))){
+                change_text("title", title);
+            } else {
+                char *ext;
+                char *file = tcattr_get(st, "file");
 
-		if(file){
-		    title = strrchr(file, '/');
-		    title = strdup(title? title + 1: file);
-		    ext = strrchr(title, '.');
-		    if(ext)
-			*ext = 0;
+                if(file){
+                    title = strrchr(file, '/');
+                    title = strdup(title? title + 1: file);
+                    ext = strrchr(title, '.');
+                    if(ext)
+                        *ext = 0;
 
-		    change_text("title", title);
-		    free(title);
-		} else {
-		    change_text("title", NULL);
-		}
-	    }
+                    change_text("title", title);
+                    free(title);
+                } else {
+                    change_text("title", NULL);
+                }
+            }
 
-	    change_text("performer", tcattr_get(st, "performer"));
-	    change_text("album", tcattr_get(st, "album"));
-	    change_text("genre", tcattr_get(st, "genre"));
-	    change_text("year", tcattr_get(st, "year"));
-	    change_text("trackno", tcattr_get(st, "track"));
-	}
+            change_text("performer", tcattr_get(st, "performer"));
+            change_text("album", tcattr_get(st, "album"));
+            change_text("genre", tcattr_get(st, "genre"));
+            change_text("year", tcattr_get(st, "year"));
+            change_text("trackno", tcattr_get(st, "track"));
+        }
 
-	if(st) {
-	    int i;
+        if(st) {
+            int i;
 
-	    if(st->n_streams > 0) {
-		start_time = st->streams[0].common.start_time;
-	    }
+            if(st->n_streams > 0) {
+                start_time = st->streams[0].common.start_time;
+            }
 
-	    for(i = 0; i < st->n_streams; i++) {
-		if(st->used_streams[i]) {
-		    stream_t *s = &st->streams[i];
-		    if(s->stream_type == STREAM_TYPE_VIDEO) {
-			char buf[10];
-			sprintf(buf, "%.3f",
-				(double)s->video.frame_rate.num /
-				s->video.frame_rate.den);
-			change_text("video_framerate", buf);
-		    } else if(s->stream_type == STREAM_TYPE_AUDIO) {
-			char buf[10];
-			sprintf(buf, "%d", s->audio.bit_rate/1000);
-			change_text("audio_bitrate", buf);
+            for(i = 0; i < st->n_streams; i++) {
+                if(st->used_streams[i]) {
+                    stream_t *s = &st->streams[i];
+                    if(s->stream_type == STREAM_TYPE_VIDEO) {
+                        char buf[10];
+                        sprintf(buf, "%.3f",
+                                (double)s->video.frame_rate.num /
+                                s->video.frame_rate.den);
+                        change_text("video_framerate", buf);
+                    } else if(s->stream_type == STREAM_TYPE_AUDIO) {
+                        char buf[10];
+                        sprintf(buf, "%d", s->audio.bit_rate/1000);
+                        change_text("audio_bitrate", buf);
 
-			sprintf(buf, "%.1f",
-				(double)s->audio.sample_rate/1000);
-			change_text("audio_samplerate", buf);
+                        sprintf(buf, "%.1f",
+                                (double)s->audio.sample_rate/1000);
+                        change_text("audio_samplerate", buf);
 
-			sprintf(buf, "%d", s->audio.channels);
-			change_text("audio_channels", buf);
-		    }
-		}
-	    }
-	    if(st->time)
-		s_length = st->time;
+                        sprintf(buf, "%d", s->audio.channels);
+                        change_text("audio_channels", buf);
+                    }
+                }
+            }
+            if(st->time)
+                s_length = st->time;
 
-	    update_time();
-	}
+            update_time();
+        }
     } else if(te->type == TCVP_PL_CONTENT){
-	int i;
-	int *length = tcalloc(sizeof(*length));
+        int i;
+        int *length = tcalloc(sizeof(*length));
 
-	tcvp_pl_content_event_t *plce = (tcvp_pl_content_event_t *)te;
+        tcvp_pl_content_event_t *plce = (tcvp_pl_content_event_t *)te;
 
-	char **entries = tcallocd((plce->length+1) * sizeof(*entries),
-				  NULL, plarrayfree);
-	char **entries_basename =
-	    tcallocd((plce->length+1) * sizeof(*entries_basename),
-		     NULL, plarrayfree);
+        char **entries = tcallocd((plce->length+1) * sizeof(*entries),
+                                  NULL, plarrayfree);
+        char **entries_basename =
+            tcallocd((plce->length+1) * sizeof(*entries_basename),
+                     NULL, plarrayfree);
 
-	for(i=0; i<plce->length; i++) {
-	    entries[i] = strdup(plce->names[i]);
-	}
-	entries[i] = NULL;
+        for(i=0; i<plce->length; i++) {
+            entries[i] = strdup(plce->names[i]);
+        }
+        entries[i] = NULL;
 
-	for(i=0; i<plce->length; i++) {
-	    char *tmp = strrchr(plce->names[i], '/');
-	    if(tmp != NULL && tmp[1] != 0) {
-		tmp++;
-	    } else {
-		tmp = plce->names[i];
-	    }
-	    entries_basename[i] = strdup(tmp);
-	}
-	entries_basename[i] = NULL;
+        for(i=0; i<plce->length; i++) {
+            char *tmp = strrchr(plce->names[i], '/');
+            if(tmp != NULL && tmp[1] != 0) {
+                tmp++;
+            } else {
+                tmp = plce->names[i];
+            }
+            entries_basename[i] = strdup(tmp);
+        }
+        entries_basename[i] = NULL;
 
-	*length = plce->length;
-	change_variable("playlist_number_of_entries", "integer", length);
-	change_variable("playlist_entries", "string_array", entries);
-	change_variable("playlist_entries_basename", "string_array",
-			entries_basename);
+        *length = plce->length;
+        change_variable("playlist_number_of_entries", "integer", length);
+        change_variable("playlist_entries", "string_array", entries);
+        change_variable("playlist_entries_basename", "string_array",
+                        entries_basename);
     }
 
     return 0;
@@ -199,7 +199,7 @@ plarrayfree(void *ptr)
     int i;
 
     for(i=0; entries[i] != NULL; i++) {
-	free(entries[i]);
+        free(entries[i]);
     }
 }
 
@@ -226,14 +226,14 @@ extern int
 tcvp_play(xtk_widget_t *w, void *p)
 {
     if(tcvpstate == TCVP_STATE_STOPPED) {
-	tcvp_pause(w, p);
+        tcvp_pause(w, p);
     } else {
-	if(tcvpstate != TCVP_STATE_PLAYING) {
-	    tcvp_event_send(qs, TCVP_PL_START);
-	} else {
-	    tcvp_stop(w, p);
-	    tcvp_event_send(qs, TCVP_PL_START);
-	}
+        if(tcvpstate != TCVP_STATE_PLAYING) {
+            tcvp_event_send(qs, TCVP_PL_START);
+        } else {
+            tcvp_stop(w, p);
+            tcvp_event_send(qs, TCVP_PL_START);
+        }
     }
 
     return 0;
@@ -275,10 +275,10 @@ tcvp_seek_rel(xtk_widget_t *w, void *p)
 {
     widget_data_t *wd = xtk_widget_get_data(w);
     if(wd) {
-	char *d = wd->action_data;
-	uint64_t time = strtol(d, NULL, 0);
+        char *d = wd->action_data;
+        uint64_t time = strtol(d, NULL, 0);
 
-	tcvp_event_send(qs, TCVP_SEEK, time * 1000, TCVP_SEEK_REL);
+        tcvp_event_send(qs, TCVP_SEEK, time * 1000, TCVP_SEEK_REL);
     }
 
     return 0;
@@ -309,7 +309,7 @@ tcvp_add_file(char **file, int num)
 /*     fprintf(stderr, "%s\n", file); */
     int i;
     for(i=0; i<num; i++) {
-	tcvp_event_send(qs, TCVP_PL_ADD, &file[i], 1, -1);
+        tcvp_event_send(qs, TCVP_PL_ADD, &file[i], 1, -1);
     }
 
     return 0;
@@ -320,9 +320,9 @@ extern int
 toggle_time(xtk_widget_t *w, void *p)
 {
     if(show_time == TCTIME_ELAPSED) {
-	show_time = TCTIME_REMAINING;
+        show_time = TCTIME_REMAINING;
     } else if(show_time == TCTIME_REMAINING) {
-	show_time = TCTIME_ELAPSED;
+        show_time = TCTIME_ELAPSED;
     }
     update_time();
 
@@ -339,34 +339,34 @@ update_time(void)
     double *pos = tcalloc(sizeof(*pos));
 
     if(show_time == TCTIME_ELAPSED) {
-	if(tcvp_ui_tcvpx_conf_time_offset) {
-	    t = (s_pos - start_time) / 27000000;
-	} else {
-	    t = s_pos / 27000000;
-	}
+        if(tcvp_ui_tcvpx_conf_time_offset) {
+            t = (s_pos - start_time) / 27000000;
+        } else {
+            t = s_pos / 27000000;
+        }
     } else if(show_time == TCTIME_REMAINING) {
-	sign = '-';
-	if(s_length > 0){
-	    t = (s_length - (s_pos - start_time)) / 27000000;
-	} else {
-	    t = 0;
-	}
+        sign = '-';
+        if(s_length > 0){
+            t = (s_length - (s_pos - start_time)) / 27000000;
+        } else {
+            t = 0;
+        }
     }
 
     if(s_pos >= 0 && s_length > 0 && s_pos - start_time>=0) {
-	*pos = ((double)(s_pos - start_time)/27000000)/(s_length/27000000);
+        *pos = ((double)(s_pos - start_time)/27000000)/(s_length/27000000);
     } else {
-	*pos = -1;
+        *pos = -1;
     }
     change_variable("position", "double", pos);
 
     int m = t/60;
 
     if(s_pos >= 0 && s_pos - start_time >= 0) {
-	snprintf(text, 8, "%c%d:%02d", sign, m, t%60);
-	change_text("time", text);
+        snprintf(text, 8, "%c%d:%02d", sign, m, t%60);
+        change_text("time", text);
     } else {
-	change_text("time", "   :  ");
+        change_text("time", "   :  ");
     }
 
     return 0;
@@ -399,14 +399,14 @@ tcvp_playlist_remove_selected(xtk_widget_t *w, void *p)
 
     tchash_find(wd->skin->id_hash, d, -1, &w);
     if(w) {
-	int *selected, num, i;
-	num = xtk_widget_list_get_selected(w, &selected);
+        int *selected, num, i;
+        num = xtk_widget_list_get_selected(w, &selected);
 
-	for(i=num-1; i>=0; i--) {
-	    tcvp_event_send(qs, TCVP_PL_REMOVE, selected[i], 1);
-	}
+        for(i=num-1; i>=0; i--) {
+            tcvp_event_send(qs, TCVP_PL_REMOVE, selected[i], 1);
+        }
 
-	if(num > 0) free(selected);
+        if(num > 0) free(selected);
     }
 
     return 0;

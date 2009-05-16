@@ -52,20 +52,20 @@ flac_free_pk(void *p)
 
 static FLAC__StreamDecoderReadStatus
 flac_read(const FLAC__StreamDecoder *fsd, FLAC__byte buf[], size_t *rb,
-	  void *d)
+          void *d)
 {
     tcvp_pipe_t *p = d;
     flac_decode_t *fd = p->private;
 
     tc2_print("FLACDEC", TC2_PRINT_DEBUG, "flac_read(%i) = %i state %s\n",
-	      *rb, fd->size,
-	      FLAC__stream_decoder_get_resolved_state_string(fsd));
+              *rb, fd->size,
+              FLAC__stream_decoder_get_resolved_state_string(fsd));
 
     if(fd->size <= 0)
-	return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
+        return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
 
     if(*rb > fd->size)
-	*rb = fd->size;
+        *rb = fd->size;
 
     memcpy(buf, fd->data, *rb);
     fd->data += *rb;
@@ -76,7 +76,7 @@ flac_read(const FLAC__StreamDecoder *fsd, FLAC__byte buf[], size_t *rb,
 
 static FLAC__StreamDecoderWriteStatus
 flac_write(const FLAC__StreamDecoder *fsd, const FLAC__Frame *fr,
-	   const FLAC__int32 *const buf[], void *d)
+           const FLAC__int32 *const buf[], void *d)
 {
     tcvp_pipe_t *p = d;
     flac_decode_packet_t *fp;
@@ -92,8 +92,8 @@ flac_write(const FLAC__StreamDecoder *fsd, const FLAC__Frame *fr,
     fp->data = (u_char *) out;
 
     for(i = 0; i < samples; i++)
-	for(j = 0; j < fr->header.channels; j++)
-	    *out++ = buf[j][i];
+        for(j = 0; j < fr->header.channels; j++)
+            *out++ = buf[j][i];
 
     fp->pk.stream = p->format.common.index;
     fp->pk.data = &fp->data;
@@ -107,17 +107,17 @@ flac_write(const FLAC__StreamDecoder *fsd, const FLAC__Frame *fr,
 
 static void
 flac_metadata(const FLAC__StreamDecoder *fsd, const FLAC__StreamMetadata *md,
-	      void *p)
+              void *p)
 {
     tc2_print("FLACDEC", TC2_PRINT_DEBUG, "flac_metadata()\n");
 }
 
 static void
 flac_error(const FLAC__StreamDecoder *fsd, FLAC__StreamDecoderErrorStatus st,
-	   void *p)
+           void *p)
 {
     tc2_print("FLACDEC", TC2_PRINT_ERROR, "error %i, state %s\n",
-	      st, FLAC__stream_decoder_get_resolved_state_string(fsd));
+              st, FLAC__stream_decoder_get_resolved_state_string(fsd));
 }
 
 extern int
@@ -129,21 +129,21 @@ flacdec_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     tc2_print("FLACDEC", TC2_PRINT_DEBUG, "flacdec_decode()\n");
 
     if(!pk->data){
-	p->next->input(p->next, (tcvp_packet_t *) pk);
-	return 0;
+        p->next->input(p->next, (tcvp_packet_t *) pk);
+        return 0;
     }
 
     fd->data = pk->data[0];
     fd->size = pk->sizes[0];
 
     while(fd->size > 0){
-	FLAC__stream_decoder_process_single(fd->fsd);
-	n++;
+        FLAC__stream_decoder_process_single(fd->fsd);
+        n++;
     }
 
     if(n > 1)
-	tc2_print("FLACDEC", TC2_PRINT_WARNING,
-		  "%i frames in packet at frame %i\n", n, fd->frame);
+        tc2_print("FLACDEC", TC2_PRINT_WARNING,
+                  "%i frames in packet at frame %i\n", n, fd->frame);
     fd->frame += n;
 
     tcfree(pk);
@@ -165,7 +165,7 @@ flacdec_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     fd->data = buf;
     memcpy(fd->data, "fLaC", 4);
     *(uint32_t *) (fd->data + 4) =
-	htob_32((0x80 << 24) + s->common.codec_data_size);
+        htob_32((0x80 << 24) + s->common.codec_data_size);
     memcpy(fd->data + 8, s->common.codec_data, s->common.codec_data_size);
 
     FLAC__stream_decoder_process_single(fd->fsd);
@@ -196,7 +196,7 @@ flac_free_codec(void *p)
 
 extern int
 flacdec_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
-	    tcvp_timer_t *t, muxed_stream_t *ms)
+            tcvp_timer_t *t, muxed_stream_t *ms)
 {
     flac_decode_t *fd;
     int status;
@@ -210,7 +210,7 @@ flacdec_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
                                               flac_error, p);
 
     tc2_print("FLACDEC", TC2_PRINT_DEBUG, "state %s\n",
-	      FLAC__stream_decoder_get_resolved_state_string(fd->fsd));
+              FLAC__stream_decoder_get_resolved_state_string(fd->fsd));
 
     p->private = fd;
 

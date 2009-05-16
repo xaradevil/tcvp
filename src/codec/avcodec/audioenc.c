@@ -75,30 +75,30 @@ encframe(tcvp_pipe_t *p, u_char *frame, int idx)
 
     bsize = enc->bufsize - enc->bufpos;
     size = avcodec_encode_audio(enc->ctx, enc->outbuf + enc->bufpos,
-				bsize, (int16_t *) frame);
+                                bsize, (int16_t *) frame);
     enc->bufpos += size;
     enc->bframes++;
 
     if(enc->bufsize - enc->bufpos < enc->eframesize){
-	ep = tcallocdz(sizeof(*ep), NULL, avc_free_pk);
-	ep->pk.stream = idx;
-	ep->pk.data = &ep->data;
-	ep->pk.sizes = &ep->size;
-	ep->pk.planes = 1;
-	ep->pk.flags = 0;
-	if(enc->pts != -1LL){
-	    ep->pk.flags |= TCVP_PKT_FLAG_PTS;
-	    ep->pk.pts = enc->pts;
-	    enc->pts = -1LL;
-	}
-	ep->buf = ep->data = enc->outbuf;
-	ep->size = enc->bufpos;
+        ep = tcallocdz(sizeof(*ep), NULL, avc_free_pk);
+        ep->pk.stream = idx;
+        ep->pk.data = &ep->data;
+        ep->pk.sizes = &ep->size;
+        ep->pk.planes = 1;
+        ep->pk.flags = 0;
+        if(enc->pts != -1LL){
+            ep->pk.flags |= TCVP_PKT_FLAG_PTS;
+            ep->pk.pts = enc->pts;
+            enc->pts = -1LL;
+        }
+        ep->buf = ep->data = enc->outbuf;
+        ep->size = enc->bufpos;
 
-	enc->outbuf = malloc(enc->bufsize);
-	enc->bufpos = 0;
-	enc->bframes = 0;
+        enc->outbuf = malloc(enc->bufsize);
+        enc->bufpos = 0;
+        enc->bframes = 0;
 
-	p->next->input(p->next, (tcvp_packet_t *) ep);
+        p->next->input(p->next, (tcvp_packet_t *) ep);
     }
 
     return size;
@@ -112,40 +112,40 @@ avc_audioenc(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     u_char *data;
 
     if(!pk->data)
-	return p->next->input(p->next, (tcvp_packet_t *) pk);
+        return p->next->input(p->next, (tcvp_packet_t *) pk);
 
     data = pk->data[0];
     size = pk->sizes[0];
 
     if(pk->flags & TCVP_PKT_FLAG_PTS && enc->pts == -1LL){
-	enc->pts = pk->pts - 27000000LL * enc->inbufpos /
-	    (enc->ctx->sample_rate * enc->samplesize) -
-	    enc->bframes * enc->ftime;
+        enc->pts = pk->pts - 27000000LL * enc->inbufpos /
+            (enc->ctx->sample_rate * enc->samplesize) -
+            enc->bframes * enc->ftime;
     }
 
     if(enc->inbufpos){
-	int rs = min(enc->framesize - enc->inbufpos, size);
+        int rs = min(enc->framesize - enc->inbufpos, size);
 
-	memcpy(enc->inbuf + enc->inbufpos, data, rs);
-	enc->inbufpos += rs;
-	data += rs;
-	size -= rs;
+        memcpy(enc->inbuf + enc->inbufpos, data, rs);
+        enc->inbufpos += rs;
+        data += rs;
+        size -= rs;
 
-	if(enc->inbufpos == enc->framesize){
-	    encframe(p, enc->inbuf, pk->stream);
-	    enc->inbufpos = 0;
-	}
+        if(enc->inbufpos == enc->framesize){
+            encframe(p, enc->inbuf, pk->stream);
+            enc->inbufpos = 0;
+        }
     }
 
     while(size > enc->framesize){
-	encframe(p, data, pk->stream);
-	data += enc->framesize;
-	size -= enc->framesize;
+        encframe(p, data, pk->stream);
+        data += enc->framesize;
+        size -= enc->framesize;
     }
 
     if(size > 0){
-	memcpy(enc->inbuf, data, size);
-	enc->inbufpos = size;
+        memcpy(enc->inbuf, data, size);
+        enc->inbufpos = size;
     }
 
     tcfree(pk);
@@ -160,7 +160,7 @@ avc_audioenc_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     AVCodecContext *ctx = enc->ctx;
 
     if(s->stream_type != STREAM_TYPE_AUDIO)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     p->format.common.codec = enc->codec;
     p->format.common.bit_rate = ctx->bit_rate;
@@ -170,8 +170,8 @@ avc_audioenc_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     ctx->sample_fmt = SAMPLE_FMT_S16;
 
     if(avcodec_open(ctx, enc->avc) < 0){
-	ctx->codec = NULL;
-	return PROBE_FAIL;
+        ctx->codec = NULL;
+        return PROBE_FAIL;
     }
 
     enc->samplesize = ctx->channels * 2;
@@ -190,7 +190,7 @@ avc_audioenc_flush(tcvp_pipe_t *p, int drop)
     avc_audioenc_t *enc = p->private;
 
     if(drop && enc->ctx->codec)
-	avcodec_flush_buffers(enc->ctx);
+        avcodec_flush_buffers(enc->ctx);
 
     return 0;
 }
@@ -203,13 +203,13 @@ avc_free_audioenc(void *p)
     free(enc->inbuf);
     free(enc->outbuf);
     if(enc->ctx->codec)
-	avcodec_close(enc->ctx);
+        avcodec_close(enc->ctx);
     free(enc->codec);
 }
 
 extern int
 avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
-		 tcvp_timer_t *t, muxed_stream_t *ms)
+                 tcvp_timer_t *t, muxed_stream_t *ms)
 {
     AVCodec *avc;
     AVCodecContext *ctx;
@@ -218,16 +218,16 @@ avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     char *avcname;
 
     if(tcconf_getvalue(cf, "type", "%s", &filter) <= 0){
-	tc2_print("AVCODEC", TC2_PRINT_ERROR, "who am I?\n");
-	return -1;
+        tc2_print("AVCODEC", TC2_PRINT_ERROR, "who am I?\n");
+        return -1;
     }
 
     codec = strchr(filter, '/');
     if(codec){
-	codec = strdup(codec + 1);
+        codec = strdup(codec + 1);
     } else {
-	tc2_print("AVCODEC", TC2_PRINT_ERROR, "don't know %s\n", filter);
-	return -1;
+        tc2_print("AVCODEC", TC2_PRINT_ERROR, "don't know %s\n", filter);
+        return -1;
     }
 
     free(filter);
@@ -237,9 +237,9 @@ avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     free(avcname);
 
     if(!avc){
-	tc2_print("AVCODEC", TC2_PRINT_ERROR,
-		  "Can't find encoder for '%s'.\n", codec);
-	return -1;
+        tc2_print("AVCODEC", TC2_PRINT_ERROR,
+                  "Can't find encoder for '%s'.\n", codec);
+        return -1;
     }
 
     ctx = avcodec_alloc_context();
@@ -257,11 +257,11 @@ avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     enc->bufsize = ENCBUFSIZE;
 
     if(avc->id == CODEC_ID_MP2){
-	enc->eframesize = 1792;
-	enc->framesize = 1152;
+        enc->eframesize = 1792;
+        enc->framesize = 1152;
     } else if(avc->id == CODEC_ID_AC3){
-	enc->eframesize = 3840;
-	enc->framesize = 1536;
+        enc->eframesize = 3840;
+        enc->framesize = 1536;
     }
 
     enc->pts = -1LL;

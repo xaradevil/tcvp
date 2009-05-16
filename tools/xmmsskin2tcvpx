@@ -55,13 +55,13 @@ if(-d $skin){
     my $err = 1;
 
     if ($skin =~ /\.tar\.gz$|\.tgz$/) {
-	$err = system "tar xzf $skin -C $sd";
+        $err = system "tar xzf $skin -C $sd";
     } elsif ($skin =~ /\.tar\.bz2$/) {
-	$err = system "bunzip2 -c $skin | tar xf - -C $sd";
+        $err = system "bunzip2 -c $skin | tar xf - -C $sd";
     } elsif ($skin =~ /\.tar$/) {
-	$err = system "tar xf $skin -C $sd";
+        $err = system "tar xf $skin -C $sd";
     } elsif ($skin =~ /\.zip$|\.wsz$/) {
-	$err = system "unzip -LL -qq -d $sd $skin";
+        $err = system "unzip -LL -qq -d $sd $skin";
     }
 
     $err and die "Error unpacking skin.\n";
@@ -137,9 +137,9 @@ sub make_rect {
     gimp_layer_set_offsets($bl, 0, 0);
     gimp_edit_clear($bl);
     if($ww and $hh){
-	gimp_rect_select($nbg, $x, $y, $ww, $hh, REPLACE, 0, 0);
-	gimp_palette_set_background([@$bg[0..2]]);
-	gimp_edit_fill($bl, BG_IMAGE_FILL);
+        gimp_rect_select($nbg, $x, $y, $ww, $hh, REPLACE, 0, 0);
+        gimp_palette_set_background([@$bg[0..2]]);
+        gimp_edit_fill($bl, BG_IMAGE_FILL);
     }
     save_image($nbg, $bl, $name);
     gimp_image_delete($nbg);
@@ -158,10 +158,10 @@ sub create_button {
     for(@conf){
     $$_ .= <<END_TCCONF;
 button [
-	action "$action"
-	image "$up"
-	pressed "$down"
-	position $x $y
+        action "$action"
+        image "$up"
+        pressed "$down"
+        position $x $y
 ]
 END_TCCONF
     }
@@ -174,11 +174,11 @@ sub create_sbutton {
     save_rect($img, $nx, $ny, $w, $h, $bt);
 
     for(@conf){
-	$$_ .= <<END_TCCONF;
+        $$_ .= <<END_TCCONF;
 button [
-	action "$action"
-	image "$bt"
-	position $x $y
+        action "$action"
+        image "$bt"
+        position $x $y
 ]
 END_TCCONF
     }
@@ -186,7 +186,7 @@ END_TCCONF
 
 sub create_slider {
     my ($img, $x, $y, $w, $h, $nx, $ny, $px, $py, $hw, $hh, $bx, $by,
-	$min, $max, $name, $value, $action, $conf, $hn, $hp) = @_;
+        $min, $max, $name, $value, $action, $conf, $hn, $hp) = @_;
     my $bg = "$name.png";
     $hn or $hn = "${name}_ind.png";
     $hp or $hp = "${name}_down.png";
@@ -199,27 +199,27 @@ sub create_slider {
     save_rect($img, $bx, $by, $w, $h, $bg);
 
     if($nx < $iw and $ny < $ih){
-	save_rect($img, $nx, $ny, $hw, $hh, $hn);
+        save_rect($img, $nx, $ny, $hw, $hh, $hn);
     } elsif($hw and $hh){
-	make_rect($hw, $hh, 0, 0, 0, 0, undef, $hn);
+        make_rect($hw, $hh, 0, 0, 0, 0, undef, $hn);
     }
 
     if($px < $iw and $py < $ih){
-	save_rect($img, $px, $py, $hw, $hh, $hp);
+        save_rect($img, $px, $py, $hw, $hh, $hp);
     } elsif($hw and $hh){
-	make_rect($hw, $hh, 0, 0, 0, 0, undef, $hp);
+        make_rect($hw, $hh, 0, 0, 0, 0, undef, $hp);
     }
 
     $$conf .= <<END_TCCONF;
 slider [
-	position $x $y
-	background "$bg"
-	indicator "$hn"
-	pressed "$hp"
-	start_position $start $hpy
-	end_position $end $hpy
-	value "$value"
-	action "$action"
+        position $x $y
+        background "$bg"
+        indicator "$hn"
+        pressed "$hp"
+        start_position $start $hpy
+        end_position $end $hpy
+        value "$value"
+        action "$action"
 ]
 END_TCCONF
 }
@@ -235,14 +235,14 @@ sub background {
 sub titlebar {
     my $tm = load_image($titlebar);
     create_button($tm, 244, 3, 9, 9, 9, 0, 9, 9,
-		  'minimize', 'minimize', \$skinconf, \$shadeconf);
+                  'minimize', 'minimize', \$skinconf, \$shadeconf);
     create_button($tm, 254, 3, 9, 9, 0, 18, 9, 18,
-		  'shade', 'replace_ui(shade.conf)', \$skinconf);
+                  'shade', 'replace_ui(shade.conf)', \$skinconf);
     create_button($tm, 264, 3, 9, 9, 18, 0, 18, 9,
-		  'quit', 'close_ui', \$skinconf, \$shadeconf);
+                  'quit', 'close_ui', \$skinconf, \$shadeconf);
 
     create_button($tm, 254, 3, 9, 9, 0, 27, 9, 27,
-		  'expand', 'replace_ui(skin.conf)', \$shadeconf);
+                  'expand', 'replace_ui(skin.conf)', \$shadeconf);
     create_sbutton($tm, 169, 4, 8, 7, 196, 33, 'sprev','previous',\$shadeconf);
     create_sbutton($tm, 177, 4, 10, 7, 204, 33, 'splay', 'play', \$shadeconf);
     create_sbutton($tm, 187, 4, 10, 7, 214, 33, 'spause', 'pause',\$shadeconf);
@@ -251,7 +251,7 @@ sub titlebar {
     create_sbutton($tm, 216, 4, 9, 7, 241, 33, 'sopen', 'open', \$shadeconf);
 
     create_slider($tm, 226, 4, 17, 7, 20, 36, 20, 36, 3, 7, 0, 36, 1, 13,
-		  'spos', '${position}', 'seek', \$shadeconf);
+                  'spos', '${position}', 'seek', \$shadeconf);
 
     save_rect($tm, 27, 29, 275, 14, 'shade_bg.png');
     gimp_image_delete($tm);
@@ -260,32 +260,32 @@ sub titlebar {
 sub cbuttons {
     my $bi = load_image($cbuttons);
     create_button($bi, 16, 88, 23, 18, 0, 0, 0, 18,
-		  'prev', 'previous', \$skinconf);
+                  'prev', 'previous', \$skinconf);
     create_button($bi, 39, 88, 23, 18, 23, 0, 23, 18,
-		  'play', 'play', \$skinconf);
+                  'play', 'play', \$skinconf);
     create_button($bi, 62, 88, 23, 18, 46, 0, 46, 18,
-		  'pause', 'pause', \$skinconf);
+                  'pause', 'pause', \$skinconf);
     create_button($bi, 85, 88, 23, 18, 69, 0, 69, 18,
-		  'stop', 'stop', \$skinconf);
+                  'stop', 'stop', \$skinconf);
     create_button($bi, 108, 88, 22, 18, 92, 0, 92, 18,
-		  'next', 'next', \$skinconf);
+                  'next', 'next', \$skinconf);
     create_button($bi, 136, 89, 22, 16, 114, 0, 114, 16,
-		  'open', 'open', \$skinconf);
+                  'open', 'open', \$skinconf);
     gimp_image_delete($bi);
 }
 
 sub posbar {
     my $pb = load_image($posbar);
     create_slider($pb, 16, 72, 248, 10, 248, 0, 278, 0, 29, 10, 0, 0, 0, 219,
-		  'pos', '${position}', 'seek', \$skinconf);
+                  'pos', '${position}', 'seek', \$skinconf);
     gimp_image_delete($pb);
 }
 
 sub volume {
     my $vb = load_image($volume);
     create_slider($vb, 107, 57, 68, 13, 15, 422, 0, 422, 14, 11, 0, 0, 0, 51,
-		  'volume', '${pcm_volume:-%f0.5}',
-		  'change_pcm_volume,set_variable(pcm_volume)', \$skinconf);
+                  'volume', '${pcm_volume:-%f0.5}',
+                  'change_pcm_volume,set_variable(pcm_volume)', \$skinconf);
     gimp_image_delete($vb);
 }
 
@@ -293,8 +293,8 @@ sub balance {
     my $bb = load_image($balance);
     my($hw, $hh) = (14, 11);
     create_slider($bb, 177, 57, 38, 13, 15, 422, 0, 422, $hw, $hh, 9, 0, 0, 24,
-		  'balance', '${balance:-%f0.5}',
-		  'change_balance,set_variable(balance)', \$skinconf);
+                  'balance', '${balance:-%f0.5}',
+                  'change_balance,set_variable(balance)', \$skinconf);
     gimp_image_delete($bb);
 }
 
@@ -305,53 +305,53 @@ sub text {
 
     $skinconf .= <<END_TCCONF;
 text_font [
-	file 'text.png'
-	columns 31
-	rows 3
-	characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=\$#\xc5\xd6\xc4?"
+        file 'text.png'
+        columns 31
+        rows 3
+        characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=\$#\xc5\xd6\xc4?"
 ]
 label [
-	position 112 27
-	size 153 8
-	bitmap : ../text_font [ ]
-	color 'rgb:ff/ff/ff' 255
-	text '\${title:u} - \${performer:u}'
-	scroll_style 'scroll'
-	align 'left'
+        position 112 27
+        size 153 8
+        bitmap : ../text_font [ ]
+        color 'rgb:ff/ff/ff' 255
+        text '\${title:u} - \${performer:u}'
+        scroll_style 'scroll'
+        align 'left'
 ]
 label [
-	position 111 43
-	size 15 8
-	bitmap : ../text_font [ ]
-	color 'rgb:ff/ff/ff' 255
-	text '\${audio_bitrate:-0}'
-	align 'left'
+        position 111 43
+        size 15 8
+        bitmap : ../text_font [ ]
+        color 'rgb:ff/ff/ff' 255
+        text '\${audio_bitrate:-0}'
+        align 'left'
 ]
 label [
-	position 156 43
-	size 10 8
-	bitmap : ../text_font [ ]
-	color 'rgb:ff/ff/ff' 255
-	text '\${audio_samplerate:-0}'
-	align 'left'
+        position 156 43
+        size 10 8
+        bitmap : ../text_font [ ]
+        color 'rgb:ff/ff/ff' 255
+        text '\${audio_samplerate:-0}'
+        align 'left'
 ]
 END_TCCONF
 
     $shadeconf .= <<END_TCCONF;
 text_font [
-	file 'text.png'
-	columns 31
-	rows 3
-	characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=\$#\xc5\xd6\xc4?"
+        file 'text.png'
+        columns 31
+        rows 3
+        characters "ABCDEFGHIJKLMNOPQRSTUVWXYZ\\"@@  0123456789 _:()-'!_+\\\\/[]^&%.=\$#\xc5\xd6\xc4?"
 ]
 label [
-	position 123 4
-	size 35 6
-	bitmap : ../text_font [ ]
-	color 'rgb:ff/ff/ff' 255
-	text '\${time:r/:/ }'
-	align 'right'
-	action 'toggle_time'
+        position 123 4
+        size 35 6
+        bitmap : ../text_font [ ]
+        color 'rgb:ff/ff/ff' 255
+        text '\${time:r/:/ }'
+        align 'right'
+        action 'toggle_time'
 ]
 END_TCCONF
 }
@@ -363,19 +363,19 @@ sub numbers {
 
     $skinconf .= <<END_TCCONF;
 time_font [
-	file "numbers.png"
-	columns 12
-	rows 1
-	characters '0123456789 -'
+        file "numbers.png"
+        columns 12
+        rows 1
+        characters '0123456789 -'
 ]
 label [
-	position 34 26
-	size 63 13
-	bitmap : ../time_font [ ]
-	color 'rgb:ff/ff/ff' 255
-	text '\${time:-    :  }'
-	align 'right'
-	action 'toggle_time'
+        position 34 26
+        size 63 13
+        bitmap : ../time_font [ ]
+        color 'rgb:ff/ff/ff' 255
+        text '\${time:-    :  }'
+        align 'right'
+        action 'toggle_time'
 ]
 END_TCCONF
 }
@@ -422,11 +422,11 @@ sub playpause {
 
     $skinconf .= <<END_TCCONF;
 state [
-	position 24 28
-	image 'play' 'playing.png'
-	image 'stop' 'stopped.png'
-	image 'pause' 'paused.png'
-	value '\${state:-stop}'
+        position 24 28
+        image 'play' 'playing.png'
+        image 'stop' 'stopped.png'
+        image 'pause' 'paused.png'
+        value '\${state:-stop}'
 ]
 END_TCCONF
 }
@@ -440,18 +440,18 @@ sub monostereo {
 
     $skinconf .= <<END_TCCONF;
 state [
-	position 239 41
-	image '0' 'stereo_off.png'
-	image '1' 'stereo_off.png'
-	image '2' 'stereo_on.png'
-	value '\${audio_channels:-0}'
+        position 239 41
+        image '0' 'stereo_off.png'
+        image '1' 'stereo_off.png'
+        image '2' 'stereo_on.png'
+        value '\${audio_channels:-0}'
 ]
 state [
-	position 212 41
-	image '0' 'mono_off.png'
-	image '1' 'mono_on.png'
-	image '2' 'mono_off.png'
-	value '\${audio_channels:-0}'
+        position 212 41
+        image '0' 'mono_off.png'
+        image '1' 'mono_on.png'
+        image '2' 'mono_off.png'
+        value '\${audio_channels:-0}'
 ]
 END_TCCONF
 }

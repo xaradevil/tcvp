@@ -163,13 +163,13 @@ xiph_int(url_t *u, int *vs)
     int val = 0, v;
 
     if(vs)
-	*vs = 0;
+        *vs = 0;
 
     do {
-	v = url_getc(u);
-	val += v;
-	if(vs)
-	    (*vs)++;
+        v = url_getc(u);
+        val += v;
+        if(vs)
+            (*vs)++;
     } while(v == 255);
 
     return val;
@@ -181,16 +181,16 @@ xiph_int_mem(u_char *p, int size, int *vs)
     int val = 0, v;
 
     if(vs)
-	*vs = 0;
+        *vs = 0;
 
     while(size > 0){
-	v = *p++;
-	val += v;
-	if(vs)
-	    (*vs)++;
-	if(v != 255)
-	    break;
-	size--;
+        v = *p++;
+        val += v;
+        if(vs)
+            (*vs)++;
+        if(v != 255)
+            break;
+        size--;
     }
 
     return val;
@@ -205,19 +205,19 @@ msk_cb_seek(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_SEEKID:
-	sip[0] = ebml_get_vint(msk->u, NULL);
-	if(sip[0] == -1)
-	    return EBML_CB_ERROR;
-	break;
+        sip[0] = ebml_get_vint(msk->u, NULL);
+        if(sip[0] == -1)
+            return EBML_CB_ERROR;
+        break;
 
     case MATROSKA_ID_SEEKPOSITION:
-	sip[1] = ebml_get_int(msk->u, size);
-	if(sip[1] == -1)
-	    return EBML_CB_ERROR;
-	break;
+        sip[1] = ebml_get_int(msk->u, size);
+        if(sip[1] == -1)
+            return EBML_CB_ERROR;
+        break;
 
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -230,31 +230,31 @@ msk_read_seek(matroska_t *msk, uint64_t psize)
     matroska_ptr_t mp = { msk, sip };
 
     if(ebml_read_elements(msk->u, psize, msk_cb_seek, &mp))
-	return -1;
+        return -1;
 
     if(sip[0] == -1){
-	tc2_print("MATROSKA", TC2_PRINT_ERROR, "seekid undefined\n");
-	return -1;
+        tc2_print("MATROSKA", TC2_PRINT_ERROR, "seekid undefined\n");
+        return -1;
     }
 
     if(sip[1] == -1){
-	tc2_print("MATROSKA", TC2_PRINT_ERROR, "seekpos undefined\n");
-	return -1;
+        tc2_print("MATROSKA", TC2_PRINT_ERROR, "seekpos undefined\n");
+        return -1;
     }
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG+1, "seek %llx @%llx\n",
-	      sip[0], sip[1]);
+              sip[0], sip[1]);
 
     switch(sip[0]){
     case MATROSKA_ID_INFO:
-	msk->seek.info = sip[1];
-	break;
+        msk->seek.info = sip[1];
+        break;
     case MATROSKA_ID_TRACKS:
-	msk->seek.tracks = sip[1];
-	break;
+        msk->seek.tracks = sip[1];
+        break;
     case MATROSKA_ID_CUES:
-	msk->seek.cues = sip[1];
-	break;
+        msk->seek.cues = sip[1];
+        break;
     }
 
     return 0;
@@ -267,12 +267,12 @@ msk_cb_seekhead(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_SEEK:
-	if(msk_read_seek(msk, size))
-	    return EBML_CB_ERROR;
-	break;
+        if(msk_read_seek(msk, size))
+            return EBML_CB_ERROR;
+        break;
     default:
-	return EBML_CB_UNKNOWN;
-	break;
+        return EBML_CB_UNKNOWN;
+        break;
     }
 
     return EBML_CB_SUCCESS;
@@ -285,22 +285,22 @@ msk_cb_info(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_TIMECODESCALE:
-	msk->info.timecodescale = ebml_get_int(msk->u, size);
-	break;
+        msk->info.timecodescale = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_DURATION:
-	msk->info.duration = ebml_get_float(msk->u, size);
-	break;
+        msk->info.duration = ebml_get_float(msk->u, size);
+        break;
     case MATROSKA_ID_TITLE:
-	msk->info.title = ebml_get_string(msk->u, size);
-	break;
+        msk->info.title = ebml_get_string(msk->u, size);
+        break;
     case MATROSKA_ID_MUXINGAPP:
-	msk->info.muxingapp = ebml_get_string(msk->u, size);
-	break;
+        msk->info.muxingapp = ebml_get_string(msk->u, size);
+        break;
     case MATROSKA_ID_WRITINGAPP:
-	msk->info.writingapp = ebml_get_string(msk->u, size);
-	break;
+        msk->info.writingapp = ebml_get_string(msk->u, size);
+        break;
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -331,42 +331,42 @@ msk_cb_video(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_FLAGINTERLACED:
-	mt->video.interlaced = ebml_get_int(msk->u, size);
-	break;
+        mt->video.interlaced = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_STEREOMODE:
-	mt->video.stereomode = ebml_get_int(msk->u, size);
-	break;
+        mt->video.stereomode = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_PIXELWIDTH:
-	mt->video.pixelwidth = ebml_get_int(msk->u, size);
-	mt->video.displaywidth = mt->video.pixelwidth;
-	break;
+        mt->video.pixelwidth = ebml_get_int(msk->u, size);
+        mt->video.displaywidth = mt->video.pixelwidth;
+        break;
     case MATROSKA_ID_PIXELHEIGHT:
-	mt->video.pixelheight = ebml_get_int(msk->u, size);
-	mt->video.displayheight = mt->video.pixelheight;
-	break;
+        mt->video.pixelheight = ebml_get_int(msk->u, size);
+        mt->video.displayheight = mt->video.pixelheight;
+        break;
     case MATROSKA_ID_PIXELCROPBOTTOM:
-	mt->video.pixelcropbottom = ebml_get_int(msk->u, size);
-	break;
+        mt->video.pixelcropbottom = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_PIXELCROPTOP:
-	mt->video.pixelcroptop = ebml_get_int(msk->u, size);
-	break;
+        mt->video.pixelcroptop = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_PIXELCROPLEFT:
-	mt->video.pixelcropleft = ebml_get_int(msk->u, size);
-	break;
+        mt->video.pixelcropleft = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_PIXELCROPRIGHT:
-	mt->video.pixelcropright = ebml_get_int(msk->u, size);
-	break;
+        mt->video.pixelcropright = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_DISPLAYWIDTH:
-	mt->video.displaywidth = ebml_get_int(msk->u, size);
-	break;
+        mt->video.displaywidth = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_DISPLAYHEIGHT:
-	mt->video.displayheight = ebml_get_int(msk->u, size);
-	break;
+        mt->video.displayheight = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_ASPECTRATIOTYPE:
-	mt->video.aspectratiotype = ebml_get_int(msk->u, size);
-	break;
+        mt->video.aspectratiotype = ebml_get_int(msk->u, size);
+        break;
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -381,20 +381,20 @@ msk_cb_audio(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_SAMPLINGFREQUENCY:
-	mt->audio.samplingfrequency = ebml_get_float(msk->u, size);
-	mt->audio.outputsamplingfrequency = mt->audio.samplingfrequency;
-	break;
+        mt->audio.samplingfrequency = ebml_get_float(msk->u, size);
+        mt->audio.outputsamplingfrequency = mt->audio.samplingfrequency;
+        break;
     case MATROSKA_ID_OUTPUTSAMPLINGFREQUENCY:
-	mt->audio.outputsamplingfrequency = ebml_get_float(msk->u, size);
-	break;
+        mt->audio.outputsamplingfrequency = ebml_get_float(msk->u, size);
+        break;
     case MATROSKA_ID_CHANNELS:
-	mt->audio.channels = ebml_get_int(msk->u, size);
-	break;
+        mt->audio.channels = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_BITDEPTH:
-	mt->audio.bitdepth = ebml_get_int(msk->u, size);
-	break;
+        mt->audio.bitdepth = ebml_get_int(msk->u, size);
+        break;
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -409,52 +409,52 @@ msk_cb_trackentry(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_TRACKNUMBER:
-	mt->number = ebml_get_int(msk->u, size);
-	break;
+        mt->number = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_TRACKTYPE:
-	mt->type = ebml_get_int(msk->u, size);
-	break;
+        mt->type = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_FLAGENABLED:
-	mt->enabled = ebml_get_int(msk->u, size);
-	break;
+        mt->enabled = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_FLAGLACING:
-	mt->lacing = ebml_get_int(msk->u, size);
-	break;
+        mt->lacing = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_DEFAULTDURATION:
-	mt->defaultduration = ebml_get_int(msk->u, size);
-	break;
+        mt->defaultduration = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_TRACKTIMECODESCALE:
-	mt->timecodescale = ebml_get_float(msk->u, size);
-	break;
+        mt->timecodescale = ebml_get_float(msk->u, size);
+        break;
     case MATROSKA_ID_NAME:
-	mt->name = ebml_get_string(msk->u, size);
-	break;
+        mt->name = ebml_get_string(msk->u, size);
+        break;
     case MATROSKA_ID_LANGUAGE:
-	mt->lang = ebml_get_string(msk->u, size);
-	break;
+        mt->lang = ebml_get_string(msk->u, size);
+        break;
     case MATROSKA_ID_CODECID:
-	mt->codecid = ebml_get_string(msk->u, size);
-	break;
+        mt->codecid = ebml_get_string(msk->u, size);
+        break;
     case MATROSKA_ID_CODECPRIVATE:
-	mt->codecprivate = ebml_get_binary(msk->u, size);
-	mt->codecprivate_size = size;
-	break;
+        mt->codecprivate = ebml_get_binary(msk->u, size);
+        mt->codecprivate_size = size;
+        break;
     case MATROSKA_ID_CODECNAME:
-	mt->codecname = ebml_get_string(msk->u, size);
-	break;
+        mt->codecname = ebml_get_string(msk->u, size);
+        break;
     case MATROSKA_ID_CODECSETTINGS:
-	mt->codecsettings = ebml_get_string(msk->u, size);
-	break;
+        mt->codecsettings = ebml_get_string(msk->u, size);
+        break;
     case MATROSKA_ID_VIDEO:
-	if(ebml_read_elements(msk->u, size, msk_cb_video, mp))
-	    return EBML_CB_ERROR;
-	break;
+        if(ebml_read_elements(msk->u, size, msk_cb_video, mp))
+            return EBML_CB_ERROR;
+        break;
     case MATROSKA_ID_AUDIO:
-	if(ebml_read_elements(msk->u, size, msk_cb_audio, mp))
-	    return EBML_CB_ERROR;
-	break;
+        if(ebml_read_elements(msk->u, size, msk_cb_audio, mp))
+            return EBML_CB_ERROR;
+        break;
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -467,24 +467,24 @@ msk_cb_tracks(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_TRACKENTRY: {
-	int nt = msk->ntracks + 1;
-	matroska_track_t *mt;
-	matroska_ptr_t mp;
+        int nt = msk->ntracks + 1;
+        matroska_track_t *mt;
+        matroska_ptr_t mp;
 
-	msk->tracks = realloc(msk->tracks, nt * sizeof(*msk->tracks));
-	mt = msk->tracks + msk->ntracks;
-	msk->ntracks = nt;
-	msk_track_defaults(mt);
+        msk->tracks = realloc(msk->tracks, nt * sizeof(*msk->tracks));
+        mt = msk->tracks + msk->ntracks;
+        msk->ntracks = nt;
+        msk_track_defaults(mt);
 
-	mp.msk = msk;
-	mp.p = mt;
+        mp.msk = msk;
+        mp.p = mt;
 
-	if(ebml_read_elements(msk->u, size, msk_cb_trackentry, &mp))
-	    return EBML_CB_ERROR;
-	break;
+        if(ebml_read_elements(msk->u, size, msk_cb_trackentry, &mp))
+            return EBML_CB_ERROR;
+        break;
     }
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -499,16 +499,16 @@ msk_cb_cuepositions(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_CUETRACK:
-	cpos->track = ebml_get_int(msk->u, size);
-	break;
+        cpos->track = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_CUECLUSTERPOSITION:
-	cpos->clusterpos = ebml_get_int(msk->u, size);
-	break;
+        cpos->clusterpos = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_CUEBLOCKNUMBER:
-	cpos->blocknum = ebml_get_int(msk->u, size);
-	break;
+        cpos->blocknum = ebml_get_int(msk->u, size);
+        break;
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -522,15 +522,15 @@ msk_cb_cuepoint(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_CUETIME:
-	cp->time = ebml_get_int(msk->u, size);
-	break;
+        cp->time = ebml_get_int(msk->u, size);
+        break;
     case MATROSKA_ID_CUETRACKPOSITIONS:
-	if(ebml_read_elements(msk->u, size, msk_cb_cuepositions, msk))
-	    return EBML_CB_ERROR;
-	cp->npositions++;
-	break;
+        if(ebml_read_elements(msk->u, size, msk_cb_cuepositions, msk))
+            return EBML_CB_ERROR;
+        cp->npositions++;
+        break;
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -543,11 +543,11 @@ msk_cb_cues(uint64_t id, uint64_t size, void *p)
     matroska_cuepoint_t *cp;
 
     if(id != MATROSKA_ID_CUEPOINT)
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
 
     if(msk->ncues == msk->mcues){
-	msk->mcues *= 2;
-	msk->cues = realloc(msk->cues, msk->mcues * sizeof(*msk->cues));
+        msk->mcues *= 2;
+        msk->cues = realloc(msk->cues, msk->mcues * sizeof(*msk->cues));
     }
 
     cp = msk->cues + msk->ncues;
@@ -555,10 +555,10 @@ msk_cb_cues(uint64_t id, uint64_t size, void *p)
     cp->positions = calloc(msk->ntracks, sizeof(*cp->positions));
 
     if(ebml_read_elements(msk->u, size, msk_cb_cuepoint, msk))
-	return EBML_CB_ERROR;
+        return EBML_CB_ERROR;
 
     if(cp->npositions)
-	msk->ncues++;
+        msk->ncues++;
 
     return EBML_CB_SUCCESS;
 }
@@ -569,8 +569,8 @@ msk_find_codec(char *id)
     int i;
 
     for(i = 0; msk_codecs[i].codecid; i++){
-	if(!fnmatch(msk_codecs[i].codecid, id, 0))
-	    return msk_codecs + i;
+        if(!fnmatch(msk_codecs[i].codecid, id, 0))
+            return msk_codecs + i;
     }
 
     return NULL;
@@ -582,21 +582,21 @@ msk_setup_stream(matroska_t *msk, matroska_track_t *mt, stream_t *st)
     matroska_codec_t *mc = msk_find_codec(mt->codecid);
 
     if(mt->number >= msk->mapsize){
-	msk->mapsize = mt->number + 1;
-	msk->map = realloc(msk->map, msk->mapsize * sizeof(*msk->map));
+        msk->mapsize = mt->number + 1;
+        msk->map = realloc(msk->map, msk->mapsize * sizeof(*msk->map));
     }
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "track %i -> %i\n",
-	      mt->number, st->common.index);
+              mt->number, st->common.index);
     msk->map[mt->number] = st->common.index;
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "  codecid %s\n", mt->codecid);
 
     if(!mc){
-	tc2_print("MATROSKA", TC2_PRINT_WARNING,
-		  "unknown codecid %s for track %i@%i\n",
-		  mt->codecid, mt->number, st->common.index);
-	return -1;
+        tc2_print("MATROSKA", TC2_PRINT_WARNING,
+                  "unknown codecid %s for track %i@%i\n",
+                  mt->codecid, mt->number, st->common.index);
+        return -1;
     }
 
     st->common.codec = mc->codec;
@@ -604,37 +604,37 @@ msk_setup_stream(matroska_t *msk, matroska_track_t *mt, stream_t *st)
     st->common.codec_data_size = mt->codecprivate_size;
 
     if(mt->type == MATROSKA_TRACK_TYPE_VIDEO){
-	st->stream_type = STREAM_TYPE_VIDEO;
-	st->video.width = mt->video.pixelwidth;
-	st->video.height = mt->video.pixelheight;
-	st->video.frame_rate.num = 1000000;
-	st->video.frame_rate.den = mt->defaultduration / 1000;
-	tcreduce(&st->video.frame_rate);
-	st->video.aspect.num = mt->video.displaywidth;
-	st->video.aspect.den = mt->video.displayheight;
-	tcreduce(&st->video.aspect);
+        st->stream_type = STREAM_TYPE_VIDEO;
+        st->video.width = mt->video.pixelwidth;
+        st->video.height = mt->video.pixelheight;
+        st->video.frame_rate.num = 1000000;
+        st->video.frame_rate.den = mt->defaultduration / 1000;
+        tcreduce(&st->video.frame_rate);
+        st->video.aspect.num = mt->video.displaywidth;
+        st->video.aspect.den = mt->video.displayheight;
+        tcreduce(&st->video.aspect);
     } else if(mt->type == MATROSKA_TRACK_TYPE_AUDIO){
-	tc2_print("MATROSKA", TC2_PRINT_DEBUG, "  defaultduration %lli\n",
-		  mt->defaultduration);
+        tc2_print("MATROSKA", TC2_PRINT_DEBUG, "  defaultduration %lli\n",
+                  mt->defaultduration);
 
-	st->stream_type = STREAM_TYPE_AUDIO;
-	st->audio.sample_rate = mt->audio.samplingfrequency;
-	st->audio.channels = mt->audio.channels;
-	if(mt->lang){
-	    strncpy(st->audio.language, mt->lang, 4);
-	    st->audio.language[3] = 0;
-	}
+        st->stream_type = STREAM_TYPE_AUDIO;
+        st->audio.sample_rate = mt->audio.samplingfrequency;
+        st->audio.channels = mt->audio.channels;
+        if(mt->lang){
+            strncpy(st->audio.language, mt->lang, 4);
+            st->audio.language[3] = 0;
+        }
     } else if(mt->type == MATROSKA_TRACK_TYPE_SUBTITLE){
-	st->stream_type = STREAM_TYPE_SUBTITLE;
-	if(mt->lang){
-	    strncpy(st->subtitle.language, mt->lang, 4);
-	    st->subtitle.language[3] = 0;
-	}
+        st->stream_type = STREAM_TYPE_SUBTITLE;
+        if(mt->lang){
+            strncpy(st->subtitle.language, mt->lang, 4);
+            st->subtitle.language[3] = 0;
+        }
     }
 
     if(mc->setup){
-	if(mc->setup(mt, st))
-	    return -1;
+        if(mc->setup(mt, st))
+            return -1;
     }
 
     return 0;
@@ -653,10 +653,10 @@ msk_create_streams(muxed_stream_t *ms)
     ms->used_streams = calloc(msk->ntracks, sizeof(*ms->used_streams));
 
     for(i = 0; i < msk->ntracks; i++){
-	matroska_track_t *mt = msk->tracks + i;
-	stream_t *st = ms->streams + i;
-	st->common.index = i;
-	msk_setup_stream(msk, mt, st);
+        matroska_track_t *mt = msk->tracks + i;
+        stream_t *st = ms->streams + i;
+        st->common.index = i;
+        msk_setup_stream(msk, mt, st);
     }
 
     return 0;
@@ -670,7 +670,7 @@ msk_block(matroska_t *msk, uint64_t size)
 
     mb->data = tcalloc(size);
     if(!mb->data)
-	return -1;
+        return -1;
 
     mb->size = size;
     mb->track = ebml_get_vint(msk->u, &ss);
@@ -681,47 +681,47 @@ msk_block(matroska_t *msk, uint64_t size)
     mb->size--;
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG+3,
-	      "block on track %lli [%i], flags %x\n",
-	      mb->track, msk->map[mb->track], mb->flags);
+              "block on track %lli [%i], flags %x\n",
+              mb->track, msk->map[mb->track], mb->flags);
 
     if(mb->flags & 0x6){
-	mb->frames = url_getc(msk->u) + 1;
-	mb->size--;
-	mb->fsizes = calloc(mb->frames, sizeof(*mb->fsizes));
+        mb->frames = url_getc(msk->u) + 1;
+        mb->size--;
+        mb->fsizes = calloc(mb->frames, sizeof(*mb->fsizes));
 
-	if(mb->flags & 0x2){
-	    int i, ts = 0;
-	    for(i = 0; i < mb->frames - 1; i++){
-		if(mb->flags & 0x4){
-		    int fs = ebml_get_vint(msk->u, &ss);
-		    if(i){
-			fs -= (1 << (8 * ss - ss - 1)) - 1;
-			fs += mb->fsizes[i - 1];
-		    }
-		    mb->fsizes[i] = fs;
-		} else {
-		    mb->fsizes[i] = xiph_int(msk->u, &ss);
-		}
-		ts += mb->fsizes[i];
-		mb->size -= ss;
-	    }
-	    mb->fsizes[i] = mb->size - ts;
-	} else {
-	    int i;
-	    for(i = 0; i < mb->frames; i++)
-		mb->fsizes[i] = mb->size / mb->frames;
-	}
+        if(mb->flags & 0x2){
+            int i, ts = 0;
+            for(i = 0; i < mb->frames - 1; i++){
+                if(mb->flags & 0x4){
+                    int fs = ebml_get_vint(msk->u, &ss);
+                    if(i){
+                        fs -= (1 << (8 * ss - ss - 1)) - 1;
+                        fs += mb->fsizes[i - 1];
+                    }
+                    mb->fsizes[i] = fs;
+                } else {
+                    mb->fsizes[i] = xiph_int(msk->u, &ss);
+                }
+                ts += mb->fsizes[i];
+                mb->size -= ss;
+            }
+            mb->fsizes[i] = mb->size - ts;
+        } else {
+            int i;
+            for(i = 0; i < mb->frames; i++)
+                mb->fsizes[i] = mb->size / mb->frames;
+        }
     } else {
-	mb->frames = 1;
-	mb->fsizes = calloc(mb->frames, sizeof(*mb->fsizes));
-	mb->fsizes[0] = mb->size;
+        mb->frames = 1;
+        mb->fsizes = calloc(mb->frames, sizeof(*mb->fsizes));
+        mb->fsizes[0] = mb->size;
     }
 
     mb->framedata = mb->data;
     mb->frame = 0;
 
     if(msk->u->read(mb->data, 1, mb->size, msk->u) < mb->size)
-	return -1;
+        return -1;
 
     return 0;
 }
@@ -752,20 +752,20 @@ msk_cb_blockgroup(uint64_t id, uint64_t size, void *p)
 
     switch(id){
     case MATROSKA_ID_BLOCK:
-	if(msk_block(msk, size) < 0)
-	    return EBML_CB_ERROR;
-	break;
+        if(msk_block(msk, size) < 0)
+            return EBML_CB_ERROR;
+        break;
     case MATROSKA_ID_BLOCKDURATION:
-	msk->block.duration = ebml_get_int(msk->u, size);
-	tc2_print("MATROSKA", TC2_PRINT_DEBUG+3, "  duration %lli\n",
-		  msk->block.duration);
-	break;
+        msk->block.duration = ebml_get_int(msk->u, size);
+        tc2_print("MATROSKA", TC2_PRINT_DEBUG+3, "  duration %lli\n",
+                  msk->block.duration);
+        break;
     case MATROSKA_ID_SLICES:
-	tc2_print("MATROSKA", TC2_PRINT_DEBUG, "slices %lli\n", size);
-	return EBML_CB_UNKNOWN;
-	break;
+        tc2_print("MATROSKA", TC2_PRINT_DEBUG, "slices %lli\n", size);
+        return EBML_CB_UNKNOWN;
+        break;
     default:
-	return EBML_CB_UNKNOWN;
+        return EBML_CB_UNKNOWN;
     }
 
     return EBML_CB_SUCCESS;
@@ -780,33 +780,33 @@ msk_packet(muxed_stream_t *ms, int str)
     int trackidx;
 
     while(!msk->block.frames){
-	uint64_t id, size;
-	if(ebml_element(msk->u, &id, &size, NULL))
-	    return NULL;
+        uint64_t id, size;
+        if(ebml_element(msk->u, &id, &size, NULL))
+            return NULL;
 
-	switch(id){
-	case MATROSKA_ID_CLUSTER:
-	    break;
-	case MATROSKA_ID_TIMECODE:
-	    msk->clustertime = ebml_get_int(msk->u, size);
-	    break;
-	case MATROSKA_ID_BLOCKGROUP:
-	    if(ebml_read_elements(msk->u, size, msk_cb_blockgroup, msk))
-		return NULL;
-	    if(!ms->used_streams[msk->map[msk->block.track]])
-		msk_free_block(&msk->block);
-	    break;
-	default:
-	    msk->u->seek(msk->u, size, SEEK_CUR);
-	    break;
-	}
+        switch(id){
+        case MATROSKA_ID_CLUSTER:
+            break;
+        case MATROSKA_ID_TIMECODE:
+            msk->clustertime = ebml_get_int(msk->u, size);
+            break;
+        case MATROSKA_ID_BLOCKGROUP:
+            if(ebml_read_elements(msk->u, size, msk_cb_blockgroup, msk))
+                return NULL;
+            if(!ms->used_streams[msk->map[msk->block.track]])
+                msk_free_block(&msk->block);
+            break;
+        default:
+            msk->u->seek(msk->u, size, SEEK_CUR);
+            break;
+        }
     }
 
     trackidx = msk->map[msk->block.track];
     mt = msk->tracks + trackidx;
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG+3, "packet on track %lli [%i]\n",
-	      msk->block.track, trackidx);
+              msk->block.track, trackidx);
 
     pk = tcallocdz(sizeof(*pk), NULL, msk_free_pk);
     pk->pk.type = TCVP_PKT_TYPE_DATA;
@@ -815,21 +815,21 @@ msk_packet(muxed_stream_t *ms, int str)
     pk->pk.sizes = &pk->size;
     pk->pk.planes = 1;
     if(!msk->block.frame){
-	pk->pk.flags |= TCVP_PKT_FLAG_PTS;
-	pk->pk.pts = (msk->clustertime + msk->block.time) *
-	    msk->info.timecodescale * mt->timecodescale * 27 / 1000;
-	tc2_print("MATROSKA", TC2_PRINT_DEBUG+3, "track %lli pts %lli\n",
-		  msk->block.track, pk->pk.pts / 27000);
+        pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+        pk->pk.pts = (msk->clustertime + msk->block.time) *
+            msk->info.timecodescale * mt->timecodescale * 27 / 1000;
+        tc2_print("MATROSKA", TC2_PRINT_DEBUG+3, "track %lli pts %lli\n",
+                  msk->block.track, pk->pk.pts / 27000);
     }
 
     if(mt->type == MATROSKA_TRACK_TYPE_AUDIO){
-	uint64_t duration = 0;
-	if(msk->block.duration)
-	    duration = msk->block.duration * msk->info.timecodescale *
-		mt->timecodescale;
-	else
-	    duration = mt->defaultduration;
-	pk->pk.samples = duration * 27 / (mt->audio.samplingfrequency * 1000);
+        uint64_t duration = 0;
+        if(msk->block.duration)
+            duration = msk->block.duration * msk->info.timecodescale *
+                mt->timecodescale;
+        else
+            duration = mt->defaultduration;
+        pk->pk.samples = duration * 27 / (mt->audio.samplingfrequency * 1000);
     }
 
     pk->buf = tcref(msk->block.data);
@@ -840,7 +840,7 @@ msk_packet(muxed_stream_t *ms, int str)
     msk->block.frame++;
 
     if(msk->block.frame == msk->block.frames)
-	msk_free_block(&msk->block);
+        msk_free_block(&msk->block);
 
     return (tcvp_packet_t *) pk;
 }
@@ -858,28 +858,28 @@ msk_seek(muxed_stream_t *ms, uint64_t time)
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "seek %lli\n", time);
 
     for(i = 0; i < msk->ncues; i++)
-	if(msk->cues[i].time >=  time)
-	    break;
+        if(msk->cues[i].time >=  time)
+            break;
 
     if(i == msk->ncues)
-	return -1LL;
+        return -1LL;
 
     if(msk->cues[i].time > time && i > 0)
-	i--;
+        i--;
 
     cp = msk->cues + i;
 
     for(i = 0; i < cp->npositions; i++){
-	int tidx = msk->map[cp->positions[i].track];
-	cpos = cp->positions + i;
-	if(msk->tracks[tidx].type == MATROSKA_TRACK_TYPE_VIDEO &&
-	   ms->used_streams[tidx])
-	    break;
+        int tidx = msk->map[cp->positions[i].track];
+        cpos = cp->positions + i;
+        if(msk->tracks[tidx].type == MATROSKA_TRACK_TYPE_VIDEO &&
+           ms->used_streams[tidx])
+            break;
     }
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG,
-	      "seek track %i, %lli @ %lli block %i\n",
-	      cpos->track, cp->time, cpos->clusterpos, cpos->blocknum);
+              "seek track %i, %lli @ %lli block %i\n",
+              cpos->track, cp->time, cpos->clusterpos, cpos->blocknum);
 
     msk->u->seek(msk->u, msk->segment_start + cpos->clusterpos, SEEK_SET);
     msk_free_block(&msk->block);
@@ -895,7 +895,7 @@ msk_free(void *p)
     int i;
 
     if(!msk)
-	return;
+        return;
 
     tcfree(msk->u);
     free(msk->map);
@@ -904,17 +904,17 @@ msk_free(void *p)
     free(msk->info.writingapp);
 
     for(i = 0; i < msk->ntracks; i++){
-	matroska_track_t *mt = msk->tracks + i;
-	free(mt->name);
-	free(mt->lang);
-	free(mt->codecid);
-	free(mt->codecprivate);
-	free(mt->codecname);
-	free(mt->codecsettings);
+        matroska_track_t *mt = msk->tracks + i;
+        free(mt->name);
+        free(mt->lang);
+        free(mt->codecid);
+        free(mt->codecprivate);
+        free(mt->codecname);
+        free(mt->codecsettings);
     }
 
     for(i = 0; i < msk->ncues; i++)
-	free(msk->cues[i].positions);
+        free(msk->cues[i].positions);
 
     free(msk->tracks);
     free(msk->cues);
@@ -932,49 +932,49 @@ msk_read_header(matroska_t *msk)
     uint64_t size, id;
 
     if(ebml_element(msk->u, &id, &size, NULL))
-	return -1;
+        return -1;
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG+1,
-	      "header: id %llx, size %lli\n", id, size);
+              "header: id %llx, size %lli\n", id, size);
 
     switch(id){
     case MATROSKA_ID_SEGMENT:
-	msk->segment_start = msk->u->tell(msk->u);
-	break;
+        msk->segment_start = msk->u->tell(msk->u);
+        break;
 
     case MATROSKA_ID_SEEKHEAD:
-	ecb = msk_cb_seekhead;
-	break;
+        ecb = msk_cb_seekhead;
+        break;
 
     case MATROSKA_ID_INFO:
-	msk->haveinfo = 1;
-	msk->info.timecodescale = 1000000;
-	ecb = msk_cb_info;
-	break;
+        msk->haveinfo = 1;
+        msk->info.timecodescale = 1000000;
+        ecb = msk_cb_info;
+        break;
 
     case MATROSKA_ID_TRACKS:
-	msk->havetracks = 1;
-	ecb = msk_cb_tracks;
-	break;
+        msk->havetracks = 1;
+        ecb = msk_cb_tracks;
+        break;
 
     case MATROSKA_ID_CUES:
-	msk->havecues = 1;
-	msk->mcues = 1000;
-	msk->cues = malloc(msk->mcues * sizeof(*msk->cues));
-	ecb = msk_cb_cues;
-	break;
+        msk->havecues = 1;
+        msk->mcues = 1000;
+        msk->cues = malloc(msk->mcues * sizeof(*msk->cues));
+        ecb = msk_cb_cues;
+        break;
 
     case MATROSKA_ID_CLUSTER:
-	msk->cluster_start = msk->u->tell(msk->u);
-	break;
+        msk->cluster_start = msk->u->tell(msk->u);
+        break;
 
     default:
-	msk->u->seek(msk->u, size, SEEK_CUR);
-	break;
+        msk->u->seek(msk->u, size, SEEK_CUR);
+        break;
     }
 
     if(ecb && ebml_read_elements(msk->u, size, ecb, msk) < 0)
-	return -1;
+        return -1;
 
     return 0;
 }
@@ -987,62 +987,62 @@ msk_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     ebml_header_t eh;
 
     if(ebml_readheader(u, &eh) < 0){
-	tc2_print("MATROSKA", TC2_PRINT_ERROR, "failed reading EBML header\n");
-	goto err;
+        tc2_print("MATROSKA", TC2_PRINT_ERROR, "failed reading EBML header\n");
+        goto err;
     }
 
     if(strcmp(eh.doctype, "matroska")){
-	tc2_print("MATROSKA", TC2_PRINT_ERROR, "unknown doctype '%s'\n",
-		  eh.doctype);
-	goto err;
+        tc2_print("MATROSKA", TC2_PRINT_ERROR, "unknown doctype '%s'\n",
+                  eh.doctype);
+        goto err;
     }
 
     ms = tcallocdz(sizeof(*ms), NULL, msk_free);
     if(!ms)
-	goto err;
+        goto err;
 
     msk = calloc(1, sizeof(*msk));
     if(!msk)
-	goto err;
+        goto err;
 
     msk->u = tcref(u);
     ms->private = msk;
 
     while(!msk->cluster_start){
-	if(msk_read_header(msk))
-	    goto err;
+        if(msk_read_header(msk))
+            goto err;
     }
 
     if(!msk->haveinfo){
-	if(!msk->seek.info)
-	    goto err;
-	u->seek(u, msk->segment_start + msk->seek.info, SEEK_SET);
-	msk_read_header(msk);
+        if(!msk->seek.info)
+            goto err;
+        u->seek(u, msk->segment_start + msk->seek.info, SEEK_SET);
+        msk_read_header(msk);
     }
 
     if(!msk->havetracks){
-	if(!msk->seek.tracks)
-	    goto err;
-	u->seek(u, msk->segment_start + msk->seek.tracks, SEEK_SET);
-	msk_read_header(msk);
+        if(!msk->seek.tracks)
+            goto err;
+        u->seek(u, msk->segment_start + msk->seek.tracks, SEEK_SET);
+        msk_read_header(msk);
     }
 
     if(!msk->havecues && msk->seek.cues){
-	u->seek(u, msk->segment_start + msk->seek.cues, SEEK_SET);
-	msk_read_header(msk);
+        u->seek(u, msk->segment_start + msk->seek.cues, SEEK_SET);
+        msk_read_header(msk);
     }
 
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "title %s\n", msk->info.title);
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "timecodescale %lli\n",
-	      msk->info.timecodescale);
+              msk->info.timecodescale);
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "duration %lf (%lf ns)\n",
-	      msk->info.duration,
-	      msk->info.duration * msk->info.timecodescale);
+              msk->info.duration,
+              msk->info.duration * msk->info.timecodescale);
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "%i cuepoints\n", msk->ncues);
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "muxingapp %s\n",
-	      msk->info.muxingapp);
+              msk->info.muxingapp);
     tc2_print("MATROSKA", TC2_PRINT_DEBUG, "writingapp %s\n",
-	      msk->info.writingapp);
+              msk->info.writingapp);
 
     ms->time = msk->info.duration * msk->info.timecodescale * 27 / 1000;
     ms->next_packet = msk_packet;
@@ -1051,7 +1051,7 @@ msk_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     msk_create_streams(ms);
 
     if(msk->info.title)
-	tcattr_set(ms, "title", msk->info.title, NULL, NULL);
+        tcattr_set(ms, "title", msk->info.title, NULL, NULL);
 
     u->seek(u, msk->cluster_start, SEEK_SET);
 
@@ -1074,18 +1074,18 @@ msk_codec_vorbis(matroska_track_t *mt, stream_t *st)
     int i;
 
     if(cps < 3)
-	return -1;
+        return -1;
 
     nf = *p++;
     cps--;
 
     if(nf != 2)
-	return -1;
+        return -1;
 
     for(i = 0; i < 2; i++){
-	s[i] = xiph_int_mem(p, cps, &ss);
-	p += ss;
-	cps -= ss;
+        s[i] = xiph_int_mem(p, cps, &ss);
+        p += ss;
+        cps -= ss;
     }
 
     s[2] = cps - s[0] - s[1];
@@ -1096,12 +1096,12 @@ msk_codec_vorbis(matroska_track_t *mt, stream_t *st)
     st->common.codec_data_size = cds;
 
     for(i = 0; i < 3; i++){
-	*cdp++ = s[i] >> 8;
-	*cdp++ = s[i] & 0xff;
-	memcpy(cdp, p, s[i]);
-	cdp += s[i];
-	p += s[i];
-	cps -= s[i];
+        *cdp++ = s[i] >> 8;
+        *cdp++ = s[i] & 0xff;
+        memcpy(cdp, p, s[i]);
+        cdp += s[i];
+        p += s[i];
+        cps -= s[i];
     }
 
     return 0;
@@ -1129,7 +1129,7 @@ static int
 msk_codec_msfcc(matroska_track_t *mt, stream_t *st)
 {
     if(mt->codecprivate_size < 20)
-	return -1;
+        return -1;
 
     st->common.codec = video_x_msvideo_vcodec(mt->codecprivate + 16);
 
@@ -1140,21 +1140,21 @@ static int
 msk_codec_aac(matroska_track_t *mt, stream_t *st)
 {
     static const char *profiles[] =
-	{ "MAIN", "LC", "SSR", "LTP", "LC/SBR", NULL };
+        { "MAIN", "LC", "SSR", "LTP", "LC/SBR", NULL };
 
     static const int sampling_freqs[] = {
-	92017,
-	75132,
-	55426,
-	46009,
-	37566,
-	27713,
-	23004,
-	18783,
-	13856,
-	11502,
-	9391,
-	0
+        92017,
+        75132,
+        55426,
+        46009,
+        37566,
+        27713,
+        23004,
+        18783,
+        13856,
+        11502,
+        9391,
+        0
     };
 
     char *profile = mt->codecid + 12;
@@ -1166,30 +1166,30 @@ msk_codec_aac(matroska_track_t *mt, stream_t *st)
     st->common.codec_data_size = size;
 
     for(pridx = 0; profiles[pridx]; pridx++)
-	if(!strcmp(profile, profiles[pridx]))
-	    break;
+        if(!strcmp(profile, profiles[pridx]))
+            break;
 
     if(!profiles[pridx])
-	return -1;
+        return -1;
 
     pridx++;
 
     for(sfidx = 0; mt->audio.samplingfrequency < sampling_freqs[sfidx];
-	sfidx++);
+        sfidx++);
 
     if(!sampling_freqs[sfidx])
-	return -1;
+        return -1;
 
     *d++ = (pridx << 3) | (sfidx >> 1);
     *d = (sfidx << 7) | (mt->audio.channels << 3);
 
     if(pridx == 5){
-	mt->audio.samplingfrequency *= 2;
-	st->audio.sample_rate = mt->audio.samplingfrequency;
-	for(sfidx = 0; mt->audio.samplingfrequency < sampling_freqs[sfidx];
-	    sfidx++);
-	*d++ |= sfidx >> 1;
-	*d++ = (sfidx << 7) | pridx;
+        mt->audio.samplingfrequency *= 2;
+        st->audio.sample_rate = mt->audio.samplingfrequency;
+        for(sfidx = 0; mt->audio.samplingfrequency < sampling_freqs[sfidx];
+            sfidx++);
+        *d++ |= sfidx >> 1;
+        *d++ = (sfidx << 7) | pridx;
     }
 
     return 0;

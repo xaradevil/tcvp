@@ -60,8 +60,8 @@ mpeges_packet(muxed_stream_t *ms, int str)
 
     size = me->u->read(buf, 1, 1024, me->u);
     if(size <= 0){
-	free(buf);
-	return NULL;
+        free(buf);
+        return NULL;
     }
 
     ep = tcallocdz(sizeof(*ep), NULL, mpeges_free_pk);
@@ -80,7 +80,7 @@ mpeges_free(void *p)
     muxed_stream_t *ms = p;
     struct mpeges *me = ms->private;
     if(me->u)
-	tcfree(me->u);
+        tcfree(me->u);
 }
 
 extern muxed_stream_t *
@@ -93,7 +93,7 @@ mpeges_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     u->read(b, 1, 3, u);
     u->seek(u, 0, SEEK_SET);
     if(memcmp(b, h, 3))
-	return NULL;
+        return NULL;
 
     me = calloc(1, sizeof(*me));
     me->u = tcref(u);

@@ -69,13 +69,13 @@ static int drops[][DROPLEN] = {
 };
 
 static float drop_thresholds[] = {7.0 / 21,
-				  6.0 / 21,
-				  5.0 / 21,
-				  4.0 / 21,
-				  3.0 / 21,
-				  2.0 / 21,
-				  1.0 / 21,
-				  0};
+                                  6.0 / 21,
+                                  5.0 / 21,
+                                  4.0 / 21,
+                                  3.0 / 21,
+                                  2.0 / 21,
+                                  1.0 / 21,
+                                  0};
 
 static void *
 v_play(void *p)
@@ -86,38 +86,38 @@ v_play(void *p)
     pthread_mutex_lock(&vo->smx);
 
     while(vo->state != STOP){
-	while((!vo->frames && vo->state != STOP) || vo->state == PAUSE)
-	    pthread_cond_wait(&vo->scd, &vo->smx);
+        while((!vo->frames && vo->state != STOP) || vo->state == PAUSE)
+            pthread_cond_wait(&vo->scd, &vo->smx);
 
-	if(vo->state == STOP)
-	    break;
+        if(vo->state == STOP)
+            break;
 
-	if(vo->pts[vo->tail] == -1LL)
-	    break;
+        if(vo->pts[vo->tail] == -1LL)
+            break;
 
-	dpts = vo->pts[vo->tail] - lpts;
-	lpts = vo->pts[vo->tail];
-	tm = vo->timer->read(vo->timer);
-	dt = tm - lt;
-	lt = tm;
-	dpt = vo->pts[vo->tail] - tm;
+        dpts = vo->pts[vo->tail] - lpts;
+        lpts = vo->pts[vo->tail];
+        tm = vo->timer->read(vo->timer);
+        dt = tm - lt;
+        lt = tm;
+        dpt = vo->pts[vo->tail] - tm;
 
-	tc2_print("VIDEO", TC2_PRINT_DEBUG+1, "pts = %llu, dt = %lli, dpts = %lli pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames);
-	if(dpt < 0)
-	    tc2_print("VIDEO", TC2_PRINT_VERBOSE, "frame %lli us late\n",
-		      -dpt / 27);
+        tc2_print("VIDEO", TC2_PRINT_DEBUG+1, "pts = %llu, dt = %lli, dpts = %lli pts-t = %lli, buf = %i\n", vo->pts[vo->tail], dt / 27, dpts / 27, dpt, vo->frames);
+        if(dpt < 0)
+            tc2_print("VIDEO", TC2_PRINT_VERBOSE, "frame %lli us late\n",
+                      -dpt / 27);
 
-	if(vo->timer->wait(vo->timer, vo->pts[vo->tail], &vo->smx) < 0)
-	    continue;
+        if(vo->timer->wait(vo->timer, vo->pts[vo->tail], &vo->smx) < 0)
+            continue;
 
-	vo->driver->show_frame(vo->driver, vo->tail);
+        vo->driver->show_frame(vo->driver, vo->tail);
 
-	if(vo->frames > 0){
-	    if(++vo->tail == vo->driver->frames)
-		vo->tail = 0;
-	    vo->frames--;
-	    pthread_cond_broadcast(&vo->scd);
-	}
+        if(vo->frames > 0){
+            if(++vo->tail == vo->driver->frames)
+                vo->tail = 0;
+            vo->frames--;
+            pthread_cond_broadcast(&vo->scd);
+        }
     }
 
     vo->state = STOP;
@@ -140,11 +140,11 @@ v_qpts(video_out_t *vo, uint64_t pts)
 {
     pthread_mutex_lock(&vo->smx);
     if(vo->framecnt){
-	vo->pts[vo->head] = pts;
-	vo->frames++;
-	if(++vo->head == vo->driver->frames)
-	    vo->head = 0;
-	pthread_cond_broadcast(&vo->scd);
+        vo->pts[vo->head] = pts;
+        vo->frames++;
+        if(++vo->head == vo->driver->frames)
+            vo->head = 0;
+        pthread_cond_broadcast(&vo->scd);
     }
     pthread_mutex_unlock(&vo->smx);
 }
@@ -158,47 +158,47 @@ v_put(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int planes;
 
     if(!pk->data){
-	vo->end = 1;
-	v_qpts(vo, -1LL);
-	goto out;
+        vo->end = 1;
+        v_qpts(vo, -1LL);
+        goto out;
     }
 
     if(vo->discard){
-	vo->discard--;
-	goto out;
+        vo->discard--;
+        goto out;
     }
 
     if(!vo->drop[vo->dropcnt]){
-	pthread_mutex_lock(&vo->smx);
-	vo->framecnt++;
-	while(vo->frames == vo->driver->frames && vo->state != STOP)
-	    pthread_cond_wait(&vo->scd, &vo->smx);
-	pthread_mutex_unlock(&vo->smx);
+        pthread_mutex_lock(&vo->smx);
+        vo->framecnt++;
+        while(vo->frames == vo->driver->frames && vo->state != STOP)
+            pthread_cond_wait(&vo->scd, &vo->smx);
+        pthread_mutex_unlock(&vo->smx);
 
-	if(!vo->framecnt || vo->state == STOP){
-	    goto out;
-	}
+        if(!vo->framecnt || vo->state == STOP){
+            goto out;
+        }
 
-	planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
-	vo->cconv(vo->vstream->width, vo->vstream->height,
-		  (const u_char **) pk->data, pk->sizes, data, strides);
-	if(vo->driver->put_frame)
-	    vo->driver->put_frame(vo->driver, vo->head);
-	v_qpts(vo, pk->pts);
+        planes = vo->driver->get_frame(vo->driver, vo->head, data, strides);
+        vo->cconv(vo->vstream->width, vo->vstream->height,
+                  (const u_char **) pk->data, pk->sizes, data, strides);
+        if(vo->driver->put_frame)
+            vo->driver->put_frame(vo->driver, vo->head);
+        v_qpts(vo, pk->pts);
     }
 
     if(output_video_conf_framedrop &&
        vo->framecnt > vo->driver->frames){
-	int i;
-	float bfr;
+        int i;
+        float bfr;
 
-	if(++vo->dropcnt == DROPLEN)
-	    vo->dropcnt = 0;
+        if(++vo->dropcnt == DROPLEN)
+            vo->dropcnt = 0;
 
-	bfr = bufr(vo);
+        bfr = bufr(vo);
 
-	for(i = 0; bfr < drop_thresholds[i]; i++);
-	vo->drop = drops[i];
+        for(i = 0; bfr < drop_thresholds[i]; i++);
+        vo->drop = drops[i];
     }
 
 out:
@@ -213,7 +213,7 @@ v_start(tcvp_pipe_t *p)
 
     tc2_print("VIDEO", TC2_PRINT_DEBUG, "start\n");
     if(vo->state == PLAY)
-	return 0;
+        return 0;
     pthread_mutex_lock(&vo->smx);
     vo->state = PLAY;
     pthread_cond_broadcast(&vo->scd);
@@ -229,11 +229,11 @@ v_stop(tcvp_pipe_t *p)
 
     tc2_print("VIDEO", TC2_PRINT_DEBUG, "stop\n");
     if(vo->state == PAUSE)
-	return 0;
+        return 0;
     pthread_mutex_lock(&vo->smx);
     vo->state = PAUSE;
     if(vo->timer)
-	vo->timer->interrupt(vo->timer);
+        vo->timer->interrupt(vo->timer);
     pthread_mutex_unlock(&vo->smx);
 
     return 0;
@@ -245,18 +245,18 @@ do_flush(video_out_t *vo, int drop)
     pthread_mutex_lock(&vo->smx);
 
     if(!drop){
-	while(vo->frames)
-	    pthread_cond_wait(&vo->scd, &vo->smx);
-	vo->framecnt = 0;
+        while(vo->frames)
+            pthread_cond_wait(&vo->scd, &vo->smx);
+        vo->framecnt = 0;
     } else {
-	vo->tail = vo->head = 0;
-	vo->frames = 0;
-	if(vo->driver && vo->driver->flush)
-	    vo->driver->flush(vo->driver);
-	vo->framecnt = 0;
-	if(vo->timer)
-	    vo->timer->interrupt(vo->timer);
-	pthread_cond_broadcast(&vo->scd);
+        vo->tail = vo->head = 0;
+        vo->frames = 0;
+        if(vo->driver && vo->driver->flush)
+            vo->driver->flush(vo->driver);
+        vo->framecnt = 0;
+        if(vo->timer)
+            vo->timer->interrupt(vo->timer);
+        pthread_cond_broadcast(&vo->scd);
     }
 
     pthread_mutex_unlock(&vo->smx);
@@ -278,7 +278,7 @@ v_buffer(tcvp_pipe_t *p, float r)
 
     pthread_mutex_lock(&vo->smx);
     while(bufr(vo) < r && !vo->end)
-	pthread_cond_wait(&vo->scd, &vo->smx);
+        pthread_cond_wait(&vo->scd, &vo->smx);
     pthread_mutex_unlock(&vo->smx);
 
     return 0;
@@ -296,20 +296,20 @@ v_free(void *p)
     pthread_mutex_unlock(&vo->smx);
 
     if(vo->timer)
-	vo->timer->interrupt(vo->timer);
+        vo->timer->interrupt(vo->timer);
     pthread_join(vo->thr, NULL);
 
     if(vo->driver)
-	do_flush(vo, 1);
+        do_flush(vo, 1);
 
     if(vo->driver)
-	vo->driver->close(vo->driver);
+        vo->driver->close(vo->driver);
 
     pthread_mutex_destroy(&vo->smx);
     pthread_cond_destroy(&vo->scd);
 
     if(vo->pts)
-	free(vo->pts);
+        free(vo->pts);
     tcfree(vo->conf);
     tcfree(vo->timer);
 }
@@ -327,12 +327,12 @@ v_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     tcfree(pk);
 
     if(s->stream_type == STREAM_TYPE_SUBTITLE)
-	return PROBE_OK;
+        return PROBE_OK;
     if(s->stream_type != STREAM_TYPE_VIDEO)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     if(!(pf = strstr(vs->codec, "raw-")))
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     pf += 4;
 
@@ -340,26 +340,26 @@ v_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     tcconf_setvalue(vo->conf, "video/height", "%i", vs->height);
 
     for(i = 0; i < output_video_conf_driver_count; i++){
-	driver_video_open_t vdo;
-	char buf[256];
+        driver_video_open_t vdo;
+        char buf[256];
 
-	sprintf(buf, "driver/video/%s", output_video_conf_driver[i].name);
-	if(!(vdo = tc2_get_symbol(buf, "open")))
-	    continue;
+        sprintf(buf, "driver/video/%s", output_video_conf_driver[i].name);
+        if(!(vdo = tc2_get_symbol(buf, "open")))
+            continue;
 
-	if((vd = vdo(vs, vo->conf))){
-	    cconv = get_cconv(pf, vd->pixel_format);
-	    if(cconv){
-		break;
-	    } else {
-		vd->close(vd);
-		vd = NULL;
-	    }
-	}
+        if((vd = vdo(vs, vo->conf))){
+            cconv = get_cconv(pf, vd->pixel_format);
+            if(cconv){
+                break;
+            } else {
+                vd->close(vd);
+                vd = NULL;
+            }
+        }
     }
 
     if(!vd)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     p->format = *s;
 
@@ -407,8 +407,8 @@ extern int
 v_init(char *arg)
 {
     if(output_video_conf_driver_count > 0){
-	qsort(output_video_conf_driver, output_video_conf_driver_count,
-	      sizeof(output_video_conf_driver_t), drv_cmp);
+        qsort(output_video_conf_driver, output_video_conf_driver_count,
+              sizeof(output_video_conf_driver_t), drv_cmp);
     }
 
     return 0;

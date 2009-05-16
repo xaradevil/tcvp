@@ -62,58 +62,58 @@ ac_send(tcscript_t *tcs, void *p, char *fun, int na, tcscript_value_t **args)
     int i;
 
     if(na < 1)
-	return NULL;
+        return NULL;
 
     evt = tcscript_getint(args[0]);
     fmt = tcvp_event_format(evt);
 
     if(!fmt){
-	tc2_print("KEYS", TC2_PRINT_WARNING,
-		  "format of event %i unknown\n", evt);
-	return NULL;
+        tc2_print("KEYS", TC2_PRINT_WARNING,
+                  "format of event %i unknown\n", evt);
+        return NULL;
     }
 
     na--;
     args++;
 
     if(strlen(fmt) != na){
-	tc2_print("KEYS", TC2_PRINT_WARNING,
-		  "incorrect number of arguments for event %i: %i\n", evt, na);
-	return 0;
+        tc2_print("KEYS", TC2_PRINT_WARNING,
+                  "incorrect number of arguments for event %i: %i\n", evt, na);
+        return 0;
     }
 
     tcarg_init(evt_args);
     str = calloc(na, sizeof(*str));
 
     for(i = 0; i < na; i++){
-	switch(fmt[i]){
-	case 'i':
-	case 'u':
-	case 'c':
-	    tcarg_add(evt_args, int32_t, tcscript_getint(args[i]));
-	    break;
-	case 'I':
-	case 'U':
-	    tcarg_add(evt_args, int64_t, tcscript_getint(args[i]));
-	    break;
-	case 'f':
-	    tcarg_add_float(evt_args, double, tcscript_getfloat(args[i]));
-	    break;
-	case 's':
-	    str[i] = tcscript_getstring(args[i]);
-	    tcarg_add(evt_args, char *, str[i]);
-	    break;
-	case 'p':
-	    tcarg_add(evt_args, void *, tcscript_getptr(args[i]));
-	    break;
-	}
+        switch(fmt[i]){
+        case 'i':
+        case 'u':
+        case 'c':
+            tcarg_add(evt_args, int32_t, tcscript_getint(args[i]));
+            break;
+        case 'I':
+        case 'U':
+            tcarg_add(evt_args, int64_t, tcscript_getint(args[i]));
+            break;
+        case 'f':
+            tcarg_add_float(evt_args, double, tcscript_getfloat(args[i]));
+            break;
+        case 's':
+            str[i] = tcscript_getstring(args[i]);
+            tcarg_add(evt_args, char *, str[i]);
+            break;
+        case 'p':
+            tcarg_add(evt_args, void *, tcscript_getptr(args[i]));
+            break;
+        }
     }
 
     tcvp_event_sendv(tk->control, evt, tcarg_va_list(evt_args));
     tcarg_free(evt_args);
 
     for(i = 0; i < na; i++)
-	free(str[i]);
+        free(str[i]);
     free(str);
 
     return NULL;
@@ -138,8 +138,8 @@ find_func(char *name)
     int i;
 
     for(i = 0; handlers[i].name; i++)
-	if(!strcmp(name, handlers[i].name))
-	    return handlers[i].func;
+        if(!strcmp(name, handlers[i].name))
+            return handlers[i].func;
 
     return NULL;
 }
@@ -150,10 +150,10 @@ find_sym(void *p, char *name)
     tcscript_function_t acf = find_func(name);
 
     if(acf)
-	return tcscript_const(tcscript_mkfun(acf));
+        return tcscript_const(tcscript_mkfun(acf));
 
     if(!strncmp(name, "TCVP", 4))
-	return tcscript_const(tcscript_mkint(tcvp_event_get(name)));
+        return tcscript_const(tcscript_mkint(tcvp_event_get(name)));
 
     return NULL;
 }
@@ -174,7 +174,7 @@ key_event(tcvp_module_t *m, tcvp_event_t *te)
     tcscript_t *ac = find_binding(m, ke->key);
 
     if(!ac)
-	return 0;
+        return 0;
 
     tcscript_run(ac);
 
@@ -191,20 +191,20 @@ keys_init_bindings(tcvp_module_t *m)
     tk->ns = tcscript_ns_alloc(find_sym, NULL, m);
 
     for(i = 0; i < tcvp_keys_conf_bind_count; i++){
-	char *action = tcvp_keys_conf_bind[i].action;
-	char *key = tcvp_keys_conf_bind[i].key;
-	tcscript_t *ac = tcscript_compile_string(action, tk->ns);
-	tcscript_t *oac = NULL;
+        char *action = tcvp_keys_conf_bind[i].action;
+        char *key = tcvp_keys_conf_bind[i].key;
+        tcscript_t *ac = tcscript_compile_string(action, tk->ns);
+        tcscript_t *oac = NULL;
 
-	if(!ac){
-	    tc2_print("KEYS", TC2_PRINT_WARNING,
-		      "error in key action: %s\n",
-		      tcvp_keys_conf_bind[i].action);
-	    continue;
-	}
+        if(!ac){
+            tc2_print("KEYS", TC2_PRINT_WARNING,
+                      "error in key action: %s\n",
+                      tcvp_keys_conf_bind[i].action);
+            continue;
+        }
 
-	tchash_replace(tk->bindings, key, -1, ac, &oac);
-	tcfree(oac);
+        tchash_replace(tk->bindings, key, -1, ac, &oac);
+        tcfree(oac);
     }
 
     return 0;
@@ -217,7 +217,7 @@ keys_free(void *p)
     eventq_delete(tk->control);
     tcfree(tk->conf);
     if(tk->bindings)
-	tchash_destroy(tk->bindings, tcfree);
+        tchash_destroy(tk->bindings, tcfree);
     tcfree(tk->ns);
 }
 

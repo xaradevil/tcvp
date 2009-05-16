@@ -58,7 +58,7 @@ typedef struct {
 
 extern skin_t* load_skin(char *skinfile);
 extern int create_ui(xtk_widget_t *c, skin_t *skin,
-		     tcconf_section_t *config, tchash_table_t *parameters);
+                     tcconf_section_t *config, tchash_table_t *parameters);
 
 extern int lookup_action(xtk_widget_t *w, void *p);
 extern int init_skins(void);
@@ -71,7 +71,7 @@ extern void free_ctl(void);
 
 extern int parse_text(char *text, char *result, int len);
 extern int parse_variable(char *datatype, char *text, void **result,
-			  void **def);
+                          void **def);
 
 extern int change_text(char *key, char *text);
 extern int change_variable(char *key, char *datatype, void *data);
@@ -80,9 +80,9 @@ extern int unregister_textwidget(xtk_widget_t *w, char *text);
 extern int register_textwidget(xtk_widget_t *w, char *text);
 
 extern int unregister_varwidget(xtk_widget_t *w, action_cb_t cb,
-				char *datatype, char *text);
+                                char *datatype, char *text);
 extern int register_varwidget(xtk_widget_t *w, action_cb_t cb,
-			      char *datatype, char *text);
+                              char *datatype, char *text);
 
 extern int update_time(void);
 extern int update_state(char *state);

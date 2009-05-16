@@ -42,27 +42,27 @@ ogm_header(muxed_stream_t *ms, int idx)
     uint32_t default_len;
 
     if(!(*p & 1))
-	return 0;
+        return 0;
     if(*p != 1)
-	return 1;
+        return 1;
 
     p++;
 
     if(*p == 'v'){
-	st->stream_type = STREAM_TYPE_VIDEO;
-	p += 8;
-	st->video.codec = video_x_msvideo_vcodec(p);
+        st->stream_type = STREAM_TYPE_VIDEO;
+        p += 8;
+        st->video.codec = video_x_msvideo_vcodec(p);
     } else {
-	int cid;
-	st->stream_type = STREAM_TYPE_AUDIO;
-	p += 8;
-	p[4] = 0;
-	cid = strtol(p, NULL, 16);
-	st->audio.codec = video_x_msvideo_acodec(cid);
+        int cid;
+        st->stream_type = STREAM_TYPE_AUDIO;
+        p += 8;
+        p[4] = 0;
+        cid = strtol(p, NULL, 16);
+        st->audio.codec = video_x_msvideo_acodec(cid);
     }
 
     p += 4;
-    p += 4;			/* useless size field */
+    p += 4;                     /* useless size field */
 
     time_unit = htol_64(unaligned64(p));
     p += 8;
@@ -71,21 +71,21 @@ ogm_header(muxed_stream_t *ms, int idx)
     default_len = htol_32(unaligned32(p));
     p += 4;
 
-    p += 8;			/* buffersize + bits_per_sample */
+    p += 8;                     /* buffersize + bits_per_sample */
 
     if(st->stream_type == STREAM_TYPE_VIDEO){
-	st->video.width = htol_32(unaligned32(p));
-	p += 4;
-	st->video.height = htol_32(unaligned32(p));
-	st->video.frame_rate.num = spu * 10000000;
-	st->video.frame_rate.den = time_unit;
-	tcreduce(&st->video.frame_rate);
+        st->video.width = htol_32(unaligned32(p));
+        p += 4;
+        st->video.height = htol_32(unaligned32(p));
+        st->video.frame_rate.num = spu * 10000000;
+        st->video.frame_rate.den = time_unit;
+        tcreduce(&st->video.frame_rate);
     } else {
-	st->audio.channels = htol_16(unaligned16(p));
-	p += 2;
-	p += 2;			/* block_align */
-	st->audio.bit_rate = htol_32(unaligned32(p)) * 8;
-	st->audio.sample_rate = spu * 10000000 / time_unit;
+        st->audio.channels = htol_16(unaligned16(p));
+        p += 2;
+        p += 2;                 /* block_align */
+        st->audio.bit_rate = htol_32(unaligned32(p)) * 8;
+        st->audio.sample_rate = spu * 10000000 / time_unit;
     }
 
     return 1;
@@ -101,25 +101,25 @@ ogm_dshow_header(muxed_stream_t *ms, int idx)
     uint32_t t;
 
     if(!(*p & 1))
-	return 0;
+        return 0;
     if(*p != 1)
-	return 1;
+        return 1;
 
     t = htol_32(unaligned32(p + 96));
 
     if(t == 0x05589f80){
-	st->stream_type = STREAM_TYPE_VIDEO;
-	st->video.codec = video_x_msvideo_vcodec(p + 68);
-	st->video.frame_rate.num = 10000000;
-	st->video.frame_rate.den = htol_64(unaligned64(p + 164));
-	st->video.width = htol_32(unaligned32(p + 176));
-	st->video.height = htol_32(unaligned32(p + 180));
+        st->stream_type = STREAM_TYPE_VIDEO;
+        st->video.codec = video_x_msvideo_vcodec(p + 68);
+        st->video.frame_rate.num = 10000000;
+        st->video.frame_rate.den = htol_64(unaligned64(p + 164));
+        st->video.width = htol_32(unaligned32(p + 176));
+        st->video.height = htol_32(unaligned32(p + 180));
     } else if(t ==0x05589f81){
-	st->stream_type = STREAM_TYPE_AUDIO;
-	st->audio.codec = video_x_msvideo_acodec(htol_16(unaligned16(p+124)));
-	st->audio.channels = htol_16(unaligned16(p + 126));
-	st->audio.sample_rate = htol_32(unaligned32(p + 128));
-	st->audio.bit_rate = htol_32(unaligned32(p + 132)) * 8;
+        st->stream_type = STREAM_TYPE_AUDIO;
+        st->audio.codec = video_x_msvideo_acodec(htol_16(unaligned16(p+124)));
+        st->audio.channels = htol_16(unaligned16(p + 126));
+        st->audio.sample_rate = htol_32(unaligned32(p + 128));
+        st->audio.bit_rate = htol_32(unaligned32(p + 132)) * 8;
     }
 
     return 1;

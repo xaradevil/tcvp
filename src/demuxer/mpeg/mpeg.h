@@ -284,14 +284,14 @@ extern int mpeg_parse_descriptors(muxed_stream_t *ms, stream_t *s, void *p,
                                   const u_char *d, unsigned size);
 extern int write_mpeg_descriptor(stream_t *s, int tag, u_char *d, int size);
 extern int write_pes_header(u_char *p, int stream_id, int size,
-			    int flags, ...);
+                            int flags, ...);
 extern uint32_t mpeg_crc32(const u_char *data, int len);
 extern void mpeg_free(muxed_stream_t *);
 
 extern muxed_stream_t *mpegts_open(char *, url_t *, tcconf_section_t *,
-				   tcvp_timer_t *);
+                                   tcvp_timer_t *);
 
 extern muxed_stream_t *mpegps_open(char *, url_t *, tcconf_section_t *,
-				   tcvp_timer_t *);
+                                   tcvp_timer_t *);
 
 #endif

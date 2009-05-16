@@ -51,20 +51,20 @@ th_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     yuv_buffer yuv;
 
     if(!pk->data){
-	p->next->input(p->next, (tcvp_packet_t *) pk);
-	return 0;
+        p->next->input(p->next, (tcvp_packet_t *) pk);
+        return 0;
     }
 
     if(pk->flags & TCVP_PKT_FLAG_PTS){
-	tc2_print("THEORA", TC2_PRINT_DEBUG+1, "in pts %lli\n", pk->pts);
-	thc->pts = pk->pts;
+        tc2_print("THEORA", TC2_PRINT_DEBUG+1, "in pts %lli\n", pk->pts);
+        thc->pts = pk->pts;
     }
 
     thc->op.packet = pk->data[0];
     thc->op.bytes = pk->sizes[0];
 
     if(theora_decode_packetin(&thc->state, &thc->op))
-	return -1;
+        return -1;
 
     theora_decode_YUVout(&thc->state, &yuv);
 
@@ -87,7 +87,7 @@ th_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     tc2_print("THEORA", TC2_PRINT_DEBUG+1, "out pts %lli\n", out->pk.pts);
 
     thc->pts += 27000000LL * p->format.video.frame_rate.den /
-	p->format.video.frame_rate.num;
+        p->format.video.frame_rate.num;
 
     p->next->input(p->next, (tcvp_packet_t *) out);
 
@@ -105,7 +105,7 @@ th_read_header(tcvp_pipe_t *p, stream_t *s)
     u_char *cdp;
 
     if(s->common.codec_data_size < 6)
-	return -1;
+        return -1;
 
     memset(&op, 0, sizeof(op));
 
@@ -113,27 +113,27 @@ th_read_header(tcvp_pipe_t *p, stream_t *s)
     size = s->common.codec_data_size;
 
     for(i = 0; i < 3; i++){
-	hs = *cdp++ << 8;
-	hs += *cdp++;
-	size -= 2;
+        hs = *cdp++ << 8;
+        hs += *cdp++;
+        size -= 2;
 
-	tc2_print("THEORA", TC2_PRINT_DEBUG, "header %i size %i\n", i, hs);
+        tc2_print("THEORA", TC2_PRINT_DEBUG, "header %i size %i\n", i, hs);
 
-	if(hs > size){
-	    tc2_print("THEORA", TC2_PRINT_ERROR,
-		      "codec_data too small: %i > %i\n", hs, size);
-	    return -1;
-	}
+        if(hs > size){
+            tc2_print("THEORA", TC2_PRINT_ERROR,
+                      "codec_data too small: %i > %i\n", hs, size);
+            return -1;
+        }
 
-	op.packet = cdp;
-	op.bytes = hs;
-	op.b_o_s = !i;
-	if(theora_decode_header(&thc->info, &thc->comment, &op))
-	    return -1;
-	op.packetno++;
+        op.packet = cdp;
+        op.bytes = hs;
+        op.b_o_s = !i;
+        if(theora_decode_header(&thc->info, &thc->comment, &op))
+            return -1;
+        op.packetno++;
 
-	cdp += hs;
-	size -= hs;
+        cdp += hs;
+        size -= hs;
     }
 
     theora_decode_init(&thc->state, &thc->info);
@@ -145,7 +145,7 @@ extern int
 th_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     if(th_read_header(p, s))
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     p->format.video.codec = "video/raw-i420";
 

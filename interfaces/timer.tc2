@@ -1,4 +1,4 @@
-symbol	"new"	tcvp_timer_t *(*%s)(tcconf_section_t *)
+symbol  "new"   tcvp_timer_t *(*%s)(tcconf_section_t *)
 require "driver/timer"
 preinclude<<END
 #include <stdint.h>

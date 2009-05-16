@@ -37,14 +37,14 @@ vorbis_comment(muxed_stream_t *ms, uint8_t *buf, int size)
     int s, n, j;
 
     if(size < 4)
-	return -1;
+        return -1;
 
     s = htol_32(unaligned32(p));
     p += 4;
     size -= 4;
 
     if(size < s + 4)
-	return -1;
+        return -1;
 
     p += s;
     size -= s;
@@ -54,50 +54,50 @@ vorbis_comment(muxed_stream_t *ms, uint8_t *buf, int size)
     size -= 4;
 
     while(size >= 4){
-	uint8_t *t, *v;
-	int tl, vl;
+        uint8_t *t, *v;
+        int tl, vl;
 
-	s = htol_32(unaligned32(p));
-	p += 4;
-	size -= 4;
+        s = htol_32(unaligned32(p));
+        p += 4;
+        size -= 4;
 
-	if(size < s)
-	    break;
+        if(size < s)
+            break;
 
-	t = p;
-	p += s;
-	size -= s;
-	n--;
+        t = p;
+        p += s;
+        size -= s;
+        n--;
 
-	v = memchr(t, '=', s);
-	if(!v)
-	    continue;
+        v = memchr(t, '=', s);
+        if(!v)
+            continue;
 
-	tl = v - t;
-	vl = s - tl - 1;
-	v++;
+        tl = v - t;
+        vl = s - tl - 1;
+        v++;
 
-	if(tl && vl){
-	    char tt[tl + 1];
-	    char *ct;
+        if(tl && vl){
+            char tt[tl + 1];
+            char *ct;
 
-	    for(j = 0; j < tl; j++)
-		tt[j] = tolower(t[j]);
-	    tt[tl] = 0;
+            for(j = 0; j < tl; j++)
+                tt[j] = tolower(t[j]);
+            tt[tl] = 0;
 
-	    ct = malloc(vl + 1);
-	    memcpy(ct, v, vl);
-	    ct[vl] = 0;
-	    tcattr_set(ms, tt, ct, NULL, free);
-	}
+            ct = malloc(vl + 1);
+            memcpy(ct, v, vl);
+            ct[vl] = 0;
+            tcattr_set(ms, tt, ct, NULL, free);
+        }
     }
 
     if(size > 0)
-	tc2_print("OGG", TC2_PRINT_WARNING,
-		  "%i bytes of comment header remain\n", size);
+        tc2_print("OGG", TC2_PRINT_WARNING,
+                  "%i bytes of comment header remain\n", size);
     if(n > 0)
-	tc2_print("OGG", TC2_PRINT_WARNING,
-		  "truncated comment header, %i comments not found\n", n);
+        tc2_print("OGG", TC2_PRINT_WARNING,
+                  "truncated comment header, %i comments not found\n", n);
 
     return 0;
 }
@@ -112,7 +112,7 @@ vorbis_header(muxed_stream_t *ms, int idx)
     u_char *cdp;
 
     if(os->seq > 2)
-	return 0;
+        return 0;
 
     st->common.codec_data = realloc(st->common.codec_data, cds);
     cdp = st->common.codec_data + st->common.codec_data_size;
@@ -122,17 +122,17 @@ vorbis_header(muxed_stream_t *ms, int idx)
     st->common.codec_data_size = cds;
 
     if(os->buf[os->pstart] == 1){
-	u_char *p = os->buf + os->pstart + 11;
-	st->audio.channels = *p++;
-	st->audio.sample_rate = htol_32(unaligned32(p));
-	p += 8;
-	st->audio.bit_rate = htol_32(unaligned32(p));
-	ms->time = st->audio.samples * 27000000LL / st->audio.sample_rate;
+        u_char *p = os->buf + os->pstart + 11;
+        st->audio.channels = *p++;
+        st->audio.sample_rate = htol_32(unaligned32(p));
+        p += 8;
+        st->audio.bit_rate = htol_32(unaligned32(p));
+        ms->time = st->audio.samples * 27000000LL / st->audio.sample_rate;
 
-	st->stream_type = STREAM_TYPE_AUDIO;
-	st->audio.codec = "audio/vorbis";
+        st->stream_type = STREAM_TYPE_AUDIO;
+        st->audio.codec = "audio/vorbis";
     } else if(os->buf[os->pstart] == 3){
-	vorbis_comment(ms, os->buf + os->pstart + 7, os->psize - 8);
+        vorbis_comment(ms, os->buf + os->pstart + 7, os->psize - 8);
     }
 
     return os->seq < 3;

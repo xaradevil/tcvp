@@ -44,7 +44,7 @@ mp3w_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     mp3_write_t *mw = p->private;
 
     if(pk->data)
-	mw->u->write(pk->data[0], 1, pk->sizes[0], mw->u);
+        mw->u->write(pk->data[0], 1, pk->sizes[0], mw->u);
 
     tcfree(pk);
     return 0;
@@ -56,7 +56,7 @@ mp3w_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     mp3_write_t *mw = p->private;
 
     if(mw->probed)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     mw->probed = 1;
 
@@ -90,7 +90,7 @@ static struct {
 
 extern int
 mp3w_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-	 muxed_stream_t *ms)
+         muxed_stream_t *ms)
 {
     mp3_write_t *mw;
     char *url = NULL;
@@ -98,21 +98,21 @@ mp3w_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     int i, ret = -1;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
-	return -1;
+        return -1;
 
     for(i = 0; codecs[i].codec; i++){
-	if(!strcmp(s->common.codec, codecs[i].codec))
-	    break;
+        if(!strcmp(s->common.codec, codecs[i].codec))
+            break;
     }
 
     if(!codecs[i].codec)
-	goto out;
+        goto out;
 
     if(!(u = url_open(url, "w")))
-	goto out;
+        goto out;
 
     if(codecs[i].id3)
-	id3v2_write_tag(u, ms);
+        id3v2_write_tag(u, ms);
 
     mw = tcallocdz(sizeof(*mw), NULL, mp3w_free);
     mw->u = u;

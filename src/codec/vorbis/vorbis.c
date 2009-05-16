@@ -56,9 +56,9 @@ float2int(float f)
 {
     int i = f * 32768 + 0.5;
     if(i > 32767)
-	i = 32767;
+        i = 32767;
     else if(i < -32768)
-	i = -32768;
+        i = -32768;
     return i;
 }
 
@@ -69,50 +69,50 @@ conv(int samples, float **pcm, uint8_t *buf, int channels) {
 
     switch(channels){
     case 2:
-	for(i = 0; i < samples; i++){
-	    data[0] = float2int(pcm[0][i]);
-	    data[1] = float2int(pcm[1][i]);
-	    data += 2;
-	}
-	break;
+        for(i = 0; i < samples; i++){
+            data[0] = float2int(pcm[0][i]);
+            data[1] = float2int(pcm[1][i]);
+            data += 2;
+        }
+        break;
     case 3:
-	for(i = 0; i < samples; i++){
-	    data[0] = float2int(pcm[0][i]);
-	    data[1] = float2int(pcm[2][i]);
-	    data[4] = float2int(pcm[1][i]);
-	    data[2] = 0;
-	    data[3] = 0;
-	    data += 5;
-	}
-	break;
+        for(i = 0; i < samples; i++){
+            data[0] = float2int(pcm[0][i]);
+            data[1] = float2int(pcm[2][i]);
+            data[4] = float2int(pcm[1][i]);
+            data[2] = 0;
+            data[3] = 0;
+            data += 5;
+        }
+        break;
     case 5:
-	for(i = 0; i < samples; i++){
-	    data[0] = float2int(pcm[0][i]);
-	    data[1] = float2int(pcm[2][i]);
-	    data[2] = float2int(pcm[3][i]);
-	    data[3] = float2int(pcm[4][i]);
-	    data[4] = float2int(pcm[1][i]);
-	    data += 5;
-	}
-	break;
+        for(i = 0; i < samples; i++){
+            data[0] = float2int(pcm[0][i]);
+            data[1] = float2int(pcm[2][i]);
+            data[2] = float2int(pcm[3][i]);
+            data[3] = float2int(pcm[4][i]);
+            data[4] = float2int(pcm[1][i]);
+            data += 5;
+        }
+        break;
     case 6:
-	for(i = 0; i < samples; i++){
-	    data[0] = float2int(pcm[0][i]);
-	    data[1] = float2int(pcm[2][i]);
-	    data[2] = float2int(pcm[3][i]);
-	    data[3] = float2int(pcm[4][i]);
-	    data[4] = float2int(pcm[1][i]);
-	    data[5] = float2int(pcm[5][i]);
-	    data += 6;
-	}
-	break;
+        for(i = 0; i < samples; i++){
+            data[0] = float2int(pcm[0][i]);
+            data[1] = float2int(pcm[2][i]);
+            data[2] = float2int(pcm[3][i]);
+            data[3] = float2int(pcm[4][i]);
+            data[4] = float2int(pcm[1][i]);
+            data[5] = float2int(pcm[5][i]);
+            data += 6;
+        }
+        break;
     default:
-	for(i = 0; i < samples; i++){
-	    for(j = 0; j < channels; j++)
-		data[j] = float2int(pcm[j][i]);
-	    data += channels;
-	}
-	break;
+        for(i = 0; i < samples; i++){
+            for(j = 0; j < channels; j++)
+                data[j] = float2int(pcm[j][i]);
+            data += channels;
+        }
+        break;
     }
 
     return (uint8_t *) data - buf;
@@ -129,8 +129,8 @@ vorbis_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int ret;
 
     if(!pk->data){
-	p->next->input(p->next, (tcvp_packet_t *) pk);
-	return 0;
+        p->next->input(p->next, (tcvp_packet_t *) pk);
+        return 0;
     }
 
     vc->op.packet = pk->data[0];
@@ -139,18 +139,18 @@ vorbis_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     ret = vorbis_synthesis(&vc->vb, &vc->op);
 
     if(ret < 0){
-	tc2_print("VORBIS", TC2_PRINT_ERROR, "decoder error %i\n", ret);
-	return -1;
+        tc2_print("VORBIS", TC2_PRINT_ERROR, "decoder error %i\n", ret);
+        return -1;
     }
 
     if(ret == 0)
-	vorbis_synthesis_blockin(&vc->vd, &vc->vb);
+        vorbis_synthesis_blockin(&vc->vd, &vc->vb);
 
     bp = buf = malloc(131072);
 
     while((samples = vorbis_synthesis_pcmout(&vc->vd, &pcm)) > 0) {
-	bp += conv(samples, pcm, bp, vc->vi.channels);
-	vorbis_synthesis_read(&vc->vd, samples);
+        bp += conv(samples, pcm, bp, vc->vi.channels);
+        vorbis_synthesis_read(&vc->vd, samples);
     }
 
     total_bytes = bp - buf;
@@ -164,8 +164,8 @@ vorbis_decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     out->size = total_bytes;
 
     if(pk->flags & TCVP_PKT_FLAG_PTS){
-	out->pk.flags |= TCVP_PKT_FLAG_PTS;
-	out->pk.pts = pk->pts;
+        out->pk.flags |= TCVP_PKT_FLAG_PTS;
+        out->pk.pts = pk->pts;
     }
 
     p->next->input(p->next, (tcvp_packet_t *) out);
@@ -184,7 +184,7 @@ vorbis_read_header(tcvp_pipe_t *p, stream_t *s)
     u_char *cdp;
 
     if(s->common.codec_data_size < 58)
-	return -1;
+        return -1;
 
     memset(&op, 0, sizeof(op));
 
@@ -192,26 +192,26 @@ vorbis_read_header(tcvp_pipe_t *p, stream_t *s)
     size = s->common.codec_data_size;
 
     for(i = 0; i < 3; i++){
-	hs = *cdp++ << 8;
-	hs += *cdp++;
-	size -= 2;
+        hs = *cdp++ << 8;
+        hs += *cdp++;
+        size -= 2;
 
-	tc2_print("VORBIS", TC2_PRINT_DEBUG, "header %i size %i\n", i, hs);
+        tc2_print("VORBIS", TC2_PRINT_DEBUG, "header %i size %i\n", i, hs);
 
-	if(hs > size){
-	    tc2_print("VORBIS", TC2_PRINT_ERROR,
-		      "codec_data too small: %i > %i\n", hs, size);
-	    return -1;
-	}
+        if(hs > size){
+            tc2_print("VORBIS", TC2_PRINT_ERROR,
+                      "codec_data too small: %i > %i\n", hs, size);
+            return -1;
+        }
 
-	op.packet = cdp;
-	op.bytes = hs;
-	op.b_o_s = !i;
-	vorbis_synthesis_headerin(&vc->vi, &vc->vc, &op);
-	op.packetno++;
+        op.packet = cdp;
+        op.bytes = hs;
+        op.b_o_s = !i;
+        vorbis_synthesis_headerin(&vc->vi, &vc->vc, &op);
+        op.packetno++;
 
-	cdp += hs;
-	size -= hs;
+        cdp += hs;
+        size -= hs;
     }
 
     vorbis_synthesis_init(&vc->vd, &vc->vi);
@@ -226,14 +226,14 @@ vorbis_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     vorbis_context_t *vc = p->private;
 
     if(vorbis_read_header(p, s))
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
     p->format.audio.sample_rate = vc->vi.rate;
     if(vc->vi.channels == 3)
-	p->format.audio.channels = 5;
+        p->format.audio.channels = 5;
     else
-	p->format.audio.channels = vc->vi.channels;
+        p->format.audio.channels = vc->vi.channels;
     p->format.audio.bit_rate = vc->vi.rate * p->format.audio.channels * 16;
     s->audio.sample_rate = vc->vi.rate;
     s->audio.channels = vc->vi.channels;
@@ -255,7 +255,7 @@ vorbis_free_pipe(void *p)
 
 extern int
 vorbis_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-	   muxed_stream_t *ms)
+           muxed_stream_t *ms)
 {
     vorbis_context_t *vc;
 

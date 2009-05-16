@@ -86,8 +86,8 @@ escape_string(char *src)
     char *ret = malloc(2*strlen(src)+1);
     char *dst = ret;
     do {
-	if (*src == '\'') *dst++ = '\\';
-	*dst++ = *src;
+        if (*src == '\'') *dst++ = '\\';
+        *dst++ = *src;
     } while(*src++);
 
     return ret;
@@ -102,7 +102,7 @@ lookup_db_attr(char *n, void *p)
     tcdb_reply_t *r;
 
     if(strcmp("file", n) == 0) {
-	return strdup(da->filename);
+        return strdup(da->filename);
     }
 
     fe = escape_string(da->filename);
@@ -136,7 +136,7 @@ exp_string(tcvp_http_t *h, char *f, char *s)
     da->dbc = h->dbc;
 
     char *ret = tcstrexp(s, "{", "}", ':', lookup_db_attr, da,
-			 TCSTREXP_FREE | TCSTREXP_ESCAPE);
+                         TCSTREXP_FREE | TCSTREXP_ESCAPE);
     free(da);
 
     return ret;
@@ -146,13 +146,13 @@ static int
 get_titles(tcvp_http_t *h, int start, int n)
 {
     if(playlistformat && h->playlist){
-	int i, end = min(start + n, h->playlist->length);
-	for(i = start; i < end; i++){
-	    if(h->titles[i])
-		continue;
-	    h->titles[i] = exp_string(h, h->playlist->names[i],
-				      playlistformat);
- 	}
+        int i, end = min(start + n, h->playlist->length);
+        for(i = start; i < end; i++){
+            if(h->titles[i])
+                continue;
+            h->titles[i] = exp_string(h, h->playlist->names[i],
+                                      playlistformat);
+        }
     }
 
     return 0;
@@ -165,13 +165,13 @@ http_redirect(tcvp_http_t *h, char *dest)
     char buf[1024];
 
     if(!strcmp(httpdRequestPath(hd), dest))
-	return 0;
+        return 0;
 
     snprintf(buf, sizeof(buf), "Location: %s", dest);
     httpdSetResponse(hd, "302 Found");
     httpdAddHeader(hd, buf);
     httpdPrintf(hd, "<html><body><a href=\"%s\">%s</a></body></html>",
-		buf, buf);
+                buf, buf);
     return 1;
 }
 
@@ -192,12 +192,12 @@ http_head(tcvp_module_t *m, char *title)
     <link rel=\"stylesheet\" href=\"tcvp.css\" type=\"text/css\"/>\n");
 
     if(h->current && h->current->time && h->state == TCVP_STATE_PLAYING){
-	int d = (h->current->time - h->time) / 27000000 + 1;
-	if(d < refresh)
-	    refresh = d;
+        int d = (h->current->time - h->time) / 27000000 + 1;
+        if(d < refresh)
+            refresh = d;
     }
     httpdPrintf(hd, "<meta http-equiv=\"refresh\" content=\"%i\"/>\n",
-		refresh);
+                refresh);
 
     httpdPrintf(hd, "<title>%s</title>\n", title);
     httpdOutput(hd, "</head>\n");
@@ -206,20 +206,20 @@ http_head(tcvp_module_t *m, char *title)
     httpdOutput(hd, "<div class=\"control\">\n");
 
     for(i = 0; controls[i].label; i++){
-	char *class, *label;
-	if(i == 5)
-	    httpdOutput(hd, "<hr/>");
-	if((i <= 4 && h->state == controls[i].activestate) ||
-	   (i > 4 && h->plflags & controls[i].activestate)){
-	    class = "active";
-	    label = controls[i].activelabel?
-		controls[i].activelabel: controls[i].label;
-	} else {
-	    class = "";
-	    label = controls[i].label;
-	}
-	httpdPrintf(hd, "<a class=\"%s\" href=\"%s\">%s</a>\n",
-		    class, controls[i].href, label);
+        char *class, *label;
+        if(i == 5)
+            httpdOutput(hd, "<hr/>");
+        if((i <= 4 && h->state == controls[i].activestate) ||
+           (i > 4 && h->plflags & controls[i].activestate)){
+            class = "active";
+            label = controls[i].activelabel?
+                controls[i].activelabel: controls[i].label;
+        } else {
+            class = "";
+            label = controls[i].label;
+        }
+        httpdPrintf(hd, "<a class=\"%s\" href=\"%s\">%s</a>\n",
+                    class, controls[i].href, label);
     }
 
     httpdOutput(hd, "</div>\n");
@@ -235,19 +235,19 @@ http_print_info(tcvp_http_t *h)
     httpdOutput(hd, "<div class=\"box status\">\n");
 
     if(h->current){
-	httpdOutput(hd, "<table>\n");
-	for(i = 0; i < tcvp_ui_http_conf_info_count; i++){
-	    char *l = tcvp_ui_http_conf_info[i].label;
-	    char *v =
-		exp_string(h, tcattr_get(h->current, "file"),
-			   tcvp_ui_http_conf_info[i].value);
-	    if(l[0] && v[0])
-		httpdPrintf(hd, "<tr><td>%s</td><td>%s</td></tr>\n", l, v);
-	    free(v);
-	}
-	httpdOutput(hd, "</table>\n");
+        httpdOutput(hd, "<table>\n");
+        for(i = 0; i < tcvp_ui_http_conf_info_count; i++){
+            char *l = tcvp_ui_http_conf_info[i].label;
+            char *v =
+                exp_string(h, tcattr_get(h->current, "file"),
+                           tcvp_ui_http_conf_info[i].value);
+            if(l[0] && v[0])
+                httpdPrintf(hd, "<tr><td>%s</td><td>%s</td></tr>\n", l, v);
+            free(v);
+        }
+        httpdOutput(hd, "</table>\n");
     } else {
-	httpdOutput(hd, "No file\n");
+        httpdOutput(hd, "No file\n");
     }
 
     httpdOutput(hd, "</div>\n");
@@ -261,10 +261,10 @@ http_print_plpages(tcvp_http_t *h)
 
     httpdOutput(hd, "<div><table class=\"plpage\"><tr>");
     for(i = 0; i < h->playlist->length; i += playlistpage){
-	int e = min(i + playlistpage, h->playlist->length);
-	char *class = h->plpos >= i && h->plpos < e? "plcurrent": "";
-	httpdPrintf(hd, "<td class=\"%s\"><a href=\"page?ps=%i\">%i - %i</a>"
-		    "</td>", class, i, i + 1, e);
+        int e = min(i + playlistpage, h->playlist->length);
+        char *class = h->plpos >= i && h->plpos < e? "plcurrent": "";
+        httpdPrintf(hd, "<td class=\"%s\"><a href=\"page?ps=%i\">%i - %i</a>"
+                    "</td>", class, i, i + 1, e);
     }
     httpdOutput(hd, "</tr></table></div>\n");
 }
@@ -277,55 +277,55 @@ http_print_playlist(tcvp_http_t *h, int start)
 
     httpdOutput(hd, "<div class=\"box playlist\">\n");
     if(h->playlist && h->playlist->length){
-	end = min(start + playlistpage, h->playlist->length);
-	get_titles(h, start, playlistpage);
-	if(h->playlist->length > playlistpage)
-	    http_print_plpages(h);
-	httpdOutput(hd, "<div>\n");
-	httpdOutput(hd, "<script language=\"JavaScript\" "
-		      "type=\"text/javascript\">\n"
-		    "<!--\n"
-		    "function ToggleAll() {\n"
-		    "  for (var i=0; i<document.plremove.elements.length; "
-		      "i++) {\n"
-		    "    if(document.plremove.elements[i].type == "
-		      "'checkbox'){\n"
-		    "      document.plremove.elements[i].checked = "
-		      "!(document.plremove.elements[i].checked);\n"
-		    "    }\n"
-		    "  }\n"
-		    "}\n"
-		    "//-->\n"
-		    "</script>\n");
+        end = min(start + playlistpage, h->playlist->length);
+        get_titles(h, start, playlistpage);
+        if(h->playlist->length > playlistpage)
+            http_print_plpages(h);
+        httpdOutput(hd, "<div>\n");
+        httpdOutput(hd, "<script language=\"JavaScript\" "
+                      "type=\"text/javascript\">\n"
+                    "<!--\n"
+                    "function ToggleAll() {\n"
+                    "  for (var i=0; i<document.plremove.elements.length; "
+                      "i++) {\n"
+                    "    if(document.plremove.elements[i].type == "
+                      "'checkbox'){\n"
+                    "      document.plremove.elements[i].checked = "
+                      "!(document.plremove.elements[i].checked);\n"
+                    "    }\n"
+                    "  }\n"
+                    "}\n"
+                    "//-->\n"
+                    "</script>\n");
 
-	httpdOutput(hd, "<div><a href=\"javascript:void(0)\" "
-		    "onClick=\"ToggleAll();\">Toggle All</a></div>\n");
+        httpdOutput(hd, "<div><a href=\"javascript:void(0)\" "
+                    "onClick=\"ToggleAll();\">Toggle All</a></div>\n");
 
-	httpdOutput(hd, "<form action=\"remove\" method=\"get\" "
-		    "name=\"plremove\">\n");
-	httpdOutput(hd, "<table class=\"playlist\">\n");
-	httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plnum\"/>"
-		    "<col id=\"plname\"/>\n");
-	for(i = start; i < end; i++){
-	    char *t =
-		h->titles && h->titles[i]? h->titles[i]: h->playlist->names[i];
-	    char *class = i == h->plpos? "plcurrent" : "";
-	    httpdPrintf(hd, "<tr class=\"%s\">", class);
-	    httpdPrintf(hd, "<td>"
-			"<input type=\"checkbox\" name=\"p\" value=\"%i\"/>"
-			"</td>", i);
-	    httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%i</a></td>", i, i + 1);
-	    httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%s</a></td>", i, t);
-	    httpdOutput(hd, "</tr>\n");
-	}
-	httpdOutput(hd, "</table>\n");
-	httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
-		    "</div>\n");
-	httpdOutput(hd, "</form>\n</div>\n");
-	if(h->playlist->length > playlistpage)
-	    http_print_plpages(h);
+        httpdOutput(hd, "<form action=\"remove\" method=\"get\" "
+                    "name=\"plremove\">\n");
+        httpdOutput(hd, "<table class=\"playlist\">\n");
+        httpdOutput(hd, "<col id=\"plcheck\"/><col id=\"plnum\"/>"
+                    "<col id=\"plname\"/>\n");
+        for(i = start; i < end; i++){
+            char *t =
+                h->titles && h->titles[i]? h->titles[i]: h->playlist->names[i];
+            char *class = i == h->plpos? "plcurrent" : "";
+            httpdPrintf(hd, "<tr class=\"%s\">", class);
+            httpdPrintf(hd, "<td>"
+                        "<input type=\"checkbox\" name=\"p\" value=\"%i\"/>"
+                        "</td>", i);
+            httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%i</a></td>", i, i + 1);
+            httpdPrintf(hd, "<td><a href=\"jump?p=%i\">%s</a></td>", i, t);
+            httpdOutput(hd, "</tr>\n");
+        }
+        httpdOutput(hd, "</table>\n");
+        httpdOutput(hd, "<div><input type=\"submit\" value=\"Remove\"/>"
+                    "</div>\n");
+        httpdOutput(hd, "</form>\n</div>\n");
+        if(h->playlist->length > playlistpage)
+            http_print_plpages(h);
     } else {
-	httpdOutput(hd, "<div>Empty playlist</div>\n");
+        httpdOutput(hd, "<div>Empty playlist</div>\n");
     }
     httpdOutput(hd, "</div>\n");
 }
@@ -340,36 +340,36 @@ http_status(httpd *hd)
     int plstart = 0;
 
     if(http_redirect(h, "/"))
-	return;
+        return;
 
     ps = httpdGetVariableByName(hd, "s");
     if(ps)
-	plstart = strtol(ps->value, NULL, 10);
+        plstart = strtol(ps->value, NULL, 10);
 
 
     pthread_mutex_lock(&h->lock);
     while(h->update > 0){
-	struct timeval tm;
-	struct timespec ts;
-	gettimeofday(&tm, NULL);
-	ts.tv_sec = tm.tv_sec;
-	ts.tv_nsec = tm.tv_usec * 1000 + 200000000;
-	if(ts.tv_nsec > 1000000000){
-	    ts.tv_sec++;
-	    ts.tv_nsec -= 1000000000;
-	}
-	if(pthread_cond_timedwait(&h->cond, &h->lock, &ts))
-	    break;
+        struct timeval tm;
+        struct timespec ts;
+        gettimeofday(&tm, NULL);
+        ts.tv_sec = tm.tv_sec;
+        ts.tv_nsec = tm.tv_usec * 1000 + 200000000;
+        if(ts.tv_nsec > 1000000000){
+            ts.tv_sec++;
+            ts.tv_nsec -= 1000000000;
+        }
+        if(pthread_cond_timedwait(&h->cond, &h->lock, &ts))
+            break;
     }
 
     if(!h->playlist || plstart >= h->playlist->length)
-	plstart = 0;
+        plstart = 0;
 
     if(h->current)
-	title = exp_string(h, tcattr_get(h->current, "file"),
-			   tcvp_ui_http_conf_title);
+        title = exp_string(h, tcattr_get(h->current, "file"),
+                           tcvp_ui_http_conf_title);
     else
-	title = strdup("TCVP");
+        title = strdup("TCVP");
     http_head(m, title);
     free(title);
 
@@ -380,15 +380,15 @@ http_status(httpd *hd)
     httpdOutput(hd, "</div>\n</body>\n</html>\n");
 }
 
-#define http_send(name, up, ...)			\
-static void						\
-http_##name(httpd *hd)					\
-{							\
-    tcvp_module_t *m = (tcvp_module_t *) hd->host;	\
-    tcvp_http_t *h = m->private;			\
-    tcvp_event_send(h->control, __VA_ARGS__);		\
-    h->update = up;					\
-    http_redirect(h, "/");				\
+#define http_send(name, up, ...)                        \
+static void                                             \
+http_##name(httpd *hd)                                  \
+{                                                       \
+    tcvp_module_t *m = (tcvp_module_t *) hd->host;      \
+    tcvp_http_t *h = m->private;                        \
+    tcvp_event_send(h->control, __VA_ARGS__);           \
+    h->update = up;                                     \
+    http_redirect(h, "/");                              \
 }
 
 http_send(play, 2, TCVP_PL_START)
@@ -396,7 +396,7 @@ http_send(next, 4, TCVP_PL_NEXT)
 http_send(prev, 4, TCVP_PL_PREV)
 http_send(pause, 1, TCVP_PAUSE)
 
-#define http_plflag(name, flag)					\
+#define http_plflag(name, flag)                                 \
     http_send(name, 1, TCVP_PL_FLAGS, flag, TCVP_PL_FLAGS_XOR)
 
 http_plflag(shuffle, TCVP_PL_FLAG_SHUFFLE)
@@ -422,9 +422,9 @@ http_jump(httpd *hd)
     httpVar *v = httpdGetVariableByName(hd, "p");
 
     if(v){
-	int p = strtol(v->value, NULL, 0);
-	tcvp_event_send(h->control, TCVP_PL_SEEK, p, TCVP_PL_SEEK_ABS);
-	h->update = 4;
+        int p = strtol(v->value, NULL, 0);
+        tcvp_event_send(h->control, TCVP_PL_SEEK, p, TCVP_PL_SEEK_ABS);
+        h->update = 4;
     }
 
     http_redirect(h, "/");
@@ -439,7 +439,7 @@ http_page(httpd *hd)
 
     ps = httpdGetVariableByName(hd, "ps");
     if(ps)
-	httpdSetCookie(hd, "s", ps->value);
+        httpdSetCookie(hd, "s", ps->value);
 
     http_redirect(h, "/");
 }
@@ -453,7 +453,7 @@ http_remove(httpd *hd)
     int *r, i = 0;
 
     if(!h->playlist || !v)
-	goto end;
+        goto end;
 
     pthread_mutex_lock(&h->lock);
 
@@ -462,16 +462,16 @@ http_remove(httpd *hd)
     r[1] = 1;
 
     while((v = v->nextValue)){
-	int p = strtol(v->value, NULL, 0);
-	if(p > r[i] + r[i+1])
-	    r[i+=2] = p;
-	r[i+1]++;
+        int p = strtol(v->value, NULL, 0);
+        if(p > r[i] + r[i+1])
+            r[i+=2] = p;
+        r[i+1]++;
     }
 
     while(i >= 0){
-	tcvp_event_send(h->control, TCVP_PL_REMOVE, r[i], r[i+1]);
-	h->update += 4;
-	i -= 2;
+        tcvp_event_send(h->control, TCVP_PL_REMOVE, r[i], r[i+1]);
+        h->update += 4;
+        i -= 2;
     }
 
     free(r);
@@ -489,21 +489,21 @@ http_run(void *p)
     httpd *hd = h->httpd;
 
     while(h->run){
-	struct timeval tmo = { 1, 0 };
-	int gc = httpdGetConnection(hd, &tmo);
+        struct timeval tmo = { 1, 0 };
+        int gc = httpdGetConnection(hd, &tmo);
 
-	if(gc < 0)
-	    break;
-	if(gc == 0)
-	    continue;
+        if(gc < 0)
+            break;
+        if(gc == 0)
+            continue;
 
-	if(httpdReadRequest(hd) < 0)
-	    continue;
+        if(httpdReadRequest(hd) < 0)
+            continue;
 
-	httpdAddHeader(hd, "Cache-Control: must-revalidate");
-	httpdAddHeader(hd, "Pragma: no-cache");
-	httpdProcessRequest(hd);
-	httpdEndRequest(hd);
+        httpdAddHeader(hd, "Cache-Control: must-revalidate");
+        httpdAddHeader(hd, "Pragma: no-cache");
+        httpdProcessRequest(hd);
+        httpdEndRequest(hd);
     }
 
     return NULL;
@@ -527,14 +527,14 @@ http_state(tcvp_module_t *m, tcvp_event_t *te)
 
     h->state = se->state;
     if(se->state == TCVP_STATE_END || se->state == TCVP_STATE_ERROR){
-	pthread_mutex_lock(&h->lock);
-	tcfree(h->current);
-	if(h->playlist && h->plpos < h->playlist->length && h->plpos >= 0)
-	    h->current = stream_open(h->playlist->names[h->plpos],
-				     h->conf, NULL);
-	else
-	    h->current = NULL;
-	pthread_mutex_unlock(&h->lock);
+        pthread_mutex_lock(&h->lock);
+        tcfree(h->current);
+        if(h->playlist && h->plpos < h->playlist->length && h->plpos >= 0)
+            h->current = stream_open(h->playlist->names[h->plpos],
+                                     h->conf, NULL);
+        else
+            h->current = NULL;
+        pthread_mutex_unlock(&h->lock);
     }
 
     http_update(m);
@@ -564,20 +564,20 @@ http_pl_content(tcvp_module_t *m, tcvp_event_t *te)
 
     pthread_mutex_lock(&h->lock);
     if(h->titles){
-	for(i = 0; i < h->playlist->length; i++)
-	    free(h->titles[i]);
-	free(h->titles);
+        for(i = 0; i < h->playlist->length; i++)
+            free(h->titles[i]);
+        free(h->titles);
     }
     tcfree(h->playlist);
     h->playlist = tcref(te);
     if(playlistformat)
-	h->titles = calloc(h->playlist->length, sizeof(*h->titles));
+        h->titles = calloc(h->playlist->length, sizeof(*h->titles));
     tcfree(h->current);
     if(h->playlist && h->plpos < h->playlist->length && h->plpos >= 0)
-	h->current = stream_open(h->playlist->names[h->plpos],
-				 h->conf, NULL);
+        h->current = stream_open(h->playlist->names[h->plpos],
+                                 h->conf, NULL);
     else
-	h->current = NULL;
+        h->current = NULL;
     pthread_mutex_unlock(&h->lock);
 
     http_update(m);
@@ -613,23 +613,23 @@ http_free(void *p)
 
     h->run = 0;
     if(h->th)
-	pthread_join(h->th, NULL);
+        pthread_join(h->th, NULL);
 
     if(h->httpd){
-	h->httpd->host = NULL;
-	httpdDestroy(h->httpd);
+        h->httpd->host = NULL;
+        httpdDestroy(h->httpd);
     }
 
     if(h->dbc) tcfree(h->dbc);
 
     if(h->control)
-	eventq_delete(h->control);
+        eventq_delete(h->control);
     tcfree(h->conf);
     tcfree(h->current);
     if(h->titles){
-	for(i = 0; i < h->playlist->length; i++)
-	    free(h->titles[i]);
-	free(h->titles);
+        for(i = 0; i < h->playlist->length; i++)
+            free(h->titles[i]);
+        free(h->titles);
     }
     tcfree(h->playlist);
     pthread_mutex_destroy(&h->lock);
@@ -643,9 +643,9 @@ http_init(tcvp_module_t *m)
     httpd *hd;
 
     hd = httpdCreate(tcvp_ui_http_conf_listen.iface,
-		     tcvp_ui_http_conf_listen.port);
+                     tcvp_ui_http_conf_listen.port);
     if(!hd)
-	return -1;
+        return -1;
 
     httpdAddWildcardContent(hd, "/", NULL, HTTP_DIR);
     httpdAddCContent(hd, "/", "status", HTTP_TRUE, NULL, http_status);

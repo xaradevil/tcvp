@@ -55,21 +55,21 @@ xmms_init(char *p)
     tc2_print("XMMS", TC2_PRINT_DEBUG, "starting GTK\n");
     g_thread_init(NULL);
     if(gtk_init_check(&argc, &argv)){
-	gdk_rgb_init();
-	gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
-	gtk_widget_set_default_visual(gdk_rgb_get_visual());
-	pthread_create(&gtkth, NULL, run_gtk, NULL);
+        gdk_rgb_init();
+        gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
+        gtk_widget_set_default_visual(gdk_rgb_get_visual());
+        pthread_create(&gtkth, NULL, run_gtk, NULL);
     }
 
     libxmms = dlopen(LIBDIR "/libxmms.so", RTLD_GLOBAL | RTLD_NOW);
     if(!libxmms){
-	tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
-	return -1;
+        tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
+        return -1;
     }
 
     init = dlsym(libxmms, "libxmms_init");
     if(!init || init()){
-	return -1;
+        return -1;
     }
 
     return 0;
@@ -88,11 +88,11 @@ extern int
 xmms_shutdown(void)
 {
     if(gtkth){
-	tc2_print("XMMS", TC2_PRINT_DEBUG, "stopping GTK\n");
-	GDK_THREADS_ENTER();
-	gtk_timeout_add(10, stop_gtk, NULL);
-	GDK_THREADS_LEAVE();
-	pthread_join(gtkth, NULL);
+        tc2_print("XMMS", TC2_PRINT_DEBUG, "stopping GTK\n");
+        GDK_THREADS_ENTER();
+        gtk_timeout_add(10, stop_gtk, NULL);
+        GDK_THREADS_LEAVE();
+        pthread_join(gtkth, NULL);
     }
 
     dlclose(libxmms);

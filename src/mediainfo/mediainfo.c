@@ -47,8 +47,8 @@ escape_string(char *src)
     char *ret = malloc(2*strlen(src)+1);
     char *dst = ret;
     do {
-	if (*src == '\'') *dst++ = '\\';
-	*dst++ = *src;
+        if (*src == '\'') *dst++ = '\\';
+        *dst++ = *src;
     } while(*src++);
 
     return ret;
@@ -62,27 +62,27 @@ get_info(tcvp_module_t *m, char *t)
     muxed_stream_t *ms;
     ms = stream_open(t, h->conf, NULL);
     if(ms) {
-	tcattr_t *a = tcallocz(sizeof(*a)*100);
-	int n = tcattr_getall(ms, 99, a);
-	int i;
-	for(i=0; i<n; i++) {
-	    char *c, *te, *ne, *ve;
-	    te = escape_string(t);
-	    ne = escape_string(a[i].name);
-	    ve = escape_string(a[i].value);
-	    c = malloc(strlen(ne) + strlen(ve) +
-		       strlen(t) + 100);
-	    sprintf(c, "ADD '%s/%s' '%s'", te, ne, ve);
-	    tc2_print("mediainfo", TC2_PRINT_DEBUG+10, "%s\n", c);
-	    tcdb_reply_t *r = tcvp_tcdbc_query(h->dbc, c);
-	    tcfree(r);
-	    free(c);
-	    free(te);
-	    free(ne);
-	    free(ve);
-	}
-	tcfree(a);
-	tcfree(ms);
+        tcattr_t *a = tcallocz(sizeof(*a)*100);
+        int n = tcattr_getall(ms, 99, a);
+        int i;
+        for(i=0; i<n; i++) {
+            char *c, *te, *ne, *ve;
+            te = escape_string(t);
+            ne = escape_string(a[i].name);
+            ve = escape_string(a[i].value);
+            c = malloc(strlen(ne) + strlen(ve) +
+                       strlen(t) + 100);
+            sprintf(c, "ADD '%s/%s' '%s'", te, ne, ve);
+            tc2_print("mediainfo", TC2_PRINT_DEBUG+10, "%s\n", c);
+            tcdb_reply_t *r = tcvp_tcdbc_query(h->dbc, c);
+            tcfree(r);
+            free(c);
+            free(te);
+            free(ne);
+            free(ve);
+        }
+        tcfree(a);
+        tcfree(ms);
     }
 
     return 0;
@@ -97,8 +97,8 @@ mi_pl_content(tcvp_module_t *m, tcvp_event_t *te)
     tcvp_pl_content_event_t *playlist = (tcvp_pl_content_event_t *)te;
 
     for(i = 0; i < playlist->length; i++){
-	tc2_print("mediainfo", TC2_PRINT_DEBUG+9, "%s\n", playlist->names[i]);
-	get_info(m, playlist->names[i]);
+        tc2_print("mediainfo", TC2_PRINT_DEBUG+9, "%s\n", playlist->names[i]);
+        get_info(m, playlist->names[i]);
     }
 
     return 0;
@@ -115,7 +115,7 @@ mi_free(void *p)
     tcfree(mi->dbc);
 
     if(mi->control)
-	eventq_delete(mi->control);
+        eventq_delete(mi->control);
     tcfree(mi->conf);
 }
 

@@ -40,9 +40,9 @@ getss32(url_t *f, int version)
     uint32_t v;
     url_getu32b(f, &v);
     if(version > 3){
-	v = (v & 0x7fffff) | ((v & ~0xffffff) >> 1);
-	v = (v & 0x7fff) | ((v & ~0xffff) >> 1);
-	v = (v & 0x7f) | ((v & ~0xff) >> 1);
+        v = (v & 0x7fffff) | ((v & ~0xffffff) >> 1);
+        v = (v & 0x7fff) | ((v & ~0xffff) >> 1);
+        v = (v & 0x7f) | ((v & ~0xff) >> 1);
     }
     return v;
 }
@@ -67,15 +67,15 @@ id3v2_getframe(url_t *f, uint32_t *fsize, int fflags)
     f->read(buf, 1, *fsize, f);
 
     if(fflags & ID3v2_FFLAG_USYNC){
-	u_char *s, *d;
-	s = d = buf;
-	while(s - buf < *fsize){
-	    *(d++) = *s;
-	    if(*(s++) == 0xff && *s == 0){
-		s++;
-	    }
-	}
-	*fsize = d - buf;
+        u_char *s, *d;
+        s = d = buf;
+        while(s - buf < *fsize){
+            *(d++) = *s;
+            if(*(s++) == 0xff && *s == 0){
+                s++;
+            }
+        }
+        *fsize = d - buf;
     }
 
     return buf;
@@ -96,16 +96,16 @@ conv_str(char *s, size_t size, char *fset, char *tset)
     size_t ib, ob;
 
     if(!s)
-	return strdup("");
+        return strdup("");
 
     tc2_print("ID3", TC2_PRINT_DEBUG,
-	      "converting '%.*s' (%li) from %s to %s\n",
-	      size,  s, size, fset, tset);
+              "converting '%.*s' (%li) from %s to %s\n",
+              size,  s, size, fset, tset);
 
     ic = iconv_open(tset, fset);
     if(ic == (iconv_t) -1){
-	tc2_print("ID3", TC2_PRINT_ERROR, "iconv_open: %s\n", strerror(errno));
-	return NULL;
+        tc2_print("ID3", TC2_PRINT_ERROR, "iconv_open: %s\n", strerror(errno));
+        return NULL;
     }
 
     ib = size;
@@ -117,21 +117,21 @@ conv_str(char *s, size_t size, char *fset, char *tset)
     iconv(ic, NULL, NULL, &ct, &ob);
 
     while(ib > 0){
-	if(iconv(ic, &s, &ib, &ct, &ob) == -1){
-	    if(errno == E2BIG){
-		int s = ct - text;
-		text = realloc(text, size *= 2);
-		ob = size - s;
-		ct = text + s;
-		tc2_print("ID3", TC2_PRINT_DEBUG,
-			  "output buffer full, resizing to %li (%li)\n",
-			  size, ob);
-	    } else {
-		tc2_print("ID3", TC2_PRINT_ERROR,
-			  "iconv: %s\n", strerror(errno));
-		break;
-	    }
-	}
+        if(iconv(ic, &s, &ib, &ct, &ob) == -1){
+            if(errno == E2BIG){
+                int s = ct - text;
+                text = realloc(text, size *= 2);
+                ob = size - s;
+                ct = text + s;
+                tc2_print("ID3", TC2_PRINT_DEBUG,
+                          "output buffer full, resizing to %li (%li)\n",
+                          size, ob);
+            } else {
+                tc2_print("ID3", TC2_PRINT_ERROR,
+                          "iconv: %s\n", strerror(errno));
+                break;
+            }
+        }
     }
 
     ob = ct - text;
@@ -148,13 +148,13 @@ id3v2_gettext(u_char *buf, int size)
     char *enc;
 
     if(tcvp_demux_mp3_conf_override_encoding){
-	enc = tcvp_demux_mp3_conf_override_encoding;
+        enc = tcvp_demux_mp3_conf_override_encoding;
     } else if(encodings[*buf]){
-	enc = encodings[*buf];
+        enc = encodings[*buf];
     } else {
-	tc2_print("ID3", TC2_PRINT_WARNING,
-		  "Unknown ID3v2 encoding %i\n", *buf);
-	return NULL;
+        tc2_print("ID3", TC2_PRINT_WARNING,
+                  "Unknown ID3v2 encoding %i\n", *buf);
+        return NULL;
     }
 
     return conv_str(buf + 1, size - 1, enc, "UTF-8");
@@ -192,23 +192,23 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
     spos = f->tell(f);
 
     if(f->read(tag, 1, 3, f) < 3)
-	goto err;
+        goto err;
 
     if(strncmp(tag, "ID3", 3))
-	goto err;		/* FIXME: check for trailing tag */
+        goto err;               /* FIXME: check for trailing tag */
 
     url_getu16b(f, &version);
     if(version >= 0x0500 || version < 0x0200){
-	tc2_print("ID3", TC2_PRINT_ERROR,
-		  "Unsupported ID3v2 tag version %i.%i.\n",
-		  version >> 8, version & 0xff);
-	goto err;
+        tc2_print("ID3", TC2_PRINT_ERROR,
+                  "Unsupported ID3v2 tag version %i.%i.\n",
+                  version >> 8, version & 0xff);
+        goto err;
     }
 
     flags = url_getc(f);
     if(flags & 0xf){
-	tc2_print("ID3", TC2_PRINT_ERROR, "Unknown ID3v2 flags %x\n", flags);
-	goto err;
+        tc2_print("ID3", TC2_PRINT_ERROR, "Unknown ID3v2 flags %x\n", flags);
+        goto err;
     }
 
     version >>= 8;
@@ -216,65 +216,65 @@ id3v2_tag(url_t *f, muxed_stream_t *ms)
     tsize = size + ((flags & ID3v2_FLAG_FOOT)? 20: 10);
 
     tc2_print("ID3", TC2_PRINT_DEBUG,
-	      "ID3v2 size=%x, flags=%x\n", size, flags);
+              "ID3v2 size=%x, flags=%x\n", size, flags);
 
     if(flags & ID3v2_FLAG_EXTH){
-	uint32_t esize = getss32(f, version);
-	f->seek(f, esize - 4, SEEK_CUR);
-	size -= esize;
+        uint32_t esize = getss32(f, version);
+        f->seek(f, esize - 4, SEEK_CUR);
+        size -= esize;
     }
 
     minsize = version > 2? 10: 6;
 
     while(size > minsize){
-	uint32_t fsize, dsize;
-	uint16_t fflags = 0;
-	int dlen = 0;
-	off_t pos;
-	char tag[5];
-	int i;
+        uint32_t fsize, dsize;
+        uint16_t fflags = 0;
+        int dlen = 0;
+        off_t pos;
+        char tag[5];
+        int i;
 
-	if(version > 2){
-	    if(f->read(tag, 1, 4, f) < 4)
-		break;
-	    tag[4] = 0;
-	    fsize = getss32(f, version);
-	    url_getu16b(f, &fflags);
-	} else {
-	    if(f->read(tag, 1, 3, f) < 3)
-		break;
-	    tag[3] = 0;
-	    fsize = url_getc(f) << 16;
-	    fsize += url_getc(f) << 8;
-	    fsize += url_getc(f);
-	}
+        if(version > 2){
+            if(f->read(tag, 1, 4, f) < 4)
+                break;
+            tag[4] = 0;
+            fsize = getss32(f, version);
+            url_getu16b(f, &fflags);
+        } else {
+            if(f->read(tag, 1, 3, f) < 3)
+                break;
+            tag[3] = 0;
+            fsize = url_getc(f) << 16;
+            fsize += url_getc(f) << 8;
+            fsize += url_getc(f);
+        }
 
-	dsize = fsize;
-	pos = f->tell(f);
+        dsize = fsize;
+        pos = f->tell(f);
 
-	tc2_print("ID3", TC2_PRINT_DEBUG, "tag %s size=%x flags=%x\n",
-		  tag, fsize, fflags);
+        tc2_print("ID3", TC2_PRINT_DEBUG, "tag %s size=%x flags=%x\n",
+                  tag, fsize, fflags);
 
-	if(fflags & ID3v2_FFLAG_GID)
-	    url_getc(f);
-	if(fflags & ID3v2_FFLAG_CRYPT)
-	    url_getc(f);
-	if(fflags & ID3v2_FFLAG_DLEN)
-	    dlen = getss32(f, version);
+        if(fflags & ID3v2_FFLAG_GID)
+            url_getc(f);
+        if(fflags & ID3v2_FFLAG_CRYPT)
+            url_getc(f);
+        if(fflags & ID3v2_FFLAG_DLEN)
+            dlen = getss32(f, version);
 
-	for(i = 0; id3v2_tags[i][0]; i++)
-	    if(!strcmp(tag, id3v2_tags[i][0]))
-		break;
+        for(i = 0; id3v2_tags[i][0]; i++)
+            if(!strcmp(tag, id3v2_tags[i][0]))
+                break;
 
-	if(id3v2_tags[i][0]){
-	    u_char *data = id3v2_getframe(f, &dsize, fflags);
-	    char *text = id3v2_gettext(data, dsize);
-	    tcattr_set(ms, id3v2_tags[i][1], text, NULL, free);
-	    free(data);
-	}
+        if(id3v2_tags[i][0]){
+            u_char *data = id3v2_getframe(f, &dsize, fflags);
+            char *text = id3v2_gettext(data, dsize);
+            tcattr_set(ms, id3v2_tags[i][1], text, NULL, free);
+            free(data);
+        }
 
-	f->seek(f, pos + fsize, SEEK_SET);
-	size -= fsize + 10;
+        f->seek(f, pos + fsize, SEEK_SET);
+        size -= fsize + 10;
     }
 
     f->seek(f, spos + tsize, SEEK_SET);
@@ -321,13 +321,13 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
     tagsize = 10;
 
     for(i = 0; id3v2_tags[i][0][3]; i++){
-	char *av = tcattr_get(ms, id3v2_tags[i][1]);
-	if(av)
-	    tagsize += 11 + strlen(av);
+        char *av = tcattr_get(ms, id3v2_tags[i][1]);
+        if(av)
+            tagsize += 11 + strlen(av);
     }
 
     if(tagsize <= 10)
-	return 0;
+        return 0;
 
     tag = malloc(tagsize + 4);
     p = tag;
@@ -337,9 +337,9 @@ id3v2_write_tag(url_t *u, muxed_stream_t *ms)
     p += 4;
 
     for(i = 0; id3v2_tags[i][0][3]; i++){
-	char *av = tcattr_get(ms, id3v2_tags[i][1]);
-	if(av)
-	    p += id3v2_text_frame(p, id3v2_tags[i][0], av);
+        char *av = tcattr_get(ms, id3v2_tags[i][1]);
+        if(av)
+            p += id3v2_text_frame(p, id3v2_tags[i][0], av);
     }
 
     u->write(tag, 1, tagsize, u);
@@ -354,10 +354,10 @@ id3v1_strdup(char *p, int s)
 {
     char *e = p + s - 1;
     while(!(*e & ~0x20) && e > p)
-	e--;
+        e--;
     s = e - p + 1;
     if(e == p && !(*e & ~0x20))
-	return NULL;
+        return NULL;
     return conv_str(p, s, tcvp_demux_mp3_conf_id3v1_encoding, "UTF-8");
 }
 
@@ -367,11 +367,11 @@ id3v1_setattr(void *p, char *attr, char *s, int l)
     char *v;
 
     if(tcattr_get(p, attr))
-	return 0;
+        return 0;
 
     v = id3v1_strdup(s, l);
     if(!v)
-	return 0;
+        return 0;
 
     tcattr_set(p, attr, v, NULL, free);
 
@@ -388,22 +388,22 @@ id3v1_tag(url_t *f, muxed_stream_t *ms)
     f->seek(f, -128, SEEK_END);
     f->read(buf, 1, 128, f);
     if(!memcmp(buf, "TAG", 3)){
-	int trk = buf[126];
+        int trk = buf[126];
 
-	id3v1_setattr(ms, "title", buf + 3, 30);
-	id3v1_setattr(ms, "artist", buf + 33, 30);
-	id3v1_setattr(ms, "album", buf + 63, 30);
-	id3v1_setattr(ms, "year", buf + 93, 4);
-	id3v1_setattr(ms, "comment", buf + 97, 29);
+        id3v1_setattr(ms, "title", buf + 3, 30);
+        id3v1_setattr(ms, "artist", buf + 33, 30);
+        id3v1_setattr(ms, "album", buf + 63, 30);
+        id3v1_setattr(ms, "year", buf + 93, 4);
+        id3v1_setattr(ms, "comment", buf + 97, 29);
 
-	if(trk > 0 && trk < 100 && !(trk == 32 && buf[125] == 32) &&
-	   !tcattr_get(ms, "track")){
-	    char *track = malloc(4);
-	    snprintf(track, 4, "%i", trk);
-	    tcattr_set(ms, "track", track, NULL, free);
-	}
+        if(trk > 0 && trk < 100 && !(trk == 32 && buf[125] == 32) &&
+           !tcattr_get(ms, "track")){
+            char *track = malloc(4);
+            snprintf(track, 4, "%i", trk);
+            tcattr_set(ms, "track", track, NULL, free);
+        }
 
-	ts = 128;
+        ts = 128;
     }
 
     f->seek(f, pos, SEEK_SET);

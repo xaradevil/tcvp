@@ -64,31 +64,31 @@ encode_frame(tcvp_pipe_t *p, int16_t *samples)
     int bs;
 
     if(samples){
-	bs = lame_encode_buffer_interleaved(le->gf, samples, FRAME_SAMPLES,
-					    buf, bufsize);
+        bs = lame_encode_buffer_interleaved(le->gf, samples, FRAME_SAMPLES,
+                                            buf, bufsize);
     } else {
-	bs = lame_encode_flush(le->gf, buf, bufsize);
+        bs = lame_encode_flush(le->gf, buf, bufsize);
     }
 
     tc2_print("LAME", TC2_PRINT_DEBUG+1, "bs=%i\n", bs);
 
     if(bs > 0){
-	lame_packet_t *lp = tcallocdz(sizeof(*lp), NULL, l_free_pk);
-	lp->pk.stream = p->format.common.index;
-	lp->pk.data = &lp->data;
-	lp->data = buf;
-	lp->buf = buf;
-	lp->pk.sizes = &lp->size;
-	lp->size = bs;
-	lp->pk.planes = 1;
-	if(le->pts != -1LL){
-	    lp->pk.pts = le->pts;
-	    lp->pk.flags |= TCVP_PKT_FLAG_PTS;
-	    le->pts = -1LL;
-	}
-	p->next->input(p->next, (tcvp_packet_t *) lp);
+        lame_packet_t *lp = tcallocdz(sizeof(*lp), NULL, l_free_pk);
+        lp->pk.stream = p->format.common.index;
+        lp->pk.data = &lp->data;
+        lp->data = buf;
+        lp->buf = buf;
+        lp->pk.sizes = &lp->size;
+        lp->size = bs;
+        lp->pk.planes = 1;
+        if(le->pts != -1LL){
+            lp->pk.pts = le->pts;
+            lp->pk.flags |= TCVP_PKT_FLAG_PTS;
+            le->pts = -1LL;
+        }
+        p->next->input(p->next, (tcvp_packet_t *) lp);
     } else {
-	free(buf);
+        free(buf);
     }
 
     return 0;
@@ -102,40 +102,40 @@ l_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int samples;
 
     if(!pk->data){
-	encode_frame(p, NULL);
-	return p->next->input(p->next, (tcvp_packet_t *) pk);
+        encode_frame(p, NULL);
+        return p->next->input(p->next, (tcvp_packet_t *) pk);
     }
 
     if(pk->flags & TCVP_PKT_FLAG_PTS && le->pts != -1LL){
-	le->pts = pk->pts - (uint64_t) le->samples * 27000000LL /
-	    p->format.audio.sample_rate;
+        le->pts = pk->pts - (uint64_t) le->samples * 27000000LL /
+            p->format.audio.sample_rate;
     }
 
     data = (int16_t *) pk->data[0];
     samples = pk->sizes[0] / le->samplesize;
 
     if(le->samples){
-	int rs = min(FRAME_SAMPLES - le->samples, samples);
-	memcpy(le->buf + le->samples*le->channels, data, rs * le->samplesize);
-	samples -= rs;
-	data += rs * le->channels;
-	le->samples += rs;
+        int rs = min(FRAME_SAMPLES - le->samples, samples);
+        memcpy(le->buf + le->samples*le->channels, data, rs * le->samplesize);
+        samples -= rs;
+        data += rs * le->channels;
+        le->samples += rs;
 
-	if(le->samples == FRAME_SAMPLES){
-	    encode_frame(p, le->buf);
-	    le->samples = 0;
-	}
+        if(le->samples == FRAME_SAMPLES){
+            encode_frame(p, le->buf);
+            le->samples = 0;
+        }
     }
 
     while(samples >= FRAME_SAMPLES){
-	encode_frame(p, data);
-	samples -= FRAME_SAMPLES;
-	data += FRAME_SAMPLES * le->channels;
+        encode_frame(p, data);
+        samples -= FRAME_SAMPLES;
+        data += FRAME_SAMPLES * le->channels;
     }
 
     if(samples > 0){
-	memcpy(le->buf, data, samples * le->samplesize);
-	le->samples = samples;
+        memcpy(le->buf, data, samples * le->samplesize);
+        le->samples = samples;
     }
 
     tcfree(pk);
@@ -148,18 +148,18 @@ l_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     lame_enc_t *le = p->private;
 
     if(pk)
-	tcfree(pk);
+        tcfree(pk);
 
     if(strcmp(s->common.codec, "audio/pcm-s16" TCVP_ENDIAN)){
-	tc2_print("LAME", TC2_PRINT_ERROR, "unsupported codec %s\n",
-		  s->common.codec);
-	return PROBE_FAIL;
+        tc2_print("LAME", TC2_PRINT_ERROR, "unsupported codec %s\n",
+                  s->common.codec);
+        return PROBE_FAIL;
     }
 
     if(s->audio.channels > 2){
-	tc2_print("LAME", TC2_PRINT_ERROR, "%i channels not supported\n",
-		  s->audio.channels);
-	return PROBE_FAIL;
+        tc2_print("LAME", TC2_PRINT_ERROR, "%i channels not supported\n",
+                  s->audio.channels);
+        return PROBE_FAIL;
     }
 
     le->channels = s->audio.channels;
@@ -170,8 +170,8 @@ l_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     lame_set_bWriteVbrTag(le->gf, 0);
     lame_mp3_tags_fid(le->gf, NULL);
     if(lame_init_params(le->gf) < 0){
-	tc2_print("LAME", TC2_PRINT_ERROR, "init failed\n");
-	return PROBE_FAIL;
+        tc2_print("LAME", TC2_PRINT_ERROR, "init failed\n");
+        return PROBE_FAIL;
     }
 
     le->buf = malloc(FRAME_SAMPLES * le->samplesize);
@@ -200,9 +200,9 @@ l_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     le->gf = lame_init();
     le->pts = -1LL;
 
-#define lame_set(c, n, f)				\
-    if(tcconf_getvalue(cs, #c, "%"#f, &tmp) > 0)	\
-	lame_set_##n(le->gf, tmp.f);
+#define lame_set(c, n, f)                               \
+    if(tcconf_getvalue(cs, #c, "%"#f, &tmp) > 0)        \
+        lame_set_##n(le->gf, tmp.f);
 
     lame_set(scale, scale, f);
     lame_set(samplerate, out_samplerate, i);

@@ -36,14 +36,14 @@
 
 static void *libxmms;
 
-#define lxwrap(ret, name, args, argnames)	\
-static ret (*dl_##name) args;			\
-extern ret					\
-name args					\
-{						\
-    if(!dl_##name)				\
-	dl_##name = dlsym(libxmms, #name);	\
-    return dl_##name argnames;			\
+#define lxwrap(ret, name, args, argnames)       \
+static ret (*dl_##name) args;                   \
+extern ret                                      \
+name args                                       \
+{                                               \
+    if(!dl_##name)                              \
+        dl_##name = dlsym(libxmms, #name);      \
+    return dl_##name argnames;                  \
 }
 
 lxwrap(ConfigFile *, xmms_cfg_new, (void), ())
@@ -204,8 +204,8 @@ libxmms_init(void)
 {
     libxmms = dlopen("libxmms.so", RTLD_NOW);
     if(!libxmms){
-	tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
-	return -1;
+        tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
+        return -1;
     }
 
     return 0;

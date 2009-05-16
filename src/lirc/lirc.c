@@ -56,28 +56,28 @@ tlirc_run(void *p)
     FD_SET (tl->sock, &active_fd_set);
 
     while(1) {
-	read_fd_set = active_fd_set;
-	tv.tv_usec = 500000;
-	tv.tv_sec = 0;
-	selret = select (FD_SETSIZE, &read_fd_set, NULL, NULL, &tv);
+        read_fd_set = active_fd_set;
+        tv.tv_usec = 500000;
+        tv.tv_sec = 0;
+        selret = select (FD_SETSIZE, &read_fd_set, NULL, NULL, &tv);
 
-	if(selret < 0 || tl->quit != 0) {
-	    return NULL;
-	}
+        if(selret < 0 || tl->quit != 0) {
+            return NULL;
+        }
 
-	if(selret > 0)
-	{
-	    lirc_nextcode(&code);
-	    if(code==NULL) continue;
-	    while((ret=lirc_code2char(tl->lconfig, code, &c))==0 &&
-		  c!=NULL)
-	    {
-		tc2_print("lirc", TC2_PRINT_DEBUG, "Command \"%s\"\n", c);
-		tcvp_event_send(tl->qs, TCVP_KEY, c);
-	    }
-	    free(code);
-	    if(ret==-1) break;
-	}
+        if(selret > 0)
+        {
+            lirc_nextcode(&code);
+            if(code==NULL) continue;
+            while((ret=lirc_code2char(tl->lconfig, code, &c))==0 &&
+                  c!=NULL)
+            {
+                tc2_print("lirc", TC2_PRINT_DEBUG, "Command \"%s\"\n", c);
+                tcvp_event_send(tl->qs, TCVP_KEY, c);
+            }
+            free(code);
+            if(ret==-1) break;
+        }
     }
 
     return NULL;
@@ -93,21 +93,21 @@ tlirc_init(tcvp_module_t *tm)
 
     tl->sock = lirc_init("tcvp", 0);
     if(tl->sock < 0) {
-	tc2_print("lirc", TC2_PRINT_WARNING, "failed to initialize lirc\n");
-	return -1;
+        tc2_print("lirc", TC2_PRINT_WARNING, "failed to initialize lirc\n");
+        return -1;
     }
 
     if(lirc_readconfig(NULL, &tl->lconfig, NULL) != 0) {
-	tc2_print("lirc", TC2_PRINT_WARNING, "failed to read lirc config\n");
-	lirc_deinit();
-	return -1;
+        tc2_print("lirc", TC2_PRINT_WARNING, "failed to read lirc config\n");
+        lirc_deinit();
+        return -1;
     }
 
     fcntl(tl->sock,F_SETOWN,getpid());
     flags=fcntl(tl->sock,F_GETFL,0);
     if(flags!=-1)
     {
-	fcntl(tl->sock,F_SETFL,flags|O_NONBLOCK);
+        fcntl(tl->sock,F_SETFL,flags|O_NONBLOCK);
     }
 
     pthread_create(&tl->th, NULL, tlirc_run, tl);
@@ -123,8 +123,8 @@ tlirc_free(void *p)
     eventq_delete(tl->qs);
 
     if(tl->th) {
-	tl->quit = 1;
-	pthread_join(tl->th, NULL);
+        tl->quit = 1;
+        pthread_join(tl->th, NULL);
     }
 
     tcfree(tl->conf);

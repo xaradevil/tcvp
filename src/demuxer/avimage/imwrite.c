@@ -51,13 +51,13 @@ im_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int i;
 
     if(!pk->data)
-	goto end;
+        goto end;
     if(pk->pts < iw->pts)
-	goto end;
+        goto end;
 
     sprintf(file, iw->file, iw->frame);
     if(url_fopen(&bio, file, URL_WRONLY)){
-	goto end;
+        goto end;
     }
 
     aii.pix_fmt = iw->pixfmt;
@@ -65,8 +65,8 @@ im_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     aii.height = p->format.video.height;
     aii.interleaved = 0;
     for(i = 0; i < 3; i++){
-	aii.pict.data[i] = pk->data[i];
-	aii.pict.linesize[i] = pk->sizes[i];
+        aii.pict.data[i] = pk->data[i];
+        aii.pict.linesize[i] = pk->sizes[i];
     }
 
     av_write_image(&bio, &jpeg_image_format, &aii);
@@ -95,17 +95,17 @@ im_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     int i;
 
     if(iw->probed)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     for(i = 0; codecs[i].name; i++){
-	if(!strcmp(s->common.codec, codecs[i].name))
-	    break;
+        if(!strcmp(s->common.codec, codecs[i].name))
+            break;
     }
 
     if(!codecs[i].name){
-	tc2_print("AVIMAGE", TC2_PRINT_ERROR,
-		  "Unsupported format %s\n", s->common.codec);
-	return PROBE_FAIL;
+        tc2_print("AVIMAGE", TC2_PRINT_ERROR,
+                  "Unsupported format %s\n", s->common.codec);
+        return PROBE_FAIL;
     }
 
     iw->pixfmt = codecs[i].pxf;
@@ -132,14 +132,14 @@ im_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     char *url;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0){
-	tc2_print("AVIMAGE", TC2_PRINT_ERROR, "No output file\n");
-	return -1;
+        tc2_print("AVIMAGE", TC2_PRINT_ERROR, "No output file\n");
+        return -1;
     }
 
     if(strncmp(s->common.codec, "video/raw", 9)){
-	tc2_print("AVIMAGE", TC2_PRINT_ERROR,
-		  "Unsupported format %s\n", s->common.codec);
-	return -1;
+        tc2_print("AVIMAGE", TC2_PRINT_ERROR,
+                  "Unsupported format %s\n", s->common.codec);
+        return -1;
     }
 
     iw = tcallocdz(sizeof(*iw), NULL, im_free);

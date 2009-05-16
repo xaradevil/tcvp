@@ -49,10 +49,10 @@ static void
 cpattr2(void *d, void *s, char *da, char *sa)
 {
     if(!tcattr_get(d, da)){
-	void *v = tcattr_get(s, sa);
-	if(v){
-	    tcattr_set(d, da, strdup(v), NULL, free);
-	}
+        void *v = tcattr_get(s, sa);
+        if(v){
+            tcattr_set(d, da, strdup(v), NULL, free);
+        }
     }
 }
 
@@ -71,50 +71,50 @@ isplaylist(url_t *u, char *mime, char *name)
     char *p, *q;
 
     if(strcmp(mime, "text/plain"))
-	return 0;
+        return 0;
 
     pos = u->tell(u);
     p = url_gets(buf, sizeof(buf), u);
     u->seek(u, pos, SEEK_SET);
     if(!p)
-	return 0;
+        return 0;
 
     p = strchr(buf, ':');
     if(p){
-	for(q = buf; q < p; q++){
-	    if(*q >= 'a' && *q <= 'z')
-		continue;
-	    if(isdigit(*q))
-		continue;
-	    if(*q == '-' || *q == '+' || *q == '.')
-		continue;
-	    break;
-	}
-	if(p == q)
-	    return 1;
+        for(q = buf; q < p; q++){
+            if(*q >= 'a' && *q <= 'z')
+                continue;
+            if(isdigit(*q))
+                continue;
+            if(*q == '-' || *q == '+' || *q == '.')
+                continue;
+            break;
+        }
+        if(p == q)
+            return 1;
     }
 
     p = strchr(buf, 0);
     if(p > buf && *--p == '\n')
-	*p = 0;
+        *p = 0;
     if(p > buf && *--p == '\r')
-	*p = 0;
+        *p = 0;
 
     if(buf[0] != '/' && name){
-	strncpy(buf1, name, sizeof(buf1));
-	p = strrchr(buf1, '/');
-	if(p)
+        strncpy(buf1, name, sizeof(buf1));
+        p = strrchr(buf1, '/');
+        if(p)
             p++;
-	else
-	    p = buf1;
-	strncpy(p, buf, sizeof(buf1) - (p - buf1));
-	p = buf1;
+        else
+            p = buf1;
+        strncpy(p, buf, sizeof(buf1) - (p - buf1));
+        p = buf1;
     } else {
-	p = buf;
+        p = buf;
     }
 
     if(stat(p, &st))
-	return 0;
+        return 0;
     return 1;
 }
 
@@ -125,14 +125,14 @@ s_magic_suffix(char *name)
     char *m = NULL;
 
     if(s){
-	int i;
-	for(i = 0; i < suffix_map_size; i++){
-	    if(!strcmp(s, suffix_map[i].suffix)){
-		if(suffix_map[i].demuxer)
-		    m = strdup(suffix_map[i].demuxer);
-		break;
-	    }
-	}
+        int i;
+        for(i = 0; i < suffix_map_size; i++){
+            if(!strcmp(s, suffix_map[i].suffix)){
+                if(suffix_map[i].demuxer)
+                    m = strdup(suffix_map[i].demuxer);
+                break;
+            }
+        }
     }
 
     return m;
@@ -154,28 +154,28 @@ s_magic(url_t *u, char *name)
     mgs = u->read(buf, 1, magic_size, u);
     u->seek(u, pos, SEEK_SET);
     if(mgs < magic_size)
-	return NULL;
+        return NULL;
     pthread_mutex_lock(&magic_lock);
     mg = magic_buffer(file_magic, buf, mgs);
     if(mg){
-	int e;
-	m = strdup(mg);
-	e = strcspn(m, " \t;");
-	m[e] = 0;
-	if(isplaylist(u, m, name)){
-	    free(m);
-	    m = strdup("application/x-playlist");
-	} else if(!strcmp(m, "data") ||
-		  !strcmp(m, "application/octet-stream")){
-	    free(m);
-	    m = NULL;
-	}
+        int e;
+        m = strdup(mg);
+        e = strcspn(m, " \t;");
+        m[e] = 0;
+        if(isplaylist(u, m, name)){
+            free(m);
+            m = strdup("application/x-playlist");
+        } else if(!strcmp(m, "data") ||
+                  !strcmp(m, "application/octet-stream")){
+            free(m);
+            m = NULL;
+        }
     }
     pthread_mutex_unlock(&magic_lock);
 #endif
 
     if(!m && name)
-	m = s_magic_suffix(name);
+        m = s_magic_suffix(name);
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "  type %s\n", m);
 
@@ -191,7 +191,7 @@ s_magic_url(char *url)
 
     u = url_open(url, "r");
     if(!u)
-	return NULL;
+        return NULL;
     m = s_magic(u, url);
     tcfree(u);
 
@@ -207,52 +207,52 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
     muxed_stream_t *ms;
 
     if(!(u = url_open(name, "r")))
-	return NULL;
+        return NULL;
 
     m = s_magic(u, name);
 
     tc2_print("STREAM", TC2_PRINT_DEBUG, "mime type %s\n", m);
 
     if(m && strncmp(m, "audio/", 6) && strncmp(m, "video/", 6)){
-	free(m);
-	m = NULL;
+        free(m);
+        m = NULL;
     }
 
     if(!m)
-	return NULL;
+        return NULL;
 
     if(!(sopen = tc2_get_symbol(m, "open")))
-	return NULL;
+        return NULL;
 
     free(m);
 
     ms = sopen(name, u, cs, t);
     if(ms){
-	char *a, *p;
+        char *a, *p;
 
-	tcattr_set(ms, "file", strdup(name), NULL, free);
-	cpattr(ms, u, "title");
-	cpattr(ms, u, "performer");
-	cpattr(ms, u, "artist");
-	cpattr(ms, u, "album");
-	cpattr(ms, u, "track");
-	cpattr(ms, u, "year");
-	cpattr(ms, u, "genre");
+        tcattr_set(ms, "file", strdup(name), NULL, free);
+        cpattr(ms, u, "title");
+        cpattr(ms, u, "performer");
+        cpattr(ms, u, "artist");
+        cpattr(ms, u, "album");
+        cpattr(ms, u, "track");
+        cpattr(ms, u, "year");
+        cpattr(ms, u, "genre");
 
-	cpattr2(ms, u, "title", "user.title");
-	cpattr2(ms, u, "artist", "user.artist");
-	cpattr2(ms, u, "album", "user.album");
-	cpattr2(ms, u, "track", "user.track");
-	cpattr2(ms, u, "year", "user.year");
-	cpattr2(ms, u, "genre", "user.genre");
+        cpattr2(ms, u, "title", "user.title");
+        cpattr2(ms, u, "artist", "user.artist");
+        cpattr2(ms, u, "album", "user.album");
+        cpattr2(ms, u, "track", "user.track");
+        cpattr2(ms, u, "year", "user.year");
+        cpattr2(ms, u, "genre", "user.genre");
 
-	a = tcattr_get(ms, "artist");
-	p = tcattr_get(ms, "performer");
+        a = tcattr_get(ms, "artist");
+        p = tcattr_get(ms, "performer");
 
-	if(!a && p)
-	    tcattr_set(ms, "artist", strdup(p), NULL, free);
-	if(a && !p)
-	    tcattr_set(ms, "performer", strdup(a), NULL, free);
+        if(!a && p)
+            tcattr_set(ms, "artist", strdup(p), NULL, free);
+        if(a && !p)
+            tcattr_set(ms, "performer", strdup(a), NULL, free);
     }
 
     tcfree(u);
@@ -274,13 +274,13 @@ s_validate(char *name, tcconf_section_t *cs)
     int i;
 
     if(!ms)
-	return -1;
+        return -1;
 
     for(i = 0; i < ms->n_streams; i++)
-	ms->used_streams[i] = 1;
+        ms->used_streams[i] = 1;
 
     while((pk = ms->next_packet(ms, -1)))
-	tcfree(pk);
+        tcfree(pk);
 
     tcfree(ms);
     return 0;
@@ -288,29 +288,29 @@ s_validate(char *name, tcconf_section_t *cs)
 
 extern tcvp_pipe_t *
 s_open_mux(stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-	   muxed_stream_t *ms)
+           muxed_stream_t *ms)
 {
     mux_new_t mnew = NULL;
     char *name, *sf;
     char *m = NULL;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &name) <= 0)
-	return NULL;
+        return NULL;
 
     if((sf = strrchr(name, '.'))){
-	int i;
-	for(i = 0; i < suffix_map_size; i++){
-	    if(!strcmp(sf, suffix_map[i].suffix)){
-		m = suffix_map[i].muxer;
-		break;
-	    }
-	}
+        int i;
+        for(i = 0; i < suffix_map_size; i++){
+            if(!strcmp(sf, suffix_map[i].suffix)){
+                m = suffix_map[i].muxer;
+                break;
+            }
+        }
     }
 
     if(m){
-	char mb[strlen(m) + 5];
-	sprintf(mb, "mux/%s", m);
-	mnew = tc2_get_symbol(mb, "new");
+        char mb[strlen(m) + 5];
+        sprintf(mb, "mux/%s", m);
+        mnew = tc2_get_symbol(mb, "new");
     }
 
     free(name);

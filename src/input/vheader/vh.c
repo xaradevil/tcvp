@@ -44,16 +44,16 @@ vh_read(void *buf, size_t size, size_t count, url_t *u)
     size_t rbytes = 0;
 
     if(vh->pos < vh->hsize){
-	size_t hb = min(bytes, vh->hsize - vh->pos);
-	memcpy(buf, vh->header + vh->pos, hb);
-	buf += hb;
-	vh->pos += hb;
-	rbytes += hb;
-	bytes -= hb;
+        size_t hb = min(bytes, vh->hsize - vh->pos);
+        memcpy(buf, vh->header + vh->pos, hb);
+        buf += hb;
+        vh->pos += hb;
+        rbytes += hb;
+        bytes -= hb;
     }
 
     if(bytes && vh->url->read)
-	rbytes += vh->url->read(buf, 1, bytes, vh->url);
+        rbytes += vh->url->read(buf, 1, bytes, vh->url);
 
     return rbytes / size;
 }
@@ -66,29 +66,29 @@ vh_seek(url_t *u, int64_t offset, int how)
 
     switch(how){
     case SEEK_SET:
-	pos = offset;
-	break;
+        pos = offset;
+        break;
     case SEEK_CUR:
-	pos = vh->hsize + offset;
-	if(vh->url->tell)
-	    pos += vh->url->tell(vh->url);
-	break;
+        pos = vh->hsize + offset;
+        if(vh->url->tell)
+            pos += vh->url->tell(vh->url);
+        break;
     case SEEK_END:
-	pos = u->size + offset;
-	break;
+        pos = u->size + offset;
+        break;
     default:
-	return -1;
+        return -1;
     }
 
     if(pos > u->size)
-	return -1;
+        return -1;
 
     if(pos < vh->hsize){
-	vh->pos = pos;
-	if(vh->url->seek)
-	    vh->url->seek(vh->url, 0, SEEK_SET);
+        vh->pos = pos;
+        if(vh->url->seek)
+            vh->url->seek(vh->url, 0, SEEK_SET);
     } else if(vh->url->seek){
-	vh->url->seek(vh->url, pos - vh->hsize, SEEK_SET);
+        vh->url->seek(vh->url, pos - vh->hsize, SEEK_SET);
     }
 
     return 0;
@@ -100,7 +100,7 @@ vh_tell(url_t *u)
     vheader_t *vh = u->private;
 
     if(vh->pos < vh->hsize)
-	return vh->pos;
+        return vh->pos;
 
     return vh->url->tell(vh->url) + vh->hsize;
 }
@@ -121,7 +121,7 @@ vh_free(void *p)
     url_t *u = p;
     vheader_t *vh = u->private;
     if(vh->url)
-	tcfree(vh->url);
+        tcfree(vh->url);
     free(vh);
 }
 

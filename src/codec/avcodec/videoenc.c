@@ -65,44 +65,44 @@ avc_encvid(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int i, size;
 
     if(!pk->data)
-	return p->next->input(p->next, (tcvp_packet_t *) pk);
+        return p->next->input(p->next, (tcvp_packet_t *) pk);
 
     for(i = 0; i < 3; i++){
-	f->data[i] = pk->data[i];
-	f->linesize[i] = pk->sizes[i];
+        f->data[i] = pk->data[i];
+        f->linesize[i] = pk->sizes[i];
     }
 
     if(pk->flags & TCVP_PKT_FLAG_PTS)
-	f->pts = pk->pts;
+        f->pts = pk->pts;
     if(pk->flags & TCVP_PKT_FLAG_DISCONT)
-	f->pict_type = FF_I_TYPE;
+        f->pict_type = FF_I_TYPE;
     else
-	f->pict_type = 0;
+        f->pict_type = 0;
 
     f->top_field_first = !!(pk->flags & TCVP_PKT_FLAG_TOPFIELDFIRST);
 
     if((size = avcodec_encode_video(enc->ctx, enc->buf, ENCBUFSIZE, f)) > 0){
-	if(enc->stats){
-	    enc->stats->write(enc->ctx->stats_out, 1,
-			      strlen(enc->ctx->stats_out), enc->stats);
-	}
+        if(enc->stats){
+            enc->stats->write(enc->ctx->stats_out, 1,
+                              strlen(enc->ctx->stats_out), enc->stats);
+        }
 
-	ep = tcallocdz(sizeof(*ep), NULL, avc_free_pk);
-	ep->pk.stream = pk->stream;
-	ep->pk.data = &ep->data;
-	ep->pk.sizes = &ep->size;
-	ep->pk.planes = 1;
-	ep->pk.flags = 0;
-	if(f->pts != AV_NOPTS_VALUE){
-	    ep->pk.flags |= TCVP_PKT_FLAG_PTS;
-	    ep->pk.pts = enc->ctx->coded_frame->pts;
-	}
-	if(f->key_frame)
-	    ep->pk.flags |= TCVP_PKT_FLAG_KEY;
-	ep->buf = ep->data = enc->buf;
-	ep->size = size;
-	enc->buf = malloc(ENCBUFSIZE);
-	p->next->input(p->next, (tcvp_packet_t *) ep);
+        ep = tcallocdz(sizeof(*ep), NULL, avc_free_pk);
+        ep->pk.stream = pk->stream;
+        ep->pk.data = &ep->data;
+        ep->pk.sizes = &ep->size;
+        ep->pk.planes = 1;
+        ep->pk.flags = 0;
+        if(f->pts != AV_NOPTS_VALUE){
+            ep->pk.flags |= TCVP_PKT_FLAG_PTS;
+            ep->pk.pts = enc->ctx->coded_frame->pts;
+        }
+        if(f->key_frame)
+            ep->pk.flags |= TCVP_PKT_FLAG_KEY;
+        ep->buf = ep->data = enc->buf;
+        ep->size = size;
+        enc->buf = malloc(ENCBUFSIZE);
+        p->next->input(p->next, (tcvp_packet_t *) ep);
     }
 
     tcfree(pk);
@@ -117,7 +117,7 @@ avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     AVCodecContext *ctx = enc->ctx;
 
     if(s->stream_type != STREAM_TYPE_VIDEO)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     p->format.common.codec = enc->codec;
     p->format.common.bit_rate = ctx->bit_rate;
@@ -127,35 +127,35 @@ avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     ctx->width = s->video.width;
     ctx->height = s->video.height;
     if(s->video.aspect.num){
-	tcfraction_t asp = { s->video.height * s->video.aspect.num,
-			     s->video.width * s->video.aspect.den };
-	tcreduce(&asp);
-	tc2_print("AVCODEC", TC2_PRINT_DEBUG,
-		  "SAR = %i/%i\n", asp.num, asp.den);
-	if(asp.num > 255 || asp.den > 255){
-	    double a = (double) asp.num / asp.den;
-	    if(asp.num > asp.den){
-		asp.num = 240;
-		asp.den = asp.num / a + 0.5;
-	    } else {
-		asp.den = 240;
-		asp.num = asp.den * a + 0.5;
-	    }
-	    tcreduce(&asp);
-	}
-	ctx->sample_aspect_ratio.num = asp.num;
-	ctx->sample_aspect_ratio.den = asp.den;
-	tc2_print("AVCODEC", TC2_PRINT_DEBUG,
-		  "SAR = %i/%i\n", asp.num, asp.den);
+        tcfraction_t asp = { s->video.height * s->video.aspect.num,
+                             s->video.width * s->video.aspect.den };
+        tcreduce(&asp);
+        tc2_print("AVCODEC", TC2_PRINT_DEBUG,
+                  "SAR = %i/%i\n", asp.num, asp.den);
+        if(asp.num > 255 || asp.den > 255){
+            double a = (double) asp.num / asp.den;
+            if(asp.num > asp.den){
+                asp.num = 240;
+                asp.den = asp.num / a + 0.5;
+            } else {
+                asp.den = 240;
+                asp.num = asp.den * a + 0.5;
+            }
+            tcreduce(&asp);
+        }
+        ctx->sample_aspect_ratio.num = asp.num;
+        ctx->sample_aspect_ratio.den = asp.den;
+        tc2_print("AVCODEC", TC2_PRINT_DEBUG,
+                  "SAR = %i/%i\n", asp.num, asp.den);
     }
 
     ctx->pix_fmt = PIX_FMT_YUV420P;
 
 /*     if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED) */
-/* 	ctx->flags |= CODEC_FLAG_INTERLACED_DCT; */
+/*      ctx->flags |= CODEC_FLAG_INTERLACED_DCT; */
     if(avcodec_open(ctx, enc->avc) < 0){
-	ctx->codec = NULL;
-	return PROBE_FAIL;
+        ctx->codec = NULL;
+        return PROBE_FAIL;
     }
 
     return PROBE_OK;
@@ -167,7 +167,7 @@ avc_encvid_flush(tcvp_pipe_t *p, int drop)
     avc_encvid_t *enc = p->private;
 
     if(drop && enc->ctx->codec)
-	avcodec_flush_buffers(enc->ctx);
+        avcodec_flush_buffers(enc->ctx);
 
     return 0;
 }
@@ -182,13 +182,13 @@ avc_free_encvid(void *p)
     tcfree(enc->stats);
     free(enc->ctx->stats_in);
     if(enc->ctx->codec)
-	avcodec_close(enc->ctx);
+        avcodec_close(enc->ctx);
     free(enc->codec);
 }
 
 extern int
 avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
-		 tcvp_timer_t *t, muxed_stream_t *ms)
+                 tcvp_timer_t *t, muxed_stream_t *ms)
 {
     AVCodec *avc;
     AVCodecContext *ctx;
@@ -198,16 +198,16 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     char *avcname;
 
     if(tcconf_getvalue(cf, "type", "%s", &filter) <= 0){
-	tc2_print("AVCODEC", TC2_PRINT_ERROR, "who am I?\n");
-	return -1;
+        tc2_print("AVCODEC", TC2_PRINT_ERROR, "who am I?\n");
+        return -1;
     }
 
     codec = strchr(filter, '/');
     if(codec){
-	codec = strdup(codec + 1);
+        codec = strdup(codec + 1);
     } else {
-	tc2_print("AVCODEC", TC2_PRINT_ERROR, "don't know %s\n", filter);
-	return -1;
+        tc2_print("AVCODEC", TC2_PRINT_ERROR, "don't know %s\n", filter);
+        return -1;
     }
 
     free(filter);
@@ -217,9 +217,9 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     free(avcname);
 
     if(!avc){
-	tc2_print("AVCODEC", TC2_PRINT_ERROR,
-		  "Can't find encoder for '%s'.\n", codec);
-	return -1;
+        tc2_print("AVCODEC", TC2_PRINT_ERROR,
+                  "Can't find encoder for '%s'.\n", codec);
+        return -1;
     }
 
     ctx = avcodec_alloc_context();
@@ -286,9 +286,9 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     ctx_conf(inter_threshold, i);
     ctx_conf(quantizer_noise_shaping, i);
 
-#define ctx_flag(c, f) if(!tcconf_getvalue(cf, #c, ""))	\
+#define ctx_flag(c, f) if(!tcconf_getvalue(cf, #c, "")) \
     ctx->flags |= CODEC_FLAG_##f
-#define ctx_flag2(c, f) if(!tcconf_getvalue(cf, #c, ""))	\
+#define ctx_flag2(c, f) if(!tcconf_getvalue(cf, #c, ""))        \
     ctx->flags2 |= CODEC_FLAG2_##f
 
     ctx_flag(qscale, QSCALE);
@@ -318,22 +318,22 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     enc->buf = malloc(ENCBUFSIZE);
 
     if(tcconf_getvalue(cf, "stats", "%s", &statsfile) > 0){
-	url_t *sf = url_open(statsfile, "r");
-	if(sf){
-	    tc2_print("AVCODEC", TC2_PRINT_DEBUG, "pass 2: %s\n", statsfile);
-	    ctx->stats_in = malloc(sf->size);
-	    sf->read(ctx->stats_in, 1, sf->size, sf);
-	    tcfree(sf);
-	    ctx->flags |= CODEC_FLAG_PASS2;
-	} else if((sf = url_open(statsfile, "w"))){
-	    tc2_print("AVCODEC", TC2_PRINT_DEBUG, "pass 1: %s\n", statsfile);
-	    enc->stats = sf;
-	    ctx->flags |= CODEC_FLAG_PASS1;
-	} else {
-	    tc2_print("AVCODEC", TC2_PRINT_WARNING,
-		      "can't open stats file %s\n", statsfile);
-	}
-	free(statsfile);
+        url_t *sf = url_open(statsfile, "r");
+        if(sf){
+            tc2_print("AVCODEC", TC2_PRINT_DEBUG, "pass 2: %s\n", statsfile);
+            ctx->stats_in = malloc(sf->size);
+            sf->read(ctx->stats_in, 1, sf->size, sf);
+            tcfree(sf);
+            ctx->flags |= CODEC_FLAG_PASS2;
+        } else if((sf = url_open(statsfile, "w"))){
+            tc2_print("AVCODEC", TC2_PRINT_DEBUG, "pass 1: %s\n", statsfile);
+            enc->stats = sf;
+            ctx->flags |= CODEC_FLAG_PASS1;
+        } else {
+            tc2_print("AVCODEC", TC2_PRINT_WARNING,
+                      "can't open stats file %s\n", statsfile);
+        }
+        free(statsfile);
     }
 
     p->format = *s;

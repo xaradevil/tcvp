@@ -75,18 +75,18 @@ ogg_get_length(muxed_stream_t *ms)
 
     while((more=ogg_sync_pageseek(&ost->oy, &og))!=0)
     {
-	if(more<0){
-	    /* Skipping to start of page */
-	    pos-=more;
-	} else {
-	    if(more+pos<ost->end){
-		pos+=more;
-	    } else {
-		/* Found last page */
-		break;
-	    }
-	}
-	ogg_sync_pageout(&ost->oy, &og);
+        if(more<0){
+            /* Skipping to start of page */
+            pos-=more;
+        } else {
+            if(more+pos<ost->end){
+                pos+=more;
+            } else {
+                /* Found last page */
+                break;
+            }
+        }
+        ogg_sync_pageout(&ost->oy, &og);
     }
 
     ogg_sync_pageout(&ost->oy, &og);
@@ -110,18 +110,18 @@ ogg_find_packet(ogg_stream_t *ost, ogg_packet *op, uint64_t *gp)
     char *buf;
 
     while(ogg_stream_packetout(&ost->os, op) != 1) {
-	while(ogg_sync_pageout(&ost->oy, &og) != 1) {
-	    int l;
-	    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
-	    l = ost->f->read(buf, 1, BUFFER_SIZE, ost->f);
-	    ogg_sync_wrote(&ost->oy, l);
-	    if(l <= 0)
-		return -1;
-	}
-	ogg_stream_pagein(&ost->os, &og);
-	if(gp)
-	    *gp = ost->grp;
-	ost->grp = ogg_page_granulepos(&og);
+        while(ogg_sync_pageout(&ost->oy, &og) != 1) {
+            int l;
+            buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+            l = ost->f->read(buf, 1, BUFFER_SIZE, ost->f);
+            ogg_sync_wrote(&ost->oy, l);
+            if(l <= 0)
+                return -1;
+        }
+        ogg_stream_pagein(&ost->os, &og);
+        if(gp)
+            *gp = ost->grp;
+        ost->grp = ogg_page_granulepos(&og);
     }
 
     return 0;
@@ -136,13 +136,13 @@ ogg_next_packet(muxed_stream_t *ms, int stream)
     uint64_t gp = -1;
 
     if(ogg_find_packet(ost, &op, &gp) < 0)
-	return NULL;
+        return NULL;
 
     pk = tcallocdz(sizeof(*pk), NULL, ogg_free_packet);
     pk->pk.stream = 0;
     if(gp != -1 && ms->streams[0].audio.sample_rate){
-	pk->pk.flags |= TCVP_PKT_FLAG_PTS;
-	pk->pk.pts = gp * 27000000 / ms->streams[0].audio.sample_rate;
+        pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+        pk->pk.pts = gp * 27000000 / ms->streams[0].audio.sample_rate;
     }
     pk->pk.data = &pk->data;
     pk->data = malloc(op.bytes);
@@ -177,29 +177,29 @@ ogg_seek(muxed_stream_t *ms, uint64_t time)
     uint64_t mid=0;
 
     while(end-start>seek_fuzziness) {
-	mid = (start + end) / 2;
+        mid = (start + end) / 2;
 
-	f->seek(f, mid, SEEK_SET);
+        f->seek(f, mid, SEEK_SET);
 
-	ogg_sync_reset(&ost->oy);
+        ogg_sync_reset(&ost->oy);
 
-	buf=ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
-	l=f->read(buf, 1, BUFFER_SIZE, f);
-	ogg_sync_wrote(&ost->oy, l);
+        buf=ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+        l=f->read(buf, 1, BUFFER_SIZE, f);
+        ogg_sync_wrote(&ost->oy, l);
 
-	while(ogg_sync_pageout(&ost->oy, &og) != 1)
-	{
-	    buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
-	    l = f->read(buf, 1, BUFFER_SIZE, f);
-	    ogg_sync_wrote(&ost->oy, l);
-	}
+        while(ogg_sync_pageout(&ost->oy, &og) != 1)
+        {
+            buf = ogg_sync_buffer(&ost->oy, BUFFER_SIZE);
+            l = f->read(buf, 1, BUFFER_SIZE, f);
+            ogg_sync_wrote(&ost->oy, l);
+        }
 
-	ppos=ogg_page_granulepos(&og);
-	if(pos>ppos) {
-	    start = mid+1;
-	} else {
-	    end = mid-1;
-	}
+        ppos=ogg_page_granulepos(&og);
+        if(pos>ppos) {
+            start = mid+1;
+        } else {
+            end = mid-1;
+        }
     }
 
     f->seek(f, mid, SEEK_SET);
@@ -236,18 +236,18 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
     char *p = buf;
     int s, n, j;
 
-    size--;			/* we don't want the framing bit */
+    size--;                     /* we don't want the framing bit */
 
     if(size < 15)
-	return -1;
+        return -1;
 
     if(*p++ != 3)
-	return -1;
+        return -1;
 
     size--;
 
     if(strncmp(p, "vorbis", 6))
-	return -1;
+        return -1;
 
     p += 6;
     size -= 6;
@@ -257,7 +257,7 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
     size -= 4;
 
     if(size < s + 4)
-	return -1;
+        return -1;
 
     p += s;
     size -= s;
@@ -267,50 +267,50 @@ ogg_title(muxed_stream_t *ms, char *buf, int size)
     size -= 4;
 
     while(size >= 4){
-	char *t, *v;
-	int tl, vl;
+        char *t, *v;
+        int tl, vl;
 
-	s = htol_32(unaligned32(p));
-	p += 4;
-	size -= 4;
+        s = htol_32(unaligned32(p));
+        p += 4;
+        size -= 4;
 
-	if(size < s)
-	    break;
+        if(size < s)
+            break;
 
-	t = p;
-	p += s;
-	size -= s;
-	n--;
+        t = p;
+        p += s;
+        size -= s;
+        n--;
 
-	v = memchr(t, '=', s);
-	if(!v)
-	    continue;
+        v = memchr(t, '=', s);
+        if(!v)
+            continue;
 
-	tl = v - t;
-	vl = s - tl - 1;
-	v++;
+        tl = v - t;
+        vl = s - tl - 1;
+        v++;
 
-	if(tl && vl){
-	    char tt[tl + 1];
-	    char *ct;
+        if(tl && vl){
+            char tt[tl + 1];
+            char *ct;
 
-	    for(j = 0; j < tl; j++)
-		tt[j] = tolower(t[j]);
-	    tt[tl] = 0;
+            for(j = 0; j < tl; j++)
+                tt[j] = tolower(t[j]);
+            tt[tl] = 0;
 
-	    ct = malloc(vl + 1);
-	    memcpy(ct, v, vl);
-	    ct[vl] = 0;
-	    tcattr_set(ms, tt, ct, NULL, free);
-	}
+            ct = malloc(vl + 1);
+            memcpy(ct, v, vl);
+            ct[vl] = 0;
+            tcattr_set(ms, tt, ct, NULL, free);
+        }
     }
 
     if(size > 0)
-	tc2_print("OGG", TC2_PRINT_WARNING,
-		  "%i bytes of comment header remain\n", size);
+        tc2_print("OGG", TC2_PRINT_WARNING,
+                  "%i bytes of comment header remain\n", size);
     if(n > 0)
-	tc2_print("OGG", TC2_PRINT_WARNING,
-		  "truncated comment header, %i comments not found\n", n);
+        tc2_print("OGG", TC2_PRINT_WARNING,
+                  "truncated comment header, %i comments not found\n", n);
 
     return 0;
 }
@@ -325,18 +325,18 @@ ogg_get_headers(muxed_stream_t *ms)
     ogg_packet op;
 
     for(i = 0; i < 3; i++){
-	if(ogg_find_packet(ost, &op, NULL))
-	    return -1;
-	buf = realloc(buf, size + op.bytes + 2);
-	p = buf + size;
-	*p++ = op.bytes >> 8;
-	*p++ = op.bytes & 0xff;
+        if(ogg_find_packet(ost, &op, NULL))
+            return -1;
+        buf = realloc(buf, size + op.bytes + 2);
+        p = buf + size;
+        *p++ = op.bytes >> 8;
+        *p++ = op.bytes & 0xff;
 
-	memcpy(p, op.packet, op.bytes);
-	size += op.bytes + 2;
+        memcpy(p, op.packet, op.bytes);
+        size += op.bytes + 2;
 
-	if(i == 1)
-	    ogg_title(ms, op.packet, op.bytes);
+        if(i == 1)
+            ogg_title(ms, op.packet, op.bytes);
     }
 
     st->common.codec_data = buf;
@@ -379,7 +379,7 @@ ogg_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     ms->private = ost;
 
     if(!f->flags & URL_FLAG_STREAMED)
-	ms->streams[0].audio.samples = ogg_get_length(ms);
+        ms->streams[0].audio.samples = ogg_get_length(ms);
 
     f->seek(ost->f, 0, SEEK_SET);
     ogg_sync_reset(&ost->oy);

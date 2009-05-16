@@ -39,7 +39,7 @@
 
 static void
 i420_yuy2(int width, int height, const u_char **in, int *istride,
-	  u_char **out, int *ostride)
+          u_char **out, int *ostride)
 {
     int y;
     const u_char *ysrc = in[0];
@@ -49,89 +49,89 @@ i420_yuy2(int width, int height, const u_char **in, int *istride,
 
     for(y = 0; y < height; y++){
 #if __WORDSIZE >= 64
-	int i;
-	uint64_t *ldst = (uint64_t *) dst;
-	const uint8_t *yc = ysrc, *uc = usrc, *vc = vsrc;
-	for(i = 0; i < min(istride[0], ostride[0]); i += 4){
-	    *ldst++ = (uint64_t)yc[0] + ((uint64_t)uc[0] << 8) +
-		((uint64_t)yc[1] << 16) + ((uint64_t)vc[0] << 24) +
-		((uint64_t)yc[2] << 32) + ((uint64_t)uc[1] << 40) +
-		((uint64_t)yc[3] << 48) + ((uint64_t)vc[1] << 56);
-	    yc += 4;
-	    uc += 2;
-	    vc += 2;
-	}
+        int i;
+        uint64_t *ldst = (uint64_t *) dst;
+        const uint8_t *yc = ysrc, *uc = usrc, *vc = vsrc;
+        for(i = 0; i < min(istride[0], ostride[0]); i += 4){
+            *ldst++ = (uint64_t)yc[0] + ((uint64_t)uc[0] << 8) +
+                ((uint64_t)yc[1] << 16) + ((uint64_t)vc[0] << 24) +
+                ((uint64_t)yc[2] << 32) + ((uint64_t)uc[1] << 40) +
+                ((uint64_t)yc[3] << 48) + ((uint64_t)vc[1] << 56);
+            yc += 4;
+            uc += 2;
+            vc += 2;
+        }
 #else
-	int i, *idst = (int32_t *) dst;
-	const uint8_t *yc = ysrc, *uc = usrc, *vc = vsrc;
-	for(i = 0; i < istride[1]; i++){
-	    *idst++ = yc[0] + (uc[0] << 8) +
-		(yc[1] << 16) + (vc[0] << 24);
-	    yc += 2;
-	    uc++;
-	    vc++;
-	}
+        int i, *idst = (int32_t *) dst;
+        const uint8_t *yc = ysrc, *uc = usrc, *vc = vsrc;
+        for(i = 0; i < istride[1]; i++){
+            *idst++ = yc[0] + (uc[0] << 8) +
+                (yc[1] << 16) + (vc[0] << 24);
+            yc += 2;
+            uc++;
+            vc++;
+        }
 #endif
-	ysrc += istride[0];
-	if(y & 1){
-	    usrc += istride[1];
-	    vsrc += istride[2];
-	}
-	dst += ostride[0];
+        ysrc += istride[0];
+        if(y & 1){
+            usrc += istride[1];
+            vsrc += istride[2];
+        }
+        dst += ostride[0];
     }
 }
 
-#define copy_plane(i, ip, d, bpp) do {				\
-    int j, ais = abs(istride[i]), aos = abs(ostride[i]);	\
-    for(j = 0; j < height / d; j++){				\
-	memcpy(out[i] + j * ostride[i],				\
-	       in[ip] + j * istride[i],				\
-	       bpp * min(ais, min(aos, width / d)));		\
-    }								\
+#define copy_plane(i, ip, d, bpp) do {                          \
+    int j, ais = abs(istride[i]), aos = abs(ostride[i]);        \
+    for(j = 0; j < height / d; j++){                            \
+        memcpy(out[i] + j * ostride[i],                         \
+               in[ip] + j * istride[i],                         \
+               bpp * min(ais, min(aos, width / d)));            \
+    }                                                           \
 } while(0)
 
-#define exp_plane(i, ip, d, x, y) do {					    \
-    int j, k;								    \
-    int w = min(istride[i], min(ostride[i], width / d));		    \
-    for(j = 0; j < height / d; j++){					    \
-	for(k = 0; k < w; k++){						    \
-	    int p = *(in[ip] + j * istride[i] + k);			    \
-	    int xx, yy;							    \
-	    for(xx = 0; xx < x; xx++)					    \
-		for(yy = 0; yy < y; yy++)				    \
-		    *(out[i] + (y * j + yy) * ostride[i] + x * k + xx) = p; \
-	}								    \
-    }									    \
+#define exp_plane(i, ip, d, x, y) do {                                      \
+    int j, k;                                                               \
+    int w = min(istride[i], min(ostride[i], width / d));                    \
+    for(j = 0; j < height / d; j++){                                        \
+        for(k = 0; k < w; k++){                                             \
+            int p = *(in[ip] + j * istride[i] + k);                         \
+            int xx, yy;                                                     \
+            for(xx = 0; xx < x; xx++)                                       \
+                for(yy = 0; yy < y; yy++)                                   \
+                    *(out[i] + (y * j + yy) * ostride[i] + x * k + xx) = p; \
+        }                                                                   \
+    }                                                                       \
 } while(0)
 
-#define red_plane(i, ip, dx, dy, x, y) do {			\
-    int j, k;							\
-    int w = min(istride[i], min(ostride[i], width / dx));	\
-    for(j = 0; j < height / dy / y; j++){			\
-	for(k = 0; k < w / x; k++){				\
-	    *(out[i] + j * ostride[i] + k) =			\
-		*(in[ip] + j * y * istride[i] + k * x);		\
-	}							\
-    }								\
+#define red_plane(i, ip, dx, dy, x, y) do {                     \
+    int j, k;                                                   \
+    int w = min(istride[i], min(ostride[i], width / dx));       \
+    for(j = 0; j < height / dy / y; j++){                       \
+        for(k = 0; k < w / x; k++){                             \
+            *(out[i] + j * ostride[i] + k) =                    \
+                *(in[ip] + j * y * istride[i] + k * x);         \
+        }                                                       \
+    }                                                           \
 } while(0)
-		
+                
 
-#define copy_planar(fin, fout, p0, p1, p2, d0, d1, d2)			\
-static void								\
-fin##_##fout(int width, int height, const u_char **in, int *istride,	\
-	     u_char **out, int *ostride)				\
-{									\
-    copy_plane(0, p0, d0, 1);						\
-    copy_plane(1, p1, d1, 1);						\
-    copy_plane(2, p2, d2, 1);						\
+#define copy_planar(fin, fout, p0, p1, p2, d0, d1, d2)                  \
+static void                                                             \
+fin##_##fout(int width, int height, const u_char **in, int *istride,    \
+             u_char **out, int *ostride)                                \
+{                                                                       \
+    copy_plane(0, p0, d0, 1);                                           \
+    copy_plane(1, p1, d1, 1);                                           \
+    copy_plane(2, p2, d2, 1);                                           \
 }
 
-#define copy_packed(fin, fout, ss)					\
-static void								\
-fin##_##fout(int width, int height, const u_char **in, int *istride,	\
-	     u_char **out, int *ostride)				\
-{									\
-    copy_plane(0, 0, 1, ss);						\
+#define copy_packed(fin, fout, ss)                                      \
+static void                                                             \
+fin##_##fout(int width, int height, const u_char **in, int *istride,    \
+             u_char **out, int *ostride)                                \
+{                                                                       \
+    copy_plane(0, 0, 1, ss);                                            \
 }
 
 #define alias(f1, f2) f1() __attribute__((alias(#f2)))
@@ -145,7 +145,7 @@ copy_packed(rgb555, rgb555, 2)
 
 static void
 yvu9_yv12(int width, int height, const u_char **in, int *istride,
-	  u_char **out, int *ostride)
+          u_char **out, int *ostride)
 {
     copy_plane(0, 0, 1, 1);
     exp_plane(1, 2, 4, 2, 2);
@@ -154,7 +154,7 @@ yvu9_yv12(int width, int height, const u_char **in, int *istride,
 
 static void
 yuv422p_yv12(int width, int height, const u_char **in, int *istride,
-	     u_char **out, int *ostride)
+             u_char **out, int *ostride)
 {
     copy_plane(0, 0, 1, 1);
     red_plane(1, 2, 2, 1, 1, 2);
@@ -186,8 +186,8 @@ get_cconv(char *in, char *out)
     int i;
 
     for(i = 0; conv_table[i].in; i++)
-	if(!strcmp(in, conv_table[i].in) && !strcmp(out, conv_table[i].out))
-	    break;
+        if(!strcmp(in, conv_table[i].in) && !strcmp(out, conv_table[i].out))
+            break;
 
     return conv_table[i].conv;
 }

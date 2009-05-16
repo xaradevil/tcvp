@@ -1,4 +1,4 @@
-symbol	"new"	timer_driver_t *(*%s)(tcconf_section_t *, int resolution)
+symbol  "new"   timer_driver_t *(*%s)(tcconf_section_t *, int resolution)
 require "timer"
 preinclude<<END
 typedef struct timer_driver timer_driver_t;

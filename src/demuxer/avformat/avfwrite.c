@@ -36,9 +36,9 @@ typedef struct avf_write {
     int nstreams, astreams;
     int mapsize;
     struct {
-	int avidx;
-	uint64_t dts;
-	int used;
+        int avidx;
+        uint64_t dts;
+        int used;
     } *streams;
 } avf_write_t;
 
@@ -50,15 +50,15 @@ avfw_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int ai;
 
     if(!pk->data){
-	if(!--avf->nstreams)
-	    av_write_trailer(&avf->fc);
-	avf->streams[pk->stream].used = 0;
-	goto out;
+        if(!--avf->nstreams)
+            av_write_trailer(&avf->fc);
+        avf->streams[pk->stream].used = 0;
+        goto out;
     }
 
     if(!avf->header){
-	av_write_header(&avf->fc);
-	avf->header = 1;
+        av_write_header(&avf->fc);
+        avf->header = 1;
     }
 
     ai = avf->streams[pk->stream].avidx;
@@ -66,29 +66,29 @@ avfw_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 #if LIBAVFORMAT_BUILD < 4615
     if(pk->flags & TCVP_PKT_FLAG_DTS){
-	avf->streams[pk->stream].dts = pk->dts;
+        avf->streams[pk->stream].dts = pk->dts;
     } else if(pk->flags & TCVP_PKT_FLAG_PTS){
-	avf->streams[pk->stream].dts = pk->pts;
+        avf->streams[pk->stream].dts = pk->pts;
     }
     AVCODEC(avs, coded_frame)->key_frame = pk->flags & TCVP_PKT_FLAG_KEY;
     av_write_frame(&avf->fc, ai, pk->data[0], pk->sizes[0]);
 #else
     {
-	AVPacket ap;
-	av_init_packet(&ap);
-	if(pk->flags & TCVP_PKT_FLAG_PTS)
-	    ap.pts = pk->pts * avs->time_base.den /
-		(27000000 * avs->time_base.num);
-	if(pk->flags & TCVP_PKT_FLAG_DTS)
-	    ap.dts = pk->dts * avs->time_base.den /
-		(27000000 * avs->time_base.num);
-	ap.data = pk->data[0];
-	ap.size = pk->sizes[0];
-	ap.stream_index = ai;
-	if(pk->flags & TCVP_PKT_FLAG_KEY)
-	    ap.flags |= PKT_FLAG_KEY;
-	ap.destruct = NULL;
-	av_write_frame(&avf->fc, &ap);
+        AVPacket ap;
+        av_init_packet(&ap);
+        if(pk->flags & TCVP_PKT_FLAG_PTS)
+            ap.pts = pk->pts * avs->time_base.den /
+                (27000000 * avs->time_base.num);
+        if(pk->flags & TCVP_PKT_FLAG_DTS)
+            ap.dts = pk->dts * avs->time_base.den /
+                (27000000 * avs->time_base.num);
+        ap.data = pk->data[0];
+        ap.size = pk->sizes[0];
+        ap.stream_index = ai;
+        if(pk->flags & TCVP_PKT_FLAG_KEY)
+            ap.flags |= PKT_FLAG_KEY;
+        ap.destruct = NULL;
+        av_write_frame(&avf->fc, &ap);
     }
 #endif
 
@@ -109,21 +109,21 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     tcfree(pk);
 
     if(avf->astreams <= s->common.index){
-	int ns = s->common.index + 1;
-	avf->streams = realloc(avf->streams, ns * sizeof(*avf->streams));
-	memset(avf->streams + avf->astreams, 0,
-	       (ns - avf->astreams) * sizeof(*avf->streams));
-	avf->astreams = ns;
+        int ns = s->common.index + 1;
+        avf->streams = realloc(avf->streams, ns * sizeof(*avf->streams));
+        memset(avf->streams + avf->astreams, 0,
+               (ns - avf->astreams) * sizeof(*avf->streams));
+        avf->astreams = ns;
     }
 
     cname = avf_codec_avname(s->common.codec);
     avc = av_codec_next(NULL);
     while(avc && strcmp(cname, avc->name))
-	avc = avc->next;
+        avc = avc->next;
     free(cname);
 
     if(!avc)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     av_new_stream(&avf->fc, s->common.index);
     ai = avf->nstreams++;
@@ -134,20 +134,20 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     AVCODEC(as, coded_frame) = avcodec_alloc_frame();
     AVCODEC(as, bit_rate) = s->common.bit_rate;
     if(s->stream_type == STREAM_TYPE_VIDEO){
-	AVCODEC(as, codec_type) = CODEC_TYPE_VIDEO;
+        AVCODEC(as, codec_type) = CODEC_TYPE_VIDEO;
 #if LIBAVCODEC_BUILD > 4753
-	AVCODEC(as, time_base).den = s->video.frame_rate.num;
-	AVCODEC(as, time_base).num = s->video.frame_rate.den;
+        AVCODEC(as, time_base).den = s->video.frame_rate.num;
+        AVCODEC(as, time_base).num = s->video.frame_rate.den;
 #else
-	AVCODEC(as, frame_rate) = s->video.frame_rate.num;
-	AVCODEC(as, frame_rate_base) = s->video.frame_rate.den;
+        AVCODEC(as, frame_rate) = s->video.frame_rate.num;
+        AVCODEC(as, frame_rate_base) = s->video.frame_rate.den;
 #endif
-	AVCODEC(as, width) = s->video.width;
-	AVCODEC(as, height) = s->video.height;
+        AVCODEC(as, width) = s->video.width;
+        AVCODEC(as, height) = s->video.height;
     } else if(s->stream_type == STREAM_TYPE_AUDIO){
-	AVCODEC(as, codec_type) = CODEC_TYPE_AUDIO;
-	AVCODEC(as, sample_rate) = s->audio.sample_rate;
-	AVCODEC(as, channels) = s->audio.channels;
+        AVCODEC(as, codec_type) = CODEC_TYPE_AUDIO;
+        AVCODEC(as, sample_rate) = s->audio.sample_rate;
+        AVCODEC(as, channels) = s->audio.channels;
     }
 
     return PROBE_OK;
@@ -163,31 +163,31 @@ avfw_free(void *p)
     free(avf->streams);
 
     for(i = 0; i < avf->fc.nb_streams; i++){
-	av_free(AVCODEC(avf->fc.streams[i], coded_frame));
-	av_free(avf->fc.streams[i]);
+        av_free(AVCODEC(avf->fc.streams[i], coded_frame));
+        av_free(avf->fc.streams[i]);
     }
 }
 
 extern int
 avfw_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-	 muxed_stream_t *ms)
+         muxed_stream_t *ms)
 {
     avf_write_t *avf;
     AVOutputFormat *of;
     char *ofn;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &ofn) <= 0)
-	return -1;
+        return -1;
 
     if(!(of = guess_format(NULL, ofn, NULL)))
-	return -1;
+        return -1;
 
     avf = tcallocdz(sizeof(*avf), NULL, avfw_free);
     avf->fc.oformat = of;
 
     if(url_fopen(&avf->fc.pb, ofn, URL_WRONLY)){
-	free(avf);
-	return -1;
+        free(avf);
+        return -1;
     }
     av_set_parameters(&avf->fc, NULL);
 

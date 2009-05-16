@@ -28,8 +28,8 @@
 #include <tcvp_types.h>
 
 extern muxed_stream_t *pcm_open(url_t *u, char *codec, int channels,
-				int srate, int samples, int brate,
-				int align, char *cd, int cds);
+                                int srate, int samples, int brate,
+                                int align, char *cd, int cds);
 
 typedef struct pcm_write pcm_write_t;
 struct pcm_write {

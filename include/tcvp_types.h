@@ -36,7 +36,7 @@ typedef struct tcvp_data_packet {
     u_char **data;
     int *sizes;
     int planes;
-    int x, y, w, h;		/* slice position */
+    int x, y, w, h;             /* slice position */
     int flags;
     uint64_t pts, dts;
     u_int samples;
@@ -73,11 +73,11 @@ typedef union tcvp_packet {
 #define TCVP_PKT_TYPE_STILL 2
 #define TCVP_PKT_TYPE_TIMER 3
 
-#define TCVP_PKT_FLAG_PTS		0x01
-#define TCVP_PKT_FLAG_DTS		0x02
-#define TCVP_PKT_FLAG_KEY		0x04
-#define TCVP_PKT_FLAG_DISCONT		0x08
-#define TCVP_PKT_FLAG_TOPFIELDFIRST	0x10
+#define TCVP_PKT_FLAG_PTS               0x01
+#define TCVP_PKT_FLAG_DTS               0x02
+#define TCVP_PKT_FLAG_KEY               0x04
+#define TCVP_PKT_FLAG_DISCONT           0x08
+#define TCVP_PKT_FLAG_TOPFIELDFIRST     0x10
 
 #define STREAM_TYPE_VIDEO     1
 #define STREAM_TYPE_AUDIO     2
@@ -88,14 +88,14 @@ typedef union tcvp_packet {
 #define TCVP_STREAM_FLAG_NOBUFFER   0x2
 #define TCVP_STREAM_FLAG_TRUNCATED  0x4
 
-#define STREAM_COMMON				\
-    int stream_type;				\
-    char *codec;				\
-    void *codec_data;				\
-    int codec_data_size;			\
-    uint64_t start_time;			\
-    int index;					\
-    int flags;					\
+#define STREAM_COMMON                           \
+    int stream_type;                            \
+    char *codec;                                \
+    void *codec_data;                           \
+    int codec_data_size;                        \
+    uint64_t start_time;                        \
+    int index;                                  \
+    int flags;                                  \
     int bit_rate;                               \
     unsigned program
 
@@ -125,7 +125,7 @@ typedef struct subtitle_stream {
 typedef union stream {
     int stream_type;
     struct {
-	STREAM_COMMON;
+        STREAM_COMMON;
     } common;
     video_stream_t video;
     audio_stream_t audio;

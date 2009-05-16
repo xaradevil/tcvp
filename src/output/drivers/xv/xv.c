@@ -60,10 +60,10 @@ do_show(xv_window_t *xvw, int frame)
     pthread_mutex_lock(&xvw->flock);
 
     XvShmPutImage(xvw->dpy, xvw->port, xvw->win, xvw->gc,
-		  xvw->images[frame],
-		  0, 0, xvw->width, xvw->height,
-		  xvw->dx, xvw->dy, xvw->dw, xvw->dh,
-		  False);
+                  xvw->images[frame],
+                  0, 0, xvw->width, xvw->height,
+                  xvw->dx, xvw->dy, xvw->dw, xvw->dh,
+                  False);
     XSync(xvw->dpy, False);
 
     xvw->last_frame = frame;
@@ -87,16 +87,16 @@ xv_get(video_driver_t *vd, int frame, u_char **data, int *strides)
 
     pthread_mutex_lock(&xvw->flock);
     if(frame == xvw->last_frame){
-	if(xvw->last_frame == vd->frames - 1)
-	    xvw->last_frame = 0;
-	else
-	    xvw->last_frame++;
+        if(xvw->last_frame == vd->frames - 1)
+            xvw->last_frame = 0;
+        else
+            xvw->last_frame++;
     }
     pthread_mutex_unlock(&xvw->flock);
 
     for(i = 0; i < xi->num_planes; i++){
-	data[i] = (u_char*)xi->data + xi->offsets[i];
-	strides[i] = xi->pitches[i];
+        data[i] = (u_char*)xi->data + xi->offsets[i];
+        strides[i] = xi->pitches[i];
     }
 
     return xi->num_planes;
@@ -138,9 +138,9 @@ xv_close(video_driver_t *vd)
     tcfree(xvw->mod);
 
     for(i = 0; i < vd->frames; i++){
-	XShmDetach(xvw->dpy, &xvw->shm[i]);
-	shmdt(xvw->shm[i].shmaddr);
-	XFree(xvw->images[i]);
+        XShmDetach(xvw->dpy, &xvw->shm[i]);
+        shmdt(xvw->shm[i].shmaddr);
+        XFree(xvw->images[i]);
     }
 
     xvw->wm->close(xvw->wm);
@@ -175,9 +175,9 @@ xv_get_format(const char *fmt)
     unsigned int i;
 
     for(i = 0; i < NUMFORMATS; i++){
-	if(!strcmp(fmt, formats[i].name)){
-	    return formats[i].tag;
-	}
+        if(!strcmp(fmt, formats[i].name)){
+            return formats[i].tag;
+        }
     }
 
     return 0;
@@ -233,7 +233,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 
     fmt = strstr(vs->codec, "raw-");
     if(!fmt)
-	return NULL;
+        return NULL;
     fmt += 4;
 
     fmtid = xv_get_format(fmt);
@@ -245,57 +245,57 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     }
 
     if(!fmtid){
-	tc2_print("XV", TC2_PRINT_ERROR, "unknown format '%s'\n", fmt);
-	return NULL;
+        tc2_print("XV", TC2_PRINT_ERROR, "unknown format '%s'\n", fmt);
+        return NULL;
     }
 
     if(cs){
-	tcconf_getvalue(cs, "video/device", "%s", &display);
-	tcconf_getvalue(cs, "video/aspect", "%f", &dasp);
+        tcconf_getvalue(cs, "video/device", "%s", &display);
+        tcconf_getvalue(cs, "video/aspect", "%f", &dasp);
     }
 
     XInitThreads();
 
     if((dpy = XOpenDisplay(display)) == NULL){
-	tc2_print("XV", TC2_PRINT_ERROR, "can't open display %s\n",
-		  display? display: "NULL");
-	return NULL;
+        tc2_print("XV", TC2_PRINT_ERROR, "can't open display %s\n",
+                  display? display: "NULL");
+        return NULL;
     }
 
     if(XvQueryExtension(dpy, &ver, &rev, &rb, &evb, &erb) != Success){
-	tc2_print("XV", TC2_PRINT_ERROR, "XVideo extension not present\n");
-	return NULL;
+        tc2_print("XV", TC2_PRINT_ERROR, "XVideo extension not present\n");
+        return NULL;
     }
 
     tc2_print("XV", TC2_PRINT_DEBUG, "XVideo version %u.%u\n", ver, rev);
 
     if(XvQueryAdaptors(dpy, DefaultRootWindow(dpy), &na, &xai) != Success){
-	tc2_print("XV", TC2_PRINT_ERROR, "XvQueryAdaptors failed\n");
-	return NULL;
+        tc2_print("XV", TC2_PRINT_ERROR, "XvQueryAdaptors failed\n");
+        return NULL;
     }
 
     tc2_print("XV", TC2_PRINT_DEBUG, "%i adaptors\n", na);
 
     for(i = 0; i < na && !port; i++){
-	int j;
+        int j;
 
         tc2_print("XV", TC2_PRINT_DEBUG,
                   "Adaptor #%i: \"%s\", %i ports, base %i\n",
                   i, xai[i].name, xai[i].num_ports, xai[i].base_id);
 
-	for(j = 0; j < xai[i].num_ports && !port; j++){
-	    XvImageFormatValues *xif;
-	    int nf, k;
+        for(j = 0; j < xai[i].num_ports && !port; j++){
+            XvImageFormatValues *xif;
+            int nf, k;
 
-	    xif = XvListImageFormats(dpy, xai[i].base_id + j, &nf);
-	    for(k = 0; k < nf; k++){
-		if(xif[k].id == fmtid){
-		    port = xai[i].base_id + j;
-		    break;
-		}
-	    }
-	    XFree(xif);
-	}
+            xif = XvListImageFormats(dpy, xai[i].base_id + j, &nf);
+            for(k = 0; k < nf; k++){
+                if(xif[k].id == fmtid){
+                    port = xai[i].base_id + j;
+                    break;
+                }
+            }
+            XFree(xif);
+        }
     }
 
     XvFreeAdaptorInfo(xai);
@@ -303,7 +303,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     if(!port){
         tc2_print("XV", TC2_PRINT_ERROR,
                   "no suitable port for format %s\n", fmt);
-	return NULL;
+        return NULL;
     }
 
     tc2_print("XV", TC2_PRINT_DEBUG, "using port %i\n", port);
@@ -320,20 +320,20 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     pthread_mutex_init(&xvw->flock, NULL);
 
     if(dasp > 0 || (vs->aspect.num && vs->aspect.den)){
-	float asp = (float) vs->width / vs->height;
-	if(dasp <= 0)
-	    dasp = (float) vs->aspect.num / vs->aspect.den;
-	if(dasp > asp)
-	    xvw->dw = (float) vs->height * dasp;
-	else
-	    xvw->dh = (float) vs->width / dasp;
+        float asp = (float) vs->width / vs->height;
+        if(dasp <= 0)
+            dasp = (float) vs->aspect.num / vs->aspect.den;
+        if(dasp > asp)
+            xvw->dw = (float) vs->height * dasp;
+        else
+            xvw->dh = (float) vs->width / dasp;
     }
 
     xvattr = XvQueryPortAttributes(dpy, port, &nattr);
 
     for(i = 0; i < driver_video_xv_conf_attribute_count; i++){
-	char *name = driver_video_xv_conf_attribute[i].name;
-	int value = driver_video_xv_conf_attribute[i].value;
+        char *name = driver_video_xv_conf_attribute[i].name;
+        int value = driver_video_xv_conf_attribute[i].value;
         if(!xv_valid_attr(xvattr, nattr, name, 1, value)){
             if((atm = XInternAtom(dpy, name, True)) != None){
                 XvSetPortAttribute(dpy, xvw->port, atm, value);
@@ -345,18 +345,18 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     }
 
     if((atm = XInternAtom(dpy, "XV_COLORKEY", True)) != None){
-	if(tcconf_getvalue(cs, "video/color_key", "%i", &color_key) > 0){
+        if(tcconf_getvalue(cs, "video/color_key", "%i", &color_key) > 0){
             if(!xv_valid_attr(xvattr, nattr, "XV_COLORKEY", 1, color_key))
                 XvSetPortAttribute(dpy, xvw->port, atm, color_key);
             else
                 tc2_print("XV", TC2_PRINT_WARNING, "can't set color key\n");
-	} else {
+        } else {
             if(!xv_valid_attr(xvattr, nattr, "XV_COLORKEY", 0, 0)){
                 XvGetPortAttribute(dpy, xvw->port, atm, &color_key);
                 tcconf_clearvalue(cs, "video/color_key");
                 tcconf_setvalue(cs, "video/color_key", "%i", color_key);
             }
-	}
+        }
     }
 
     XFree(xvattr);
@@ -368,8 +368,8 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
 
     if(!(wm = wm_x11_open(xvw->dw, xvw->dh, cs, 0))){
         tcfree(xvw->mod);
-	free(xvw);
-	return NULL;
+        free(xvw);
+        return NULL;
     }
     wm_x11_getwindow(wm, &dpy, &win);
 
@@ -379,19 +379,19 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     xvw->wm = wm;
 
     for(i = 0; i < frames; i++){
-	XvImage *xvi;
-	XShmSegmentInfo *shm = &xvw->shm[i];
+        XvImage *xvi;
+        XShmSegmentInfo *shm = &xvw->shm[i];
 
-	xvi = XvShmCreateImage(dpy, xvw->port, fmtid, NULL,
-			       vs->width, vs->height, shm);
-	shm->shmid = shmget(IPC_PRIVATE, xvi->data_size, IPC_CREAT | 0777);
-	shm->shmaddr = shmat(shm->shmid, 0, 0);
-	shm->readOnly = False;
-	xvi->data = shm->shmaddr;
-	XShmAttach(xvw->dpy, shm);
-	shmctl(shm->shmid, IPC_RMID, NULL); /* delete now in case we crash */
+        xvi = XvShmCreateImage(dpy, xvw->port, fmtid, NULL,
+                               vs->width, vs->height, shm);
+        shm->shmid = shmget(IPC_PRIVATE, xvi->data_size, IPC_CREAT | 0777);
+        shm->shmaddr = shmat(shm->shmid, 0, 0);
+        shm->readOnly = False;
+        xvi->data = shm->shmaddr;
+        XShmAttach(xvw->dpy, shm);
+        shmctl(shm->shmid, IPC_RMID, NULL); /* delete now in case we crash */
 
-	xvw->images[i] = xvi;
+        xvw->images[i] = xvi;
     }
 
     XSync(xvw->dpy, False);
@@ -405,7 +405,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     vd->private = xvw;
 
     if(display)
-	free(display);
+        free(display);
 
     return vd;
 }

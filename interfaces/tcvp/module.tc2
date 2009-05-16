@@ -1,4 +1,4 @@
-symbol	"new"	tcvp_module_t *(*%s)(tcconf_section_t *)
+symbol  "new"   tcvp_module_t *(*%s)(tcconf_section_t *)
 include
 #include <tcconf.h>
 

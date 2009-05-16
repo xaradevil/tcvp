@@ -56,9 +56,9 @@ alsa_start(audio_driver_t *p)
 
     s = snd_pcm_state(ao->pcm);
     if(s == SND_PCM_STATE_PAUSED)
-	snd_pcm_pause(ao->pcm, 0);
+        snd_pcm_pause(ao->pcm, 0);
     else if(s != SND_PCM_STATE_RUNNING && s != SND_PCM_STATE_PREPARED)
-	snd_pcm_prepare(ao->pcm);
+        snd_pcm_prepare(ao->pcm);
 
     return 0;
 }
@@ -69,7 +69,7 @@ alsa_stop(audio_driver_t *p)
     alsa_out_t *ao = p->private;
 
     if(ao->can_pause && (snd_pcm_state(ao->pcm) == SND_PCM_STATE_RUNNING))
-	snd_pcm_pause(ao->pcm, 1);
+        snd_pcm_pause(ao->pcm, 1);
 
     return 0;
 }
@@ -81,18 +81,18 @@ alsa_free(void *p)
     alsa_out_t *ao = ad->private;
 
     if(ao->hwp){
-	snd_pcm_hw_params_free(ao->hwp);
-	snd_pcm_drop(ao->pcm);
+        snd_pcm_hw_params_free(ao->hwp);
+        snd_pcm_drop(ao->pcm);
     }
     if(ao->pcm){
-	snd_pcm_close(ao->pcm);
+        snd_pcm_close(ao->pcm);
     }
 
     if(ao->tmdrivers[PCM])
-	tcfree(ao->tmdrivers[PCM]);
+        tcfree(ao->tmdrivers[PCM]);
     if(ao->tmdrivers[SYSTEM]){
-	ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
-	tcfree(ao->tmdrivers[SYSTEM]);
+        ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
+        tcfree(ao->tmdrivers[SYSTEM]);
     }
     free(ao);
 }
@@ -103,16 +103,16 @@ alsa_flush(audio_driver_t *p, int drop)
     alsa_out_t *ao = p->private;
 
     if(drop){
-	if(ao->hwp)
-	    snd_pcm_drop(ao->pcm);
+        if(ao->hwp)
+            snd_pcm_drop(ao->pcm);
     } else {
-	if(snd_pcm_drain(ao->pcm) == -EAGAIN)
-	    snd_pcm_wait(ao->pcm, 100);
-	if(ao->tmdrivers[SYSTEM]){
-	    ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
-	    if(ao->tmdrivers[PCM])
-		ao->restore_timer = 1;
-	}
+        if(snd_pcm_drain(ao->pcm) == -EAGAIN)
+            snd_pcm_wait(ao->pcm, 100);
+        if(ao->tmdrivers[SYSTEM]){
+            ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[SYSTEM]));
+            if(ao->tmdrivers[PCM])
+                ao->restore_timer = 1;
+        }
     }
 
     return 0;
@@ -125,18 +125,18 @@ alsa_write(audio_driver_t *ad, void *data, int samples)
     int r;
 
     if(ao->restore_timer){
-	ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[PCM]));
-	ao->restore_timer = 0;
+        ao->timer->set_driver(ao->timer, tcref(ao->tmdrivers[PCM]));
+        ao->restore_timer = 0;
     }
 
     r = snd_pcm_writei(ao->pcm, data, samples);
 
     if(r < 0 && r != -EAGAIN){
-	if(snd_pcm_prepare(ao->pcm) < 0){
-	    tc2_print("ALSA", TC2_PRINT_ERROR, "%s\n", snd_strerror(r));
-	} else {
-	    r = -EAGAIN;
-	}
+        if(snd_pcm_prepare(ao->pcm) < 0){
+            tc2_print("ALSA", TC2_PRINT_ERROR, "%s\n", snd_strerror(r));
+        } else {
+            r = -EAGAIN;
+        }
     }
 
     return r;
@@ -177,15 +177,15 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
 
     tcconf_getvalue(cs, "audio/device", "%s", &device);
     if(!device){
-	if(tcvp_driver_audio_alsa_conf_device)
-	    device = strdup(tcvp_driver_audio_alsa_conf_device);
-	else
-	    return NULL;
+        if(tcvp_driver_audio_alsa_conf_device)
+            device = strdup(tcvp_driver_audio_alsa_conf_device);
+        else
+            return NULL;
     }
 
     if(snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)){
-	tc2_print("ALSA", TC2_PRINT_ERROR, "Can't open device '%s'\n", device);
-	return NULL;
+        tc2_print("ALSA", TC2_PRINT_ERROR, "Can't open device '%s'\n", device);
+        return NULL;
     }
 
     free(device);
@@ -197,36 +197,36 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     snd_pcm_hw_params_set_access(pcm, hwp, SND_PCM_ACCESS_RW_INTERLEAVED);
 
     if(strstr(as->codec, "pcm-s16le")){
-	afmt = SND_PCM_FORMAT_S16_LE;
-	format = "s16le";
+        afmt = SND_PCM_FORMAT_S16_LE;
+        format = "s16le";
     } else if(strstr(as->codec, "pcm-u16le")){
-	afmt = SND_PCM_FORMAT_U16_LE;
-	format = "u16le";
+        afmt = SND_PCM_FORMAT_U16_LE;
+        format = "u16le";
     } else if(strstr(as->codec, "pcm-s16be")){
-	afmt = SND_PCM_FORMAT_S16_BE;
-	format = "s16be";
+        afmt = SND_PCM_FORMAT_S16_BE;
+        format = "s16be";
     } else if(strstr(as->codec, "pcm-u16be")){
-	afmt = SND_PCM_FORMAT_U16_BE;
-	format = "u16be";
+        afmt = SND_PCM_FORMAT_U16_BE;
+        format = "u16be";
     } else if(strstr(as->codec, "pcm-u8")){
-	afmt = SND_PCM_FORMAT_U8;
-	format = "u8";
+        afmt = SND_PCM_FORMAT_U8;
+        format = "u8";
     } else if(strstr(as->codec, "pcm-s8")){
-	afmt = SND_PCM_FORMAT_S8;
-	format = "s8";
+        afmt = SND_PCM_FORMAT_S8;
+        format = "s8";
     } else if(strstr(as->codec, "pcm-f32le")){
-	afmt = SND_PCM_FORMAT_FLOAT_LE;
-	format = "f32le";
+        afmt = SND_PCM_FORMAT_FLOAT_LE;
+        format = "f32le";
     } else {
-	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n",
-		  as->codec);
-	goto err;
+        tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n",
+                  as->codec);
+        goto err;
     }
 
     if(snd_pcm_hw_params_test_format(pcm, hwp, afmt)){
-	tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n",
-		  as->codec);
-	goto err;
+        tc2_print("ALSA", TC2_PRINT_ERROR, "unsupported format %s\n",
+                  as->codec);
+        goto err;
     }
     snd_pcm_hw_params_set_format(pcm, hwp, afmt);
     snd_pcm_hw_params_set_rate_near(pcm, hwp, &rate, &tmp);
@@ -249,18 +249,18 @@ alsa_new(audio_stream_t *as, tcconf_section_t *cs, tcvp_timer_t *timer)
     snd_pcm_hw_params_set_buffer_size(pcm, hwp, bsize);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
-	tc2_print("ALSA", TC2_PRINT_ERROR, "snd_pcm_hw_parameters failed\n");
-	goto err;
+        tc2_print("ALSA", TC2_PRINT_ERROR, "snd_pcm_hw_parameters failed\n");
+        goto err;
     }
 
     ao = calloc(1, sizeof(*ao));
     ao->pcm = pcm;
     ao->timer = timer;
     if(tcvp_driver_audio_alsa_conf_pcm_timer && !timer->have_driver){
-	ao->tmdrivers[PCM] = open_timer(270000, pcm);
-	ao->tmdrivers[SYSTEM] = open_timer(270000, NULL);
-	if(ao->tmdrivers[PCM])
-	    timer->set_driver(timer, tcref(ao->tmdrivers[PCM]));
+        ao->tmdrivers[PCM] = open_timer(270000, pcm);
+        ao->tmdrivers[SYSTEM] = open_timer(270000, NULL);
+        if(ao->tmdrivers[PCM])
+            timer->set_driver(timer, tcref(ao->tmdrivers[PCM]));
     }
     ao->hwp = hwp;
     ao->can_pause = snd_pcm_hw_params_can_pause(hwp);

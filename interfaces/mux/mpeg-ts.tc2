@@ -1,5 +1,5 @@
 inherit "mux"
-option	outbuf%i=7
-option	bitrate%i=12500000
-option	pad%i=0
-option	pcr_interval%i=40
+option  outbuf%i=7
+option  bitrate%i=12500000
+option  pad%i=0
+option  pcr_interval%i=40

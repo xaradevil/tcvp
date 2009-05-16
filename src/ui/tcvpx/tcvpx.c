@@ -53,7 +53,7 @@ tcvpx_init(tcvp_module_t *tm)
     tcconf_getvalue(tx->conf, "skin", "%s", &skinfile);
 
     if(skinfile == NULL) {
-	skinfile = strdup(tcvp_ui_tcvpx_conf_skin);
+        skinfile = strdup(tcvp_ui_tcvpx_conf_skin);
     }
 
     qs = tcvp_event_get_sendq(tx->conf, "control");
@@ -62,15 +62,15 @@ tcvpx_init(tcvp_module_t *tm)
     init_skins();
 
     if((skin = load_skin(skinfile)) == NULL){
-	tc2_print("TCVPX", TC2_PRINT_ERROR,
-		  "Unable to load skin: \"%s\"\n", skinfile);
-	return -1;
+        tc2_print("TCVPX", TC2_PRINT_ERROR,
+                  "Unable to load skin: \"%s\"\n", skinfile);
+        return -1;
     }
 
     skin->skin_hash = tchash_new(10, 0, 0);
     tcconf_getvalue(skin->config, "id", "%s", &skin->id);
     if(skin->id != NULL) {
-	tchash_search(skin->skin_hash, skin->id, -1, skin, NULL);
+        tchash_search(skin->skin_hash, skin->id, -1, skin, NULL);
     }
 
     skin->window = xtk_window_create(NULL, 0, 0, skin->width, skin->height);
@@ -78,9 +78,9 @@ tcvpx_init(tcvp_module_t *tm)
     xtk_window_set_class(skin->window, "TCVP");
 
     if(create_ui(skin->window, skin, skin->config, NULL) != 0){
-	tc2_print("TCVPX", TC2_PRINT_ERROR,
-		  "Unable to load skin: \"%s\"\n", skinfile);
-	return -1;
+        tc2_print("TCVPX", TC2_PRINT_ERROR,
+                  "Unable to load skin: \"%s\"\n", skinfile);
+        return -1;
     }
 
     wd = tcallocdz(sizeof(*wd), NULL, widgetdata_free);
@@ -96,7 +96,7 @@ tcvpx_init(tcvp_module_t *tm)
     char *default_text = malloc(1024);
     tcconf_getvalue(skin->config, "title", "%s", &wd->value);
     if(wd->value == NULL) {
-	wd->value = strdup(tcvp_ui_tcvpx_conf_window_title);
+        wd->value = strdup(tcvp_ui_tcvpx_conf_window_title);
     }
     register_textwidget(skin->window, wd->value);
 
@@ -107,28 +107,28 @@ tcvpx_init(tcvp_module_t *tm)
     xtk_window_show(skin->window);
 
     if(xpos > -2 && ypos > -2) {
-	xtk_position_t pos;
+        xtk_position_t pos;
 
-	if(xpos < 0) {
-	    xpos = rwidth - skin->width;
-	}
-	if(ypos < 0) {
-	    ypos = rheight - skin->height;
-	}
+        if(xpos < 0) {
+            xpos = rwidth - skin->width;
+        }
+        if(ypos < 0) {
+            ypos = rheight - skin->height;
+        }
 
-	pos.x = xpos;
-	pos.y = ypos;
-	xtk_window_set_position(skin->window, &pos);
+        pos.x = xpos;
+        pos.y = ypos;
+        xtk_window_set_position(skin->window, &pos);
     }
 
     if(tcvp_ui_tcvpx_conf_sticky != 0) {
-	xtk_window_set_sticky(skin->window, 1);
-	skin->state |= ST_STICKY;
+        xtk_window_set_sticky(skin->window, 1);
+        skin->state |= ST_STICKY;
     }
 
     if(tcvp_ui_tcvpx_conf_always_on_top != 0) {
-	xtk_window_set_always_on_top(skin->window, 1);
-	skin->state |= ST_ON_TOP;
+        xtk_window_set_always_on_top(skin->window, 1);
+        skin->state |= ST_ON_TOP;
     }
 
     update_time();
@@ -152,7 +152,7 @@ tcvpx_free(void *p)
     free_ctl();
 
     if(qs)
-	eventq_delete(qs);
+        eventq_delete(qs);
     tcfree(tx->conf);
 }
 

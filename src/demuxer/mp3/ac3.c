@@ -95,9 +95,9 @@ ac3_header(u_char *head, mp3_frame_t *mf)
     tcvp_bits_init(&bits, head, 8);
 
     if(tcvp_bits_get(&bits, 16) != 0x0b77)
-	return -1;
+        return -1;
 
-    tcvp_bits_get(&bits, 16);	/* crc */
+    tcvp_bits_get(&bits, 16);   /* crc */
     fscod = tcvp_bits_get(&bits, 2);
     frmsizecod = tcvp_bits_get(&bits, 6);
 
@@ -105,19 +105,19 @@ ac3_header(u_char *head, mp3_frame_t *mf)
         return -1;
 
     if(!ac3_sample_rates[fscod])
-	return -1;
+        return -1;
 
     bsid = tcvp_bits_get(&bits, 5);
     if(bsid > 8)
-	return -1;
-    tcvp_bits_get(&bits, 3);	/* bsmod */
+        return -1;
+    tcvp_bits_get(&bits, 3);    /* bsmod */
     acmod = tcvp_bits_get(&bits, 3);
     if(acmod & 1 && acmod != 1)
-	tcvp_bits_get(&bits, 2); /* cmixlev */
+        tcvp_bits_get(&bits, 2); /* cmixlev */
     if(acmod & 4)
-	tcvp_bits_get(&bits, 2); /* surmixlev */
+        tcvp_bits_get(&bits, 2); /* surmixlev */
     if(acmod & 2)
-	tcvp_bits_get(&bits, 2); /* dsurmod */
+        tcvp_bits_get(&bits, 2); /* dsurmod */
     lfeon = tcvp_bits_get(&bits, 1);
 
     mf->sample_rate = ac3_sample_rates[fscod];

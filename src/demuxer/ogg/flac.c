@@ -39,21 +39,21 @@ flac_header(muxed_stream_t *ms, int idx)
     int size = os->psize;
 
     if(*p == 0xff)
-	return 0;
+        return 0;
 
     if((*p & 0x7f) == 0x7f){
-	p += 17;
-	size -= 17;
-	st->stream_type = STREAM_TYPE_AUDIO;
-	st->audio.codec = "audio/flac";
-	audio_x_flac_streaminfo(ms, st, p, size);
-	st->audio.codec_data = malloc(size);
-	st->audio.codec_data_size = size;
-	memcpy(st->audio.codec_data, p, size);
+        p += 17;
+        size -= 17;
+        st->stream_type = STREAM_TYPE_AUDIO;
+        st->audio.codec = "audio/flac";
+        audio_x_flac_streaminfo(ms, st, p, size);
+        st->audio.codec_data = malloc(size);
+        st->audio.codec_data_size = size;
+        memcpy(st->audio.codec_data, p, size);
     } else if((*p & 0x7f) == 4){
-	p += 4;
-	size -= 4;
-	vorbis_comment(ms, p, size);
+        p += 4;
+        size -= 4;
+        vorbis_comment(ms, p, size);
     }
 
     return 1;

@@ -1,4 +1,4 @@
-symbol	"open"		muxed_stream_t *(*%s)(char *, url_t *, tcconf_section_t *, tcvp_timer_t *)
+symbol  "open"          muxed_stream_t *(*%s)(char *, url_t *, tcconf_section_t *, tcvp_timer_t *)
 require "timer"
 require "URL"
 include

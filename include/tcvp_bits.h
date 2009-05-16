@@ -55,26 +55,26 @@ tcvp_bits_get(tcvp_bits_t *s, int bits)
     uint32_t v = 0;
 
     while(bits){
-	int b;
-	uint32_t m;
+        int b;
+        uint32_t m;
 
-	if(!s->bs){
-	    if(s->size * 8 < bits)
-		return -1;
+        if(!s->bs){
+            if(s->size * 8 < bits)
+                return -1;
 
-	    s->bits = htob_32(unaligned32(s->data.r));
-	    s->data.r += 4;
-	    s->size -= 4;
-	    s->bs = 32;
-	}
+            s->bits = htob_32(unaligned32(s->data.r));
+            s->data.r += 4;
+            s->size -= 4;
+            s->bs = 32;
+        }
 
-	b = bs_min(bits, s->bs);
-	v <<= b;
-	m = b < 32? (1 << b) - 1: -1;
-	v |= (s->bits >> (32 - b)) & m;
-	s->bits <<= b;
-	s->bs -= b;
-	bits -= b;
+        b = bs_min(bits, s->bs);
+        v <<= b;
+        m = b < 32? (1 << b) - 1: -1;
+        v |= (s->bits >> (32 - b)) & m;
+        s->bits <<= b;
+        s->bs -= b;
+        bits -= b;
     }
 
     return v;
@@ -84,19 +84,19 @@ static inline void
 tcvp_bits_put(tcvp_bits_t *s, uint32_t d, int bits)
 {
     while(bits){
-	int b = bs_min(bits, 32 - s->bs);
-	uint32_t m = b < 32? (1 << b) - 1: -1;
-	s->bits <<= b;
-	s->bits |= (d >> (bits - b)) & m;
-	s->bs += b;
-	bits -= b;
+        int b = bs_min(bits, 32 - s->bs);
+        uint32_t m = b < 32? (1 << b) - 1: -1;
+        s->bits <<= b;
+        s->bits |= (d >> (bits - b)) & m;
+        s->bs += b;
+        bits -= b;
 
-	if(s->bs == 32){
-	    st_unaligned32(htob_32(s->bits), s->data.w);
-	    s->data.w += 4;
-	    s->size -= 4;
-	    s->bs = 0;
-	}
+        if(s->bs == 32){
+            st_unaligned32(htob_32(s->bits), s->data.w);
+            s->data.w += 4;
+            s->size -= 4;
+            s->bs = 0;
+        }
     }
 }
 
@@ -104,18 +104,18 @@ static inline void
 tcvp_bits_flush(tcvp_bits_t *s)
 {
     if(!s->bs)
-	return;
+        return;
 
     while(s->bs > 7){
-	*s->data.w++ = s->bits >> (s->bs - 8);
-	s->bs -= 8;
-	s->size--;
+        *s->data.w++ = s->bits >> (s->bs - 8);
+        s->bs -= 8;
+        s->size--;
     }
 
     if(s->bs){
-	*s->data.w++ = s->bits << (8 - s->bs);
-	s->bs = 0;
-	s->size--;
+        *s->data.w++ = s->bits << (8 - s->bs);
+        s->bs = 0;
+        s->size--;
     }
 }
 
@@ -127,7 +127,7 @@ tcvp_bits_getue(tcvp_bits_t *bs)
     int b;
 
     for(b = 0; !b; lzb++)
-	b = tcvp_bits_get(bs, 1);
+        b = tcvp_bits_get(bs, 1);
 
     codenum = (1 << lzb) - 1 + tcvp_bits_get(bs, lzb);
 
@@ -142,7 +142,7 @@ tcvp_bits_getse(tcvp_bits_t *bs)
 
     val = (codenum + 1) / 2;
     if(!(codenum & 1))
-	val = -val;
+        val = -val;
 
     return val;
 }

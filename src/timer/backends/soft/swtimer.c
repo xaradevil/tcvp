@@ -98,19 +98,19 @@ timer_run(void *p)
     time.tv_nsec = stime.tv_usec * 1000;
 
     while(st->state != STOP){
-	time.tv_nsec += 1000 * st->res / 27;
-	if(time.tv_nsec > 1000000000){
-	    time.tv_sec++;
-	    time.tv_nsec -= 1000000000;
-	}
+        time.tv_nsec += 1000 * st->res / 27;
+        if(time.tv_nsec > 1000000000){
+            time.tv_sec++;
+            time.tv_nsec -= 1000000000;
+        }
 
-	pthread_cond_timedwait(&cd, &mx, &time);
+        pthread_cond_timedwait(&cd, &mx, &time);
 
-	pthread_mutex_lock(&st->mx);
-	if(st->state == RUN && st->timer){
-	    st->timer->tick(st->timer, st->res);
-	}
-	pthread_mutex_unlock(&st->mx);
+        pthread_mutex_lock(&st->mx);
+        if(st->state == RUN && st->timer){
+            st->timer->tick(st->timer, st->res);
+        }
+        pthread_mutex_unlock(&st->mx);
     }
 
     pthread_mutex_unlock(&mx);

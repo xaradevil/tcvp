@@ -70,22 +70,22 @@ vis_play(void *p)
     tc2_print("XMMS", TC2_PRINT_DEBUG, "vis_play starting\n");
 
     while(xv->run){
-	pthread_mutex_lock(&xv->lock);
-	while(xv->run && !tclist_items(xv->packets))
-	    pthread_cond_wait(&xv->cond, &xv->lock);
-	pthread_mutex_unlock(&xv->lock);
+        pthread_mutex_lock(&xv->lock);
+        while(xv->run && !tclist_items(xv->packets))
+            pthread_cond_wait(&xv->cond, &xv->lock);
+        pthread_mutex_unlock(&xv->lock);
 
-	if(!xv->run)
-	    break;
+        if(!xv->run)
+            break;
 
-	vp = tclist_shift(xv->packets);
-	tc2_print("XMMS", TC2_PRINT_DEBUG+1, "pts %lli\n", vp->pts / 27);
-	xv->timer->wait(xv->timer, vp->pts, NULL);
-	if(xv->vp->render_pcm && xv->vp->num_pcm_chs_wanted)
-	    xv->vp->render_pcm(vp->pcm);
-	if(xv->vp->render_freq && xv->vp->num_freq_chs_wanted)
-	    xv->vp->render_freq(vp->freq);
-	free(vp);
+        vp = tclist_shift(xv->packets);
+        tc2_print("XMMS", TC2_PRINT_DEBUG+1, "pts %lli\n", vp->pts / 27);
+        xv->timer->wait(xv->timer, vp->pts, NULL);
+        if(xv->vp->render_pcm && xv->vp->num_pcm_chs_wanted)
+            xv->vp->render_pcm(vp->pcm);
+        if(xv->vp->render_freq && xv->vp->num_freq_chs_wanted)
+            xv->vp->render_freq(vp->freq);
+        free(vp);
     }
 
     return NULL;
@@ -97,11 +97,11 @@ do_fft(xmms_vis_t *xv, xmms_vis_packet_t *vp)
     int i, j;
 
     for(i = 0; i < 2; i++){
-	for(j = 0; j < 512; j++)
-	    xv->fpcm[j] = (double) vp->pcm[i][j] / 32768.0;
-	fftw_execute(xv->fft);
-	for(j = 0; j < 256; j++)
-	    vp->freq[i][j] = cabs(xv->ffreq[j]) * 64;
+        for(j = 0; j < 512; j++)
+            xv->fpcm[j] = (double) vp->pcm[i][j] / 32768.0;
+        fftw_execute(xv->fft);
+        for(j = 0; j < 256; j++)
+            vp->freq[i][j] = cabs(xv->ffreq[j]) * 64;
     }
 }
 
@@ -111,46 +111,46 @@ vis_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     xmms_vis_t *xv = p->private;
 
     if(pk->data){
-	int16_t *pcm = (int16_t *) pk->data[0];
-	int samples = pk->sizes[0] / 2;
+        int16_t *pcm = (int16_t *) pk->data[0];
+        int samples = pk->sizes[0] / 2;
 
-	if(pk->flags & TCVP_PKT_FLAG_PTS)
-	    xv->pts =
-		pk->pts - xv->count * 27000000LL / p->format.audio.sample_rate;
+        if(pk->flags & TCVP_PKT_FLAG_PTS)
+            xv->pts =
+                pk->pts - xv->count * 27000000LL / p->format.audio.sample_rate;
 
-	while(samples > 0){
-	    int n = min(samples, 512 - xv->count);
-	    int ch = p->format.audio.channels;
-	    int i;
+        while(samples > 0){
+            int n = min(samples, 512 - xv->count);
+            int ch = p->format.audio.channels;
+            int i;
 
-	    for(i = 0; i < n; i++){
-		xv->nvp->pcm[0][xv->count] = pcm[0];
-		xv->nvp->pcm[1][xv->count] = pcm[ch > 1? 1: 0];
-		pcm += ch;
-		xv->count++;
-	    }
+            for(i = 0; i < n; i++){
+                xv->nvp->pcm[0][xv->count] = pcm[0];
+                xv->nvp->pcm[1][xv->count] = pcm[ch > 1? 1: 0];
+                pcm += ch;
+                xv->count++;
+            }
 
-	    if(xv->count == 512){
-		if(xv->pts - xv->lpts >
-		   tcvp_filter_xmms_conf_vis_period * 27000){
-		    do_fft(xv, xv->nvp);
-		    xv->nvp->pts = xv->pts;
-		    xv->lpts = xv->pts;
+            if(xv->count == 512){
+                if(xv->pts - xv->lpts >
+                   tcvp_filter_xmms_conf_vis_period * 27000){
+                    do_fft(xv, xv->nvp);
+                    xv->nvp->pts = xv->pts;
+                    xv->lpts = xv->pts;
 
-		    pthread_mutex_lock(&xv->lock);
-		    tclist_push(xv->packets, xv->nvp);
-		    pthread_cond_broadcast(&xv->cond);
-		    pthread_mutex_unlock(&xv->lock);
+                    pthread_mutex_lock(&xv->lock);
+                    tclist_push(xv->packets, xv->nvp);
+                    pthread_cond_broadcast(&xv->cond);
+                    pthread_mutex_unlock(&xv->lock);
 
-		    xv->nvp = malloc(sizeof(*xv->nvp));
-		}
+                    xv->nvp = malloc(sizeof(*xv->nvp));
+                }
 
-		xv->pts += xv->dpts;
-		xv->count = 0;
-	    }
+                xv->pts += xv->dpts;
+                xv->count = 0;
+            }
 
-	    samples -= n;
-	}
+            samples -= n;
+        }
     }
 
     return p->next->input(p->next, (tcvp_packet_t *) pk);
@@ -166,10 +166,10 @@ vis_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     xv->run = 1;
 
     if(xv->vp->playback_start){
-	tc2_print("XMMS", TC2_PRINT_DEBUG, "calling playback_start()\n");
-	GDK_THREADS_ENTER();
-	xv->vp->playback_start();
-	GDK_THREADS_LEAVE();
+        tc2_print("XMMS", TC2_PRINT_DEBUG, "calling playback_start()\n");
+        GDK_THREADS_ENTER();
+        xv->vp->playback_start();
+        GDK_THREADS_LEAVE();
     }
 
     pthread_create(&xv->vth, NULL, vis_play, xv);
@@ -189,15 +189,15 @@ vis_free(void *p)
     pthread_join(xv->vth, NULL);
 
     if(xv->vp->playback_stop){
-	tc2_print("XMMS", TC2_PRINT_DEBUG, "calling playback_stop()\n");
-	xv->vp->playback_stop();
+        tc2_print("XMMS", TC2_PRINT_DEBUG, "calling playback_stop()\n");
+        xv->vp->playback_stop();
     }
 
     if(xv->vp->cleanup){
-	tc2_print("XMMS", TC2_PRINT_DEBUG, "calling cleanup()\n");
-	GDK_THREADS_ENTER();
-	xv->vp->cleanup();
-	GDK_THREADS_LEAVE();
+        tc2_print("XMMS", TC2_PRINT_DEBUG, "calling cleanup()\n");
+        GDK_THREADS_ENTER();
+        xv->vp->cleanup();
+        GDK_THREADS_LEAVE();
     }
 
     dlclose(xv->handle);
@@ -213,7 +213,7 @@ disable_plugin(VisPlugin *vp)
 
 extern int
 vis_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-	muxed_stream_t *ms)
+        muxed_stream_t *ms)
 {
     xmms_vis_t *xv;
     char *name = NULL;
@@ -225,25 +225,25 @@ vis_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     tcconf_getvalue(cs, "name", "%s", &name);
     if(!name){
-	tc2_print("XMMS", TC2_PRINT_ERROR, "no plugin name specified\n");
-	return -1;
+        tc2_print("XMMS", TC2_PRINT_ERROR, "no plugin name specified\n");
+        return -1;
     }
 
     snprintf(file, sizeof(file), "%s/Visualization/%s.so",
-	     tcvp_filter_xmms_conf_plugindir, name);
+             tcvp_filter_xmms_conf_plugindir, name);
     handle = dlopen(file, RTLD_NOW);
     if(!handle){
-	tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
-	err = -1;
-	goto out;
+        tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
+        err = -1;
+        goto out;
     }
 
     vpinfo = dlsym(handle, "get_vplugin_info");
     if(!handle){
-	tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
-	dlclose(handle);
-	err = -1;
-	goto out;
+        tc2_print("XMMS", TC2_PRINT_ERROR, "%s\n", dlerror());
+        dlclose(handle);
+        err = -1;
+        goto out;
     }
 
     vp = vpinfo();
@@ -251,10 +251,10 @@ vis_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     vp->disable_plugin = disable_plugin;
 
     if(vp->init){
-	tc2_print("XMMS", TC2_PRINT_DEBUG, "calling init()\n");
-	GDK_THREADS_ENTER();
-	vp->init();
-	GDK_THREADS_LEAVE();
+        tc2_print("XMMS", TC2_PRINT_DEBUG, "calling init()\n");
+        GDK_THREADS_ENTER();
+        vp->init();
+        GDK_THREADS_LEAVE();
     }
 
     xv = tcallocdz(sizeof(*xv), NULL, vis_free);

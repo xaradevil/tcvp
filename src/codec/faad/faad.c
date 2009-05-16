@@ -59,25 +59,25 @@ decode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     samples = faacDecDecode(ad->fd, &aacframe, ad->buf, size);
     size -= aacframe.bytesconsumed;
     if(size > 0)
-	memmove(ad->buf, ad->buf + aacframe.bytesconsumed, size);
+        memmove(ad->buf, ad->buf + aacframe.bytesconsumed, size);
     ad->ptsp -= aacframe.bytesconsumed;
     if(ad->ptsp < 0 && -ad->ptsp <= aacframe.bytesconsumed){
-	flags = TCVP_PKT_FLAG_PTS;
-	pts = ad->pts;
+        flags = TCVP_PKT_FLAG_PTS;
+        pts = ad->pts;
     }
     ad->bpos = size;
 
     if(samples){
-	faad_packet_t *opk = tcallocz(sizeof(*opk));
-	opk->pk.stream = pk->stream;
-	opk->pk.data = &opk->data;
-	opk->pk.sizes = &opk->size;
-	opk->pk.planes = 1;
-	opk->pk.flags = flags;
-	opk->pk.pts = pts;
-	opk->data = samples;
-	opk->size = aacframe.samples * 2;
-	p->next->input(p->next, (tcvp_packet_t *) opk);
+        faad_packet_t *opk = tcallocz(sizeof(*opk));
+        opk->pk.stream = pk->stream;
+        opk->pk.data = &opk->data;
+        opk->pk.sizes = &opk->size;
+        opk->pk.planes = 1;
+        opk->pk.flags = flags;
+        opk->pk.pts = pts;
+        opk->data = samples;
+        opk->size = aacframe.samples * 2;
+        p->next->input(p->next, (tcvp_packet_t *) opk);
     }
 
     return aacframe.bytesconsumed? 0: -1;
@@ -91,30 +91,30 @@ faad_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int size;
 
     if(!pk->data){
-	if(ad->bpos)
-	    decode(p, pk);
-	p->next->input(p->next, (tcvp_packet_t *) pk);
-	return 0;
+        if(ad->bpos)
+            decode(p, pk);
+        p->next->input(p->next, (tcvp_packet_t *) pk);
+        return 0;
     }
 
     if(pk->flags & TCVP_PKT_FLAG_PTS && ad->ptsp < 0){
-	ad->pts = pk->pts;
-	ad->ptsp = ad->bpos;
+        ad->pts = pk->pts;
+        ad->ptsp = ad->bpos;
     }
 
     data = pk->data[0];
     size = pk->sizes[0];
 
     while(size > 0){
-	int s = min(size, ad->bufsize - ad->bpos);
-	memcpy(ad->buf + ad->bpos, data, s);
-	ad->bpos += s;
-	data += s;
-	size -= s;
-	if(ad->bpos == ad->bufsize){
-	    if(decode(p, pk) < 0)
-		break;
-	}
+        int s = min(size, ad->bufsize - ad->bpos);
+        memcpy(ad->buf + ad->bpos, data, s);
+        ad->bpos += s;
+        data += s;
+        size -= s;
+        if(ad->bpos == ad->bufsize){
+            if(decode(p, pk) < 0)
+                break;
+        }
     }
 
     tcfree(pk);
@@ -127,8 +127,8 @@ faad_flush(tcvp_pipe_t *p, int drop)
     faad_dec_t *ad = p->private;
 
     if(drop){
-	ad->bpos = 0;
-	faacDecPostSeekReset(ad->fd, 0);
+        ad->bpos = 0;
+        faacDecPostSeekReset(ad->fd, 0);
     }
 
     return 0;
@@ -148,15 +148,15 @@ faad_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     faacDecSetConfiguration(ad->fd, fdc);
 
     if(s->common.codec_data){
-	err = faacDecInit2(ad->fd, s->common.codec_data,
-			   s->common.codec_data_size, &srate, &channels);
+        err = faacDecInit2(ad->fd, s->common.codec_data,
+                           s->common.codec_data_size, &srate, &channels);
     } else {
-	err = faacDecInit(ad->fd, pk->data[0], pk->sizes[0],
-			  &srate, &channels);
+        err = faacDecInit(ad->fd, pk->data[0], pk->sizes[0],
+                          &srate, &channels);
     }
 
     if(err < 0)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     ad->bufsize = FAAD_MIN_STREAMSIZE * channels;
     ad->buf = malloc(ad->bufsize);
@@ -176,12 +176,12 @@ faad_free(void *p)
 
     faacDecClose(ad->fd);
     if(ad->buf)
-	free(ad->buf);
+        free(ad->buf);
 }
 
 extern int
 faad_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-	 muxed_stream_t *ms)
+         muxed_stream_t *ms)
 {
     faad_dec_t *ad = tcallocdz(sizeof(*ad), NULL, faad_free);
     ad->fd = faacDecOpen();

@@ -82,15 +82,15 @@ all_headers(mp3_file_t *mf, u_char *head, mp3_frame_t *fr)
     int i;
 
     if(mf->parse_header)
-	return mf->parse_header(head, fr);
+        return mf->parse_header(head, fr);
 
     for(i = 0; i < NUM_PARSERS; i++){
-	if(!header_parsers[i]->parser(head, fr)){
-	    mf->parse_header = header_parsers[i]->parser;
-	    mf->header_size = header_parsers[i]->header_size;
-	    mf->tag = header_parsers[i]->tag;
-	    return 0;
-	}
+        if(!header_parsers[i]->parser(head, fr)){
+            mf->parse_header = header_parsers[i]->parser;
+            mf->header_size = header_parsers[i]->header_size;
+            mf->tag = header_parsers[i]->tag;
+            return 0;
+        }
     }
 
     return -1;
@@ -109,48 +109,48 @@ mp3_getparams(muxed_stream_t *ms)
     int resync;
 
     if(mf->parse_header){
-	resync = 1;
-	maxscan = -1LL;
+        resync = 1;
+        maxscan = -1LL;
     } else {
-	resync = 0;
-	maxscan = MAX_FRAME_SIZE;
+        resync = 0;
+        maxscan = MAX_FRAME_SIZE;
     }
 
     if(f->read(head, 1, MAX_HEADER_SIZE, f) < MAX_HEADER_SIZE)
-	return -1;
+        return -1;
 
     for(i = 0; i < maxscan; i++){
-	if(!all_headers(mf, head, &fr)){
-	    off_t pos2 = f->tell(f);
-	    u_char head2[MAX_HEADER_SIZE];
-	    f->seek(f, pos + i + fr.size, SEEK_SET);
-	    if(f->read(head2, 1, mf->header_size, f) < mf->header_size)
-		break;
-	    if(!mf->parse_header(head2, &fr)){
-		f->seek(f, pos + i, SEEK_SET);
-		found = 1;
-		break;
-	    }
-	    f->seek(f, pos2, SEEK_SET);
-	    if(!resync)
-		mf->parse_header = NULL;
-	}
+        if(!all_headers(mf, head, &fr)){
+            off_t pos2 = f->tell(f);
+            u_char head2[MAX_HEADER_SIZE];
+            f->seek(f, pos + i + fr.size, SEEK_SET);
+            if(f->read(head2, 1, mf->header_size, f) < mf->header_size)
+                break;
+            if(!mf->parse_header(head2, &fr)){
+                f->seek(f, pos + i, SEEK_SET);
+                found = 1;
+                break;
+            }
+            f->seek(f, pos2, SEEK_SET);
+            if(!resync)
+                mf->parse_header = NULL;
+        }
 
-	memmove(head, head + 1, MAX_HEADER_SIZE - 1);
-	if(f->read(head + MAX_HEADER_SIZE - 1, 1, 1, f) != 1)
-	    return -1;
+        memmove(head, head + 1, MAX_HEADER_SIZE - 1);
+        if(f->read(head + MAX_HEADER_SIZE - 1, 1, 1, f) != 1)
+            return -1;
     }
 
     if(!found)
-	return -1;
+        return -1;
 
     if(!mf->stream.audio.bit_rate)
-	mf->stream.audio.bit_rate = fr.bitrate;
+        mf->stream.audio.bit_rate = fr.bitrate;
     mf->stream.audio.codec = codecs[fr.layer];
     mf->stream.audio.sample_rate = fr.sample_rate;
     mf->stream.audio.channels = fr.channels;
     if(fr.bitrate && !ms->time)
-	ms->time = 27 * 8000000LL * mf->size / fr.bitrate;
+        ms->time = 27 * 8000000LL * mf->size / fr.bitrate;
 
     return 0;
 }
@@ -162,23 +162,23 @@ mp3_seek(muxed_stream_t *ms, uint64_t time)
     uint64_t pos;
 
     if(!mf->stream.audio.bit_rate)
-	return -1LL;
+        return -1LL;
 
     if(mf->xing){
-	int xi = 100 * time / ms->time;
-	pos = mf->xing[xi] * mf->size / 256;
-	time = ms->time * xi / 100;
+        int xi = 100 * time / ms->time;
+        pos = mf->xing[xi] * mf->size / 256;
+        time = ms->time * xi / 100;
     } else {
-	pos = time * mf->stream.audio.bit_rate / (27 * 8000000);
+        pos = time * mf->stream.audio.bit_rate / (27 * 8000000);
     }
 
     if(pos > mf->size)
-	return -1LL;
+        return -1LL;
 
     mf->file->seek(mf->file, mf->start + pos, SEEK_SET);
     if(!mp3_getparams(ms))
-	if(mf->stream.audio.bit_rate && !mf->xtime)
-	    time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
+        if(mf->stream.audio.bit_rate && !mf->xtime)
+            time = pos * 27 * 8000000LL / mf->stream.audio.bit_rate;
 
     mf->samples = time / 27000000 * mf->stream.audio.sample_rate;
     mf->bhead = 0;
@@ -215,7 +215,7 @@ fill_buffer(mp3_file_t *mf)
     size = mf->file->read(data, 1, size, mf->file);
 
     if(size > 0)
-	mf->bhead += size;
+        mf->bhead += size;
 
     return size;
 }
@@ -251,75 +251,75 @@ mp3_packet(muxed_stream_t *ms, int str)
     int eof = 0;
 
     if(!mf->used)
-	return NULL;
+        return NULL;
 
     while(!mp){
-	if(mf->bhead < mf->bufsize){
-	    if(fill_buffer(mf) <= 0)
-		eof = 1;
-	}
+        if(mf->bhead < mf->bufsize){
+            if(fill_buffer(mf) <= 0)
+                eof = 1;
+        }
 
-	fr.size = 0;
-	while(mf->bhead - mf->btail >= mf->header_size){
-	    if(!mf->parse_header(mf->buf + mf->btail, &fr)){
-		u_int br;
+        fr.size = 0;
+        while(mf->bhead - mf->btail >= mf->header_size){
+            if(!mf->parse_header(mf->buf + mf->btail, &fr)){
+                u_int br;
 
-		if(fr.size > mf->bhead - mf->btail)
-		    break;
+                if(fr.size > mf->bhead - mf->btail)
+                    break;
 
-		mp = make_packet(mf, mf->btail, &fr);
+                mp = make_packet(mf, mf->btail, &fr);
 
-		mf->samples += fr.samples;
-		mf->sbr += (uint64_t) fr.size * fr.bitrate;
-		mf->bytes += fr.size;
-		br = mf->sbr / mf->bytes;
-		if(br != mf->stream.audio.bit_rate){
-		    mf->stream.audio.bit_rate = br;
-		    if(!mf->xtime){
-			ms->time = 27 * 8000000LL * mf->size / br;
-			if(mf->qs)
-			    tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
-		    }
-		    tc2_print(mf->tag, TC2_PRINT_DEBUG+1,
-			      "bitrate %i [%u] %lli s @%llx\n",
-			      fr.bitrate, br, ms->time / 27000000,
-			      mf->file->tell(mf->file) -
-			      (mf->bhead - mf->btail));
-		}
-		mf->btail += fr.size;
-		break;
-	    } else {
-		uint64_t pos1, pos2;
-		u_char *h = mf->buf + mf->btail;
-		pos1 = mf->file->tell(mf->file) - (mf->bhead - mf->btail);
-		tc2_print(mf->tag, TC2_PRINT_WARNING,
-			  "bad header %02x%02x%02x @ %llx\n",
-			  h[0], h[1], h[2], pos1);
-		mf->bhead = 0;
-		mf->btail = 0;
-		mf->file->seek(mf->file, pos1, SEEK_SET);
-		if(mp3_getparams(ms) < 0){
-		    eof = 1;
-		    break;
-		}
-		pos2 = mf->file->tell(mf->file);
-		tc2_print(mf->tag, TC2_PRINT_WARNING,
-			  "sync at %llx, skipped %i bytes\n",
-			  pos2, pos2 - pos1);
-	    }
-	}
+                mf->samples += fr.samples;
+                mf->sbr += (uint64_t) fr.size * fr.bitrate;
+                mf->bytes += fr.size;
+                br = mf->sbr / mf->bytes;
+                if(br != mf->stream.audio.bit_rate){
+                    mf->stream.audio.bit_rate = br;
+                    if(!mf->xtime){
+                        ms->time = 27 * 8000000LL * mf->size / br;
+                        if(mf->qs)
+                            tcvp_event_send(mf->qs, TCVP_STREAM_INFO);
+                    }
+                    tc2_print(mf->tag, TC2_PRINT_DEBUG+1,
+                              "bitrate %i [%u] %lli s @%llx\n",
+                              fr.bitrate, br, ms->time / 27000000,
+                              mf->file->tell(mf->file) -
+                              (mf->bhead - mf->btail));
+                }
+                mf->btail += fr.size;
+                break;
+            } else {
+                uint64_t pos1, pos2;
+                u_char *h = mf->buf + mf->btail;
+                pos1 = mf->file->tell(mf->file) - (mf->bhead - mf->btail);
+                tc2_print(mf->tag, TC2_PRINT_WARNING,
+                          "bad header %02x%02x%02x @ %llx\n",
+                          h[0], h[1], h[2], pos1);
+                mf->bhead = 0;
+                mf->btail = 0;
+                mf->file->seek(mf->file, pos1, SEEK_SET);
+                if(mp3_getparams(ms) < 0){
+                    eof = 1;
+                    break;
+                }
+                pos2 = mf->file->tell(mf->file);
+                tc2_print(mf->tag, TC2_PRINT_WARNING,
+                          "sync at %llx, skipped %i bytes\n",
+                          pos2, pos2 - pos1);
+            }
+        }
 
-	size = mf->bhead - mf->btail;
-	if(size < fr.size || size < mf->header_size){
-	    if(eof && !mp)
-		return NULL;
-	    nb = tcalloc(mf->bufsize);
-	    memcpy(nb, mf->buf + mf->btail, mf->bhead - mf->btail);
-	    tcfree(mf->buf);
-	    mf->buf = nb;
-	    mf->bhead = size;
-	    mf->btail = 0;
-	}
+        size = mf->bhead - mf->btail;
+        if(size < fr.size || size < mf->header_size){
+            if(eof && !mp)
+                return NULL;
+            nb = tcalloc(mf->bufsize);
+            memcpy(nb, mf->buf + mf->btail, mf->bhead - mf->btail);
+            tcfree(mf->buf);
+            mf->buf = nb;
+            mf->bhead = size;
+            mf->btail = 0;
+        }
     }
 
     return (tcvp_packet_t *) mp;
@@ -333,7 +333,7 @@ mp3_free(void *p)
 
     eventq_delete(mf->qs);
     if(mf->file)
-	mf->file->close(mf->file);
+        mf->file->close(mf->file);
     tcfree(mf->buf);
     free(mf->xing);
     free(mf);
@@ -352,43 +352,43 @@ xing_header(muxed_stream_t *ms)
     int size;
 
     if(mf->file->read(x, 1, XING_SIZE, mf->file) < XING_SIZE)
-	return -1;
+        return -1;
 
     mf->file->seek(mf->file, fp, SEEK_SET);
 
     if(mf->parse_header(x, &fr))
-	return -1;
+        return -1;
 
     size = min(fr.size, XING_SIZE) - 4;
 
     for(i = 0; i < size; i++)
-	if(!memcmp(x + i, "Xing", 4))
-	    break;
+        if(!memcmp(x + i, "Xing", 4))
+            break;
 
     if(i == size)
-	return -1;
+        return -1;
 
     xp = x + i + 4;
     flags = xp[3];
     xp += 4;
 
     if(flags & 0x1){
-	int frames = htob_32(unaligned32(xp));
-	uint64_t samples = 1152 * frames;
-	ms->time = 27000000LL * samples / mf->stream.audio.sample_rate;
-	mf->stream.audio.samples = samples;
-	mf->stream.audio.bit_rate =
-	    mf->size * 8 * mf->stream.audio.sample_rate / samples;
-	mf->xtime = 1;
-	xp += 4;
+        int frames = htob_32(unaligned32(xp));
+        uint64_t samples = 1152 * frames;
+        ms->time = 27000000LL * samples / mf->stream.audio.sample_rate;
+        mf->stream.audio.samples = samples;
+        mf->stream.audio.bit_rate =
+            mf->size * 8 * mf->stream.audio.sample_rate / samples;
+        mf->xtime = 1;
+        xp += 4;
     }
 
     if(flags & 0x2)
-	xp += 4;
+        xp += 4;
 
     if(flags & 0x4){
-	mf->xing = malloc(100);
-	memcpy(mf->xing, xp, 100);
+        mf->xing = malloc(100);
+        memcpy(mf->xing, xp, 100);
     }
 
     return 0;
@@ -415,20 +415,20 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
 
     id3v2_tag(f, ms);
     if(!f->flags & URL_FLAG_STREAMED)
-	ts = id3v1_tag(f, ms);
+        ts = id3v1_tag(f, ms);
 
     f->read(head, 1, 4, f);
     if(memcmp(head, "RIFF", 4)){
-	f->seek(f, -4, SEEK_CUR);
+        f->seek(f, -4, SEEK_CUR);
     } else {
-	uint32_t tag, size;
-	f->seek(f, 8, SEEK_CUR);
-	while(!url_getu32b(f, &tag)){
-	    url_getu32l(f, &size);
-	    if(tag == 0x64617461)
-		break;
-	    f->seek(f, size, SEEK_CUR);
-	}
+        uint32_t tag, size;
+        f->seek(f, 8, SEEK_CUR);
+        while(!url_getu32b(f, &tag)){
+            url_getu32l(f, &size);
+            if(tag == 0x64617461)
+                break;
+            f->seek(f, size, SEEK_CUR);
+        }
     }
 
     tc2_print("MP3", TC2_PRINT_DEBUG, "data start %x\n", f->tell(f));
@@ -436,12 +436,12 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     mf->header_size = MAX_HEADER_SIZE;
 
     if(mp3_getparams(ms)){
-	tcfree(ms);
-	return NULL;
+        tcfree(ms);
+        return NULL;
     }
 
     mf->samples = (uint64_t) tcvp_demux_mp3_conf_starttime *
-	mf->stream.audio.sample_rate / 1000;
+        mf->stream.audio.sample_rate / 1000;
 
     ms->next_packet = mp3_packet;
     ms->seek = mp3_seek;
@@ -450,10 +450,10 @@ mp3_open(char *name, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     mf->start = f->tell(f);
     mf->size -= mf->start;
     if(ts > 0){
-	mf->size -= ts;
-	mf->end = mf->size;
+        mf->size -= ts;
+        mf->end = mf->size;
     } else {
-	mf->end = -1LL;
+        mf->end = -1LL;
     }
 
     tc2_print(mf->tag, TC2_PRINT_DEBUG, "data start %x\n", f->tell(f));

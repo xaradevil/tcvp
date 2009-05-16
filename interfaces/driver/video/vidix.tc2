@@ -1,5 +1,5 @@
 inherit "driver/video"
 inherit "tcvp/module"
-option	driver_dir%s
-option	driver name%s options%s
-option	frames%i=64
+option  driver_dir%s
+option  driver name%s options%s
+option  frames%i=64

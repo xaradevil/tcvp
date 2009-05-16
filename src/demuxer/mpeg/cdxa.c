@@ -49,18 +49,18 @@ cdxa_read(void *buf, size_t size, size_t count, url_t *u)
     size_t bytes = size * count, rb = bytes;
 
     while(rb){
-	size_t b = min(rb, SECTOR_DATA - cdxa->sector_pos);
-	ssize_t r = cdxa->u->read(buf, 1, b, cdxa->u);
-	if(r <= 0)
-	    break;
-	rb -= r;
-	cdxa->sector_pos += r;
-	if(cdxa->sector_pos == SECTOR_DATA){
-	    char p[SECTOR_PAD];
-	    if(cdxa->u->read(p, 1, SECTOR_PAD, cdxa->u) < SECTOR_PAD)
-		break;
-	    cdxa->sector_pos = 0;
-	}
+        size_t b = min(rb, SECTOR_DATA - cdxa->sector_pos);
+        ssize_t r = cdxa->u->read(buf, 1, b, cdxa->u);
+        if(r <= 0)
+            break;
+        rb -= r;
+        cdxa->sector_pos += r;
+        if(cdxa->sector_pos == SECTOR_DATA){
+            char p[SECTOR_PAD];
+            if(cdxa->u->read(p, 1, SECTOR_PAD, cdxa->u) < SECTOR_PAD)
+                break;
+            cdxa->sector_pos = 0;
+        }
     }
 
     return (bytes - rb) / size;
@@ -76,30 +76,30 @@ cdxa_seek(url_t *u, int64_t offset, int how)
 
     switch(how){
     case SEEK_SET:
-	pos = offset;
-	break;
+        pos = offset;
+        break;
     case SEEK_CUR:
-	if(cdxa->u->tell)
-	    pos = cdxa->u->tell(cdxa->u) + offset;
-	else
-	    return -1;
-	break;
+        if(cdxa->u->tell)
+            pos = cdxa->u->tell(cdxa->u) + offset;
+        else
+            return -1;
+        break;
     case SEEK_END:
-	pos = u->size + offset;
-	break;
+        pos = u->size + offset;
+        break;
     default:
-	return -1;
+        return -1;
     }
 
     if(pos > u->size)
-	return -1;
+        return -1;
 
     sector = pos / SECTOR_DATA;
     sector_pos = pos - sector * SECTOR_DATA;
     xaoffset = cdxa->data_start + sector * SECTOR_SIZE + sector_pos;
 
     if(cdxa->u->seek(cdxa->u, xaoffset, SEEK_SET))
-	return -1;
+        return -1;
 
     cdxa->sector_pos = sector_pos;
 
@@ -114,7 +114,7 @@ cdxa_tell(url_t *u)
     int sector_pos;
 
     if(!cdxa->u->tell)
-	return 0;
+        return 0;
 
     pos = cdxa->u->tell(cdxa->u);
     pos -= cdxa->data_start;
@@ -140,7 +140,7 @@ cdxa_free(void *p)
     url_t *u = p;
     struct cdxa *cdxa = u->private;
     if(cdxa->u)
-	tcfree(cdxa->u);
+        tcfree(cdxa->u);
     free(cdxa);
 }
 
@@ -153,43 +153,43 @@ cdxa_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *t)
     url_t *cu;
 
     if(u->read(buf, 1, 8, u) < 8)
-	return NULL;
+        return NULL;
     if(strncmp(buf, "RIFF", 4)){
-	tc2_print("CDXA", TC2_PRINT_ERROR, "no RIFF header\n");
-	return NULL;
+        tc2_print("CDXA", TC2_PRINT_ERROR, "no RIFF header\n");
+        return NULL;
     }
 
     if(u->read(buf, 1, 4, u) < 4)
-	return NULL;
+        return NULL;
     if(strncmp(buf, "CDXA", 4)){
-	tc2_print("CDXA", TC2_PRINT_ERROR, "no CDXA header\n");
-	return NULL;
+        tc2_print("CDXA", TC2_PRINT_ERROR, "no CDXA header\n");
+        return NULL;
     }
 
     if(u->read(buf, 1, 4, u) < 4)
-	return NULL;
+        return NULL;
     if(strncmp(buf, "fmt ", 4)){
-	tc2_print("CDXA", TC2_PRINT_ERROR, "no 'fmt ' tag\n");
-	return NULL;
+        tc2_print("CDXA", TC2_PRINT_ERROR, "no 'fmt ' tag\n");
+        return NULL;
     }
 
     if(url_get32l(u, &s))
-	return NULL;
+        return NULL;
 
     while(s > 0){
-	int r = u->read(buf, 1, s <= 16? s: 16, u);
-	if(r <= 0)
-	    return NULL;
-	s -= r;
+        int r = u->read(buf, 1, s <= 16? s: 16, u);
+        if(r <= 0)
+            return NULL;
+        s -= r;
     }
 
     if(u->read(buf, 1, 4, u) < 4)
-	return NULL;
+        return NULL;
     if(strncmp(buf, "data", 4))
-	return NULL;
+        return NULL;
 
     if(u->read(buf, 1, 28, u) < 28)
-	return NULL;
+        return NULL;
 
     cdxa = calloc(1, sizeof(*cdxa));
     cdxa->u = tcref(u);

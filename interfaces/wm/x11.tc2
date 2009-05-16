@@ -1,5 +1,5 @@
 inherit "wm"
 inherit "tcvp/module"
-symbol	"getwindow"	int (*%s)(window_manager_t *, Display **, Window *)
+symbol  "getwindow"     int (*%s)(window_manager_t *, Display **, Window *)
 include
 #include <X11/Xlib.h>

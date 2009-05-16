@@ -63,15 +63,15 @@ utf8_size(int v)
     int s = 1, m = 0x40;
 
     if(!(v & 0x80))
-	return 1;
+        return 1;
 
     while(v & m){
-	s++;
-	m >>= 1;
+        s++;
+        m >>= 1;
     }
 
     tc2_print("FLAC", TC2_PRINT_DEBUG+3, "utf8_size(%x) = %i\n",
-	      v, s);
+              v, s);
 
     return s;
 }
@@ -85,61 +85,61 @@ flr_frame_header(u_char *buf, int size)
     int fns;
 
     if(*p++ != 0xff)
-	return -1;
+        return -1;
     if(*p++ != 0xf8)
-	return -1;
+        return -1;
 
     size -= 2;
 
-    bs = *p++;			/* block size, sample rate */
+    bs = *p++;                  /* block size, sample rate */
     size --;
 
     v = bs & 0xf;
     if(v > 0 && v < 4)
-	return -1;
+        return -1;
     if(v == 0xf)
-	return -1;
+        return -1;
 
-    v = *p++;			/* channels, sample size */
+    v = *p++;                   /* channels, sample size */
     size --;
 
     if(v & 1)
-	return -1;
+        return -1;
     if((v & 0xf0) > 0xa0)
-	return -1;
+        return -1;
     if((v & 0xe) == 6 || (v & 0xe) == 0xe)
-	return -1;
+        return -1;
 
     fns = utf8_size(*p);
     p += fns;
     size -= fns;
 
-    if((bs & 0xf0) == 0x60){	/* block size */
-	p++;
-	size--;
+    if((bs & 0xf0) == 0x60){    /* block size */
+        p++;
+        size--;
     } else if((bs & 0xf0) == 0x70){
-	p += 2;
-	size -= 2;
+        p += 2;
+        size -= 2;
     }
 
-    if((bs & 0xf) == 0xc){	/* sample rate */
-	p++;
-	size--;
+    if((bs & 0xf) == 0xc){      /* sample rate */
+        p++;
+        size--;
     } else if((bs & 0xc) == 0xc){
-	p += 2;
-	size -= 2;
+        p += 2;
+        size -= 2;
     }
 
-    p++;			/* crc */
+    p++;                        /* crc */
     size--;
 
     hsize = p - buf;
 
     if(size < hsize)
-	return hsize;
+        return hsize;
 
     if(flac_crc8(buf, hsize))
-	return -1;
+        return -1;
 
     return hsize;
 }
@@ -153,80 +153,80 @@ flr_packet(muxed_stream_t *ms, int s)
     int hsize = 0;
 
     while(!fp && flr->eof < 2){
-	if(flr->bend < flr->bufsize && !flr->eof){
-	    int s = flr->bufsize - flr->bend;
-	    tc2_print("FLAC", TC2_PRINT_DEBUG+2, "read %i @%i\n",
-		      s, flr->bend);
-	    s = flr->url->read(flr->buf + flr->bend, 1, s, flr->url);
-	    if(s > 0){
-		flr->bend += s;
-	    } else {
-		flr->eof = 1;
-	    }
-	}
+        if(flr->bend < flr->bufsize && !flr->eof){
+            int s = flr->bufsize - flr->bend;
+            tc2_print("FLAC", TC2_PRINT_DEBUG+2, "read %i @%i\n",
+                      s, flr->bend);
+            s = flr->url->read(flr->buf + flr->bend, 1, s, flr->url);
+            if(s > 0){
+                flr->bend += s;
+            } else {
+                flr->eof = 1;
+            }
+        }
 
-	tc2_print("FLAC", TC2_PRINT_DEBUG+2, "searching for header @%4x\n", i);
+        tc2_print("FLAC", TC2_PRINT_DEBUG+2, "searching for header @%4x\n", i);
 
-	for(; i < flr->bend - MIN_HEADER_SIZE; i++){
-	    hsize = flr_frame_header(flr->buf + i, flr->bend - i);
-	    if(hsize > 0)
-		break;
-	}
+        for(; i < flr->bend - MIN_HEADER_SIZE; i++){
+            hsize = flr_frame_header(flr->buf + i, flr->bend - i);
+            if(hsize > 0)
+                break;
+        }
 
-	tc2_print("FLAC", TC2_PRINT_DEBUG+2,
-		  "hsize = %i, i = %i, end = %i\n", hsize, i, flr->bend);
+        tc2_print("FLAC", TC2_PRINT_DEBUG+2,
+                  "hsize = %i, i = %i, end = %i\n", hsize, i, flr->bend);
 
-	if((hsize > 0 && i <= flr->bend - hsize) || flr->eof){
-	    uint16_t crc, fcrc;
-	    int size;
+        if((hsize > 0 && i <= flr->bend - hsize) || flr->eof){
+            uint16_t crc, fcrc;
+            int size;
 
-	    if(i == flr->bend - MIN_HEADER_SIZE){
-		i = flr->bend;
-		flr->eof++;
-	    }
+            if(i == flr->bend - MIN_HEADER_SIZE){
+                i = flr->bend;
+                flr->eof++;
+            }
 
-	    size = i - flr->bpos;
+            size = i - flr->bpos;
 
-	    fcrc = htob_16(unaligned16(flr->buf + i - 2));
-	    crc = flac_crc16(flr->buf + flr->bpos, size - 2);
-	    tc2_print("FLAC", TC2_PRINT_DEBUG+1,
-		      "frame %3i @%4x, size %5i header %i, crc %04x %04x\n",
-		      flr->frame++, flr->bpos, size, hsize, crc, fcrc);
+            fcrc = htob_16(unaligned16(flr->buf + i - 2));
+            crc = flac_crc16(flr->buf + flr->bpos, size - 2);
+            tc2_print("FLAC", TC2_PRINT_DEBUG+1,
+                      "frame %3i @%4x, size %5i header %i, crc %04x %04x\n",
+                      flr->frame++, flr->bpos, size, hsize, crc, fcrc);
 
-	    if(crc == fcrc){
-		fp = tcallocdz(sizeof(*fp), NULL, flr_free_pk);
-		fp->pk.data = &fp->data;
-		fp->pk.sizes = &fp->size;
-		fp->size = size;
-		fp->data = flr->buf + flr->bpos;
-		fp->buf = tcref(flr->buf);
-	    }
+            if(crc == fcrc){
+                fp = tcallocdz(sizeof(*fp), NULL, flr_free_pk);
+                fp->pk.data = &fp->data;
+                fp->pk.sizes = &fp->size;
+                fp->size = size;
+                fp->data = flr->buf + flr->bpos;
+                fp->buf = tcref(flr->buf);
+            }
 
-	    if(crc == fcrc || (i < flr->bend - 2 &&
-			       flr->buf[flr->bpos+2] == flr->buf[i+2])){
-		if(crc != fcrc)
-		    tc2_print("FLAC", TC2_PRINT_WARNING, "bad frame CRC\n");
-		flr->bpos = i;
-		i += hsize;
-	    } else {
-		i++;
-	    }
-	}
+            if(crc == fcrc || (i < flr->bend - 2 &&
+                               flr->buf[flr->bpos+2] == flr->buf[i+2])){
+                if(crc != fcrc)
+                    tc2_print("FLAC", TC2_PRINT_WARNING, "bad frame CRC\n");
+                flr->bpos = i;
+                i += hsize;
+            } else {
+                i++;
+            }
+        }
 
-	if(i >= flr->bend - (hsize > 0? hsize: MIN_HEADER_SIZE) && !flr->eof){
-	    u_char *nb;
+        if(i >= flr->bend - (hsize > 0? hsize: MIN_HEADER_SIZE) && !flr->eof){
+            u_char *nb;
 
-	    if(flr->bpos == 0)
-		flr->bufsize *= 2;
+            if(flr->bpos == 0)
+                flr->bufsize *= 2;
 
-	    nb = tcalloc(flr->bufsize);
-	    memmove(nb, flr->buf + flr->bpos, flr->bend - flr->bpos);
-	    tcfree(flr->buf);
-	    flr->buf = nb;
-	    flr->bend -= flr->bpos;
-	    i -= flr->bpos;
-	    flr->bpos = 0;
-	}
+            nb = tcalloc(flr->bufsize);
+            memmove(nb, flr->buf + flr->bpos, flr->bend - flr->bpos);
+            tcfree(flr->buf);
+            flr->buf = nb;
+            flr->bend -= flr->bpos;
+            i -= flr->bpos;
+            flr->bpos = 0;
+        }
     }
 
     return (tcvp_packet_t *) fp;
@@ -239,7 +239,7 @@ flr_streaminfo(muxed_stream_t *ms, stream_t *st, u_char *p, int size)
     uint32_t scb;
 
     if(size != 34)
-	return -1;
+        return -1;
 
     p += 10;
 
@@ -264,14 +264,14 @@ flr_comment(muxed_stream_t *ms, uint8_t *p, int size)
     int s, n, j;
 
     if(size < 4)
-	return -1;
+        return -1;
 
     s = htol_32(unaligned32(p));
     p += 4;
     size -= 4;
 
     if(size < s + 4)
-	return -1;
+        return -1;
 
     p += s;
     size -= s;
@@ -281,50 +281,50 @@ flr_comment(muxed_stream_t *ms, uint8_t *p, int size)
     size -= 4;
 
     while(size >= 4){
-	uint8_t *t, *v;
-	int tl, vl;
+        uint8_t *t, *v;
+        int tl, vl;
 
-	s = htol_32(unaligned32(p));
-	p += 4;
-	size -= 4;
+        s = htol_32(unaligned32(p));
+        p += 4;
+        size -= 4;
 
-	if(size < s)
-	    break;
+        if(size < s)
+            break;
 
-	t = p;
-	p += s;
-	size -= s;
-	n--;
+        t = p;
+        p += s;
+        size -= s;
+        n--;
 
-	v = memchr(t, '=', s);
-	if(!v)
-	    continue;
+        v = memchr(t, '=', s);
+        if(!v)
+            continue;
 
-	tl = v - t;
-	vl = s - tl - 1;
-	v++;
+        tl = v - t;
+        vl = s - tl - 1;
+        v++;
 
-	if(tl && vl){
-	    char tt[tl + 1];
-	    char *ct;
+        if(tl && vl){
+            char tt[tl + 1];
+            char *ct;
 
-	    for(j = 0; j < tl; j++)
-		tt[j] = tolower(t[j]);
-	    tt[tl] = 0;
+            for(j = 0; j < tl; j++)
+                tt[j] = tolower(t[j]);
+            tt[tl] = 0;
 
-	    ct = malloc(vl + 1);
-	    memcpy(ct, v, vl);
-	    ct[vl] = 0;
-	    tcattr_set(ms, tt, ct, NULL, free);
-	}
+            ct = malloc(vl + 1);
+            memcpy(ct, v, vl);
+            ct[vl] = 0;
+            tcattr_set(ms, tt, ct, NULL, free);
+        }
     }
 
     if(size > 0)
-	tc2_print("FLAC", TC2_PRINT_WARNING,
-		  "%i bytes of comment header remain\n", size);
+        tc2_print("FLAC", TC2_PRINT_WARNING,
+                  "%i bytes of comment header remain\n", size);
     if(n > 0)
-	tc2_print("FLAC", TC2_PRINT_WARNING,
-		  "truncated comment header, %i comments not found\n", n);
+        tc2_print("FLAC", TC2_PRINT_WARNING,
+                  "truncated comment header, %i comments not found\n", n);
 
     return 0;
 }
@@ -335,7 +335,7 @@ flr_metadata(url_t *u, flac_metadata_t *fm)
     uint32_t mbh;
 
     if(url_getu32b(u, &mbh))
-	return -1;
+        return -1;
 
     fm->type = (mbh >> 24) & 0x7f;
     fm->last = mbh >> 31;
@@ -343,11 +343,11 @@ flr_metadata(url_t *u, flac_metadata_t *fm)
 
     fm->data = malloc(fm->size);
     if(!fm->data)
-	return -1;
+        return -1;
 
     if(u->read(fm->data, 1, fm->size, u) < fm->size){
-	free(fm->data);
-	return -1;
+        free(fm->data);
+        return -1;
     }
 
     return 0;
@@ -361,33 +361,33 @@ flr_header(muxed_stream_t *ms)
     int err = 0;
 
     while(!err && !flr_metadata(flr->url, &fm)){
-	switch(fm.type){
-	case FLAC_META_STREAMINFO:
-	    err = flr_streaminfo(ms, &flr->s, fm.data, fm.size);
-	    flr->s.common.codec_data = fm.data;
-	    flr->s.common.codec_data_size = fm.size;
-	    fm.data = NULL;
-	    break;
-	case FLAC_META_VORBIS_COMMENT:
-	    err = flr_comment(ms, fm.data, fm.size);
-	    break;
-	case FLAC_META_SEEKTABLE:
-	    break;
-	case FLAC_META_APPLICATION:
-	    break;
-	case FLAC_META_CUESHEET:
-	    break;
-	case FLAC_META_PADDING:
-	    break;
-	default:
-	    tc2_print("FLAC", TC2_PRINT_WARNING,
-		      "unknown FLAC metadata block type %i\n", fm.type);
-	    break;
-	}
+        switch(fm.type){
+        case FLAC_META_STREAMINFO:
+            err = flr_streaminfo(ms, &flr->s, fm.data, fm.size);
+            flr->s.common.codec_data = fm.data;
+            flr->s.common.codec_data_size = fm.size;
+            fm.data = NULL;
+            break;
+        case FLAC_META_VORBIS_COMMENT:
+            err = flr_comment(ms, fm.data, fm.size);
+            break;
+        case FLAC_META_SEEKTABLE:
+            break;
+        case FLAC_META_APPLICATION:
+            break;
+        case FLAC_META_CUESHEET:
+            break;
+        case FLAC_META_PADDING:
+            break;
+        default:
+            tc2_print("FLAC", TC2_PRINT_WARNING,
+                      "unknown FLAC metadata block type %i\n", fm.type);
+            break;
+        }
 
-	free(fm.data);
-	if(fm.last)
-	    break;
+        free(fm.data);
+        if(fm.last)
+            break;
     }
 
     return err;
@@ -413,10 +413,10 @@ flr_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     u_char sig[4];
 
     if(u->read(sig, 1, 4, u) < 4)
-	return NULL;
+        return NULL;
 
     if(memcmp(sig, "fLaC", 4))
-	return NULL;
+        return NULL;
 
     flr = calloc(1, sizeof(*flr));
     flr->url = tcref(u);
@@ -431,8 +431,8 @@ flr_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     ms->next_packet = flr_packet;
 
     if(flr_header(ms)){
-	tcfree(ms);
-	return NULL;
+        tcfree(ms);
+        return NULL;
     }
 
     flr->bufsize = BUFSIZE;

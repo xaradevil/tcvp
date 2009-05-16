@@ -83,37 +83,37 @@ dts16_header(u_char *head, mp3_frame_t *mf)
 
     v = tcvp_bits_get(&bits, 32);
     if(v != 0x7ffe8001)
-	return -1;
+        return -1;
 
-    tcvp_bits_get(&bits, 1);	/* frame type */
-    tcvp_bits_get(&bits, 5);	/* deficit sample count */
-    tcvp_bits_get(&bits, 1);	/* CRC present */
+    tcvp_bits_get(&bits, 1);    /* frame type */
+    tcvp_bits_get(&bits, 5);    /* deficit sample count */
+    tcvp_bits_get(&bits, 1);    /* CRC present */
     mf->samples = 32 * tcvp_bits_get(&bits, 7);
     v = tcvp_bits_get(&bits, 14);
     if(v < 95)
-	return -1;
+        return -1;
     mf->size = v + 1;
     v = tcvp_bits_get(&bits, 6);
     mf->channels = dts_channels[v];
     v = tcvp_bits_get(&bits, 4);
     if(!dts_samplerates[v])
-	return -1;
+        return -1;
     mf->sample_rate = dts_samplerates[v];
     v = tcvp_bits_get(&bits, 5);
     mf->bitrate = dts_bitrates[v];
-    tcvp_bits_get(&bits, 1);	/* embedded downmix */
-    tcvp_bits_get(&bits, 1);	/* embedded dynamic range */
-    tcvp_bits_get(&bits, 1);	/* embedded timestamp */
-    tcvp_bits_get(&bits, 1);	/* auxiliary data */
-    tcvp_bits_get(&bits, 1);	/* hdcd */
-    tcvp_bits_get(&bits, 3);	/* extension audio descriptor */
-    tcvp_bits_get(&bits, 1);	/* extended coding */
-    tcvp_bits_get(&bits, 1);	/* audio sync word insertion */
+    tcvp_bits_get(&bits, 1);    /* embedded downmix */
+    tcvp_bits_get(&bits, 1);    /* embedded dynamic range */
+    tcvp_bits_get(&bits, 1);    /* embedded timestamp */
+    tcvp_bits_get(&bits, 1);    /* auxiliary data */
+    tcvp_bits_get(&bits, 1);    /* hdcd */
+    tcvp_bits_get(&bits, 3);    /* extension audio descriptor */
+    tcvp_bits_get(&bits, 1);    /* extended coding */
+    tcvp_bits_get(&bits, 1);    /* audio sync word insertion */
     v = tcvp_bits_get(&bits, 2); /* lfe */
     if(v == 3)
-	return -1;
+        return -1;
     if(v)
-	mf->channels++;
+        mf->channels++;
 
     mf->layer = 5;
 
@@ -129,9 +129,9 @@ dts_pack(u_char *dst, u_char *src)
     tcvp_bits_init(&d, dst, 12);
 
     for(i = 0; i < 7; i++){
-	u_int b = unaligned16(src);
-	tcvp_bits_put(&d, b, 14);
-	src += 2;
+        u_int b = unaligned16(src);
+        tcvp_bits_put(&d, b, 14);
+        src += 2;
     }
 
     tcvp_bits_flush(&d);
@@ -141,10 +141,10 @@ static void
 dts_swap(u_char *dst, u_char *src, int n)
 {
     while(n > 0){
-	st_unaligned16(bswap_16(unaligned16(src)), dst);
-	src += 2;
-	dst += 2;
-	n -= 2;
+        st_unaligned16(bswap_16(unaligned16(src)), dst);
+        src += 2;
+        dst += 2;
+        n -= 2;
     }
 }
 
@@ -163,7 +163,7 @@ dts14_header(u_char *head, mp3_frame_t *mf)
 
     dts_pack(buf, head);
     if(dts16_header(buf, mf))
-	return -1;
+        return -1;
     mf->size = 8 * mf->size / 7;
     return 0;
 }
@@ -175,7 +175,7 @@ dts14s_header(u_char *head, mp3_frame_t *mf)
     dts_swap(buf1, head, 14);
     dts_pack(buf2, buf1);
     if(dts16_header(buf2, mf))
-	return -1;
+        return -1;
     mf->size = 8 * mf->size / 7;
     return 0;
 }

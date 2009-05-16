@@ -50,7 +50,7 @@ read_int(char *p)
 
     v = strtol(p, &p, 10);
     if(*p != ' ')
-	v = -1;
+        v = -1;
     return v;
 }
 
@@ -61,12 +61,12 @@ read_frac(char *p, tcfraction_t *f)
 
     n = strtol(p, &p, 10);
     if(*p != ':')
-	return -1;
+        return -1;
 
     p++;
     d = strtol(p, &p, 10);
     if(*p != ' ' && *p != '\n')
-	return -1;
+        return -1;
 
     f->num = n;
     f->den = d;
@@ -90,15 +90,15 @@ y4m_packet(muxed_stream_t *ms, int s)
     uint64_t pts = y4m->pts;
 
     if(!url_gets(buf, sizeof(buf), y4m->url))
-	return NULL;
+        return NULL;
 
     if(strncmp(buf, "FRAME", 5))
-	return NULL;
+        return NULL;
 
     while((tag = strchr(tag, ' '))){
-	if(!strncmp(++tag, "Xpts=", 5)){
-	    pts = strtoull(tag + 5, &tag, 10);
-	}
+        if(!strncmp(++tag, "Xpts=", 5)){
+            pts = strtoull(tag + 5, &tag, 10);
+        }
     }
 
     yp = tcallocdz(sizeof(*yp), NULL, y4m_free_pk);
@@ -138,38 +138,38 @@ y4m_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     char *p = buf;
 
     if(!url_gets(buf, sizeof(buf), u))
-	return NULL;
+        return NULL;
 
     if(strncmp(buf, "YUV4MPEG2 ", 10)){
-	tc2_print("YUV4MPEG", TC2_PRINT_ERROR, "bad signature\n");
-	return NULL;
+        tc2_print("YUV4MPEG", TC2_PRINT_ERROR, "bad signature\n");
+        return NULL;
     }
 
     while((p = strchr(p, ' '))){
-	switch(*++p){
-	case 'W':
-	    if((width = read_int(++p)) < 0)
-		return NULL;
-	    break;
-	case 'H':
-	    if((height = read_int(++p)) < 0)
-		return NULL;
-	    break;
-	case 'F':
-	    if(read_frac(++p, &rate))
-		return NULL;
-	    break;
-	case 'A':
-	    if(read_frac(++p, &aspect))
-		return NULL;
-	    break;
-	case 'I':
-	    break;
-	case 'X':
-	    break;
-	default:
-	    return NULL;
-	}
+        switch(*++p){
+        case 'W':
+            if((width = read_int(++p)) < 0)
+                return NULL;
+            break;
+        case 'H':
+            if((height = read_int(++p)) < 0)
+                return NULL;
+            break;
+        case 'F':
+            if(read_frac(++p, &rate))
+                return NULL;
+            break;
+        case 'A':
+            if(read_frac(++p, &aspect))
+                return NULL;
+            break;
+        case 'I':
+            break;
+        case 'X':
+            break;
+        default:
+            return NULL;
+        }
     }
 
     y4m = calloc(1, sizeof(*y4m));

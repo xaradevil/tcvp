@@ -40,7 +40,7 @@ open_multi_free(void *p)
     int i;
 
     for(i = 0; i < te->nfiles; i++)
-	free(te->files[i]);
+        free(te->files[i]);
     free(te->files);
 }
 
@@ -48,7 +48,7 @@ extern void *
 open_multi_alloc(int type, va_list args)
 {
     tcvp_open_multi_event_t *te =
-	tcvp_event_alloc(type, sizeof(*te), open_multi_free);
+        tcvp_event_alloc(type, sizeof(*te), open_multi_free);
     char **files;
     int i;
 
@@ -56,7 +56,7 @@ open_multi_alloc(int type, va_list args)
     files = va_arg(args, char **);
     te->files = malloc(te->nfiles * sizeof(*te->files));
     for(i = 0; i < te->nfiles; i++)
-	te->files[i] = strdup(files[i]);
+        te->files[i] = strdup(files[i]);
     return te;
 }
 
@@ -87,14 +87,14 @@ load_ser(char *name, void *event, int *ssize)
     u_char *sb, *p;
     int size, i;
 
-#define get_attr(attr) do {				\
-	if((attr = tcattr_get(te->stream, #attr)))	\
-	    size += strlen(#attr) + strlen(attr) + 2;	\
+#define get_attr(attr) do {                             \
+        if((attr = tcattr_get(te->stream, #attr)))      \
+            size += strlen(#attr) + strlen(attr) + 2;   \
     } while(0)
 
-#define write_attr(attr) do {					\
-	if(attr)						\
-	    p += sprintf(p, "%s%c%s%c", #attr, 0, attr, 0);	\
+#define write_attr(attr) do {                                   \
+        if(attr)                                                \
+            p += sprintf(p, "%s%c%s%c", #attr, 0, attr, 0);     \
     } while(0)
 
     size = strlen(name) + 1 + 8 + 1;
@@ -106,17 +106,17 @@ load_ser(char *name, void *event, int *ssize)
 
     /* remember to update these sizes if serialization is modified below */
     for(i = 0; i < te->stream->n_streams; i++){
-	stream_t *st = te->stream->streams + i;
-	size += 1 + 1 + 4;
-	if(st->common.codec)
-	    size += strlen(st->common.codec) + 1;
-	else
-	    size += strlen("unknown") + 1;
-	if(st->stream_type == STREAM_TYPE_AUDIO){
-	    size += 12;
-	} else if(st->stream_type == STREAM_TYPE_VIDEO){
-	    size += 16;
-	}
+        stream_t *st = te->stream->streams + i;
+        size += 1 + 1 + 4;
+        if(st->common.codec)
+            size += strlen(st->common.codec) + 1;
+        else
+            size += strlen("unknown") + 1;
+        if(st->stream_type == STREAM_TYPE_AUDIO){
+            size += 12;
+        } else if(st->stream_type == STREAM_TYPE_VIDEO){
+            size += 16;
+        }
     }
 
     sb = malloc(size + 1);
@@ -129,33 +129,33 @@ load_ser(char *name, void *event, int *ssize)
 
     /* remember to update the sizes above if changed */
     for(i = 0; i < te->stream->n_streams; i++){
-	stream_t *st = te->stream->streams + i;
-	*p++ = te->stream->used_streams[i];
-	*p++ = st->stream_type;
-	if(st->common.codec)
-	    p += sprintf(p, "%s", st->common.codec);
-	else
-	    p += sprintf(p, "unknown");
-	p++;
-	st_unaligned32(htob_32(st->common.bit_rate), p);
-	p += 4;
-	if(st->stream_type == STREAM_TYPE_AUDIO){
-	    st_unaligned32(htob_32(st->audio.sample_rate), p);
-	    p += 4;
-	    st_unaligned32(htob_32(st->audio.channels), p);
-	    p += 4;
-	    st_unaligned32(htob_32(st->audio.samples), p);
-	    p += 4;
-	} else if(st->stream_type == STREAM_TYPE_VIDEO){
-	    st_unaligned32(htob_32(st->video.frame_rate.num), p);
-	    p += 4;
-	    st_unaligned32(htob_32(st->video.frame_rate.den), p);
-	    p += 4;
-	    st_unaligned32(htob_32(st->video.width), p);
-	    p += 4;
-	    st_unaligned32(htob_32(st->video.height), p);
-	    p += 4;
-	}
+        stream_t *st = te->stream->streams + i;
+        *p++ = te->stream->used_streams[i];
+        *p++ = st->stream_type;
+        if(st->common.codec)
+            p += sprintf(p, "%s", st->common.codec);
+        else
+            p += sprintf(p, "unknown");
+        p++;
+        st_unaligned32(htob_32(st->common.bit_rate), p);
+        p += 4;
+        if(st->stream_type == STREAM_TYPE_AUDIO){
+            st_unaligned32(htob_32(st->audio.sample_rate), p);
+            p += 4;
+            st_unaligned32(htob_32(st->audio.channels), p);
+            p += 4;
+            st_unaligned32(htob_32(st->audio.samples), p);
+            p += 4;
+        } else if(st->stream_type == STREAM_TYPE_VIDEO){
+            st_unaligned32(htob_32(st->video.frame_rate.num), p);
+            p += 4;
+            st_unaligned32(htob_32(st->video.frame_rate.den), p);
+            p += 4;
+            st_unaligned32(htob_32(st->video.width), p);
+            p += 4;
+            st_unaligned32(htob_32(st->video.height), p);
+            p += 4;
+        }
     }
 
     write_attr(file);
@@ -176,7 +176,7 @@ load_free_st(void *p)
     int i;
 
     for(i = 0; i < ms->n_streams; i++)
-	free(ms->streams[i].common.codec);
+        free(ms->streams[i].common.codec);
     free(ms->streams);
     free(ms->used_streams);
 }
@@ -189,20 +189,20 @@ load_deser(int type, u_char *event, int size)
     tcvp_event_t *te = NULL;
     int i;
 
-#define get32(d) do {					\
-	d = htob_32(unaligned32(n));			\
-	n += 4;						\
-	size -= 4;					\
-	tc2_print("TCVP", TC2_PRINT_DEBUG,		\
-		  "load_deser: "#d" = %i\n", d);	\
+#define get32(d) do {                                   \
+        d = htob_32(unaligned32(n));                    \
+        n += 4;                                         \
+        size -= 4;                                      \
+        tc2_print("TCVP", TC2_PRINT_DEBUG,              \
+                  "load_deser: "#d" = %i\n", d);        \
     } while(0);
 
     if(!n)
-	return NULL;
+        return NULL;
     n++;
     size -= n - event;
     if(size < 9)
-	return NULL;
+        return NULL;
 
     ms = tcallocdz(sizeof(*ms), NULL, load_free_st);
     ms->time = htob_64(unaligned64(n));
@@ -212,56 +212,56 @@ load_deser(int type, u_char *event, int size)
     ms->n_streams = *n++;
     size--;
     tc2_print("TCVP", TC2_PRINT_DEBUG,
-	      "load_deser: %i streams\n", ms->n_streams);
+              "load_deser: %i streams\n", ms->n_streams);
     ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     for(i = 0; i < ms->n_streams && size > 0; i++){
-	u_char *ce;
-	stream_t *st = ms->streams + i;
+        u_char *ce;
+        stream_t *st = ms->streams + i;
 
-	ms->used_streams[i] = *n++;
-	size--;
-	st->stream_type = *n++;
-	size--;
-	ce = memchr(n, 0, size);
-	if(!ce){
-	    tc2_print("TCVP", TC2_PRINT_WARNING, "load_deser: short buffer\n");
-	    goto out;
-	}
-	tc2_print("TCVP", TC2_PRINT_DEBUG, "load_deser: codec = %s\n", n);
-	st->common.codec = strdup(n);
-	ce++;
-	size -= ce - n;
-	n = ce;
-	get32(st->common.bit_rate);
-	if(st->stream_type == STREAM_TYPE_AUDIO){
-	    get32(st->audio.sample_rate);
-	    get32(st->audio.channels);
-	    get32(st->audio.samples);
-	} else if(st->stream_type == STREAM_TYPE_VIDEO){
-	    get32(st->video.frame_rate.num);
-	    get32(st->video.frame_rate.den);
-	    get32(st->video.width);
-	    get32(st->video.height);
-	}
+        ms->used_streams[i] = *n++;
+        size--;
+        st->stream_type = *n++;
+        size--;
+        ce = memchr(n, 0, size);
+        if(!ce){
+            tc2_print("TCVP", TC2_PRINT_WARNING, "load_deser: short buffer\n");
+            goto out;
+        }
+        tc2_print("TCVP", TC2_PRINT_DEBUG, "load_deser: codec = %s\n", n);
+        st->common.codec = strdup(n);
+        ce++;
+        size -= ce - n;
+        n = ce;
+        get32(st->common.bit_rate);
+        if(st->stream_type == STREAM_TYPE_AUDIO){
+            get32(st->audio.sample_rate);
+            get32(st->audio.channels);
+            get32(st->audio.samples);
+        } else if(st->stream_type == STREAM_TYPE_VIDEO){
+            get32(st->video.frame_rate.num);
+            get32(st->video.frame_rate.den);
+            get32(st->video.width);
+            get32(st->video.height);
+        }
     }
 
     while(size > 0 && *n){
-	u_char *v = memchr(n, 0, size);
-	u_char *na;
+        u_char *v = memchr(n, 0, size);
+        u_char *na;
 
-	if(!v)
-	    break;
-	v++;
-	size -= v - n;
-	na = memchr(v, 0, size);
-	if(!na)
-	    break;
-	na++;
-	size -= na - v;
-	tcattr_set(ms, n, strdup(v), NULL, free);
-	tc2_print("TCVP", TC2_PRINT_DEBUG, "load_deser: %s = %s\n", n, v);
-	n = na;
+        if(!v)
+            break;
+        v++;
+        size -= v - n;
+        na = memchr(v, 0, size);
+        if(!na)
+            break;
+        na++;
+        size -= na - v;
+        tcattr_set(ms, n, strdup(v), NULL, free);
+        tc2_print("TCVP", TC2_PRINT_DEBUG, "load_deser: %s = %s\n", n, v);
+        n = na;
     }
 
     te = tcvp_event_new(type, ms);

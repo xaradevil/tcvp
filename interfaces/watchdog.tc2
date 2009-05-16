@@ -1,2 +1,2 @@
 inherit "filter"
-option	timeout%i=1000
+option  timeout%i=1000

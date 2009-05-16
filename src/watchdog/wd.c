@@ -46,15 +46,15 @@ wd_watch(void *p)
     char buf[4];
 
     for(;;){
-	struct timeval t = { w->timeout / 1000, (w->timeout % 1000) * 1000 };
-	fd_set fs;
-	FD_ZERO(&fs);
-	FD_SET(w->bone[0], &fs);
-	if(!select(FD_SETSIZE, &fs, NULL, NULL, &t)){
-	    tc2_print("WATCHDOG", TC2_PRINT_ERROR, "timeout\n");
-	    exit(1);
-	}
-	read(w->bone[0], buf, 1);
+        struct timeval t = { w->timeout / 1000, (w->timeout % 1000) * 1000 };
+        fd_set fs;
+        FD_ZERO(&fs);
+        FD_SET(w->bone[0], &fs);
+        if(!select(FD_SETSIZE, &fs, NULL, NULL, &t)){
+            tc2_print("WATCHDOG", TC2_PRINT_ERROR, "timeout\n");
+            exit(1);
+        }
+        read(w->bone[0], buf, 1);
     }
 
     return NULL;

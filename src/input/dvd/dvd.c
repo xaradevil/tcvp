@@ -80,14 +80,14 @@ static int
 next_cell(pgc_t *pgc, int cell, int angle)
 {
     if(pgc->cell_playback[cell].block_type == BLOCK_TYPE_ANGLE_BLOCK){
-	int i;
-	cell += angle;
-	for(i = 0;; i++){
-	    if(pgc->cell_playback[cell + i].block_mode ==
-	       BLOCK_MODE_LAST_CELL){
-		return cell + i + 1;
-	    }
-	}
+        int i;
+        cell += angle;
+        for(i = 0;; i++){
+            if(pgc->cell_playback[cell + i].block_mode ==
+               BLOCK_MODE_LAST_CELL){
+                return cell + i + 1;
+            }
+        }
     }
 
     return cell + 1;
@@ -101,20 +101,20 @@ read_nav(dvd_file_t *df, int sector, int *next)
     int blocks;
 
     if(DVDReadBlocks(df, sector, 1, buf) != 1){
-	tc2_print("DVD", TC2_PRINT_ERROR, "error reading NAV packet @%i\n", sector);
-	return -1;
+        tc2_print("DVD", TC2_PRINT_ERROR, "error reading NAV packet @%i\n", sector);
+        return -1;
     }
 
     if(!is_nav_pack(buf))
-	return -1;
+        return -1;
 
     navRead_DSI(&dsi_pack, buf + DSI_START_BYTE);
     blocks = dsi_pack.dsi_gi.vobu_ea;
 
     if(dsi_pack.vobu_sri.next_vobu != SRI_END_OF_CELL){
-	*next = sector + (dsi_pack.vobu_sri.next_vobu & 0x7fffffff);
+        *next = sector + (dsi_pack.vobu_sri.next_vobu & 0x7fffffff);
     } else {
-	*next = sector + blocks + 1;
+        *next = sector + blocks + 1;
     }
 
     return blocks;
@@ -127,47 +127,47 @@ dvd_doread(dvd_t *d)
 
     switch(d->state){
     case CELL_START:
-	if(d->next_cell >= d->pgc->nr_of_cells)
-	    return -1;
-	d->cell = d->next_cell;
-/* 	tc2_print("DVD", TC2_PRINT_DEBUG, "entering cell %i\n", d->cell); */
-	d->next_cell = next_cell(d->pgc, d->cell, d->angle);
-	d->npack = d->pgc->cell_playback[d->cell].first_sector;
-	d->state = CELL_LOOP;
+        if(d->next_cell >= d->pgc->nr_of_cells)
+            return -1;
+        d->cell = d->next_cell;
+/*      tc2_print("DVD", TC2_PRINT_DEBUG, "entering cell %i\n", d->cell); */
+        d->next_cell = next_cell(d->pgc, d->cell, d->angle);
+        d->npack = d->pgc->cell_playback[d->cell].first_sector;
+        d->state = CELL_LOOP;
 
     case CELL_LOOP:
-	d->pack = d->npack;
-	l = read_nav(d->file, d->pack, &d->npack);
-	if(l < 0)
-	    return -1;
-/* 	tc2_print("DVD", TC2_PRINT_DEBUG, "cell %i, %i blocks @%i\n", d->cell, l, d->pack); */
-	d->blocks = l;
-	d->pack++;
-	d->state = BLOCK_LOOP;
+        d->pack = d->npack;
+        l = read_nav(d->file, d->pack, &d->npack);
+        if(l < 0)
+            return -1;
+/*      tc2_print("DVD", TC2_PRINT_DEBUG, "cell %i, %i blocks @%i\n", d->cell, l, d->pack); */
+        d->blocks = l;
+        d->pack++;
+        d->state = BLOCK_LOOP;
 
     case BLOCK_LOOP:
-	r = min(d->blocks, buf_blocks);
-/* 	    tc2_print("DVD", TC2_PRINT_DEBUG, "reading %i blocks @%i -> %p\n", */
-/* 		    r, d->pack, d->buf); */
-	l = DVDReadBlocks(d->file, d->pack, r, d->buf);
-	if(l != r){
-	    tc2_print("DVD", TC2_PRINT_ERROR, "error reading %i blocks @%i\n",
-		    r, d->pack);
-	    return -1;
-	}
-	d->bbytes = l * DVD_VIDEO_LB_LEN;
-	d->bpos = 0;
-	d->blocks -= l;
+        r = min(d->blocks, buf_blocks);
+/*          tc2_print("DVD", TC2_PRINT_DEBUG, "reading %i blocks @%i -> %p\n", */
+/*                  r, d->pack, d->buf); */
+        l = DVDReadBlocks(d->file, d->pack, r, d->buf);
+        if(l != r){
+            tc2_print("DVD", TC2_PRINT_ERROR, "error reading %i blocks @%i\n",
+                    r, d->pack);
+            return -1;
+        }
+        d->bbytes = l * DVD_VIDEO_LB_LEN;
+        d->bpos = 0;
+        d->blocks -= l;
 
-	if(!d->blocks){
-	    if(d->pack < d->pgc->cell_playback[d->cell].last_sector){
-		d->state = CELL_LOOP;
-	    } else {
-		d->state = CELL_START;
-	    }
-	} else {
-	    d->pack += l;
-	}
+        if(!d->blocks){
+            if(d->pack < d->pgc->cell_playback[d->cell].last_sector){
+                d->state = CELL_LOOP;
+            } else {
+                d->state = CELL_START;
+            }
+        } else {
+            d->pack += l;
+        }
     }
 
     return 0;
@@ -181,21 +181,21 @@ dvd_read(void *buf, size_t size, size_t count, url_t *u)
     size_t bytes = rbytes;
 
     while(bytes){
-	int bb = min(bytes, d->bbytes - d->bpos);
+        int bb = min(bytes, d->bbytes - d->bpos);
 
-/* 	tc2_print("DVD", TC2_PRINT_DEBUG, "reading %i bytes @%lli\n", bb, d->pos); */
-	memcpy(buf, d->buf + d->bpos, bb);
-	d->bpos += bb;
-	d->pos += bb;
-	bytes -= bb;
+/*      tc2_print("DVD", TC2_PRINT_DEBUG, "reading %i bytes @%lli\n", bb, d->pos); */
+        memcpy(buf, d->buf + d->bpos, bb);
+        d->bpos += bb;
+        d->pos += bb;
+        bytes -= bb;
 
-	if(d->bpos == d->bbytes){
-	    if(dvd_doread(d)){
-		d->bbytes = 0;
-		d->bpos = 0;
-		break;
-	    }
-	}
+        if(d->bpos == d->bbytes){
+            if(dvd_doread(d)){
+                d->bbytes = 0;
+                d->bpos = 0;
+                break;
+            }
+        }
     }
 
     return bytes < rbytes? (rbytes - bytes) / size: -1;
@@ -209,42 +209,42 @@ dvd_seek(url_t *u, int64_t offset, int how)
 
     switch(how){
     case SEEK_SET:
-	np = offset;
-	break;
+        np = offset;
+        break;
     case SEEK_CUR:
-	np = d->pos + offset;
-	break;
+        np = d->pos + offset;
+        break;
     case SEEK_END:
-	np = u->size - offset;
-	break;
+        np = u->size - offset;
+        break;
     default:
-	return -1;
+        return -1;
     }
 
     if(np < 0 || np > u->size)
-	return -1;
+        return -1;
 
     diff = np - d->pos;
     if((diff > 0 && diff <= d->bbytes - d->bpos) ||
        (diff < 0 && -diff <= d->bpos)){
-	d->bpos += diff;
+        d->bpos += diff;
     } else {
-	uint64_t block = np / DVD_VIDEO_LB_LEN + d->start_sector;
-	int i;
+        uint64_t block = np / DVD_VIDEO_LB_LEN + d->start_sector;
+        int i;
 
-	for(i = 0; i < d->vobu_map->last_byte / 4; i++){
-	    if(d->vobu_map->vobu_start_sectors[i] - i > block)
-		break;
-	}
+        for(i = 0; i < d->vobu_map->last_byte / 4; i++){
+            if(d->vobu_map->vobu_start_sectors[i] - i > block)
+                break;
+        }
 
-	if(!i)
-	    return -1;
+        if(!i)
+            return -1;
 
-	d->npack = d->vobu_map->vobu_start_sectors[i-1];
-	d->state = CELL_LOOP;
-	np = (d->npack - d->start_sector) * DVD_VIDEO_LB_LEN;
-	d->bbytes = 0;
-	d->bpos = 0;
+        d->npack = d->vobu_map->vobu_start_sectors[i-1];
+        d->state = CELL_LOOP;
+        np = (d->npack - d->start_sector) * DVD_VIDEO_LB_LEN;
+        d->bbytes = 0;
+        d->bpos = 0;
     }
 
     d->pos = np;
@@ -295,79 +295,79 @@ dvd_open(char *url, char *mode)
     url_t *u;
 
     if(strcmp(mode, "r"))
-	return NULL;
+        return NULL;
 
     if(!strncmp(url, "dvd:", 4))
-	url += 4;
+        url += 4;
 
     url = strdupa(url);
 
     if((tmp = strchr(url, '?')))
-	*tmp++ = 0;
+        *tmp++ = 0;
 
     while((p = strsep(&tmp, "&"))){
-	if(!*p)
-	    continue;
-	if(!strncmp(p, "title=", 6)){
-	    title = strtol(p + 6, NULL, 0) - 1;
-	} else if(!strncmp(p, "angle=", 6)){
-	    angle = strtol(p + 6, NULL, 0) - 1;
-	} else if(!strncmp(p, "chapter=", 8)){
-	    chapter = strtol(p + 8, NULL, 0) - 1;
-	}
+        if(!*p)
+            continue;
+        if(!strncmp(p, "title=", 6)){
+            title = strtol(p + 6, NULL, 0) - 1;
+        } else if(!strncmp(p, "angle=", 6)){
+            angle = strtol(p + 6, NULL, 0) - 1;
+        } else if(!strncmp(p, "chapter=", 8)){
+            chapter = strtol(p + 8, NULL, 0) - 1;
+        }
     }
 
     if(*url)
-	device = url;
+        device = url;
 
     if(!device)
-	return NULL;
+        return NULL;
 
     if(!(dvd = DVDOpen(device))){
-	tc2_print("DVD", TC2_PRINT_ERROR, "can't open %s\n", device);
-	return NULL;
+        tc2_print("DVD", TC2_PRINT_ERROR, "can't open %s\n", device);
+        return NULL;
     }
 
     if(!(ifo = ifoOpen(dvd, 0))){
-	tc2_print("DVD", TC2_PRINT_ERROR, "can't get DVD info\n");
-	DVDClose(dvd);
-	return NULL;
+        tc2_print("DVD", TC2_PRINT_ERROR, "can't get DVD info\n");
+        DVDClose(dvd);
+        return NULL;
     }
 
     ttsrpt = ifo->tt_srpt;
     tc2_print("DVD", TC2_PRINT_VERBOSE, "%i titles.\n", ttsrpt->nr_of_srpts);
 
     if(title < 0 || title >= ttsrpt->nr_of_srpts){
-	tc2_print("DVD", TC2_PRINT_ERROR, "invalid title %i.\n", title);
-	ifoClose(ifo);
-	DVDClose(dvd);
-	return NULL;
+        tc2_print("DVD", TC2_PRINT_ERROR, "invalid title %i.\n", title);
+        ifoClose(ifo);
+        DVDClose(dvd);
+        return NULL;
     }
 
     tc2_print("DVD", TC2_PRINT_VERBOSE,
-	      "%i chapters.\n", ttsrpt->title[title].nr_of_ptts);
+              "%i chapters.\n", ttsrpt->title[title].nr_of_ptts);
     tc2_print("DVD", TC2_PRINT_VERBOSE,
-	      "%i angles.\n", ttsrpt->title[title].nr_of_angles);
+              "%i angles.\n", ttsrpt->title[title].nr_of_angles);
 
     if(chapter < 0 || chapter >= ttsrpt->title[title].nr_of_ptts){
-	tc2_print("DVD", TC2_PRINT_ERROR, "invalid chapter %i\n", chapter);
-	ifoClose(ifo);
-	DVDClose(dvd);
-	return NULL;
+        tc2_print("DVD", TC2_PRINT_ERROR, "invalid chapter %i\n", chapter);
+        ifoClose(ifo);
+        DVDClose(dvd);
+        return NULL;
     }
 
     if(angle < 0 || angle >= ttsrpt->title[title].nr_of_angles){
-	tc2_print("DVD", TC2_PRINT_ERROR, "invalid angle %i\n", angle);
-	ifoClose(ifo);
-	DVDClose(dvd);
-	return NULL;
+        tc2_print("DVD", TC2_PRINT_ERROR, "invalid angle %i\n", angle);
+        ifoClose(ifo);
+        DVDClose(dvd);
+        return NULL;
     }
 
     if(!(vts = ifoOpen(dvd, ttsrpt->title[title].title_set_nr))){
-	tc2_print("DVD", TC2_PRINT_ERROR, "can't open title info.\n");
-	ifoClose(ifo);
-	DVDClose(dvd);
-	return NULL;
+        tc2_print("DVD", TC2_PRINT_ERROR, "can't open title info.\n");
+        ifoClose(ifo);
+        DVDClose(dvd);
+        return NULL;
     }
 
     ttn = ttsrpt->title[title].vts_ttn;
@@ -378,12 +378,12 @@ dvd_open(char *url, char *mode)
     start_cell = pgc->program_map[pgn - 1] - 1;
 
     if(!(file = DVDOpenFile(dvd, ttsrpt->title[title].title_set_nr,
-			    DVD_READ_TITLE_VOBS))){
-	tc2_print("DVD", TC2_PRINT_ERROR, "can't open title %i\n", title);
-	ifoClose(vts);
-	ifoClose(ifo);
-	DVDClose(dvd);
-	return NULL;
+                            DVD_READ_TITLE_VOBS))){
+        tc2_print("DVD", TC2_PRINT_ERROR, "can't open title %i\n", title);
+        ifoClose(vts);
+        ifoClose(ifo);
+        DVDClose(dvd);
+        return NULL;
     }
 
     d = calloc(1, sizeof(*d));

@@ -48,9 +48,9 @@ static void avi_free(void *p);
 #define get4c(t,f) f->read(&t, 4, 1, f)
 
 #ifdef DEBUG
-#define getjunk(f,s) do {			\
-    uint##s##_t v = getu##s(f);			\
-    printf("    %x %i\n", v, v);		\
+#define getjunk(f,s) do {                       \
+    uint##s##_t v = getu##s(f);                 \
+    printf("    %x %i\n", v, v);                \
 } while(0)
 
 #define getval(f, n, s) printf("    " n ": %i\n", getu##s(f));
@@ -59,13 +59,13 @@ static void avi_free(void *p);
 #define getval(f,n,s) getu##s(f)
 #endif
 
-#define getuint(s)				\
-static inline uint##s##_t			\
-getu##s(url_t *f)				\
-{						\
-    uint##s##_t v;				\
-    url_getu##s##l(f, &v);			\
-    return v;					\
+#define getuint(s)                              \
+static inline uint##s##_t                       \
+getu##s(url_t *f)                               \
+{                                               \
+    uint##s##_t v;                              \
+    url_getu##s##l(f, &v);                      \
+    return v;                                   \
 }
 
 getuint(16)
@@ -158,9 +158,9 @@ static inline int
 valid_tag(uint8_t *t, int strict)
 {
     return (isxdigit(t[0]) || t[0] == ' ') && isxdigit(t[1]) &&
-	(strict? (t[2] == 'w' || t[2] == 'd') &&
-	 (t[3] > 'a' && t[3] < 'e'):
-	 (isalpha(t[2]) && isalpha(t[3])));
+        (strict? (t[2] == 'w' || t[2] == 'd') &&
+         (t[3] > 'a' && t[3] < 'e'):
+         (isalpha(t[2]) && isalpha(t[3])));
 }
 
 static inline int
@@ -174,8 +174,8 @@ tagstr(char *str, uint32_t tag)
 {
     int i;
     for(i = 0; i < 4; i++){
-	str[i] = tag & 0xff;
-	tag >>= 8;
+        str[i] = tag & 0xff;
+        tag >>= 8;
     }
     str[4] = 0;
     return str;
@@ -183,42 +183,42 @@ tagstr(char *str, uint32_t tag)
 
 static int
 avi_add_index(muxed_stream_t *ms, int s, uint64_t offset,
-	      uint32_t size, uint32_t flags)
+              uint32_t size, uint32_t flags)
 {
     avi_file_t *af = ms->private;
     avi_stream_t *st = &af->streams[s];
     int ixl = st->idxlen;
 
     if(st->idxlen == st->idxsize){
-	st->idxsize = st->idxsize? st->idxsize * 2: 65536;
-	st->index = realloc(st->index, st->idxsize * sizeof(*st->index));
+        st->idxsize = st->idxsize? st->idxsize * 2: 65536;
+        st->index = realloc(st->index, st->idxsize * sizeof(*st->index));
     }
 
     if(ms->streams[s].stream_type == STREAM_TYPE_AUDIO)
-	flags &= ~AVI_FLAG_KEYFRAME;
+        flags &= ~AVI_FLAG_KEYFRAME;
 
     st->index[ixl].offset = offset;
     st->index[ixl].size = size;
     st->index[ixl].flags = flags;
 
     if(ms->streams[s].stream_type == STREAM_TYPE_AUDIO) {
-	if(!st->sample_size && st->scale && st->rate){
-	    st->index[ixl].pts = 27000000LL * st->blocknum *
-		st->scale / st->rate;
-	} else if(st->wavex && st->block_align && st->rate){
-	    st->index[ixl].pts =
-		27000000LL * st->size / st->block_align * st->scale / st->rate;
-	} else if(st->sample_size && st->rate){
-	    st->index[ixl].pts =
-		27000000LL * st->size / st->sample_size * st->scale / st->rate;
-	}
-	if(st->block_align){
-	    st->blocknum += (size + st->block_align - 1) / st->block_align;
-	} else {
-	    st->blocknum++;
-	}
+        if(!st->sample_size && st->scale && st->rate){
+            st->index[ixl].pts = 27000000LL * st->blocknum *
+                st->scale / st->rate;
+        } else if(st->wavex && st->block_align && st->rate){
+            st->index[ixl].pts =
+                27000000LL * st->size / st->block_align * st->scale / st->rate;
+        } else if(st->sample_size && st->rate){
+            st->index[ixl].pts =
+                27000000LL * st->size / st->sample_size * st->scale / st->rate;
+        }
+        if(st->block_align){
+            st->blocknum += (size + st->block_align - 1) / st->block_align;
+        } else {
+            st->blocknum++;
+        }
     } else if(ms->streams[s].stream_type == STREAM_TYPE_VIDEO){
-	st->index[ixl].pts = 27000000LL * ixl * st->scale / st->rate;
+        st->index[ixl].pts = 27000000LL * ixl * st->scale / st->rate;
     }
 
     st->size += size;
@@ -237,32 +237,32 @@ avi_read_idx1(muxed_stream_t *ms, uint32_t size)
     avi_idx1_t idx1;
 
     for(i = 0; i < idxl; i++){
-	if(af->file->read(&idx1, sizeof(idx1), 1, af->file) <= 0)
-	    break;
+        if(af->file->read(&idx1, sizeof(idx1), 1, af->file) <= 0)
+            break;
 
-	if(!valid_tag(idx1.tag, 0)){
-	    if(memcmp(idx1.tag, "rec ", 4))
-		tc2_print("AVI", TC2_PRINT_WARNING,
-			  "Invalid tag in index @%i\n", i);
-	    continue;
-	}
+        if(!valid_tag(idx1.tag, 0)){
+            if(memcmp(idx1.tag, "rec ", 4))
+                tc2_print("AVI", TC2_PRINT_WARNING,
+                          "Invalid tag in index @%i\n", i);
+            continue;
+        }
 
-	s = tag2str(idx1.tag);
-	if(s > ms->n_streams){
-	    tc2_print("AVI", TC2_PRINT_WARNING,
-		      "Invalid stream #%i in index.\n", s);
-	    continue;
-	}
+        s = tag2str(idx1.tag);
+        if(s > ms->n_streams){
+            tc2_print("AVI", TC2_PRINT_WARNING,
+                      "Invalid stream #%i in index.\n", s);
+            continue;
+        }
 
-	if(i == 0)
-	    idxoff = af->movi_start - idx1.offset;
+        if(i == 0)
+            idxoff = af->movi_start - idx1.offset;
 
-	avi_add_index(ms, s, idx1.offset + idxoff, idx1.size, idx1.flags);
+        avi_add_index(ms, s, idx1.offset + idxoff, idx1.size, idx1.flags);
     }
 
     if(i != idxl)
-	tc2_print("AVI", TC2_PRINT_WARNING,
-		  "Short index. Expected %i, got %i.\n", idxl, i);
+        tc2_print("AVI", TC2_PRINT_WARNING,
+                  "Short index. Expected %i, got %i.\n", idxl, i);
 
     return 0;
 }
@@ -275,19 +275,19 @@ avi_read_chunk_indx(muxed_stream_t *ms, int s, uint32_t size)
     int i;
 
     base = getu64(af->file);
-    getu32(af->file);		/* MBZ */
+    getu32(af->file);           /* MBZ */
 
     for(i = 0; i < size; i++){
-	uint32_t offset;
-	uint32_t size;
-	uint32_t flags = 0;
+        uint32_t offset;
+        uint32_t size;
+        uint32_t flags = 0;
 
-	offset = getu32(af->file);
-	size = getu32(af->file);
-	if(!(size & (1 << 31)))
-	    flags |= AVI_FLAG_KEYFRAME;
-	size &= ((1U << 31) - 1);
-	avi_add_index(ms, s, base + offset - 8, size, flags);
+        offset = getu32(af->file);
+        size = getu32(af->file);
+        if(!(size & (1 << 31)))
+            flags |= AVI_FLAG_KEYFRAME;
+        size &= ((1U << 31) - 1);
+        avi_add_index(ms, s, base + offset - 8, size, flags);
     }
 
     return 0;
@@ -299,24 +299,24 @@ avi_read_super_indx(muxed_stream_t *ms, int s, uint32_t size)
     avi_file_t *af = ms->private;
     int i;
 
-    getu32(af->file);		/* MBZ */
+    getu32(af->file);           /* MBZ */
     getu32(af->file);
     getu32(af->file);
 
     for(i = 0; i < size; i++){
-	uint64_t offset;
-	off_t pos;
+        uint64_t offset;
+        off_t pos;
 
-	offset = getu64(af->file);
-	getu32(af->file);	/* size */
-	getu32(af->file);	/* duration */
+        offset = getu64(af->file);
+        getu32(af->file);       /* size */
+        getu32(af->file);       /* duration */
 
-	pos = af->file->tell(af->file);
-	af->file->seek(af->file, offset, SEEK_SET);
-	getu32(af->file);	/* tag */
-	getu32(af->file);	/* size */
-	avi_read_indx(ms);
-	af->file->seek(af->file, pos, SEEK_SET);
+        pos = af->file->tell(af->file);
+        af->file->seek(af->file, offset, SEEK_SET);
+        getu32(af->file);       /* tag */
+        getu32(af->file);       /* size */
+        avi_read_indx(ms);
+        af->file->seek(af->file, pos, SEEK_SET);
     }
 
     return 0;
@@ -337,25 +337,25 @@ avi_read_indx(muxed_stream_t *ms)
     get4c(tag, af->file);
 
     if(!valid_tag(tag, 0)){
-	tc2_print("AVI", TC2_PRINT_WARNING, "Invalid tag in indx chunk.\n");
-	return -1;
+        tc2_print("AVI", TC2_PRINT_WARNING, "Invalid tag in indx chunk.\n");
+        return -1;
     }
 
     str = tag2str(tag);
     if(str > ms->n_streams){
-	tc2_print("AVI", TC2_PRINT_WARNING,
-		  "Invalid stream #%i in indx chunk.\n", str);
-	return -1;
+        tc2_print("AVI", TC2_PRINT_WARNING,
+                  "Invalid stream #%i in indx chunk.\n", str);
+        return -1;
     }
 
     switch(idxtype){
     case AVI_INDEX_SUPER:
-	avi_read_super_indx(ms, str, entries);
-	break;
+        avi_read_super_indx(ms, str, entries);
+        break;
 
     case AVI_INDEX_CHUNK:
-	avi_read_chunk_indx(ms, str, entries);
-	break;
+        avi_read_chunk_indx(ms, str, entries);
+        break;
     }
 
     return 0;
@@ -368,32 +368,32 @@ avi_merge_index(muxed_stream_t *ms)
     int i, j;
 
     for(i = 0; i < ms->n_streams; i++){
-	af->idxlen += af->streams[i].idxlen;
+        af->idxlen += af->streams[i].idxlen;
     }
 
     if(af->idxlen){
-	avi_index_t *sx[ms->n_streams];
-	for(i = 0; i < ms->n_streams; i++)
-	    sx[i] = af->streams[i].index;
+        avi_index_t *sx[ms->n_streams];
+        for(i = 0; i < ms->n_streams; i++)
+            sx[i] = af->streams[i].index;
 
-	af->index = calloc(af->idxlen, sizeof(*af->index));
-	for(i = 0; i < af->idxlen; i++){
-	    int x = -1;
-	    for(j = 0; j < ms->n_streams; j++){
-		if(!sx[j])
-		    continue;
-		if(!af->index[i])
-		    af->index[i] = sx[j];
-		if(af->index[i] && sx[j]->offset <= af->index[i]->offset){
-		    af->index[i] = sx[j];
-		    x = j;
-		}
-	    }
-	    if(x >= 0 &&
-	       ++sx[x] - af->streams[x].index == af->streams[x].idxlen){
-		sx[x] = NULL;
-	    }
-	}
+        af->index = calloc(af->idxlen, sizeof(*af->index));
+        for(i = 0; i < af->idxlen; i++){
+            int x = -1;
+            for(j = 0; j < ms->n_streams; j++){
+                if(!sx[j])
+                    continue;
+                if(!af->index[i])
+                    af->index[i] = sx[j];
+                if(af->index[i] && sx[j]->offset <= af->index[i]->offset){
+                    af->index[i] = sx[j];
+                    x = j;
+                }
+            }
+            if(x >= 0 &&
+               ++sx[x] - af->streams[x].index == af->streams[x].idxlen){
+                sx[x] = NULL;
+            }
+        }
     }
 }
 
@@ -413,19 +413,19 @@ avi_header(url_t *f)
     fsize = f->size;
 
     if(url_getu32l(f, &tag))
-	return NULL;
+        return NULL;
 
     if(tag != TAG('R','I','F','F')){
-	tc2_print("AVI", TC2_PRINT_ERROR, "no RIFF header\n");
-	return NULL;
+        tc2_print("AVI", TC2_PRINT_ERROR, "no RIFF header\n");
+        return NULL;
     }
 
-    getu32(f);			/* size */
+    getu32(f);                  /* size */
 
     url_getu32l(f, &tag);
     if(tag != TAG('A','V','I',' ')){
-	tc2_print("AVI", TC2_PRINT_ERROR, "non-AVI RIFF header\n");
-	return NULL;
+        tc2_print("AVI", TC2_PRINT_ERROR, "non-AVI RIFF header\n");
+        return NULL;
     }
 
     ms = tcallocd(sizeof(*ms), NULL, avi_free);
@@ -437,65 +437,65 @@ avi_header(url_t *f)
     af->packets = tclist_new(TC_LOCK_NONE);
 
     while(!url_getu32l(f, &tag)){
-	size = getu32(f);
-	size += size & 1;
-	pos = f->tell(f);
+        size = getu32(f);
+        size += size & 1;
+        pos = f->tell(f);
 
-	tc2_print("AVI", TC2_PRINT_DEBUG, "tag '%s', size %li\n",
-		  tagstr(st, tag), size);
+        tc2_print("AVI", TC2_PRINT_DEBUG, "tag '%s', size %li\n",
+                  tagstr(st, tag), size);
 
-	if(pos + size > fsize){
-	    tc2_print("AVI", TC2_PRINT_WARNING,
-		      "Chunk '%s' @ %llx exceeds file size. "
-		      "Chunk size %u, remains %llu of file\n",
-		      st, pos, size, fsize - pos);
-	}
+        if(pos + size > fsize){
+            tc2_print("AVI", TC2_PRINT_WARNING,
+                      "Chunk '%s' @ %llx exceeds file size. "
+                      "Chunk size %u, remains %llu of file\n",
+                      st, pos, size, fsize - pos);
+        }
 
-	if(next && tag != next){
-	    tc2_print("AVI", TC2_PRINT_ERROR, "error unexpected tag\n");
-	    return NULL;
-	}
+        if(next && tag != next){
+            tc2_print("AVI", TC2_PRINT_ERROR, "error unexpected tag\n");
+            return NULL;
+        }
 
-	switch(tag){
-	case TAG('L','I','S','T'): {
-	    uint32_t lt = getu32(f);
-	    switch(lt){
-	    case TAG('m','o','v','i'):
-		if(!af->movi_start)
-		    af->movi_start = f->tell(f);
-	    case TAG('I','N','F','O'):
-		f->seek(f, size-4, SEEK_CUR);
-		break;
-	    case TAG('s','t','r','l'):
-		next = TAG('s','t','r','h');
-		break;
-	    }
-	    continue;
-	}
-	case TAG('a','v','i','h'):{
-	    ftime = getu32(f);
+        switch(tag){
+        case TAG('L','I','S','T'): {
+            uint32_t lt = getu32(f);
+            switch(lt){
+            case TAG('m','o','v','i'):
+                if(!af->movi_start)
+                    af->movi_start = f->tell(f);
+            case TAG('I','N','F','O'):
+                f->seek(f, size-4, SEEK_CUR);
+                break;
+            case TAG('s','t','r','l'):
+                next = TAG('s','t','r','h');
+                break;
+            }
+            continue;
+        }
+        case TAG('a','v','i','h'):{
+            ftime = getu32(f);
 
-	    getjunk(f, 32);
-	    getjunk(f, 32);
-	    getval(f, "flags", 32);
-	    getval(f, "frames", 32);
-	    getjunk(f, 32);
+            getjunk(f, 32);
+            getjunk(f, 32);
+            getval(f, "flags", 32);
+            getval(f, "frames", 32);
+            getjunk(f, 32);
 
-	    ms->n_streams = getu32(f);
-	    ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
-	    af->streams = calloc(ms->n_streams, sizeof(*af->streams));
+            ms->n_streams = getu32(f);
+            ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
+            af->streams = calloc(ms->n_streams, sizeof(*af->streams));
 
-	    getjunk(f, 32);
+            getjunk(f, 32);
 
-	    width = getu32(f);
-	    height = getu32(f);
+            width = getu32(f);
+            height = getu32(f);
 
-	    break;
-	}
-	case TAG('s','t','r','h'):{
-	    uint32_t length;
+            break;
+        }
+        case TAG('s','t','r','h'):{
+            uint32_t length;
 
-	    sidx++;
+            sidx++;
 
             if(sidx >= ms->n_streams){
                 tc2_print("AVI", TC2_PRINT_WARNING,
@@ -504,165 +504,165 @@ avi_header(url_t *f)
                 break;
             }
 
-	    stype = getu32(f);
-	    get4c(st, f);	/* tag */
-	    getval(f, "flags", 32);
-	    getval(f, "prio", 16);
-	    getval(f, "lang", 16);
-	    getval(f, "init frame", 32);
-	    af->streams[sidx].scale = getu32(f);
-	    af->streams[sidx].rate = getu32(f);
-	    start = getu32(f);
-	    length = getu32(f);
-	    getval(f, "bufsize", 32);
-	    getval(f, "quality", 32);
-	    af->streams[sidx].sample_size = getu32(f);
+            stype = getu32(f);
+            get4c(st, f);       /* tag */
+            getval(f, "flags", 32);
+            getval(f, "prio", 16);
+            getval(f, "lang", 16);
+            getval(f, "init frame", 32);
+            af->streams[sidx].scale = getu32(f);
+            af->streams[sidx].rate = getu32(f);
+            start = getu32(f);
+            length = getu32(f);
+            getval(f, "bufsize", 32);
+            getval(f, "quality", 32);
+            af->streams[sidx].sample_size = getu32(f);
 
-	    tc2_print("AVI", TC2_PRINT_DEBUG, "scale %i, rate %i, ssize %i\n",
-		      af->streams[sidx].scale, af->streams[sidx].rate,
-		      af->streams[sidx].sample_size);
+            tc2_print("AVI", TC2_PRINT_DEBUG, "scale %i, rate %i, ssize %i\n",
+                      af->streams[sidx].scale, af->streams[sidx].rate,
+                      af->streams[sidx].sample_size);
 
-	    if(stype == TAG('v','i','d','s')){
-		uint32_t frn, frd;
-		ms->streams[sidx].stream_type = STREAM_TYPE_VIDEO;
-		frd = af->streams[sidx].scale;
-		frn = af->streams[sidx].rate;
-		if(frn && frd){
-		    ms->streams[sidx].video.frame_rate.num = frn;
-		    ms->streams[sidx].video.frame_rate.den = frd;
-		} else {
-		    ms->streams[sidx].video.frame_rate.num = 1000000;
-		    ms->streams[sidx].video.frame_rate.den = ftime;
-		}
+            if(stype == TAG('v','i','d','s')){
+                uint32_t frn, frd;
+                ms->streams[sidx].stream_type = STREAM_TYPE_VIDEO;
+                frd = af->streams[sidx].scale;
+                frn = af->streams[sidx].rate;
+                if(frn && frd){
+                    ms->streams[sidx].video.frame_rate.num = frn;
+                    ms->streams[sidx].video.frame_rate.den = frd;
+                } else {
+                    ms->streams[sidx].video.frame_rate.num = 1000000;
+                    ms->streams[sidx].video.frame_rate.den = ftime;
+                }
 
-		tc2_print("AVI", TC2_PRINT_DEBUG, "frn=%i frd=%i\n", frn, frd);
+                tc2_print("AVI", TC2_PRINT_DEBUG, "frn=%i frd=%i\n", frn, frd);
 
-		ms->streams[sidx].video.frames = length;
+                ms->streams[sidx].video.frames = length;
 
-		getjunk(f, 16);
-		getjunk(f, 16);
+                getjunk(f, 16);
+                getjunk(f, 16);
 
-		ms->streams[sidx].video.width = getu16(f);
-		ms->streams[sidx].video.height = getu16(f);
-		if(!ms->streams[sidx].video.width){
-		    ms->streams[sidx].video.width = width;
-		    ms->streams[sidx].video.height = height;
-		}
-		vs = &ms->streams[sidx];
-		af->has_video = 1;
-	    } else if(stype == TAG('a','u','d','s')){
-		ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
-	    }
+                ms->streams[sidx].video.width = getu16(f);
+                ms->streams[sidx].video.height = getu16(f);
+                if(!ms->streams[sidx].video.width){
+                    ms->streams[sidx].video.width = width;
+                    ms->streams[sidx].video.height = height;
+                }
+                vs = &ms->streams[sidx];
+                af->has_video = 1;
+            } else if(stype == TAG('a','u','d','s')){
+                ms->streams[sidx].stream_type = STREAM_TYPE_AUDIO;
+            }
 
-	    ms->streams[sidx].common.index = sidx;
-	    ms->streams[sidx].common.start_time = start * 27;
-	    if(start){
-		tc2_print("AVI", TC2_PRINT_WARNING, "start = %i\n", start);
-	    }
+            ms->streams[sidx].common.index = sidx;
+            ms->streams[sidx].common.start_time = start * 27;
+            if(start){
+                tc2_print("AVI", TC2_PRINT_WARNING, "start = %i\n", start);
+            }
 
-	    next = TAG('s','t','r','f');
-	    break;
-	}
-	case TAG('s','t','r','f'):{
-	    size_t cds;
+            next = TAG('s','t','r','f');
+            break;
+        }
+        case TAG('s','t','r','f'):{
+            size_t cds;
 
             if(sidx >= ms->n_streams)
                 break;
 
-	    switch(stype){
-	    case TAG('v','i','d','s'):
-		getval(f, "size", 32);
+            switch(stype){
+            case TAG('v','i','d','s'):
+                getval(f, "size", 32);
 
-		width = getu32(f);
-		height = getu32(f);
-		if(!ms->streams[sidx].video.width){
-		    ms->streams[sidx].video.width = width;
-		    ms->streams[sidx].video.height = height;
-		}
+                width = getu32(f);
+                height = getu32(f);
+                if(!ms->streams[sidx].video.width){
+                    ms->streams[sidx].video.width = width;
+                    ms->streams[sidx].video.height = height;
+                }
 
-		getval(f, "panes", 16);
-		getval(f, "depth", 16);
+                getval(f, "panes", 16);
+                getval(f, "depth", 16);
 
-		get4c(st, f);
-		ms->streams[sidx].video.codec = vtag2codec(st);
+                get4c(st, f);
+                ms->streams[sidx].video.codec = vtag2codec(st);
 
-		getval(f, "image_size", 32);
-		getval(f, "xpelspermeter", 32);
-		getval(f, "ypelspermeter", 32);
-		getval(f, "clrused", 32);
-		getval(f, "clrimportant", 32);
+                getval(f, "image_size", 32);
+                getval(f, "xpelspermeter", 32);
+                getval(f, "ypelspermeter", 32);
+                getval(f, "clrused", 32);
+                getval(f, "clrimportant", 32);
 
-		if((cds = size - 40) > 0){
-		    ms->streams[sidx].video.codec_data_size = cds;
-		    ms->streams[sidx].video.codec_data = malloc(cds);
-		    f->read(ms->streams[sidx].video.codec_data, 1, cds, f);
-		}
-		break;
+                if((cds = size - 40) > 0){
+                    ms->streams[sidx].video.codec_data_size = cds;
+                    ms->streams[sidx].video.codec_data = malloc(cds);
+                    f->read(ms->streams[sidx].video.codec_data, 1, cds, f);
+                }
+                break;
 
-	    case TAG('a','u','d','s'):{
-		int id = getu16(f);
-		int ba;
-		ms->streams[sidx].audio.codec = aid2codec(id);
-		ms->streams[sidx].audio.channels = getu16(f);
-		ms->streams[sidx].audio.sample_rate = getu32(f);
-		ms->streams[sidx].audio.bit_rate = getu32(f) * 8;
-		ba = getu16(f);
-		ms->streams[sidx].audio.block_align = ba;
-		af->streams[sidx].block_align = ba;
+            case TAG('a','u','d','s'):{
+                int id = getu16(f);
+                int ba;
+                ms->streams[sidx].audio.codec = aid2codec(id);
+                ms->streams[sidx].audio.channels = getu16(f);
+                ms->streams[sidx].audio.sample_rate = getu32(f);
+                ms->streams[sidx].audio.bit_rate = getu32(f) * 8;
+                ba = getu16(f);
+                ms->streams[sidx].audio.block_align = ba;
+                af->streams[sidx].block_align = ba;
 
-		if(size > 14){
-		    int ss = getu16(f);
-		    ms->streams[sidx].audio.sample_size = ss;
-		} else {
-		    ms->streams[sidx].audio.sample_size = 8;
-		}
+                if(size > 14){
+                    int ss = getu16(f);
+                    ms->streams[sidx].audio.sample_size = ss;
+                } else {
+                    ms->streams[sidx].audio.sample_size = 8;
+                }
 
-		if(id == 1 && ms->streams[sidx].audio.sample_size == 8)
-		    ms->streams[sidx].audio.codec = "audio/pcm-u8";
+                if(id == 1 && ms->streams[sidx].audio.sample_size == 8)
+                    ms->streams[sidx].audio.codec = "audio/pcm-u8";
 
-		if(size > 16){
-		    cds = getu16(f);
-		    if(cds > 0){
-			if(cds > size - 18)
-			    cds = size - 18;
-			ms->streams[sidx].audio.codec_data_size = cds;
-			ms->streams[sidx].audio.codec_data = malloc(cds);
-			f->read(ms->streams[sidx].audio.codec_data, 1, cds, f);
-			af->streams[sidx].wavex = 1;
-		    }
-		}
-		break;
-	    }
-	    default:
-		tc2_print("AVI", TC2_PRINT_WARNING, "bad stream type\n");
-	    }
+                if(size > 16){
+                    cds = getu16(f);
+                    if(cds > 0){
+                        if(cds > size - 18)
+                            cds = size - 18;
+                        ms->streams[sidx].audio.codec_data_size = cds;
+                        ms->streams[sidx].audio.codec_data = malloc(cds);
+                        f->read(ms->streams[sidx].audio.codec_data, 1, cds, f);
+                        af->streams[sidx].wavex = 1;
+                    }
+                }
+                break;
+            }
+            default:
+                tc2_print("AVI", TC2_PRINT_WARNING, "bad stream type\n");
+            }
 
             stype = 0;
-	    next = 0;
-	    break;
-	}
-	case TAG('i','d','x','1'):{
-	    if(!odml_idx)
-		avi_read_idx1(ms, size);
-	    break;
-	}
-	case TAG('i','n','d','x'):{
-	    avi_read_indx(ms);
-	    odml_idx = 1;
-	    break;
-	}
-	case TAG('R','I','F','F'):{
-	    getu32(f);		/* AVIX */
-	    break;
-	}
-	case TAG('d','m','l','h'):{
-	    if(vs)
-		vs->video.frames = getu32(f);
-	    break;
-	}
-	case TAG('J','U','N','K'):{
-	    break;
-	}
+            next = 0;
+            break;
+        }
+        case TAG('i','d','x','1'):{
+            if(!odml_idx)
+                avi_read_idx1(ms, size);
+            break;
+        }
+        case TAG('i','n','d','x'):{
+            avi_read_indx(ms);
+            odml_idx = 1;
+            break;
+        }
+        case TAG('R','I','F','F'):{
+            getu32(f);          /* AVIX */
+            break;
+        }
+        case TAG('d','m','l','h'):{
+            if(vs)
+                vs->video.frames = getu32(f);
+            break;
+        }
+        case TAG('J','U','N','K'):{
+            break;
+        }
         case TAG('W','N','P','I'):{
             static const char twp_key[] =
                 "UIERYQWORTWEHLKDNKDBISGLZNCBZCVNBADFIEYLJ";
@@ -689,18 +689,18 @@ avi_header(url_t *f)
 
             return ms;
         }
-	default:
-	    tc2_print("AVI", TC2_PRINT_WARNING,
-		      "unknown tag '%s' @%llx\n", st, pos);
-	}
-	f->seek(f, pos + size, SEEK_SET);
+        default:
+            tc2_print("AVI", TC2_PRINT_WARNING,
+                      "unknown tag '%s' @%llx\n", st, pos);
+        }
+        f->seek(f, pos + size, SEEK_SET);
     }
 
     avi_merge_index(ms);
 
     if(vs){
-	ms->time = (uint64_t) vs->video.frames * vs->video.frame_rate.den *
-	    27000000LL / vs->video.frame_rate.num;
+        ms->time = (uint64_t) vs->video.frames * vs->video.frame_rate.den *
+            27000000LL / vs->video.frame_rate.num;
     }
 
     f->seek(f, af->movi_start, SEEK_SET);
@@ -738,7 +738,7 @@ strtag(uint8_t *tag, char *str)
 {
     int i;
     for(i = 0; i < 4; i++){
-	str[i] = isprint(tag[i])? tag[i]: '.';
+        str[i] = isprint(tag[i])? tag[i]: '.';
     }
     str[4] = 0;
     return str;
@@ -761,145 +761,145 @@ avi_packet(muxed_stream_t *ms, int stream)
     uint64_t pos;
 
     if(stream > -2 && (pk = tclist_shift(af->packets)))
-	return (tcvp_packet_t *) pk;
+        return (tcvp_packet_t *) pk;
 
     /* FIXME: get rid of gotos */
  again:
     pos = af->file->tell(af->file);
     if(!get4c(tag, af->file))
-	return NULL;
+        return NULL;
 
     if(!valid_tag(tag, scan)){
-	if(!memcmp(tag, "RIFF", 4)){
-	    af->file->seek(af->file, 8, SEEK_CUR);
-	    goto again;
-	} else if(!memcmp(tag, "LIST", 4)){
-	    int ls = getu32(af->file); /* size */
-	    get4c(tag, af->file);
-	    if(memcmp(tag, "rec ", 4) && memcmp(tag, "movi", 4))
-		af->file->seek(af->file, ls - 4, SEEK_CUR);
-	    goto again;
-	} else if(!memcmp(tag, "JUNK", 4) ||
-		  !memcmp(tag, "idx1", 4) ||
-		  !memcmp(tag, "ix", 2)){
-	    size = getu32(af->file);
-	    af->file->seek(af->file, size, SEEK_CUR);
-	    goto again;
-	}
+        if(!memcmp(tag, "RIFF", 4)){
+            af->file->seek(af->file, 8, SEEK_CUR);
+            goto again;
+        } else if(!memcmp(tag, "LIST", 4)){
+            int ls = getu32(af->file); /* size */
+            get4c(tag, af->file);
+            if(memcmp(tag, "rec ", 4) && memcmp(tag, "movi", 4))
+                af->file->seek(af->file, ls - 4, SEEK_CUR);
+            goto again;
+        } else if(!memcmp(tag, "JUNK", 4) ||
+                  !memcmp(tag, "idx1", 4) ||
+                  !memcmp(tag, "ix", 2)){
+            size = getu32(af->file);
+            af->file->seek(af->file, size, SEEK_CUR);
+            goto again;
+        }
 
-	if(!scan)
-	    tc2_print("AVI", TC2_PRINT_WARNING,
-		      "Bad chunk tag %02x%02x%02x%02x:%s @ %08llx\n",
-		      tag[0], tag[1], tag[2], tag[3],
-		      strtag(tag, stag), pos);
-	if(!tried_index && af->idxok > 256 && af->idxlen > af->pkt){
-	    uint64_t p = af->index[af->pkt]->offset;
-	    tc2_print("AVI", TC2_PRINT_DEBUG, "Index => %16llx\n", p);
-	    af->file->seek(af->file, p, SEEK_SET);
-	    tried_index++;
-	    goto again;
-	} else if(!tried_bkup && pos - backup > af->fpos){
-	    tc2_print("AVI", TC2_PRINT_DEBUG,
-		      "Backing up %i bytes.\n", backup);
-	    af->file->seek(af->file, -backup - 4, SEEK_CUR);
+        if(!scan)
+            tc2_print("AVI", TC2_PRINT_WARNING,
+                      "Bad chunk tag %02x%02x%02x%02x:%s @ %08llx\n",
+                      tag[0], tag[1], tag[2], tag[3],
+                      strtag(tag, stag), pos);
+        if(!tried_index && af->idxok > 256 && af->idxlen > af->pkt){
+            uint64_t p = af->index[af->pkt]->offset;
+            tc2_print("AVI", TC2_PRINT_DEBUG, "Index => %16llx\n", p);
+            af->file->seek(af->file, p, SEEK_SET);
+            tried_index++;
+            goto again;
+        } else if(!tried_bkup && pos - backup > af->fpos){
+            tc2_print("AVI", TC2_PRINT_DEBUG,
+                      "Backing up %i bytes.\n", backup);
+            af->file->seek(af->file, -backup - 4, SEEK_CUR);
             af->fpos = pos;
-	    tried_bkup++;
-	    goto again;
-	} else if(skipped < max_skip && af->idxok > 256 &&
-		  af->idxlen > af->pkt){
-	    if(!skipped)
-		tc2_print("AVI", TC2_PRINT_WARNING, "Skipping chunk.\n");
-	    af->file->seek(af->file, af->index[af->pkt]->offset, SEEK_SET);
-	    af->pkt++;
-	    skipped++;
-	    goto again;
-	} else if(scan < max_scan){
-	    af->file->seek(af->file, -3, SEEK_CUR);
-	    scan++;
-	    goto again;
-	}
+            tried_bkup++;
+            goto again;
+        } else if(skipped < max_skip && af->idxok > 256 &&
+                  af->idxlen > af->pkt){
+            if(!skipped)
+                tc2_print("AVI", TC2_PRINT_WARNING, "Skipping chunk.\n");
+            af->file->seek(af->file, af->index[af->pkt]->offset, SEEK_SET);
+            af->pkt++;
+            skipped++;
+            goto again;
+        } else if(scan < max_scan){
+            af->file->seek(af->file, -3, SEEK_CUR);
+            scan++;
+            goto again;
+        }
 
-	tc2_print("AVI", TC2_PRINT_ERROR, "Can't find valid chunk tag.\n");
-	af->eof = 1;
-	return NULL;
+        tc2_print("AVI", TC2_PRINT_ERROR, "Can't find valid chunk tag.\n");
+        af->eof = 1;
+        return NULL;
     }
 
     if(skipped)
-	tc2_print("AVI", TC2_PRINT_WARNING, "Skipped %i chunks\n", skipped);
+        tc2_print("AVI", TC2_PRINT_WARNING, "Skipped %i chunks\n", skipped);
 
     if(scan)
-	tc2_print("AVI", TC2_PRINT_DEBUG, "Resuming @%08llx\n", pos);
+        tc2_print("AVI", TC2_PRINT_DEBUG, "Resuming @%08llx\n", pos);
 
     size = getu32(af->file);
     str = tag2str(tag);
 
     if(size > 1 << 24)
-	goto again;
+        goto again;
 
     if(!(size & ~0x12)){
-	uint8_t tag[4];
-	af->file->seek(af->file, 8, SEEK_CUR);
-	if(!get4c(tag, af->file))
-	    return NULL;
-	af->file->seek(af->file, -12, SEEK_CUR);
-	if(valid_tag(tag, 0) || !memcmp(tag, "rec ", 4)){
-	    tried_bkup++;
-	    goto again;
-	} else if(!memcmp(tag, "LIST", 4)){
-	    af->file->seek(af->file, 8, SEEK_CUR);
-	    goto again;
-	}
-	scan++;
+        uint8_t tag[4];
+        af->file->seek(af->file, 8, SEEK_CUR);
+        if(!get4c(tag, af->file))
+            return NULL;
+        af->file->seek(af->file, -12, SEEK_CUR);
+        if(valid_tag(tag, 0) || !memcmp(tag, "rec ", 4)){
+            tried_bkup++;
+            goto again;
+        } else if(!memcmp(tag, "LIST", 4)){
+            af->file->seek(af->file, 8, SEEK_CUR);
+            goto again;
+        }
+        scan++;
     }
 
     if(af->index){
-	int i;
+        int i;
 
-	for(i = af->pkt; i < af->idxlen; i++){
-	    if(pos <= af->index[i]->offset){
-		af->pkt = i;
-		break;
-	    }
-	}
+        for(i = af->pkt; i < af->idxlen; i++){
+            if(pos <= af->index[i]->offset){
+                af->pkt = i;
+                break;
+            }
+        }
 
-	if(i != af->pkt){
-	    tc2_print("AVI", TC2_PRINT_WARNING, "Can't resync index.\n");
-	    af->idxok = 0;
-	}
+        if(i != af->pkt){
+            tc2_print("AVI", TC2_PRINT_WARNING, "Can't resync index.\n");
+            af->idxok = 0;
+        }
     }
 
     if(str >= ms->n_streams){
-	tc2_print("AVI", TC2_PRINT_WARNING, "Bad stream number %i @%08llx\n",
-		  str, pos);
-	scan++;
-	goto again;
+        tc2_print("AVI", TC2_PRINT_WARNING, "Bad stream number %i @%08llx\n",
+                  str, pos);
+        scan++;
+        goto again;
     }
 
     if(!size || !ms->used_streams[str]){
-	af->file->seek(af->file, size + (size&1), SEEK_CUR);
-	tried_index = 0;
-	tried_bkup = 0;
-	scan = 0;
-	skipped = 0;
-	af->pkt++;
-	goto again;
+        af->file->seek(af->file, size + (size&1), SEEK_CUR);
+        tried_index = 0;
+        tried_bkup = 0;
+        scan = 0;
+        skipped = 0;
+        af->pkt++;
+        goto again;
     }
 
     if(af->pkt < af->idxlen){
-	if(af->index[af->pkt]->offset == pos){
-	    af->idxok++;
-	    flags = af->index[af->pkt]->flags;
-	    if(flags & AVI_FLAG_KEYFRAME)
-		pflags |= TCVP_PKT_FLAG_KEY;
+        if(af->index[af->pkt]->offset == pos){
+            af->idxok++;
+            flags = af->index[af->pkt]->flags;
+            if(flags & AVI_FLAG_KEYFRAME)
+                pflags |= TCVP_PKT_FLAG_KEY;
             pts = af->index[af->pkt]->pts + starttime;
             pflags |= TCVP_PKT_FLAG_DTS;
-	} else if(af->idxok){
-	    tc2_print("AVI", TC2_PRINT_WARNING,
-		      "index mismatch stream %i\n", str);
-	    af->idxok = 0;
-	}
+        } else if(af->idxok){
+            tc2_print("AVI", TC2_PRINT_WARNING,
+                      "index mismatch stream %i\n", str);
+            af->idxok = 0;
+        }
     } else if(af->pkt == af->idxlen){
-	tc2_print("AVI", TC2_PRINT_WARNING, "truncated index\n");
+        tc2_print("AVI", TC2_PRINT_WARNING, "truncated index\n");
     }
 
     af->fpos = pos;
@@ -907,7 +907,7 @@ avi_packet(muxed_stream_t *ms, int stream)
     pk = avi_alloc_packet(size);
     af->file->read(pk->data, 1, size, af->file);
     if(size & 1)
-	url_getc(af->file);
+        url_getc(af->file);
 
     pk->pk.stream = str;
     pk->pk.flags = pflags;
@@ -934,61 +934,61 @@ avi_seek(muxed_stream_t *ms, uint64_t time)
     int i, cfi = 0;
 
     for(i = 0; i < af->idxlen; i++){
-	if(time <= af->index[i]->pts){
-	    if(af->index[i]->offset < pos)
-		pos = af->index[i]->offset;
-	    if(!af->has_video)
-		break;
-	    if(af->index[i]->flags & AVI_FLAG_KEYFRAME){
-		time = af->index[i]->pts;
-		break;
-	    }
-	}
+        if(time <= af->index[i]->pts){
+            if(af->index[i]->offset < pos)
+                pos = af->index[i]->offset;
+            if(!af->has_video)
+                break;
+            if(af->index[i]->flags & AVI_FLAG_KEYFRAME){
+                time = af->index[i]->pts;
+                break;
+            }
+        }
     }
 
     if(pos == -1)
-	return -1LL;
+        return -1LL;
 
     for(i = 0; i < af->idxlen; i++){
-	if(af->index[i]->offset >= pos){
-	    af->pkt = i;
-	    break;
-	}
+        if(af->index[i]->offset >= pos){
+            af->pkt = i;
+            break;
+        }
     }
 
     while((pk = tclist_shift(af->packets)))
-	avi_free_packet(&pk->pk);
+        avi_free_packet(&pk->pk);
 
     af->file->seek(af->file, pos, SEEK_SET);
     af->fpos = pos;
 
     for(i = 0; i < ms->n_streams; i++){
-	if(ms->used_streams[i])
-	    cfi++;
-	fi[i] = 0;
+        if(ms->used_streams[i])
+            cfi++;
+        fi[i] = 0;
     }
 
     while(cfi){
-	avi_packet_t *pk = NULL;
-	int s;
+        avi_packet_t *pk = NULL;
+        int s;
 
-	if(!(pk = (avi_packet_t *) avi_packet(ms, -2)))
-	    break;
+        if(!(pk = (avi_packet_t *) avi_packet(ms, -2)))
+            break;
 
-	s = pk->pk.stream;
+        s = pk->pk.stream;
 
-	if(time <= pk->pk.dts){
-	    if(!fi[s]){
-		fi[s] = 1;
-		cfi--;
-	    }
-	}
+        if(time <= pk->pk.dts){
+            if(!fi[s]){
+                fi[s] = 1;
+                cfi--;
+            }
+        }
 
-	if(fi[s]){
-	    tclist_push(af->packets, pk);
-	} else {
-	    avi_free_packet(&pk->pk);
-	}
+        if(fi[s]){
+            tclist_push(af->packets, pk);
+        } else {
+            avi_free_packet(&pk->pk);
+        }
     }
 
     return time;
@@ -1002,21 +1002,21 @@ avi_packet_ni(muxed_stream_t *ms, int str)
     avi_packet_t *pk = NULL;
 
     if(str < 0)
-	return avi_packet(ms, str);
+        return avi_packet(ms, str);
 
     if(as->pkt < as->idxlen){
-	avi_index_t *ai = as->index + as->pkt++;
+        avi_index_t *ai = as->index + as->pkt++;
 
-	pk = avi_alloc_packet(ai->size);
-	af->file->seek(af->file, ai->offset + 8, SEEK_SET);
-	af->file->read(pk->data, 1, ai->size, af->file);
-	pk->pk.stream = str;
-	pk->pk.flags = 0;
-	if(ai->flags & AVI_FLAG_KEYFRAME)
-	    pk->pk.flags |= TCVP_PKT_FLAG_KEY;
+        pk = avi_alloc_packet(ai->size);
+        af->file->seek(af->file, ai->offset + 8, SEEK_SET);
+        af->file->read(pk->data, 1, ai->size, af->file);
+        pk->pk.stream = str;
+        pk->pk.flags = 0;
+        if(ai->flags & AVI_FLAG_KEYFRAME)
+            pk->pk.flags |= TCVP_PKT_FLAG_KEY;
         pk->pk.flags |= TCVP_PKT_FLAG_DTS;
         pk->pk.dts = ai->pts;
-	pk->flags = ai->flags;
+        pk->flags = ai->flags;
     }
 
     return (tcvp_packet_t *) pk;
@@ -1029,28 +1029,28 @@ avi_seek_ni(muxed_stream_t *ms, uint64_t time)
     int i, j;
 
     for(j = 0; j < ms->n_streams; j++){
-	if(ms->used_streams[j]){
-	    for(i = 0; i < af->streams[j].idxlen; i++){
-		if(time <= af->streams[j].index[i].pts){
-		    if(ms->streams[j].stream_type != STREAM_TYPE_VIDEO ||
-		       (af->streams[j].index[i].flags & AVI_FLAG_KEYFRAME))
-			break;
-		}
-	    }
-	    if(ms->streams[j].stream_type == STREAM_TYPE_VIDEO)
-		time = af->streams[j].index[i].pts;
-	}
+        if(ms->used_streams[j]){
+            for(i = 0; i < af->streams[j].idxlen; i++){
+                if(time <= af->streams[j].index[i].pts){
+                    if(ms->streams[j].stream_type != STREAM_TYPE_VIDEO ||
+                       (af->streams[j].index[i].flags & AVI_FLAG_KEYFRAME))
+                        break;
+                }
+            }
+            if(ms->streams[j].stream_type == STREAM_TYPE_VIDEO)
+                time = af->streams[j].index[i].pts;
+        }
     }
 
     for(j = 0; j < ms->n_streams; j++){
-	if(ms->used_streams[j]){
-	    for(i = 0; i < af->streams[j].idxlen; i++){
-		if(time <= af->streams[j].index[i].pts){
-		    af->streams[j].pkt = i;
-		    break;
-		}
-	    }
-	}
+        if(ms->used_streams[j]){
+            for(i = 0; i < af->streams[j].idxlen; i++){
+                if(time <= af->streams[j].index[i].pts){
+                    af->streams[j].pkt = i;
+                    break;
+                }
+            }
+        }
     }
 
     return time;
@@ -1086,15 +1086,15 @@ avi_open(char *file, url_t *f, tcconf_section_t *cs, tcvp_timer_t *tm)
     muxed_stream_t *ms;
 
     if(!(ms = avi_header(f)))
-	return NULL;
+        return NULL;
 
     ms->used_streams = calloc(ms->n_streams, sizeof(*ms->used_streams));
     if(tcvp_demux_avi_conf_noninterleaved){
-	ms->next_packet = avi_packet_ni;
-	ms->seek = avi_seek_ni;
+        ms->next_packet = avi_packet_ni;
+        ms->seek = avi_seek_ni;
     } else {
-	ms->next_packet = avi_packet;
-	ms->seek = avi_seek;
+        ms->next_packet = avi_packet;
+        ms->seek = avi_seek;
     }
 
     return ms;
@@ -1106,8 +1106,8 @@ vtag2codec(char *tag)
     int i;
 
     for(i = 0; i < tcvp_demux_avi_conf_vtag_count; i++){
-	if(!memcmp(tag, tcvp_demux_avi_conf_vtag[i].tag, 4))
-	    return tcvp_demux_avi_conf_vtag[i].codec;
+        if(!memcmp(tag, tcvp_demux_avi_conf_vtag[i].tag, 4))
+            return tcvp_demux_avi_conf_vtag[i].codec;
     }
 
     tc2_print("AVI", TC2_PRINT_WARNING, "unknown codec tag '%s'\n", tag);
@@ -1120,8 +1120,8 @@ aid2codec(int id)
     int i;
 
     for(i = 0; i < tcvp_demux_avi_conf_atag_count; i++){
-	if(id == tcvp_demux_avi_conf_atag[i].tag)
-	    return tcvp_demux_avi_conf_atag[i].codec;
+        if(id == tcvp_demux_avi_conf_atag[i].tag)
+            return tcvp_demux_avi_conf_atag[i].codec;
     }
 
     tc2_print("AVI", TC2_PRINT_WARNING, "unknown codec ID %#x\n", id);

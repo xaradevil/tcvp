@@ -54,20 +54,20 @@ avf_codec_avname(const char *codec)
     int i;
 
     for(i = 0; codec_names[i][0]; i++){
-	if(!strcmp(codec, codec_names[i][0])){
-	    return strdup(codec_names[i][1]);
-	}
+        if(!strcmp(codec, codec_names[i][0])){
+            return strdup(codec_names[i][1]);
+        }
     }
 
     cn = strchr(codec, '/');
     if(!cn)
-	return NULL;
+        return NULL;
 
     cn = strdup(cn + 1);
 
     for(i = 0; cn[i]; i++)
-	if(cn[i] == '-')
-	    cn[i] = '_';
+        if(cn[i] == '-')
+            cn[i] = '_';
 
     return cn;
 }
@@ -81,24 +81,24 @@ avf_codec_name(int codec)
 
     avc = avcodec_find_decoder(codec);
     if(!avc)
-	return NULL;
+        return NULL;
 
     for(i = 0; codec_names[i][0]; i++){
-	if(!strcmp(avc->name, codec_names[i][1])){
-	    return strdup(codec_names[i][0]);
-	}
+        if(!strcmp(avc->name, codec_names[i][1])){
+            return strdup(codec_names[i][0]);
+        }
     }
 
     cn = malloc(6 + strlen(avc->name) + 1);
     if(!cn)
-	return NULL;
+        return NULL;
 
     sprintf(cn, "%s/%s", avc->type == CODEC_TYPE_AUDIO? "audio": "video",
-	    avc->name);
+            avc->name);
 
     for(i = 6; cn[i]; i++)
-	if(cn[i] == '_')
-	    cn[i] = '-';
+        if(cn[i] == '_')
+            cn[i] = '-';
 
     return cn;
 }
@@ -134,21 +134,21 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     av_init_packet(&pk->apk);
 
     do {
-	int rp;
+        int rp;
 #if LIBAVFORMAT_BUILD < 4610
-	rp = av_read_packet(afc, &pk->apk);
+        rp = av_read_packet(afc, &pk->apk);
 #else
-	rp = av_read_frame(afc, &pk->apk);
+        rp = av_read_frame(afc, &pk->apk);
 #endif
-	if(rp < 0){
-	    tcfree(pk);
-	    return NULL;
-	}
+        if(rp < 0){
+            tcfree(pk);
+            return NULL;
+        }
 
-	sx = pk->apk.stream_index;
+        sx = pk->apk.stream_index;
 
-	if(!ms->used_streams[sx])
-	    av_free_packet(&pk->apk);
+        if(!ms->used_streams[sx])
+            av_free_packet(&pk->apk);
     } while(!ms->used_streams[sx]);
 
     pk->pk.stream = sx;
@@ -160,26 +160,26 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     pk->pk.planes = 1;
     pk->pk.flags = 0;
     if(pk->apk.pts != AV_NOPTS_VALUE){
-	pk->pk.flags |= TCVP_PKT_FLAG_PTS;
+        pk->pk.flags |= TCVP_PKT_FLAG_PTS;
 #if LIBAVCODEC_BUILD > 4753
-	pk->pk.pts = pk->apk.pts * 27000000LL *
-	    afc->streams[sx]->time_base.num /
-	    afc->streams[sx]->time_base.den;
+        pk->pk.pts = pk->apk.pts * 27000000LL *
+            afc->streams[sx]->time_base.num /
+            afc->streams[sx]->time_base.den;
 #else
-	pk->pk.pts = pk->apk.pts * 27000000 / AV_TIME_BASE;
+        pk->pk.pts = pk->apk.pts * 27000000 / AV_TIME_BASE;
 #endif
-	tc2_print("AVFORMAT", TC2_PRINT_DEBUG+1, "[%i] pts %lli\n",
-		  sx, pk->pk.pts);
+        tc2_print("AVFORMAT", TC2_PRINT_DEBUG+1, "[%i] pts %lli\n",
+                  sx, pk->pk.pts);
     }
 #if LIBAVFORMAT_BUILD >= 4610
     if(pk->apk.dts != AV_NOPTS_VALUE){
-	pk->pk.flags |= TCVP_PKT_FLAG_DTS;
+        pk->pk.flags |= TCVP_PKT_FLAG_DTS;
 #if LIBAVCODEC_BUILD > 4753
-	pk->pk.dts = pk->apk.dts * 27000000LL *
-	    afc->streams[sx]->time_base.num /
-	    afc->streams[sx]->time_base.den;
+        pk->pk.dts = pk->apk.dts * 27000000LL *
+            afc->streams[sx]->time_base.num /
+            afc->streams[sx]->time_base.den;
 #else
-	pk->pk.dts = pk->apk.dts * 27000000 / AV_TIME_BASE;
+        pk->pk.dts = pk->apk.dts * 27000000 / AV_TIME_BASE;
 #endif
     }
 #endif
@@ -208,10 +208,10 @@ avf_seek(muxed_stream_t *ms, uint64_t time)
 
 #ifdef AVSEEK_FLAG_BACKWARD
     if(av_seek_frame(as->afc, -1, avtime, AVSEEK_FLAG_BACKWARD) < 0)
-	return -1;
+        return -1;
 #else
     if(av_seek_frame(as->afc, -1, avtime) < 0)
-	return -1;
+        return -1;
 #endif
 
     return time;
@@ -226,14 +226,14 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     int i;
 
     if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0){
-	tc2_print("AVFORMAT", TC2_PRINT_ERROR, "Error opening %s\n", name);
-	return NULL;
+        tc2_print("AVFORMAT", TC2_PRINT_ERROR, "Error opening %s\n", name);
+        return NULL;
     }
 
     if(av_find_stream_info(afc) < 0){
-	tc2_print("AVFORMAT", TC2_PRINT_ERROR,
-		  "Can't find stream info for %s\n", name);
-	return NULL;
+        tc2_print("AVFORMAT", TC2_PRINT_ERROR,
+                  "Can't find stream info for %s\n", name);
+        return NULL;
     }
 
     ms = tcallocd(sizeof(*ms), NULL, avf_free);
@@ -241,63 +241,63 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
     ms->n_streams = afc->nb_streams;
     ms->streams = calloc(ms->n_streams, sizeof(*ms->streams));
     for(i = 0; i < ms->n_streams; i++){
-	AVStream *avs = afc->streams[i];
-	stream_t *st = ms->streams + i;
+        AVStream *avs = afc->streams[i];
+        stream_t *st = ms->streams + i;
 
-	if(AVCODEC(avs, codec_id) == CODEC_ID_NONE)
-	    continue;
+        if(AVCODEC(avs, codec_id) == CODEC_ID_NONE)
+            continue;
 
-	switch(AVCODEC(afc->streams[i], codec_type)){
-	case CODEC_TYPE_VIDEO:
-	    st->stream_type = STREAM_TYPE_VIDEO;
+        switch(AVCODEC(afc->streams[i], codec_type)){
+        case CODEC_TYPE_VIDEO:
+            st->stream_type = STREAM_TYPE_VIDEO;
 #if LIBAVFORMAT_BUILD > 4623
-	    st->video.frame_rate.num = avs->r_frame_rate.num;
-	    st->video.frame_rate.den = avs->r_frame_rate.den;
+            st->video.frame_rate.num = avs->r_frame_rate.num;
+            st->video.frame_rate.den = avs->r_frame_rate.den;
 #else
-	    st->video.frame_rate.num = avs->r_frame_rate;
-	    st->video.frame_rate.den = avs->r_frame_rate_base;
+            st->video.frame_rate.num = avs->r_frame_rate;
+            st->video.frame_rate.den = avs->r_frame_rate_base;
 #endif
-	    st->video.width = AVCODEC(avs, width);
-	    st->video.height = AVCODEC(avs, height);
+            st->video.width = AVCODEC(avs, width);
+            st->video.height = AVCODEC(avs, height);
 
-	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_tag %x\n",
-		      i, AVCODEC(avs, codec_tag));
-	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG,
-		      "[%i] stream_codec_tag %x\n",
-		      i, AVCODEC(avs, stream_codec_tag));
-	    break;
+            tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_tag %x\n",
+                      i, AVCODEC(avs, codec_tag));
+            tc2_print("AVFORMAT", TC2_PRINT_DEBUG,
+                      "[%i] stream_codec_tag %x\n",
+                      i, AVCODEC(avs, stream_codec_tag));
+            break;
 
-	case CODEC_TYPE_AUDIO:
-	    st->stream_type = STREAM_TYPE_AUDIO;
-	    st->audio.sample_rate = AVCODEC(avs, sample_rate);
-	    st->audio.channels = AVCODEC(avs, channels);
-	    st->audio.bit_rate = AVCODEC(avs, bit_rate);
-	    st->audio.block_align = AVCODEC(avs, block_align);
-	    break;
+        case CODEC_TYPE_AUDIO:
+            st->stream_type = STREAM_TYPE_AUDIO;
+            st->audio.sample_rate = AVCODEC(avs, sample_rate);
+            st->audio.channels = AVCODEC(avs, channels);
+            st->audio.bit_rate = AVCODEC(avs, bit_rate);
+            st->audio.block_align = AVCODEC(avs, block_align);
+            break;
 
-	default:
-	    st->stream_type = 0;
-	    continue;
-	    break;
-	}
+        default:
+            st->stream_type = 0;
+            continue;
+            break;
+        }
 
-	st->common.codec = avf_codec_name(AVCODEC(avs, codec_id));
+        st->common.codec = avf_codec_name(AVCODEC(avs, codec_id));
 
-	if(!st->common.codec)
-	    tc2_print("AVFORMAT", TC2_PRINT_WARNING,
-		      "[%i] unknown codec id %i\n", i,
-		      AVCODEC(avs, codec_id));
-	else
-	    tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_id %x -> %s\n",
-		      i, AVCODEC(avs, codec_id),
-		      st->common.codec);
+        if(!st->common.codec)
+            tc2_print("AVFORMAT", TC2_PRINT_WARNING,
+                      "[%i] unknown codec id %i\n", i,
+                      AVCODEC(avs, codec_id));
+        else
+            tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_id %x -> %s\n",
+                      i, AVCODEC(avs, codec_id),
+                      st->common.codec);
 
-	st->common.codec_data = AVCODEC(avs, extradata);
-	st->common.codec_data_size = AVCODEC(avs, extradata_size);
-	tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_data_size %i\n",
-		  i, st->common.codec_data_size);
+        st->common.codec_data = AVCODEC(avs, extradata);
+        st->common.codec_data_size = AVCODEC(avs, extradata_size);
+        tc2_print("AVFORMAT", TC2_PRINT_DEBUG, "[%i] codec_data_size %i\n",
+                  i, st->common.codec_data_size);
 
-	st->common.index = i;
+        st->common.index = i;
     }
 
     ms->time = 27000000LL * afc->duration / AV_TIME_BASE;

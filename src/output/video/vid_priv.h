@@ -28,7 +28,7 @@
 #include <stdint.h>
 
 typedef void (*color_conv_t)(int, int, const u_char **, int *, u_char **,
-			     int *);
+                             int *);
 extern color_conv_t get_cconv(char *, char *);
 
 #endif

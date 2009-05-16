@@ -116,47 +116,47 @@ db_query(tcvp_module_t *m, char *q)
     tcvp_dbc_t *tdbc = m->private;
 
     if(!tcconf_getvalue(tdbc->conf, "features/local/database", "")) {
-	tc2_print("dbc", TC2_PRINT_DEBUG+8, "Local connection\n");
-	if(tdbc->db == NULL) {
-	    if(!tcconf_getvalue(tdbc->conf, "features/local/database", "")) {
-		tdbc->dbname = tcvp_database_get_dbname(tdbc->conf);
-		tdbc->db = tcvp_database_get_dbref(tdbc->dbname);
-	    }
-	    if(tdbc->db == NULL) {
-		tc2_print("dbc", TC2_PRINT_ERROR,
-			  "Database connection error\n");
-		return NULL;
-	    }
-	}
-	return tcvp_database_query(tdbc->db, q);
+        tc2_print("dbc", TC2_PRINT_DEBUG+8, "Local connection\n");
+        if(tdbc->db == NULL) {
+            if(!tcconf_getvalue(tdbc->conf, "features/local/database", "")) {
+                tdbc->dbname = tcvp_database_get_dbname(tdbc->conf);
+                tdbc->db = tcvp_database_get_dbref(tdbc->dbname);
+            }
+            if(tdbc->db == NULL) {
+                tc2_print("dbc", TC2_PRINT_ERROR,
+                          "Database connection error\n");
+                return NULL;
+            }
+        }
+        return tcvp_database_query(tdbc->db, q);
     } else if(!tcconf_getvalue(tdbc->conf, "features/database", "")){
-	void *p=NULL;
-	tc2_print("dbc", TC2_PRINT_DEBUG+8, "Remote connection\n");
-	if(tdbc->dbname == NULL) {
-	    tdbc->dbname = tcvp_database_get_dbname(tdbc->conf);
-	    if(tdbc->dbname == NULL) {
-		tc2_print("dbc", TC2_PRINT_ERROR,
-			  "Database connection error\n");
-		return NULL;
-	    }
-	}
-	db_reply_t *dbr = tcallocdz(sizeof(*dbr), NULL, db_reply_free);
-	sem_init(&dbr->sem, 0, 0);
-	tchash_replace(tdbc->dbrhash, q, -1, dbr, &p);
-	if(p) tcfree(p);
+        void *p=NULL;
+        tc2_print("dbc", TC2_PRINT_DEBUG+8, "Remote connection\n");
+        if(tdbc->dbname == NULL) {
+            tdbc->dbname = tcvp_database_get_dbname(tdbc->conf);
+            if(tdbc->dbname == NULL) {
+                tc2_print("dbc", TC2_PRINT_ERROR,
+                          "Database connection error\n");
+                return NULL;
+            }
+        }
+        db_reply_t *dbr = tcallocdz(sizeof(*dbr), NULL, db_reply_free);
+        sem_init(&dbr->sem, 0, 0);
+        tchash_replace(tdbc->dbrhash, q, -1, dbr, &p);
+        if(p) tcfree(p);
 
-	tcvp_event_send(tdbc->sc, TCVP_DB_QUERY, tdbc->dbname, q);
+        tcvp_event_send(tdbc->sc, TCVP_DB_QUERY, tdbc->dbname, q);
 
-	sem_wait(&dbr->sem);
+        sem_wait(&dbr->sem);
 
-	tcdb_reply_t *ret = tcref(dbr->reply);
+        tcdb_reply_t *ret = tcref(dbr->reply);
 
-	tcfree(dbr);
+        tcfree(dbr);
 
-	return ret;
+        return ret;
     } else {
-	tc2_print("dbc", TC2_PRINT_ERROR, "No database available\n");
-	return NULL;
+        tc2_print("dbc", TC2_PRINT_ERROR, "No database available\n");
+        return NULL;
     }
 }
 
@@ -179,13 +179,13 @@ db_reply(tcvp_module_t *m, tcvp_event_t *e)
     tcvp_db_reply_event_t *dbr = (tcvp_db_reply_event_t *)e;
 
     tc2_print("dbc", TC2_PRINT_DEBUG+5, "Database reply '%s' '%s' '%i'\n",
-	      dbr->dbname, dbr->reply, dbr->rtype);
+              dbr->dbname, dbr->reply, dbr->rtype);
 
     db_reply_t *reply = NULL;
 
     tchash_delete(tdbc->dbrhash, dbr->query, -1, &reply);
     if(reply == NULL) {
-	return 0;
+        return 0;
     }
 
     reply->reply = tcallocdz(sizeof(*reply->reply), NULL, tcvp_db_reply_free);

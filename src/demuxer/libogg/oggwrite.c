@@ -50,7 +50,7 @@ ow_write_packet(ogg_write_t *ow, ogg_packet *op)
 
     ogg_stream_packetin(&ow->os, op);
     while(ogg_stream_pageout(&ow->os, &opg))
-	ow_write_page(ow, &opg);
+        ow_write_page(ow, &opg);
 
     return 0;
 }
@@ -62,14 +62,14 @@ ow_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     ogg_page opg;
 
     if(pk->data){
-	ow->op.packet = pk->data[0];
-	ow->op.bytes = pk->sizes[0];
-	ow->op.granulepos += pk->samples;
-	ow_write_packet(ow, &ow->op);
+        ow->op.packet = pk->data[0];
+        ow->op.bytes = pk->sizes[0];
+        ow->op.granulepos += pk->samples;
+        ow_write_packet(ow, &ow->op);
     } else {
-	ow->os.e_o_s = 1;
-	while(ogg_stream_flush(&ow->os, &opg))
-	    ow_write_page(ow, &opg);
+        ow->os.e_o_s = 1;
+        while(ogg_stream_flush(&ow->os, &opg))
+            ow_write_page(ow, &opg);
     }
 
     tcfree(pk);
@@ -86,7 +86,7 @@ ow_write_header(ogg_write_t *ow, stream_t *s)
     u_char *cdp;
 
     if(s->common.codec_data_size < 58)
-	return -1;
+        return -1;
 
     memset(&op, 0, sizeof(op));
 
@@ -94,28 +94,28 @@ ow_write_header(ogg_write_t *ow, stream_t *s)
     size = s->common.codec_data_size;
 
     for(i = 0; i < 3; i++){
-	hs = *cdp++ << 8;
-	hs += *cdp++;
-	size -= 2;
+        hs = *cdp++ << 8;
+        hs += *cdp++;
+        size -= 2;
 
-	if(hs > size){
-	    tc2_print("OGG", TC2_PRINT_ERROR,
-		      "codec_data too small: %i > %i\n", hs, size);
-	    return -1;
-	}
+        if(hs > size){
+            tc2_print("OGG", TC2_PRINT_ERROR,
+                      "codec_data too small: %i > %i\n", hs, size);
+            return -1;
+        }
 
-	op.packet = cdp;
-	op.bytes = hs;
-	op.b_o_s = !i;
-	ogg_stream_packetin(&ow->os, &op);
+        op.packet = cdp;
+        op.bytes = hs;
+        op.b_o_s = !i;
+        ogg_stream_packetin(&ow->os, &op);
 
-	op.packetno++;
-	cdp += hs;
-	size -= hs;
+        op.packetno++;
+        cdp += hs;
+        size -= hs;
     }
 
     while(ogg_stream_flush(&ow->os, &opg))
-	ow_write_page(ow, &opg);
+        ow_write_page(ow, &opg);
 
     return 0;
 }
@@ -127,12 +127,12 @@ ow_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     int ret = PROBE_OK;
 
     if(strcmp(s->common.codec, "audio/vorbis")){
-	ret = PROBE_FAIL;
-	goto out;
+        ret = PROBE_FAIL;
+        goto out;
     }
 
     if(ow_write_header(ow, s))
-	ret = PROBE_FAIL;
+        ret = PROBE_FAIL;
 
   out:
     tcfree(pk);
@@ -158,10 +158,10 @@ ow_new(tcvp_pipe_t *tp, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     int ret = 0;
 
     if(tcconf_getvalue(cs, "mux/url", "%s", &url) <= 0)
-	return -1;
+        return -1;
     if(!(out = url_open(url, "w"))){
-	ret = -1;
-	goto out;
+        ret = -1;
+        goto out;
     }
 
     ow = tcallocdz(sizeof(*ow), NULL, ow_free);

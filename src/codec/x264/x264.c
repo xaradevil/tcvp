@@ -53,14 +53,14 @@ static void
 x4_log(void *p, int level, const char *fmt, va_list args)
 {
     static const int level_map[] = {
-	[X264_LOG_ERROR]   = TC2_PRINT_ERROR,
-	[X264_LOG_WARNING] = TC2_PRINT_WARNING,
-	[X264_LOG_INFO]    = TC2_PRINT_INFO,
-	[X264_LOG_DEBUG]   = TC2_PRINT_DEBUG + 1
+        [X264_LOG_ERROR]   = TC2_PRINT_ERROR,
+        [X264_LOG_WARNING] = TC2_PRINT_WARNING,
+        [X264_LOG_INFO]    = TC2_PRINT_INFO,
+        [X264_LOG_DEBUG]   = TC2_PRINT_DEBUG + 1
     };
 
     if(level < 0 || level > X264_LOG_DEBUG)
-	return;
+        return;
 
     tc2_printv("X264", level_map[level], fmt, args);
 }
@@ -80,10 +80,10 @@ encode_nals(u_char *buf, int size, x264_nal_t *nals, int nnal)
     int i;
 
     for(i = 0; i < nnal; i++){
-	int s = x264_nal_encode(p, &size, 1, nals + i);
-	if(s < 0)
-	    return -1;
-	p += s;
+        int s = x264_nal_encode(p, &size, 1, nals + i);
+        if(s < 0)
+            return -1;
+        p += s;
     }
 
     return p - buf;
@@ -101,34 +101,34 @@ x4_encode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     x264_picture_t pic_out;
 
     if(!pk->data)
-	return p->next->input(p->next, (tcvp_packet_t *) pk);
+        return p->next->input(p->next, (tcvp_packet_t *) pk);
 
     x4->pic.img.i_csp = X264_CSP_I420;
     x4->pic.img.i_plane = 3;
 
     for(i = 0; i < 3; i++){
-	x4->pic.img.plane[i] = pk->data[i];
-	x4->pic.img.i_stride[i] = pk->sizes[i];
+        x4->pic.img.plane[i] = pk->data[i];
+        x4->pic.img.i_stride[i] = pk->sizes[i];
     }
 
     if(pk->flags & TCVP_PKT_FLAG_PTS){
-	x4->pic.i_pts = pk->pts;
-	x4->pts_valid = 1;
+        x4->pic.i_pts = pk->pts;
+        x4->pts_valid = 1;
     }
 
     if(pk->flags & TCVP_PKT_FLAG_DISCONT){
-	x4->pic.i_type = X264_TYPE_IDR;
+        x4->pic.i_type = X264_TYPE_IDR;
     } else {
-	x4->pic.i_type = X264_TYPE_AUTO;
+        x4->pic.i_type = X264_TYPE_AUTO;
     }
 
     if(x264_encoder_encode(x4->enc, &nal, &nnal, &x4->pic, &pic_out))
-	return -1;
+        return -1;
 
     buf = malloc(bufsize);
     bufsize = encode_nals(buf, bufsize, nal, nnal);
     if(bufsize < 0)
-	return -1;
+        return -1;
 
     ep = tcallocdz(sizeof(*ep), NULL, x4_free_pk);
     ep->pk.stream = pk->stream;
@@ -137,11 +137,11 @@ x4_encode(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     ep->pk.planes = 1;
     ep->pk.flags = 0;
     if(x4->pts_valid){
-	ep->pk.flags |= TCVP_PKT_FLAG_PTS;
-	ep->pk.pts = pic_out.i_pts;
+        ep->pk.flags |= TCVP_PKT_FLAG_PTS;
+        ep->pk.pts = pic_out.i_pts;
     }
     if(pic_out.i_type == X264_TYPE_I || pic_out.i_type == X264_TYPE_IDR)
-	ep->pk.flags |= TCVP_PKT_FLAG_KEY;
+        ep->pk.flags |= TCVP_PKT_FLAG_KEY;
     ep->data = buf;
     ep->buf = buf;
     ep->size = bufsize;
@@ -157,7 +157,7 @@ x4_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     x4_enc_t *x4 = p->private;
 
     if(strcmp(s->common.codec, "video/raw-i420"))
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     p->format.common.codec = "video/h264";
     p->format.common.bit_rate = x4->params.rc.i_bitrate * 1000;
@@ -172,7 +172,7 @@ x4_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 
     x4->enc = x264_encoder_open(&x4->params);
     if(!x4->enc)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     return PROBE_OK;
 }
@@ -183,7 +183,7 @@ x4_free(void *p)
     x4_enc_t *x4 = p;
 
     if(x4->enc)
-	x264_encoder_close(x4->enc);
+        x264_encoder_close(x4->enc);
     free(x4->params.rc.psz_stat_out);
     free(x4->params.rc.psz_stat_in);
 }
@@ -205,7 +205,7 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     tcconf_getvalue(cs, "qp", "%i", &x4->params.rc.i_qp_constant);
     tcconf_getvalue(cs, "gop_size", "%i", &x4->params.i_keyint_max);
     tcconf_getvalue(cs, "rc_buffer_size", "%i",
-		    &x4->params.rc.i_vbv_buffer_size);
+                    &x4->params.rc.i_vbv_buffer_size);
     tcconf_getvalue(cs, "bitrate", "%i", &x4->params.rc.i_bitrate);
     tcconf_getvalue(cs, "qpmin", "%i", &x4->params.rc.i_qp_min);
     tcconf_getvalue(cs, "qpmax", "%i", &x4->params.rc.i_qp_max);
@@ -219,13 +219,13 @@ x4_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     x4->params.rc.psz_stat_in = NULL;
 
     if(tcconf_getvalue(cs, "stats", "%s", &statfile) > 0){
-	if(stat(statfile, &st)){
-	    x4->params.rc.b_stat_write = 1;
-	    x4->params.rc.psz_stat_out = statfile;
-	} else {
-	    x4->params.rc.b_stat_read = 1;
-	    x4->params.rc.psz_stat_in = statfile;
-	}
+        if(stat(statfile, &st)){
+            x4->params.rc.b_stat_write = 1;
+            x4->params.rc.psz_stat_out = statfile;
+        } else {
+            x4->params.rc.b_stat_read = 1;
+            x4->params.rc.psz_stat_in = statfile;
+        }
     }
 
     p->format = *s;

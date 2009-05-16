@@ -117,83 +117,83 @@ eq_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     equalizer_t *eq = p->private;
 
     if(pk->data && eq->eq_on && eq->flags != 0){
-	int nch = p->format.audio.channels;
-	int samples = pk->sizes[0]/2;
-	int ch, i, j;
+        int nch = p->format.audio.channels;
+        int samples = pk->sizes[0]/2;
+        int ch, i, j;
 
-	int16_t *ptrs16 = (int16_t*) pk->data[0];
-	uint16_t *ptru16 = (uint16_t*) pk->data[0];
-	int8_t *ptrs8 = (int8_t*) pk->data[0];
-	uint8_t *ptru8 = (uint8_t*) pk->data[0];
-
-
-	for(i = 0; i < samples; i+=nch) {
-	    for(ch = 0; ch < nch; ch++) {
-		int16_t x = 0;
-		float o = 0.0;
-		if(eq->flags & S16) {
-		    if(eq->flags & ENDIAN_CONVERT) {
-			x = bswap_16(ptrs16[ch]);
-		    } else {
-			x = ptrs16[ch];
-		    }
-		} else if(eq->flags & U16) {
-		    if(eq->flags & ENDIAN_CONVERT) {
-			x = bswap_16(ptru16[ch]) - 0x8000;
-		    } else {
-			x = ptru16[ch] - 0x8000;
-		    }
-		} else if(eq->flags & S8) {
-		    x = ptrs8[ch];
-		} else if(eq->flags & U8) {
-		    x = ptru8[ch] - 0x80;
-		}
+        int16_t *ptrs16 = (int16_t*) pk->data[0];
+        uint16_t *ptru16 = (uint16_t*) pk->data[0];
+        int8_t *ptrs8 = (int8_t*) pk->data[0];
+        uint8_t *ptru8 = (uint8_t*) pk->data[0];
 
 
-		for(j = 0; j < EQ_BANDS; j++) {
-		    float y =
-			eq->alpha[j] * (x - eq->x[ch][1]) -
-			eq->beta[j]  * eq->y[ch][j][1] +
-			eq->gamma[j] * eq->y[ch][j][0];
+        for(i = 0; i < samples; i+=nch) {
+            for(ch = 0; ch < nch; ch++) {
+                int16_t x = 0;
+                float o = 0.0;
+                if(eq->flags & S16) {
+                    if(eq->flags & ENDIAN_CONVERT) {
+                        x = bswap_16(ptrs16[ch]);
+                    } else {
+                        x = ptrs16[ch];
+                    }
+                } else if(eq->flags & U16) {
+                    if(eq->flags & ENDIAN_CONVERT) {
+                        x = bswap_16(ptru16[ch]) - 0x8000;
+                    } else {
+                        x = ptru16[ch] - 0x8000;
+                    }
+                } else if(eq->flags & S8) {
+                    x = ptrs8[ch];
+                } else if(eq->flags & U8) {
+                    x = ptru8[ch] - 0x80;
+                }
 
-		    eq->y[ch][j][1] = eq->y[ch][j][0];
-		    eq->y[ch][j][0] = y;
 
-		    o += y * eq->amp[j];
-		}
-		eq->x[ch][1] = eq->x[ch][0];
-		eq->x[ch][0] = x;
-		if(eq->flags & S16) {
-		    int16_t v = (int16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
-		    if(eq->flags & ENDIAN_CONVERT) {
-			ptrs16[ch] = bswap_16(v);
-		    } else {
-			ptrs16[ch] = v;
-		    }
-		} else if(eq->flags & U16) {
-		    uint16_t v = (uint16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
-		    if(eq->flags & ENDIAN_CONVERT) {
-			ptru16[ch] = bswap_16(v + 0x8000);
-		    } else {
-			ptru16[ch] = v + 0x8000;
-		    }
-		} else if(eq->flags & S8) {
-		    ptrs8[ch] = (int8_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
-		} else if(eq->flags & U8) {
-		    ptru8[ch] = (uint8_t) (eq->preamp * (EQ_IN_FACTOR * x + o))+ 0x80;
-		}
-	    }
+                for(j = 0; j < EQ_BANDS; j++) {
+                    float y =
+                        eq->alpha[j] * (x - eq->x[ch][1]) -
+                        eq->beta[j]  * eq->y[ch][j][1] +
+                        eq->gamma[j] * eq->y[ch][j][0];
 
-	    if(eq->flags & S16) {
-		ptrs16 += nch;
-	    } else if(eq->flags & U16) {
-		ptru16 += nch;
-	    } else if(eq->flags & S8) {
-		ptrs8 += nch;
-	    } else if(eq->flags & U8) {
-		ptru8 += nch;
-	    }
-	}
+                    eq->y[ch][j][1] = eq->y[ch][j][0];
+                    eq->y[ch][j][0] = y;
+
+                    o += y * eq->amp[j];
+                }
+                eq->x[ch][1] = eq->x[ch][0];
+                eq->x[ch][0] = x;
+                if(eq->flags & S16) {
+                    int16_t v = (int16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
+                    if(eq->flags & ENDIAN_CONVERT) {
+                        ptrs16[ch] = bswap_16(v);
+                    } else {
+                        ptrs16[ch] = v;
+                    }
+                } else if(eq->flags & U16) {
+                    uint16_t v = (uint16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
+                    if(eq->flags & ENDIAN_CONVERT) {
+                        ptru16[ch] = bswap_16(v + 0x8000);
+                    } else {
+                        ptru16[ch] = v + 0x8000;
+                    }
+                } else if(eq->flags & S8) {
+                    ptrs8[ch] = (int8_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
+                } else if(eq->flags & U8) {
+                    ptru8[ch] = (uint8_t) (eq->preamp * (EQ_IN_FACTOR * x + o))+ 0x80;
+                }
+            }
+
+            if(eq->flags & S16) {
+                ptrs16 += nch;
+            } else if(eq->flags & U16) {
+                ptru16 += nch;
+            } else if(eq->flags & S8) {
+                ptrs8 += nch;
+            } else if(eq->flags & U8) {
+                ptru8 += nch;
+            }
+        }
     }
 
     return p->next->input(p->next, (tcvp_packet_t *) pk);
@@ -208,44 +208,44 @@ eq_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     equalizer_t *eq = p->private;
 
     if(p->format.audio.channels > EQ_CHANNELS) {
-	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer support a maximum of %d channels\n", EQ_CHANNELS);
-	return PROBE_OK;
+        tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer support a maximum of %d channels\n", EQ_CHANNELS);
+        return PROBE_OK;
     }
 
     if(p->format.audio.sample_rate == 48000) {
-	eqc = eq_config_48000;
+        eqc = eq_config_48000;
     } else if(p->format.audio.sample_rate == 44100) {
-	eqc = eq_config_44100;
+        eqc = eq_config_44100;
     } else {
-	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer only support samplerates of 48000 Hz and 44100 Hz\n");
-	return PROBE_OK;
+        tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer only support samplerates of 48000 Hz and 44100 Hz\n");
+        return PROBE_OK;
     }
 
     if(strncmp(p->format.audio.codec, "audio/pcm-s16", 13) == 0) {
-	eq->flags = S16;
+        eq->flags = S16;
     } else if(strncmp(p->format.audio.codec, "audio/pcm-u16", 13) == 0) {
-	eq->flags = U16;
-	tc2_print("EQUALIZER", TC2_PRINT_INFO, "Unsigned audio is untested\n");
+        eq->flags = U16;
+        tc2_print("EQUALIZER", TC2_PRINT_INFO, "Unsigned audio is untested\n");
     } else if(strncmp(p->format.audio.codec, "audio/pcm-s8", 12) == 0) {
-	eq->flags = S8;
+        eq->flags = S8;
     } else if(strncmp(p->format.audio.codec, "audio/pcm-u8", 12) == 0) {
-	eq->flags = U8;
-	tc2_print("EQUALIZER", TC2_PRINT_INFO, "Unsigned audio is untested\n");
+        eq->flags = U8;
+        tc2_print("EQUALIZER", TC2_PRINT_INFO, "Unsigned audio is untested\n");
     } else {
-	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "Audio format \"%s\" is not supported\n", p->format.audio.codec);
-	return PROBE_OK;
+        tc2_print("EQUALIZER", TC2_PRINT_ERROR, "Audio format \"%s\" is not supported\n", p->format.audio.codec);
+        return PROBE_OK;
     }
 
     if(strcmp(&p->format.audio.codec[strlen(p->format.audio.codec)-2],
-	      TCVP_ENDIAN) != 0) {
-	eq->flags |= ENDIAN_CONVERT;
+              TCVP_ENDIAN) != 0) {
+        eq->flags |= ENDIAN_CONVERT;
     }
 
     for(i = 0; i < EQ_BANDS; i++) {
-	eq->frequency[i] = eqc.band[i].frequency;
-	eq->alpha[i] = eqc.band[i].alpha;
-	eq->beta[i]  = eqc.band[i].beta;
-	eq->gamma[i] = eqc.band[i].gamma;
+        eq->frequency[i] = eqc.band[i].frequency;
+        eq->alpha[i] = eqc.band[i].alpha;
+        eq->beta[i]  = eqc.band[i].beta;
+        eq->gamma[i] = eqc.band[i].gamma;
     }
 
     return PROBE_OK;
@@ -280,27 +280,27 @@ static int read_preset(tcconf_section_t *prsec, equalizer_t *eq)
     tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "Preamp %f dB\n", db);
 
     n = tcconf_getvalue(prsec, "values",
-			"%f %f %f %f %f %f %f %f %f %f ",
-			&eq->ampdb[0], &eq->ampdb[1],
-			&eq->ampdb[2], &eq->ampdb[3],
-			&eq->ampdb[4], &eq->ampdb[5],
-			&eq->ampdb[6], &eq->ampdb[7],
-			&eq->ampdb[8], &eq->ampdb[9]);
+                        "%f %f %f %f %f %f %f %f %f %f ",
+                        &eq->ampdb[0], &eq->ampdb[1],
+                        &eq->ampdb[2], &eq->ampdb[3],
+                        &eq->ampdb[4], &eq->ampdb[5],
+                        &eq->ampdb[6], &eq->ampdb[7],
+                        &eq->ampdb[8], &eq->ampdb[9]);
 
     for(i = 0; i < EQ_BANDS; i++) {
-	tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "Band %d %f dB\n",
-		  i, eq->ampdb[i]);
-	eq->amp[i] = fconvertdB(eq->ampdb[i]);
+        tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "Band %d %f dB\n",
+                  i, eq->ampdb[i]);
+        eq->amp[i] = fconvertdB(eq->ampdb[i]);
     }
 
     if(n < 10) {
-	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "Error in preset\n");
-	return -1;
+        tc2_print("EQUALIZER", TC2_PRINT_ERROR, "Error in preset\n");
+        return -1;
     }
 
     if(tcconf_getvalue(prsec, "eq_on", "%d", &n) == 1) {
-	tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "eq_on %d\n", n);
-	eq->eq_on = n;
+        tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "eq_on %d\n", n);
+        eq->eq_on = n;
     }
 
     return 0;
@@ -320,35 +320,35 @@ eq_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     tcfree(prsec);
 
     if(current) {
-	tc2_print("EQUALIZER", TC2_PRINT_DEBUG,
-		  "Using previous equalizer setting\n");
-	if(read_preset(current, eq) < 0) return -1;
+        tc2_print("EQUALIZER", TC2_PRINT_DEBUG,
+                  "Using previous equalizer setting\n");
+        if(read_preset(current, eq) < 0) return -1;
     } else if(preset != NULL) {
-	char prname[256];
+        char prname[256];
 
-	tc2_print("EQUALIZER", TC2_PRINT_DEBUG,
-		  "Using equalizer preset '%s'\n", preset);
-	snprintf(prname, 256, "TCVP/filter/equalizer/preset/%s", preset);
-	if(!(prsec = tc2_get_conf(prname))){
-	    tc2_print("EQUALIZER", TC2_PRINT_ERROR, "No preset '%s'\n",
-		      preset);
-	    return -1;
-	}
-	if(read_preset(prsec, eq) < 0) return -1;
-	eq->eq_on = 1;
-	tcfree(prsec);
+        tc2_print("EQUALIZER", TC2_PRINT_DEBUG,
+                  "Using equalizer preset '%s'\n", preset);
+        snprintf(prname, 256, "TCVP/filter/equalizer/preset/%s", preset);
+        if(!(prsec = tc2_get_conf(prname))){
+            tc2_print("EQUALIZER", TC2_PRINT_ERROR, "No preset '%s'\n",
+                      preset);
+            return -1;
+        }
+        if(read_preset(prsec, eq) < 0) return -1;
+        eq->eq_on = 1;
+        tcfree(prsec);
 
-	eq_save(eq);
+        eq_save(eq);
     } else {
-	int i;
+        int i;
 
-	for(i = 0; i < EQ_BANDS; i++) {
-	    eq->amp[i] = fconvertdB(0.0);
-	}
-	eq->preamp = convertdB(0.0);
-	eq->eq_on = 1;
+        for(i = 0; i < EQ_BANDS; i++) {
+            eq->amp[i] = fconvertdB(0.0);
+        }
+        eq->preamp = convertdB(0.0);
+        eq->eq_on = 1;
 
-	eq_save(eq);
+        eq_save(eq);
     }
 
     p->private = eq;
@@ -365,12 +365,12 @@ eq_flush(tcvp_pipe_t *p, int drop)
     int ch, j;
 
     for(ch = 0; ch < EQ_CHANNELS; ch++) {
-	eq->x[ch][0] = 0.0;
-	eq->x[ch][1] = 0.0;
-	for(j = 0; j < EQ_BANDS; j++) {
-	    eq->y[ch][j][0] = 0.0;
-	    eq->y[ch][j][1] = 0.0;
-	}
+        eq->x[ch][0] = 0.0;
+        eq->x[ch][1] = 0.0;
+        for(j = 0; j < EQ_BANDS; j++) {
+            eq->y[ch][j][0] = 0.0;
+            eq->y[ch][j][1] = 0.0;
+        }
     }
 
     return 0;
@@ -384,20 +384,20 @@ eq_event(tcvp_module_t *p, tcvp_event_t *e)
     tcvp_eq_set_event_t *te = (tcvp_eq_set_event_t *) e;
 
     tc2_print("EQUALIZER", TC2_PRINT_DEBUG+1, "Event set %s to %d\n",
-	      te->attribute, te->value);
+              te->attribute, te->value);
 
     if(strcmp(te->attribute, "preamp") == 0) {
-	eq->preamp = convertdB(te->value);
-	eq->preampdb = te->value;
+        eq->preamp = convertdB(te->value);
+        eq->preampdb = te->value;
     } else {
-	int i;
-	for(i = 0; i < EQ_BANDS; i++) {
-	    if(strcmp(te->attribute, eq->frequency[i]) == 0) {
-		eq->ampdb[i] = te->value;
-		eq->amp[i] = fconvertdB(eq->ampdb[i]);
-		break;
-	    }
-	}
+        int i;
+        for(i = 0; i < EQ_BANDS; i++) {
+            if(strcmp(te->attribute, eq->frequency[i]) == 0) {
+                eq->ampdb[i] = te->value;
+                eq->amp[i] = fconvertdB(eq->ampdb[i]);
+                break;
+            }
+        }
     }
     eq_save(eq);
 
@@ -415,11 +415,11 @@ eq_save(equalizer_t *eq)
     current = tcconf_new("current");
 
     tcconf_setvalue(current, "values", "%f %f %f %f %f %f %f %f %f %f",
-		    eq->ampdb[0], eq->ampdb[1],
-		    eq->ampdb[2], eq->ampdb[3],
-		    eq->ampdb[4], eq->ampdb[5],
-		    eq->ampdb[6], eq->ampdb[7],
-		    eq->ampdb[8], eq->ampdb[9]);
+                    eq->ampdb[0], eq->ampdb[1],
+                    eq->ampdb[2], eq->ampdb[3],
+                    eq->ampdb[4], eq->ampdb[5],
+                    eq->ampdb[6], eq->ampdb[7],
+                    eq->ampdb[8], eq->ampdb[9]);
     tcconf_setvalue(current, "preamp", "%f", eq->preampdb);
     tcconf_setvalue(current, "eq_on", "%d", eq->eq_on);
 

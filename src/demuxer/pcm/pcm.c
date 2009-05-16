@@ -61,8 +61,8 @@ pcm_packet(muxed_stream_t *ms, int str)
 
     size = pcm->u->read(buf, 1, size, pcm->u);
     if(size <= 0){
-	free(buf);
-	return NULL;
+        free(buf);
+        return NULL;
     }
 
     ep = tcallocdz(sizeof(*ep), NULL, pcm_free_pk);
@@ -73,9 +73,9 @@ pcm_packet(muxed_stream_t *ms, int str)
     ep->buf = buf;
 
     if(pcm->tstamp){
-	pcm->pts = *(uint64_t *) buf;
-	buf += 8;
-	size -= 8;
+        pcm->pts = *(uint64_t *) buf;
+        buf += 8;
+        size -= 8;
     }
 
     ep->pk.pts = pcm->pts;
@@ -84,7 +84,7 @@ pcm_packet(muxed_stream_t *ms, int str)
 
     pcm->bytes += size;
     pcm->pts = pcm->bytes / pcm->s.audio.block_align * 27000000LL /
-	pcm->s.audio.sample_rate;
+        pcm->s.audio.sample_rate;
 
     return (tcvp_packet_t *) ep;
 }
@@ -96,7 +96,7 @@ pcm_seek(muxed_stream_t *ms, uint64_t time)
     uint64_t frame = pcm->s.audio.sample_rate * time / 27000000;
     uint64_t pos = pcm->start + frame * pcm->s.audio.block_align;
     if(pcm->u->seek(pcm->u, pos, SEEK_SET))
-	return -1;
+        return -1;
     pcm->pts = time;
     pcm->bytes = pos - pcm->start;
     return time;
@@ -108,13 +108,13 @@ pcm_free(void *p)
     muxed_stream_t *ms = p;
     pcm_t *pcm = ms->private;
     if(pcm->u)
-	tcfree(pcm->u);
+        tcfree(pcm->u);
     free(pcm);
 }
 
 extern muxed_stream_t *
 pcm_open(url_t *u, char *codec, int channels, int srate, int samples,
-	 int brate, int bits, char *cd, int cds)
+         int brate, int bits, char *cd, int cds)
 {
     muxed_stream_t *ms;
     pcm_t *pcm;
@@ -133,8 +133,8 @@ pcm_open(url_t *u, char *codec, int channels, int srate, int samples,
     pcm->s.audio.codec_data_size = cds;
 
     if(tcattr_get(u, "tcvp/timestamp")){
-	tc2_print("PCM", TC2_PRINT_DEBUG, "timestamps present\n");
-	pcm->tstamp = 1;
+        tc2_print("PCM", TC2_PRINT_DEBUG, "timestamps present\n");
+        pcm->tstamp = 1;
     }
 
     ms = tcallocdz(sizeof(*ms), NULL, pcm_free);

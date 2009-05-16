@@ -61,8 +61,8 @@ print_paranoia_stats(cd_data_t *cdt)
     int i;
 
     for(i = 0; i < 13; i++)
-	tc2_print("CDDA", TC2_PRINT_INFO,
-		  "%5i %s\n", cdt->prn_stats[i], stat_names[i]);
+        tc2_print("CDDA", TC2_PRINT_INFO,
+                  "%5i %s\n", cdt->prn_stats[i], stat_names[i]);
 
     return 0;
 }
@@ -83,41 +83,41 @@ fill_buffer(cd_data_t *cdt)
 
     nsect = cdt->bufsize / CD_FRAMESIZE_RAW;
     while(nsect){
-	if(cdt->cdprn){
+        if(cdt->cdprn){
             int16_t *sect;
             char *err;
 
             paranoia_stats = cdt->prn_stats;
-	    sect = paranoia_read_limited(cdt->cdprn, paranoia_cb, max_retries);
+            sect = paranoia_read_limited(cdt->cdprn, paranoia_cb, max_retries);
             paranoia_stats = NULL;
 
-	    err = cdda_errors(cdt->drive);
+            err = cdda_errors(cdt->drive);
 
-	    if(err){
-		tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
-			cdt->current_sector, err);
-		return -1;
-	    } else {
-		memcpy(cdt->buffer + bpos, sect, CD_FRAMESIZE_RAW);
-		nsect--;
-		cdt->current_sector++;
-		bpos += CD_FRAMESIZE_RAW;
-	    }
-	} else {
-	    int s = cdda_read(cdt->drive, cdt->buffer + bpos,
-			      cdt->current_sector, nsect);
-	    char *err = cdda_errors(cdt->drive);
-	    if(err)
-		tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
-			cdt->current_sector, err);
+            if(err){
+                tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
+                        cdt->current_sector, err);
+                return -1;
+            } else {
+                memcpy(cdt->buffer + bpos, sect, CD_FRAMESIZE_RAW);
+                nsect--;
+                cdt->current_sector++;
+                bpos += CD_FRAMESIZE_RAW;
+            }
+        } else {
+            int s = cdda_read(cdt->drive, cdt->buffer + bpos,
+                              cdt->current_sector, nsect);
+            char *err = cdda_errors(cdt->drive);
+            if(err)
+                tc2_print("CDDA", TC2_PRINT_ERROR, "error reading sector %i: %s\n",
+                        cdt->current_sector, err);
             if(s < 0){
-		return -1;
-	    } else {
-		nsect -= s;
-		cdt->current_sector += s;
-		bpos += s * CD_FRAMESIZE_RAW;
-	    }
-	}
+                return -1;
+            } else {
+                nsect -= s;
+                cdt->current_sector += s;
+                bpos += s * CD_FRAMESIZE_RAW;
+            }
+        }
     }
 
     cdt->buffer_pos = 0;
@@ -133,24 +133,24 @@ cd_read(void *data, size_t size, size_t count, url_t *u)
     int used = 0;
 
     if(cdt->pos >= u->size)
-	return -1;
+        return -1;
 
     while(remain > 0) {
-	if(cdt->pos + used < u->size && cdt->data_length > 0){
-	    int n;
+        if(cdt->pos + used < u->size && cdt->data_length > 0){
+            int n;
 
-	    if(cdt->buffer_pos == cdt->bufsize)
-		if(fill_buffer(cdt))
-		    return -1;
+            if(cdt->buffer_pos == cdt->bufsize)
+                if(fill_buffer(cdt))
+                    return -1;
 
-	    n = min(remain, cdt->bufsize - cdt->buffer_pos);
-	    memcpy(data + used, cdt->buffer + cdt->buffer_pos, n);
-	    cdt->buffer_pos += n;
-	    used += n;
-	    remain -= n;
-	} else {
-	    break;
-	}
+            n = min(remain, cdt->bufsize - cdt->buffer_pos);
+            memcpy(data + used, cdt->buffer + cdt->buffer_pos, n);
+            cdt->buffer_pos += n;
+            used += n;
+            remain -= n;
+        } else {
+            break;
+        }
     }
 
     cdt->pos += used;
@@ -171,26 +171,26 @@ cd_seek(url_t *u, int64_t offset, int how)
     int64_t pos = 0;
 
     if(how == SEEK_SET) {
-	pos = offset;
+        pos = offset;
     } else if(how == SEEK_CUR) {
-	pos = cdt->pos + offset;
+        pos = cdt->pos + offset;
     } else if(how == SEEK_END) {
-	pos = cdt->data_length - offset;
+        pos = cdt->data_length - offset;
     }
 
     if(pos < 0)
-	return -1;
+        return -1;
 
     if(pos > cdt->data_length)
-	return -1;
+        return -1;
 
     if(cdt->pos != pos) {
-	cdt->buffer_pos = cdt->bufsize;
-	cdt->pos = pos;
-	cdt->current_sector = cdt->first_sector + cdt->pos / CD_FRAMESIZE_RAW;
-	if(cdt->cdprn){
-	    paranoia_seek(cdt->cdprn, cdt->current_sector, SEEK_SET);
-	}
+        cdt->buffer_pos = cdt->bufsize;
+        cdt->pos = pos;
+        cdt->current_sector = cdt->first_sector + cdt->pos / CD_FRAMESIZE_RAW;
+        if(cdt->cdprn){
+            paranoia_seek(cdt->cdprn, cdt->current_sector, SEEK_SET);
+        }
     }
 
     return 0;
@@ -210,13 +210,13 @@ cdda_free(void *p)
     cd_data_t *cdt = u->private;
 
     if(cdt->cdprn){
-	paranoia_free(cdt->cdprn);
-	if(tcvp_input_cdda_conf_paranoia_stats)
-	    print_paranoia_stats(cdt);
+        paranoia_free(cdt->cdprn);
+        if(tcvp_input_cdda_conf_paranoia_stats)
+            print_paranoia_stats(cdt);
     }
     cdda_close(cdt->drive);
     if(cdt->buffer)
-	free(cdt->buffer);
+        free(cdt->buffer);
     free(cdt->header);
     free(cdt);
 }
@@ -233,36 +233,36 @@ track_open(char *url, char *mode, char *options)
     trk = strchr(url, ':');
 
     if(!trk)
-	trk = url;
+        trk = url;
     else
-	trk++;
+        trk++;
 
     while(*trk == '/')
-	trk++;
+        trk++;
 
     track = strtol(trk, NULL, 0);
     if(track <= 0)
-	return NULL;
+        return NULL;
 
     cdt = calloc(sizeof(cd_data_t), 1);
 
     cdt->drive = cdda_identify(device, CDDA_MESSAGE_FORGETIT, NULL);
     if(!cdt->drive){
-	free(cdt);
-	return NULL;
+        free(cdt);
+        return NULL;
     }
 
     cdda_verbose_set(cdt->drive, CDDA_MESSAGE_LOGIT, CDDA_MESSAGE_FORGETIT);
 
     if(cdda_open(cdt->drive) != 0) {
-	free(cdt);
-	return NULL;
+        free(cdt);
+        return NULL;
     }
 
     if(track > cdda_tracks(cdt->drive) ||
        !cdda_track_audiop(cdt->drive, track)) {
-	free(cdt);
-	return NULL;
+        free(cdt);
+        return NULL;
     }
 
     cdt->bufsize = buffer_size * CD_FRAMESIZE_RAW;
@@ -274,14 +274,14 @@ track_open(char *url, char *mode, char *options)
     cdt->current_sector = cdt->first_sector;
 
     if(paranoia){
-	cdt->cdprn = paranoia_init(cdt->drive);
-	paranoia_modeset(cdt->cdprn,
-			 PARANOIA_MODE_FULL - PARANOIA_MODE_NEVERSKIP);
-	paranoia_seek(cdt->cdprn, cdt->first_sector, SEEK_SET);
+        cdt->cdprn = paranoia_init(cdt->drive);
+        paranoia_modeset(cdt->cdprn,
+                         PARANOIA_MODE_FULL - PARANOIA_MODE_NEVERSKIP);
+        paranoia_seek(cdt->cdprn, cdt->first_sector, SEEK_SET);
     }
 
     cdt->data_length =
-	(cdt->last_sector - cdt->first_sector) * CD_FRAMESIZE_RAW;
+        (cdt->last_sector - cdt->first_sector) * CD_FRAMESIZE_RAW;
 
     memset(&s, 0, sizeof(s));
     s.stream_type = STREAM_TYPE_AUDIO;
@@ -308,7 +308,7 @@ track_open(char *url, char *mode, char *options)
     vu = url_vheader_new(u, cdt->header, cdt->header_length);
 
     if(tcvp_input_cdda_conf_cddb)
-	cdda_freedb(vu, cdt, track, options);
+        cdda_freedb(vu, cdt, track, options);
 
     snprintf(cdt->track, sizeof(cdt->track), "%i", track);
     tcattr_set(vu, "track", cdt->track, NULL, NULL);
@@ -347,19 +347,19 @@ list_open(char *url, char *mode, char *options)
     tracks = cdda_tracks(cdt->drive);
 
     if(options) {
-	optlen = strlen(options) + 1;
+        optlen = strlen(options) + 1;
     }
 
     cdt->header = malloc(tracks * (16 + optlen));
     p = cdt->header;
 
     for(i = 1; i <= tracks; i++) {
-	if(cdda_track_audiop(cdt->drive, i)) {
-	    if(!options)
-		p += sprintf(p, "cdda:/%d.wav\n", i);
-	    else
-		p += sprintf(p, "cdda:/%d.wav?%s\n", i, options);
-	}
+        if(cdda_track_audiop(cdt->drive, i)) {
+            if(!options)
+                p += sprintf(p, "cdda:/%d.wav\n", i);
+            else
+                p += sprintf(p, "cdda:/%d.wav?%s\n", i, options);
+        }
     }
 
     cdt->header_length = p - cdt->header;
@@ -384,23 +384,23 @@ cd_open(char *url, char *mode)
     char *s, *o;
 
     if(!url_tmp)
-	return NULL;
+        return NULL;
 
     o = strrchr(url_tmp, '?');
     if(o)
-	*o++ = 0;
+        *o++ = 0;
 
     s = strrchr(url_tmp, '.');
     if(s){
-	if(!strcmp(s, ".wav")){
-	    u = track_open(url_tmp, mode, o);
-	} else if(!strcmp(s, ".m3u")){
-	    u = list_open(url_tmp, mode, o);
-	}
+        if(!strcmp(s, ".wav")){
+            u = track_open(url_tmp, mode, o);
+        } else if(!strcmp(s, ".m3u")){
+            u = list_open(url_tmp, mode, o);
+        }
     }
 
     if(!u)
-	tc2_print("CDDA", TC2_PRINT_ERROR, "unsupported URL: %s\n", url);
+        tc2_print("CDDA", TC2_PRINT_ERROR, "unsupported URL: %s\n", url);
 
     free(url_tmp);
     return u;

@@ -47,11 +47,11 @@ theora_header(muxed_stream_t *ms, int idx)
     u_char *cdp;
 
     if(!(os->buf[os->pstart] & 0x80))
-	return 0;
+        return 0;
 
     if(!thp){
-	thp = tcallocz(sizeof(*thp));
-	os->private = thp;
+        thp = tcallocz(sizeof(*thp));
+        os->private = thp;
     }
 
     st->common.codec_data = realloc(st->common.codec_data, cds+HEADER_PADDING);
@@ -64,29 +64,29 @@ theora_header(muxed_stream_t *ms, int idx)
     st->common.codec_data_size = cds;
 
     if(os->buf[os->pstart] == 0x80){
-	u_char *p = os->buf + os->pstart + 7;
-	if(*p++ != 3)
-	    return -1;
-	if(*p++ != 2)
-	    return -1;
-	p++;
-	st->video.width = htob_16(unaligned16(p)) * 16;
-	p += 2;
-	st->video.height = htob_16(unaligned16(p)) * 16;
-	p += 2;
-	p += 8;			/* frame cropping */
-	st->video.frame_rate.num = htob_32(unaligned32(p));
-	p += 4;
-	st->video.frame_rate.den = htob_32(unaligned32(p));
-	p += 4;
-	p += 10;
-	thp->gpshift = ((p[0] & 3) << 3) + ((p[1] & 0xe0) >> 5);
-	thp->gpmask = (1 << thp->gpshift) - 1;
+        u_char *p = os->buf + os->pstart + 7;
+        if(*p++ != 3)
+            return -1;
+        if(*p++ != 2)
+            return -1;
+        p++;
+        st->video.width = htob_16(unaligned16(p)) * 16;
+        p += 2;
+        st->video.height = htob_16(unaligned16(p)) * 16;
+        p += 2;
+        p += 8;                 /* frame cropping */
+        st->video.frame_rate.num = htob_32(unaligned32(p));
+        p += 4;
+        st->video.frame_rate.den = htob_32(unaligned32(p));
+        p += 4;
+        p += 10;
+        thp->gpshift = ((p[0] & 3) << 3) + ((p[1] & 0xe0) >> 5);
+        thp->gpmask = (1 << thp->gpshift) - 1;
 
-	st->stream_type = STREAM_TYPE_VIDEO;
-	st->audio.codec = "video/theora";
+        st->stream_type = STREAM_TYPE_VIDEO;
+        st->audio.codec = "video/theora";
     } else if(os->buf[os->pstart] == 0x81){
-	vorbis_comment(ms, os->buf + os->pstart + 7, os->psize - 7);
+        vorbis_comment(ms, os->buf + os->pstart + 7, os->psize - 7);
     }
 
     return os->buf[os->pstart] & 0x80;
@@ -104,7 +104,7 @@ theora_gptopts(muxed_stream_t *ms, int idx, uint64_t gp)
     uint64_t pframe = gp & thp->gpmask;
 
     return (iframe + pframe) * st->video.frame_rate.den * 27000000LL /
-	st->video.frame_rate.num;
+        st->video.frame_rate.num;
 }
 
 ogg_codec_t theora_codec = {

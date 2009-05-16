@@ -122,7 +122,7 @@ extern void
 flac_crc8_update_block(const uint8_t *data, unsigned len, uint8_t *crc)
 {
     while(len--)
-	*crc = flac_crc8_table[*crc ^ *data++];
+        *crc = flac_crc8_table[*crc ^ *data++];
 }
 
 extern uint8_t
@@ -131,7 +131,7 @@ flac_crc8(const uint8_t *data, unsigned len)
     uint8_t crc = 0;
 
     while(len--)
-	crc = flac_crc8_table[crc ^ *data++];
+        crc = flac_crc8_table[crc ^ *data++];
 
     return crc;
 }
@@ -146,7 +146,7 @@ extern void
 flac_crc16_update_block(const uint8_t *data, unsigned len, uint16_t *crc)
 {
     while(len--)
-	*crc = (*crc<<8) ^ flac_crc16_table[(*crc>>8) ^ *data++];
+        *crc = (*crc<<8) ^ flac_crc16_table[(*crc>>8) ^ *data++];
 }
 
 extern uint16_t
@@ -155,7 +155,7 @@ flac_crc16(const uint8_t *data, unsigned len)
     uint16_t crc = 0;
 
     while(len--)
-	crc = (crc<<8) ^ flac_crc16_table[(crc>>8) ^ *data++];
+        crc = (crc<<8) ^ flac_crc16_table[(crc>>8) ^ *data++];
 
     return crc;
 }

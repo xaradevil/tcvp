@@ -56,8 +56,8 @@ typedef struct audio_out {
     pthread_cond_t cd;
     pthread_t pth;
     struct {
-	uint64_t pts;
-	u_char *bp;
+        uint64_t pts;
+        u_char *bp;
     } *ptsq;
     int pqh, pqt, pqc;
     tcconf_section_t *conf;
@@ -102,15 +102,15 @@ audio_free(void *p)
     pthread_mutex_unlock(&ao->mx);
 
     if(ao->pth)
-	pthread_join(ao->pth, NULL);
+        pthread_join(ao->pth, NULL);
     pthread_mutex_lock(&ao->mx);
     if(ao->driver)
-	tcfree(ao->driver);
+        tcfree(ao->driver);
     ao->driver = NULL;
     pthread_mutex_unlock(&ao->mx);
 
     if(ao->buf)
-	free(ao->buf);
+        free(ao->buf);
     free(ao->ptsq);
     tcfree(ao->conf);
 }
@@ -123,17 +123,17 @@ audio_flush(tcvp_pipe_t *p, int drop)
     pthread_mutex_lock(&ao->mx);
 
     if(drop){
-	ao->head = ao->tail = ao->buf;
-	ao->bbytes = 0;
-	ao->pqh = ao->pqt = 0;
-	ao->pqc = 0;
+        ao->head = ao->tail = ao->buf;
+        ao->bbytes = 0;
+        ao->pqh = ao->pqt = 0;
+        ao->pqc = 0;
     } else {
-	while(ao->bbytes)
-	    pthread_cond_wait(&ao->cd, &ao->mx);
+        while(ao->bbytes)
+            pthread_cond_wait(&ao->cd, &ao->mx);
     }
 
     if(ao->driver)
-	ao->driver->flush(ao->driver, drop);
+        ao->driver->flush(ao->driver, drop);
     ao->timer->interrupt(ao->timer);
 
     pthread_cond_broadcast(&ao->cd);
@@ -151,8 +151,8 @@ audio_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int pts;
 
     if(!pk->data){
-	tcfree(pk);
-	return 0;
+        tcfree(pk);
+        return 0;
     }
 
     count = pk->sizes[0];
@@ -160,34 +160,34 @@ audio_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     pts = pk->flags & TCVP_PKT_FLAG_PTS;
 
     while(count >= ao->ibpf){
-	int bs;
+        int bs;
 
-	pthread_mutex_lock(&ao->mx);
-	while(ao->bbytes == ao->bufsize && ao->state != STOP)
-	    pthread_cond_wait(&ao->cd, &ao->mx);
+        pthread_mutex_lock(&ao->mx);
+        while(ao->bbytes == ao->bufsize && ao->state != STOP)
+            pthread_cond_wait(&ao->cd, &ao->mx);
 
-	if(pts && ao->pqc < ptsqsize){
-/* 	    fprintf(stderr, "AUDIO: pts %llu, pqc %i, bp %p\n", */
-/* 		    pk->pts, ao->pqc, ao->head); */
-	    ao->ptsq[ao->pqh].pts = pk->pts;
-	    ao->ptsq[ao->pqh].bp = ao->head;
-	    if(++ao->pqh == ptsqsize)
-		ao->pqh = 0;
-	    ao->pqc++;
-	    pts = 0;
-	}
+        if(pts && ao->pqc < ptsqsize){
+/*          fprintf(stderr, "AUDIO: pts %llu, pqc %i, bp %p\n", */
+/*                  pk->pts, ao->pqc, ao->head); */
+            ao->ptsq[ao->pqh].pts = pk->pts;
+            ao->ptsq[ao->pqh].bp = ao->head;
+            if(++ao->pqh == ptsqsize)
+                ao->pqh = 0;
+            ao->pqc++;
+            pts = 0;
+        }
 
-	bs = min(count / ao->ibpf, (ao->bufsize - ao->bbytes) / ao->obpf);
-	bs = min(bs, (ao->bufsize - (ao->head - ao->buf)) / ao->obpf);
-	ao->conv(ao->head, data, bs, ao->channels);
-	data += bs * ao->ibpf;
-	count -= bs * ao->ibpf;
-	ao->bbytes += bs * ao->obpf;
-	ao->head += bs * ao->obpf;
-	if(ao->head - ao->buf == ao->bufsize)
-	    ao->head = ao->buf;
-	pthread_cond_broadcast(&ao->cd);
-	pthread_mutex_unlock(&ao->mx);
+        bs = min(count / ao->ibpf, (ao->bufsize - ao->bbytes) / ao->obpf);
+        bs = min(bs, (ao->bufsize - (ao->head - ao->buf)) / ao->obpf);
+        ao->conv(ao->head, data, bs, ao->channels);
+        data += bs * ao->ibpf;
+        count -= bs * ao->ibpf;
+        ao->bbytes += bs * ao->obpf;
+        ao->head += bs * ao->obpf;
+        if(ao->head - ao->buf == ao->bufsize)
+            ao->head = ao->buf;
+        pthread_cond_broadcast(&ao->cd);
+        pthread_mutex_unlock(&ao->mx);
     }
 
     tcfree(pk);
@@ -201,62 +201,62 @@ audio_play(void *p)
     audio_out_t *ao = p;
 
     while(ao->state != STOP){
-	int count, r;
+        int count, r;
 
-	pthread_mutex_lock(&ao->mx);
-	while((!ao->bbytes || ao->state == PAUSE) && ao->state != STOP)
-	    pthread_cond_wait(&ao->cd, &ao->mx);
+        pthread_mutex_lock(&ao->mx);
+        while((!ao->bbytes || ao->state == PAUSE) && ao->state != STOP)
+            pthread_cond_wait(&ao->cd, &ao->mx);
 
-	if(ao->state == STOP){
-	    pthread_mutex_unlock(&ao->mx);
-	    break;
-	}
+        if(ao->state == STOP){
+            pthread_mutex_unlock(&ao->mx);
+            break;
+        }
 
-	count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->obpf;
-	r = ao->driver->write(ao->driver, ao->tail, count);
+        count = min(ao->bbytes, ao->bufsize - (ao->tail - ao->buf)) / ao->obpf;
+        r = ao->driver->write(ao->driver, ao->tail, count);
 
-	if(r > 0){
-	    u_char *pt = ao->tail;
-	    count -= r;
-	    ao->bbytes -= r * ao->obpf;
-	    ao->tail += r * ao->obpf;
+        if(r > 0){
+            u_char *pt = ao->tail;
+            count -= r;
+            ao->bbytes -= r * ao->obpf;
+            ao->tail += r * ao->obpf;
 
-	    if(ao->pqc){
-		u_char *pp = ao->ptsq[ao->pqt].bp;
-/* 		fprintf(stderr, "AUDIO: %p %p %p\n", pt, pp, ao->tail); */
-		if(pt <= pp && pp <= ao->tail){
-		    int bc = ao->tail - pp;
-		    uint64_t d, t, tm;
-		    int64_t dt;
-		    int df = ao->driver->delay(ao->driver);
-		    d = (uint64_t) (df - bc / ao->obpf) * 27000000 / ao->rate;
-		    t = ao->ptsq[ao->pqt].pts - d;
-		    tm = ao->timer->read(ao->timer);
-		    dt = tm > t? tm - t: t - tm;
-		    if(dt > tcvp_output_audio_conf_pts_threshold){
-			ao->timer->reset(ao->timer, t);
-/* 			fprintf(stderr, "AUDIO: df = %i, pts = %llu, t = %llu, dt = %5lli\n", df, ao->ptsq[ao->pqt].pts / 27, t / 27, (int64_t)(t - tm) / 27); */
-		    }
-		    while(ao->ptsq[ao->pqt].bp < ao->tail && ao->pqc){
-			if(++ao->pqt == ptsqsize)
-			    ao->pqt = 0;
-			--ao->pqc;
-		    }
-		}
-	    }
+            if(ao->pqc){
+                u_char *pp = ao->ptsq[ao->pqt].bp;
+/*              fprintf(stderr, "AUDIO: %p %p %p\n", pt, pp, ao->tail); */
+                if(pt <= pp && pp <= ao->tail){
+                    int bc = ao->tail - pp;
+                    uint64_t d, t, tm;
+                    int64_t dt;
+                    int df = ao->driver->delay(ao->driver);
+                    d = (uint64_t) (df - bc / ao->obpf) * 27000000 / ao->rate;
+                    t = ao->ptsq[ao->pqt].pts - d;
+                    tm = ao->timer->read(ao->timer);
+                    dt = tm > t? tm - t: t - tm;
+                    if(dt > tcvp_output_audio_conf_pts_threshold){
+                        ao->timer->reset(ao->timer, t);
+/*                      fprintf(stderr, "AUDIO: df = %i, pts = %llu, t = %llu, dt = %5lli\n", df, ao->ptsq[ao->pqt].pts / 27, t / 27, (int64_t)(t - tm) / 27); */
+                    }
+                    while(ao->ptsq[ao->pqt].bp < ao->tail && ao->pqc){
+                        if(++ao->pqt == ptsqsize)
+                            ao->pqt = 0;
+                        --ao->pqc;
+                    }
+                }
+            }
 
-	    if(ao->tail - ao->buf == ao->bufsize)
-		ao->tail = ao->buf;
+            if(ao->tail - ao->buf == ao->bufsize)
+                ao->tail = ao->buf;
 
-	    pthread_cond_broadcast(&ao->cd);
-	    pthread_mutex_unlock(&ao->mx);
-	} else {
-	    pthread_mutex_unlock(&ao->mx);
-	    if(r == -EAGAIN || r == 0)
-		ao->driver->wait(ao->driver, 1000);
-	    else
-		break;
-	}
+            pthread_cond_broadcast(&ao->cd);
+            pthread_mutex_unlock(&ao->mx);
+        } else {
+            pthread_mutex_unlock(&ao->mx);
+            if(r == -EAGAIN || r == 0)
+                ao->driver->wait(ao->driver, 1000);
+            else
+                break;
+        }
     }
 
     return NULL;
@@ -270,7 +270,7 @@ audio_buffer(tcvp_pipe_t *p, float r)
 
     pthread_mutex_lock(&ao->mx);
     while((float) ao->bbytes / ao->bufsize < r)
-	pthread_cond_wait(&ao->cd, &ao->mx);
+        pthread_cond_wait(&ao->cd, &ao->mx);
     pthread_mutex_unlock(&ao->mx);
 
     return 0;
@@ -283,13 +283,13 @@ get_ssize(char *s)
     s++;
 
     if(!strncmp(s, "16", 2)){
-	return 2;
+        return 2;
     } else if(!strncmp(s, "32", 2)){
-	return 4;
+        return 4;
     } else if(!strncmp(s, "8", 1)){
-	return 1;
+        return 1;
     } else {
-	return 0;
+        return 0;
     }
 }
 
@@ -308,10 +308,10 @@ audio_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     tcfree(pk);
 
     if(s->stream_type != STREAM_TYPE_AUDIO)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     if(!(sf = strstr(s->common.codec, "pcm-")))
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     sf += 4;
     formats = audio_all_conv(sf);
@@ -320,38 +320,38 @@ audio_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     as->codec = ao->outfmt;
 
     for(i = 0; i < output_audio_conf_driver_count && !ad; i++){
-	driver_audio_new_t adn;
-	char buf[256];
+        driver_audio_new_t adn;
+        char buf[256];
 
-	snprintf(buf, 256, "driver/audio/%s",
-		 output_audio_conf_driver[i].name);
-	if(!(adn = tc2_get_symbol(buf, "new")))
-	    continue;
+        snprintf(buf, 256, "driver/audio/%s",
+                 output_audio_conf_driver[i].name);
+        if(!(adn = tc2_get_symbol(buf, "new")))
+            continue;
 
-	for(j = 0; formats[j] && !ad; j++){
-	    snprintf(ao->outfmt, sizeof(ao->outfmt),
-		     "audio/pcm-%s", formats[j]);
-	    if((ad = adn(as, ao->conf, ao->timer))){
-		if(!(conv = audio_conv(sf, ad->format))){
-		    tcfree(ad);
-		    ad = NULL;
-		}
-	    }
-	}
+        for(j = 0; formats[j] && !ad; j++){
+            snprintf(ao->outfmt, sizeof(ao->outfmt),
+                     "audio/pcm-%s", formats[j]);
+            if((ad = adn(as, ao->conf, ao->timer))){
+                if(!(conv = audio_conv(sf, ad->format))){
+                    tcfree(ad);
+                    ad = NULL;
+                }
+            }
+        }
     }
 
     free(formats);
 
     if(!ad){
-	tc2_print("AUDIO", TC2_PRINT_ERROR, "can't find a usable driver\n");
-	return PROBE_FAIL;
+        tc2_print("AUDIO", TC2_PRINT_ERROR, "can't find a usable driver\n");
+        return PROBE_FAIL;
     }
 
     if(!(issize = get_ssize(sf)))
-	goto err;
+        goto err;
 
     if(!(ossize = get_ssize(ad->format)))
-	goto err;
+        goto err;
 
     ao->driver = ad;
     ao->ibpf = as->channels * issize;
@@ -373,7 +373,7 @@ err:
 
 extern int
 audio_open(tcvp_pipe_t *tp, stream_t *s, tcconf_section_t *cs,
-	   tcvp_timer_t *timer, muxed_stream_t *ms)
+           tcvp_timer_t *timer, muxed_stream_t *ms)
 {
     audio_out_t *ao;
 
@@ -403,8 +403,8 @@ extern int
 a_init(char *arg)
 {
     if(output_audio_conf_driver_count > 0){
-	qsort(output_audio_conf_driver, output_audio_conf_driver_count,
-	      sizeof(output_audio_conf_driver_t), drv_cmp);
+        qsort(output_audio_conf_driver, output_audio_conf_driver_count,
+              sizeof(output_audio_conf_driver_t), drv_cmp);
     }
 
     return 0;

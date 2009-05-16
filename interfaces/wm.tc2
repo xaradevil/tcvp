@@ -1,4 +1,4 @@
-symbol	"open"	window_manager_t *(*%s)(int, int, tcconf_section_t *, int flags)
+symbol  "open"  window_manager_t *(*%s)(int, int, tcconf_section_t *, int flags)
 include
 typedef struct window_manager window_manager_t;
 struct window_manager {

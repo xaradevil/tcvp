@@ -58,9 +58,9 @@ au_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     int align, brate;
 
     if(u->read(magic, 1, 4, u) != 4)
-	return NULL;
+        return NULL;
     if(memcmp(magic, ".snd", 4))
-	return NULL;
+        return NULL;
 
     url_getu32b(u, &data);
     url_getu32b(u, &size);
@@ -69,9 +69,9 @@ au_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     url_getu32b(u, &channels);
 
     if(fmt > FORMAT_MAX)
-	return NULL;
+        return NULL;
     if(!formats[fmt].codec)
-	return NULL;
+        return NULL;
 
     u->seek(u, data, SEEK_SET);
 
@@ -80,5 +80,5 @@ au_open(char *name, url_t *u, tcconf_section_t *conf, tcvp_timer_t *tm)
     brate = rate * formats[fmt].bits * channels;
 
     return pcm_open(u, codec, channels, rate, size / align, brate,
-		    formats[fmt].bits, NULL, 0);
+                    formats[fmt].bits, NULL, 0);
 }

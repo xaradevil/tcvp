@@ -41,17 +41,17 @@ do_decaudio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
     int insize;
 
     if(pk->data){
-	inbuf = pk->data[0];
-	insize = pk->sizes[0];
+        inbuf = pk->data[0];
+        insize = pk->sizes[0];
     } else {
-	p->next->input(p->next, (tcvp_packet_t *) pk);
-	return 0;
+        p->next->input(p->next, (tcvp_packet_t *) pk);
+        return 0;
     }
 
     while(insize > 0){
         uint8_t *buf = NULL;
         int bufsize = 0;
-	int l, outsize = ac->audio_buf_size;
+        int l, outsize = ac->audio_buf_size;
 
         if(ac->pctx){
             l = av_parser_parse(ac->pctx, ac->ctx, &buf, &bufsize,
@@ -82,27 +82,27 @@ do_decaudio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
             }
         }
 
-	if(outsize > 0){
-	    if(probe){
-		ac->have_params = 1;
-		break;
-	    }
+        if(outsize > 0){
+            if(probe){
+                ac->have_params = 1;
+                break;
+            }
 
-	    out = tcallocdz(sizeof(*out), NULL, avc_free_packet);
-	    out->type = TCVP_PKT_TYPE_DATA;
-	    out->stream = pk->stream;
-	    out->data = (u_char **) &out->private;
-	    out->sizes = malloc(sizeof(*out->sizes));
-	    out->sizes[0] = outsize;
-	    out->planes = 1;
-	    if(pk->flags & TCVP_PKT_FLAG_PTS){
-		out->flags |= TCVP_PKT_FLAG_PTS;
-		out->pts = pk->pts;
-		pk->flags = 0;
-	    }
-	    out->private = ac->buf;
-	    p->next->input(p->next, (tcvp_packet_t *) out);
-	}
+            out = tcallocdz(sizeof(*out), NULL, avc_free_packet);
+            out->type = TCVP_PKT_TYPE_DATA;
+            out->stream = pk->stream;
+            out->data = (u_char **) &out->private;
+            out->sizes = malloc(sizeof(*out->sizes));
+            out->sizes[0] = outsize;
+            out->planes = 1;
+            if(pk->flags & TCVP_PKT_FLAG_PTS){
+                out->flags |= TCVP_PKT_FLAG_PTS;
+                out->pts = pk->pts;
+                pk->flags = 0;
+            }
+            out->private = ac->buf;
+            p->next->input(p->next, (tcvp_packet_t *) out);
+        }
     }
 
     tcfree(pk);
@@ -123,16 +123,16 @@ avc_probe_audio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     int ret;
 
     if(do_decaudio(p, pk, 1) < 0)
-	return PROBE_FAIL;
+        return PROBE_FAIL;
 
     if(ac->have_params){
-	p->format = *s;
-	p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
-	p->format.audio.sample_rate = ac->ctx->sample_rate;
-	p->format.audio.channels = ac->ctx->channels;
-	ret = PROBE_OK;
+        p->format = *s;
+        p->format.audio.codec = "audio/pcm-s16" TCVP_ENDIAN;
+        p->format.audio.sample_rate = ac->ctx->sample_rate;
+        p->format.audio.channels = ac->ctx->channels;
+        ret = PROBE_OK;
     } else {
-	ret = PROBE_AGAIN;
+        ret = PROBE_AGAIN;
     }
 
     return ret;

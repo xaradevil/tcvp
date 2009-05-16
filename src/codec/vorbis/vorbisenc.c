@@ -56,9 +56,9 @@ int16tofloat(int16_t *in, float **out, int s, int c)
     int i, j;
 
     for(i = 0; i < s; i++){
-	for(j = 0; j < c; j++){
-	    out[j][i] = in[i * c + j] / 32768.0;
-	}
+        for(j = 0; j < c; j++){
+            out[j][i] = in[i * c + j] / 32768.0;
+        }
     }
 }
 
@@ -94,30 +94,30 @@ ve_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     int samples;
 
     if(!pk->data){
-	vorbis_analysis_wrote(&ve->vd, 0);
+        vorbis_analysis_wrote(&ve->vd, 0);
     } else {
-	samples = pk->sizes[0] / ve->bps;
-	buf = vorbis_analysis_buffer(&ve->vd, samples);
-	int16tofloat((int16_t *)pk->data[0], buf, samples, ve->channels);
-	vorbis_analysis_wrote(&ve->vd, samples);
+        samples = pk->sizes[0] / ve->bps;
+        buf = vorbis_analysis_buffer(&ve->vd, samples);
+        int16tofloat((int16_t *)pk->data[0], buf, samples, ve->channels);
+        vorbis_analysis_wrote(&ve->vd, samples);
     }
 
     while(vorbis_analysis_blockout(&ve->vd, &ve->vb) == 1){
-	vorbis_analysis(&ve->vb, NULL);
-	vorbis_bitrate_addblock(&ve->vb);
+        vorbis_analysis(&ve->vb, NULL);
+        vorbis_bitrate_addblock(&ve->vb);
 
-	while(vorbis_bitrate_flushpacket(&ve->vd, &op)){
-	    vorbis_packet_t *vp = ve_alloc(pk->stream, &op,
-					   op.granulepos - ve->gpos);
-	    p->next->input(p->next, (tcvp_packet_t *) vp);
-	    ve->gpos = op.granulepos;
-	}
+        while(vorbis_bitrate_flushpacket(&ve->vd, &op)){
+            vorbis_packet_t *vp = ve_alloc(pk->stream, &op,
+                                           op.granulepos - ve->gpos);
+            p->next->input(p->next, (tcvp_packet_t *) vp);
+            ve->gpos = op.granulepos;
+        }
     }
 
     if(pk->data)
-	tcfree(pk);
+        tcfree(pk);
     else
-	p->next->input(p->next, (tcvp_packet_t *) pk);
+        p->next->input(p->next, (tcvp_packet_t *) pk);
 
     return 0;
 }
@@ -126,13 +126,13 @@ extern int
 ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 {
     vorbis_enc_t *ve = p->private;
-    ogg_packet op[3];	/* main, comments, codebook */
+    ogg_packet op[3];   /* main, comments, codebook */
     u_char *cdp;
     int cds, i;
 
     if(vorbis_encode_setup_vbr(&ve->vi, s->audio.channels,
-			       s->audio.sample_rate, ve->quality))
-	return PROBE_FAIL;
+                               s->audio.sample_rate, ve->quality))
+        return PROBE_FAIL;
 
     vorbis_encode_setup_init(&ve->vi);
     vorbis_analysis_init(&ve->vd, &ve->vi);
@@ -154,10 +154,10 @@ ve_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     p->format.common.codec_data_size = cds;
 
     for(i = 0; i < 3; i++){
-	*cdp++ = op[i].bytes >> 8;
-	*cdp++ = op[i].bytes & 0xff;
-	memcpy(cdp, op[i].packet, op[i].bytes);
-	cdp += op[i].bytes;
+        *cdp++ = op[i].bytes >> 8;
+        *cdp++ = op[i].bytes & 0xff;
+        memcpy(cdp, op[i].packet, op[i].bytes);
+        cdp += op[i].bytes;
     }
 
     tcfree(pk);
@@ -175,7 +175,7 @@ ve_free(void *p)
     vorbis_info_clear(&ve->vi);
 
     for(i = 0; i < ve->vc.comments; i++)
-	free(ve->vc.user_comments[i]);
+        free(ve->vc.user_comments[i]);
     free(ve->vc.user_comments);
     free(ve->vc.comment_lengths);
     free(ve->headers);
@@ -203,15 +203,15 @@ ve_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     ve->vc.user_comments = calloc(nc, sizeof(*ve->vc.user_comments));
     ve->vc.comment_lengths = calloc(nc, sizeof(*ve->vc.comment_lengths));
     for(i = 0, c = 0; i < nc; i++){
-	char *cm = tcattr_get(ms, comments[i]);
-	if(cm){
-	    int cl = strlen(cm) + strlen(comments[i]) + 1;
-	    char *vc = malloc(cl + 1);
-	    sprintf(vc, "%s=%s", comments[i], cm);
-	    ve->vc.user_comments[c] = vc;
-	    ve->vc.comment_lengths[c] = cl;
-	    c++;
-	}
+        char *cm = tcattr_get(ms, comments[i]);
+        if(cm){
+            int cl = strlen(cm) + strlen(comments[i]) + 1;
+            char *vc = malloc(cl + 1);
+            sprintf(vc, "%s=%s", comments[i], cm);
+            ve->vc.user_comments[c] = vc;
+            ve->vc.comment_lengths[c] = cl;
+            c++;
+        }
     }
     ve->vc.comments = c;
     ve->vc.vendor = "TCVP";

@@ -47,8 +47,8 @@ escape_string(char *src)
     char *ret = malloc(2*strlen(src)+1);
     char *dst = ret;
     do {
-	if (*src == '\'') *dst++ = '\\';
-	*dst++ = *src;
+        if (*src == '\'') *dst++ = '\\';
+        *dst++ = *src;
     } while(*src++);
 
     return ret;
@@ -62,7 +62,7 @@ lookup_db_attr(char *n, void *p)
     tcdb_reply_t *r;
 
     if(strcmp("file", n) == 0) {
-	return strdup(f);
+        return strdup(f);
     }
 
     fe = escape_string(f);
@@ -108,49 +108,49 @@ change_variable(char *key, char *datatype, void *data)
     tchash_find(widget_hash, buf, -1, &cblst);
 
     tc2_print("tcvpx", TC2_PRINT_DEBUG + 10,
-	      "change_variable '%s' '%s' %p\n", key, buf, wlst);
+              "change_variable '%s' '%s' %p\n", key, buf, wlst);
 
     if(wlst && cblst) {
-	xtk_widget_t *w;
-	action_cb_t cb;
+        xtk_widget_t *w;
+        action_cb_t cb;
 
-	while((w = tclist_next(wlst, &current1))!=NULL &&
-	      (cb = tclist_next(cblst, &current2))!=NULL) {
-	    if(data == NULL) {
-		widget_data_t *ad = xtk_widget_get_data(w);
-		if(ad) {
-		    parse_variable(datatype, ad->value, &tmp, NULL);
-		    if(tmp) cb(w, tmp);
-		}
-	    } else if(strcmp(datatype, "string_array") == 0) {
-		widget_data_t *ad = xtk_widget_get_data(w);
-		if(ad) {
-		    if(ad->value) {
-			parse_variable(datatype, ad->value, &tmp, NULL);
-			if(tmp) {
-			    cb(w, tmp);
-			    tcfree(tmp);
-			}
-		    } else if(ad->nvalues > 0) {
-			int i;
-			for(i = 0; i<ad->nvalues; i++) {
-			    if(strncmp(ad->values[i], key, strlen(key))== 0) {
-				parse_variable(datatype, ad->values[i], &tmp,
-					       NULL);
-				if(tmp) {
-				    cb(w, tmp);
-				    tcfree(tmp);
-				}
-			    }
-			}
-		    }
-		} else {
-		    cb(w, data);
-		}
-	    } else {
-		cb(w, data);
-	    }
-	}
+        while((w = tclist_next(wlst, &current1))!=NULL &&
+              (cb = tclist_next(cblst, &current2))!=NULL) {
+            if(data == NULL) {
+                widget_data_t *ad = xtk_widget_get_data(w);
+                if(ad) {
+                    parse_variable(datatype, ad->value, &tmp, NULL);
+                    if(tmp) cb(w, tmp);
+                }
+            } else if(strcmp(datatype, "string_array") == 0) {
+                widget_data_t *ad = xtk_widget_get_data(w);
+                if(ad) {
+                    if(ad->value) {
+                        parse_variable(datatype, ad->value, &tmp, NULL);
+                        if(tmp) {
+                            cb(w, tmp);
+                            tcfree(tmp);
+                        }
+                    } else if(ad->nvalues > 0) {
+                        int i;
+                        for(i = 0; i<ad->nvalues; i++) {
+                            if(strncmp(ad->values[i], key, strlen(key))== 0) {
+                                parse_variable(datatype, ad->values[i], &tmp,
+                                               NULL);
+                                if(tmp) {
+                                    cb(w, tmp);
+                                    tcfree(tmp);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    cb(w, data);
+                }
+            } else {
+                cb(w, data);
+            }
+        }
     }
 
     return 0;
@@ -168,31 +168,31 @@ change_text(char *key, char *text)
     if(tmp) tcfree(tmp);
 
     if(text) {
-	char *txttmp = tcalloc(strlen(text)+1);
-	memcpy(txttmp, text, strlen(text)+1);
-	tchash_search(variable_hash, key, -1, txttmp, NULL);
+        char *txttmp = tcalloc(strlen(text)+1);
+        memcpy(txttmp, text, strlen(text)+1);
+        tchash_search(variable_hash, key, -1, txttmp, NULL);
     }
 
     sprintf(buf, "text:%s", key);
     tchash_find(widget_hash, buf, -1, &lst);
 
     tc2_print("tcvpx", TC2_PRINT_DEBUG + 10,
-	      "change_text '%s' '%s' '%s' %p\n", key, buf, text, lst);
+              "change_text '%s' '%s' '%s' %p\n", key, buf, text, lst);
 
     if(lst) {
-	xtk_widget_t *w;
-	while((w = tclist_next(lst, &current))!=NULL) {
-	    widget_data_t *ad = xtk_widget_get_data(w);
-	    if(ad) {
-		parse_text(ad->value, buf, 1024);
-		xtk_widget_label_set_text(w, buf);
-		xtk_widget_state_set_state(w, buf);
-		XTK_WINDOW(w, win);
-		if(win){
-		    xtk_window_set_title(w, buf);
-		}
-	    }
-	}
+        xtk_widget_t *w;
+        while((w = tclist_next(lst, &current))!=NULL) {
+            widget_data_t *ad = xtk_widget_get_data(w);
+            if(ad) {
+                parse_text(ad->value, buf, 1024);
+                xtk_widget_label_set_text(w, buf);
+                xtk_widget_state_set_state(w, buf);
+                XTK_WINDOW(w, win);
+                if(win){
+                    xtk_window_set_title(w, buf);
+                }
+            }
+        }
     }
 
     return 0;
@@ -210,45 +210,45 @@ get_keys(char *text, char ***keysp, char ***defaultsp)
     foo = src = strdup(text);
 
     for(;;) {
-	char *tmp;
-	char *key;
-	char *def=NULL;
+        char *tmp;
+        char *key;
+        char *def=NULL;
 
-	tmp = strstr(src, "${");
-	if(!tmp) break;
+        tmp = strstr(src, "${");
+        if(!tmp) break;
 
-	src = key = tmp+2;
+        src = key = tmp+2;
 
-	tmp = strchr(src, '}');
-	tmp[0]=0;
-	src = tmp+1;
+        tmp = strchr(src, '}');
+        tmp[0]=0;
+        src = tmp+1;
 
-	tmp = strchr(key, ':');
-	if(tmp) {
-	    tmp[0] = 0;
-	    if(tmp[1]=='-') {
-		def = tmp+2;
-	    }
-	}
+        tmp = strchr(key, ':');
+        if(tmp) {
+            tmp[0] = 0;
+            if(tmp[1]=='-') {
+                def = tmp+2;
+            }
+        }
 
-	keys = realloc(keys, (n+1)*sizeof(*keys));
-	keys[n] = strdup(key);
-	if(defaultsp) {
-	    defaults = realloc(defaults, (n+1)*sizeof(*defaults));
-	    if(def) {
-		defaults[n] = strdup(def);
-	    } else {
-		defaults[n] = NULL;
-	    }
-	}
-	n++;
+        keys = realloc(keys, (n+1)*sizeof(*keys));
+        keys[n] = strdup(key);
+        if(defaultsp) {
+            defaults = realloc(defaults, (n+1)*sizeof(*defaults));
+            if(def) {
+                defaults[n] = strdup(def);
+            } else {
+                defaults[n] = NULL;
+            }
+        }
+        n++;
     }
 
     free(foo);
 
     *keysp = keys;
     if(defaultsp) {
-	*defaultsp = defaults;
+        *defaultsp = defaults;
     }
     return n;
 }
@@ -264,9 +264,9 @@ register_key(char *key, void *w)
     tchash_find(widget_hash, key, -1, &lst);
 
     if(!lst) {
-	tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "key: %s not yet registered\n", key);
-	lst = tclist_new(TC_LOCK_SLOPPY);
-	tchash_search(widget_hash, key, -1, lst, NULL);
+        tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "key: %s not yet registered\n", key);
+        lst = tclist_new(TC_LOCK_SLOPPY);
+        tchash_search(widget_hash, key, -1, lst, NULL);
     }
 
     tclist_push(lst, w);
@@ -290,10 +290,10 @@ unregister_key(char *key, void *w)
     tchash_find(widget_hash, key, -1, &lst);
 
     if(lst) {
-	tclist_delete(lst, w, ptr_cmp, NULL);
+        tclist_delete(lst, w, ptr_cmp, NULL);
     } else {
-	tc2_print("TCVPX", TC2_PRINT_DEBUG,
-		  "Unregistration of key %s failed\n", key);
+        tc2_print("TCVPX", TC2_PRINT_DEBUG,
+                  "Unregistration of key %s failed\n", key);
     }
 
     return 0;
@@ -310,10 +310,10 @@ register_textwidget(xtk_widget_t *w, char *text)
 
     n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
-	char buf[1024];
-	sprintf(buf, "text:%s", keys[i]);
-	register_key(buf, w);
-	free(keys[i]);
+        char buf[1024];
+        sprintf(buf, "text:%s", keys[i]);
+        register_key(buf, w);
+        free(keys[i]);
     }
 
     free(keys);
@@ -329,10 +329,10 @@ unregister_textwidget(xtk_widget_t *w, char *text)
 
     n = get_keys(text, &keys, NULL);
     for(i=0; i<n; i++) {
-	char buf[1024];
-	sprintf(buf, "text:%s", keys[i]);
-	unregister_key(buf, w);
-	free(keys[i]);
+        char buf[1024];
+        sprintf(buf, "text:%s", keys[i]);
+        unregister_key(buf, w);
+        free(keys[i]);
     }
 
     free(keys);
@@ -345,7 +345,7 @@ unregister_textwidget(xtk_widget_t *w, char *text)
 
 extern int
 register_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
-		   char *value)
+                   char *value)
 {
     tcref(w);
     char *tmp, *valueparsed;
@@ -355,12 +355,12 @@ register_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 
     tmp = strchr(valueparsed, '|');
     if(tmp) {
-	*tmp=0;
+        *tmp=0;
     }
 
     tmp = strchr(valueparsed, ':');
     if(tmp) {
-	*tmp=0;
+        *tmp=0;
     }
 
     sprintf(buf, "varwidget:%s:%s", datatype, valueparsed);
@@ -375,7 +375,7 @@ register_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 
 extern int
 unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
-		     char *value)
+                     char *value)
 {
     char *valueparsed, *tmp;
     char buf[1024];
@@ -384,12 +384,12 @@ unregister_varwidget(xtk_widget_t *w, action_cb_t cb, char *datatype,
 
     tmp = strchr(valueparsed, '|');
     if(tmp) {
-	*tmp=0;
+        *tmp=0;
     }
 
     tmp = strchr(valueparsed, ':');
     if(tmp) {
-	*tmp=0;
+        *tmp=0;
     }
 
     sprintf(buf, "varwidget:%s:%s", datatype, valueparsed);
@@ -414,50 +414,50 @@ parse_variable(char *datatype, char *text, void **result, void **def)
 
     tmp = strchr(key, '|');
     if(tmp) {
-	*tmp = 0;
-	attr = tmp+1;
+        *tmp = 0;
+        attr = tmp+1;
     }
 
     tmp = strchr(key, ':');
     if(tmp && attr == NULL) {
-	tmp[0] = 0;
-	if(tmp[1]=='-') {
-	    dflt = tmp+2;
-	}
+        tmp[0] = 0;
+        if(tmp[1]=='-') {
+            dflt = tmp+2;
+        }
     }
 
     *result = lookup_variable(key, NULL);
 
     if(*result == NULL && dflt != NULL && def != NULL) {
-	if(dflt[0] == '%' && dflt[1] == 'f') {
-	    double *dp = tcalloc(sizeof(*dp));
-	    *dp = strtod(dflt+2, NULL);
-	    *def = dp;
-	} else if (dflt[0] == '%' && dflt[1] == 'd') {
-	    double *dp = tcalloc(sizeof(*dp));
-	    *dp = strtol(dflt+2, NULL, 0);
-	    *def = dp;
-	}
+        if(dflt[0] == '%' && dflt[1] == 'f') {
+            double *dp = tcalloc(sizeof(*dp));
+            *dp = strtod(dflt+2, NULL);
+            *def = dp;
+        } else if (dflt[0] == '%' && dflt[1] == 'd') {
+            double *dp = tcalloc(sizeof(*dp));
+            *dp = strtol(dflt+2, NULL, 0);
+            *def = dp;
+        }
     }
 
     if(*result != NULL && attr != NULL &&
        strcmp(datatype, "string_array") == 0) {
-	int n, i;
-	char **list = (char **)*result;
-	for(n=0; list[n] != NULL; n++);
+        int n, i;
+        char **list = (char **)*result;
+        for(n=0; list[n] != NULL; n++);
 
-	char **entries_formatted =
-	    tcallocd((n+1) * sizeof(*entries_formatted), NULL, plarrayfree);
-	for(i=0; i<n; i++) {
-	    entries_formatted[i] = tcstrexp(attr, "{", "}", ':',
-					    lookup_db_attr, list[i],
-					    TCSTREXP_FREE | TCSTREXP_ESCAPE);
-	}
-	entries_formatted[i] = NULL;
+        char **entries_formatted =
+            tcallocd((n+1) * sizeof(*entries_formatted), NULL, plarrayfree);
+        for(i=0; i<n; i++) {
+            entries_formatted[i] = tcstrexp(attr, "{", "}", ':',
+                                            lookup_db_attr, list[i],
+                                            TCSTREXP_FREE | TCSTREXP_ESCAPE);
+        }
+        entries_formatted[i] = NULL;
 
-	*result = entries_formatted;
+        *result = entries_formatted;
     } else if(strcmp(datatype, "string_array") == 0) {
-	if(*result) tcref(*result);
+        if(*result) tcref(*result);
     }
 
     free(key);
@@ -472,14 +472,14 @@ parse_text(char *text, char *result, int len)
     char *exp;
 
     if(!text) {
-	result[0]=0;
-	return 1;
+        result[0]=0;
+        return 1;
     }
 
     tc2_print("tcvpx", TC2_PRINT_DEBUG + 10, "parse_text: text=%s\n", text);
 
     exp = tcstrexp(text, "{", "}", ':', lookup_variable,
-		   NULL, TCSTREXP_ESCAPE);
+                   NULL, TCSTREXP_ESCAPE);
     strncpy(result, exp, len);
     result[len-1] = 0;
     free(exp);
@@ -511,8 +511,8 @@ extern void
 free_dynamic(void)
 {
     if(variable_hash)
-	tchash_destroy(variable_hash, tcfree);
+        tchash_destroy(variable_hash, tcfree);
     if(widget_hash)
-	tchash_destroy(widget_hash, wh_free);
+        tchash_destroy(widget_hash, wh_free);
     tcfree(dbc);
 }

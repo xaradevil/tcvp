@@ -43,32 +43,32 @@ alsa_read(void *buf, size_t size, size_t count, url_t *u)
     snd_pcm_uframes_t frames;
 
     if(tcvp_input_alsa_conf_timestamp){
-	uint64_t pts;
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	pts = (uint64_t) tv.tv_sec * 27000000LL + tv.tv_usec * 27;
-	memcpy(buf, &pts, sizeof(pts));
-	buf += sizeof(pts);
-	bytes -= sizeof(pts);
+        uint64_t pts;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        pts = (uint64_t) tv.tv_sec * 27000000LL + tv.tv_usec * 27;
+        memcpy(buf, &pts, sizeof(pts));
+        buf += sizeof(pts);
+        bytes -= sizeof(pts);
     }
 
     frames = bytes / ai->bpf;
 
     while(frames > 0){
-	snd_pcm_sframes_t r = snd_pcm_readi(ai->pcm, buf, frames);
-	if(r == -EAGAIN || (r >= 0 && r < frames)){
-	    snd_pcm_wait(ai->pcm, 100);
-	} else if(r == -EPIPE){
-	    snd_pcm_prepare(ai->pcm);
-	} else if(r < 0){
-	    tc2_print("ALSA", TC2_PRINT_ERROR, "%s\n", snd_strerror(r));
-	    return -1;
-	}
+        snd_pcm_sframes_t r = snd_pcm_readi(ai->pcm, buf, frames);
+        if(r == -EAGAIN || (r >= 0 && r < frames)){
+            snd_pcm_wait(ai->pcm, 100);
+        } else if(r == -EPIPE){
+            snd_pcm_prepare(ai->pcm);
+        } else if(r < 0){
+            tc2_print("ALSA", TC2_PRINT_ERROR, "%s\n", snd_strerror(r));
+            return -1;
+        }
 
-	if(r > 0){
-	    frames -= r;
-	    buf += r * ai->bpf;
-	}
+        if(r > 0){
+            frames -= r;
+            buf += r * ai->bpf;
+        }
     }
 
     return count;
@@ -112,15 +112,15 @@ alsa_open(char *name, char *mode)
     int tmp;
 
     if(*mode != 'r')
-	return NULL;
+        return NULL;
 
     dev = strchr(name, ':');
     if(!dev || !*++dev)
-	dev = tcvp_input_alsa_conf_device;
+        dev = tcvp_input_alsa_conf_device;
 
     if(snd_pcm_open(&pcm, dev, SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK)){
-	tc2_print("ALSA", TC2_PRINT_ERROR, "Can't open '%s' for capture\n", dev);
-	return NULL;
+        tc2_print("ALSA", TC2_PRINT_ERROR, "Can't open '%s' for capture\n", dev);
+        return NULL;
     }
 
     snd_pcm_hw_params_alloca(&hwp);
@@ -133,12 +133,12 @@ alsa_open(char *name, char *mode)
     snd_pcm_hw_params_set_channels_near(pcm, hwp, &channels);
 
     snd_pcm_hw_params_set_period_size(pcm, hwp,
-				      tcvp_input_alsa_conf_period, -1);
+                                      tcvp_input_alsa_conf_period, -1);
     snd_pcm_hw_params_set_buffer_size(pcm, hwp, tcvp_input_alsa_conf_buffer);
 
     if(snd_pcm_hw_params(pcm, hwp) < 0){
-	tc2_print("ALSA", TC2_PRINT_ERROR, "failed setting capture parameters\n");
-	goto err;
+        tc2_print("ALSA", TC2_PRINT_ERROR, "failed setting capture parameters\n");
+        goto err;
     }
 
     snd_pcm_nonblock(pcm, 0);
@@ -168,7 +168,7 @@ alsa_open(char *name, char *mode)
 
     vu = url_vheader_new(u, ai->header, hsize);
     if(tcvp_input_alsa_conf_timestamp)
-	tcattr_set(vu, "tcvp/timestamp", "tcvp/timestamp", NULL, NULL);
+        tcattr_set(vu, "tcvp/timestamp", "tcvp/timestamp", NULL, NULL);
     return vu;
 
 err:

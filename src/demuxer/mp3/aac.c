@@ -49,27 +49,27 @@ aac_header(u_char *head, mp3_frame_t *mf)
     tcvp_bits_init(&bits, head, 7);
 
     if(tcvp_bits_get(&bits, 12) != 0xfff)
-	return -1;
+        return -1;
 
     id = tcvp_bits_get(&bits, 1);
     layer = tcvp_bits_get(&bits, 2);
-    tcvp_bits_get(&bits, 1);	/* protection_absent */
+    tcvp_bits_get(&bits, 1);    /* protection_absent */
     profile = tcvp_bits_get(&bits, 2);
     sr = tcvp_bits_get(&bits, 4);
     if(!aac_sample_rates[sr])
-	return -1;
-    tcvp_bits_get(&bits, 1);	/* private_bit */
+        return -1;
+    tcvp_bits_get(&bits, 1);    /* private_bit */
     ch = tcvp_bits_get(&bits, 3);
     if(!aac_channels[ch])
-	return -1;
-    tcvp_bits_get(&bits, 1);	/* original/copy */
-    tcvp_bits_get(&bits, 1);	/* home */
+        return -1;
+    tcvp_bits_get(&bits, 1);    /* original/copy */
+    tcvp_bits_get(&bits, 1);    /* home */
 
     /* adts_variable_header */
-    tcvp_bits_get(&bits, 1);	/* copyright_identification_bit */
-    tcvp_bits_get(&bits, 1);	/* copyright_identification_start */
+    tcvp_bits_get(&bits, 1);    /* copyright_identification_bit */
+    tcvp_bits_get(&bits, 1);    /* copyright_identification_start */
     mf->size = tcvp_bits_get(&bits, 13);
-    tcvp_bits_get(&bits, 11);	/* adts_buffer_fullness */
+    tcvp_bits_get(&bits, 11);   /* adts_buffer_fullness */
     rdb = tcvp_bits_get(&bits, 2);
 
     mf->channels = aac_channels[ch];

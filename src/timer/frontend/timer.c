@@ -58,8 +58,8 @@ free_timer(void *p)
     atimer_t *at = t->private;
     at->state = STOP;
     if(at->driver){
-	at->driver->set_timer(at->driver, NULL);
-	tcfree(at->driver);
+        at->driver->set_timer(at->driver, NULL);
+        tcfree(at->driver);
     }
     at->time = -1;
     pthread_cond_broadcast(&at->cd);
@@ -78,15 +78,15 @@ tm_wait(tcvp_timer_t *t, uint64_t time, pthread_mutex_t *lock)
     pthread_mutex_lock(&at->mx);
     wait = ++at->wait;
     while(at->time < time && at->state != STOP && (intr = (wait > at->intr))){
-	if(l && lock){
-	    pthread_mutex_unlock(lock);
-	    l = 0;
-	}
-	pthread_cond_wait(&at->cd, &at->mx);
+        if(l && lock){
+            pthread_mutex_unlock(lock);
+            l = 0;
+        }
+        pthread_cond_wait(&at->cd, &at->mx);
     }
     pthread_mutex_unlock(&at->mx);
     if(!l && lock)
-	pthread_mutex_lock(lock);
+        pthread_mutex_lock(lock);
 
     return !intr? -1: at->state == RUN? 0: -1;
 }
@@ -130,7 +130,7 @@ tm_start(tcvp_timer_t *t)
     atimer_t *at = t->private;
     at->state = RUN;
     if(at->driver)
-	at->driver->start(at->driver);
+        at->driver->start(at->driver);
     return 0;
 }
 
@@ -140,7 +140,7 @@ tm_stop(tcvp_timer_t *t)
     atimer_t *at = t->private;
     at->state = PAUSE;
     if(at->driver)
-	at->driver->stop(at->driver);
+        at->driver->stop(at->driver);
     return 0;
 }
 
@@ -150,15 +150,15 @@ tm_tick(tcvp_timer_t *t, uint64_t ticks)
     atimer_t *at = t->private;
 
     if(at->mod != 0.0){
-	double mticks = at->mticks + ticks * at->mod;
-	double imt = mticks > 0? floor(mticks): ceil(mticks);
-	at->mticks = mticks - imt;
-	ticks += imt;
+        double mticks = at->mticks + ticks * at->mod;
+        double imt = mticks > 0? floor(mticks): ceil(mticks);
+        at->mticks = mticks - imt;
+        ticks += imt;
     }
 
     pthread_mutex_lock(&at->mx);
     if(at->state == RUN)
-	at->time += ticks;
+        at->time += ticks;
     pthread_cond_broadcast(&at->cd);
     pthread_mutex_unlock(&at->mx);
 }
@@ -168,7 +168,7 @@ tm_modulate(tcvp_timer_t *t, double mod)
 {
     atimer_t *at = t->private;
     if(mod <= -1.0)
-	return -1;
+        return -1;
     at->mod = mod;
     return 0;
 }
@@ -179,17 +179,17 @@ tm_setdriver(tcvp_timer_t *t, timer_driver_t *td)
     atimer_t *at = t->private;
 
     if(at->driver){
-	at->driver->set_timer(at->driver, NULL);
-	at->driver->stop(at->driver);
-	tcfree(at->driver);
+        at->driver->set_timer(at->driver, NULL);
+        at->driver->stop(at->driver);
+        tcfree(at->driver);
     }
 
     at->driver = td;
 
     if(td){
-	td->set_timer(td, t);
-	if(at->state == RUN)
-	    td->start(td);
+        td->set_timer(td, t);
+        if(at->state == RUN)
+            td->start(td);
     }
 
     t->have_driver = !!td;

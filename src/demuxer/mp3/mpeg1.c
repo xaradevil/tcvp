@@ -62,27 +62,27 @@ mp3_header(u_char *head, mp3_frame_t *mf)
     int bx, br, sr, pad, lsf = 0;
 
     if(head[0] != 0xff)
-	return -1;
+        return -1;
 
     if((c & 0xe0) != 0xe0 ||
        ((c & 0x18) == 0x08 ||
-	(c & 0x06) == 0)){
-	return -1;
+        (c & 0x06) == 0)){
+        return -1;
     }
     if((d & 0xf0) == 0xf0 ||
        (d & 0x0c) == 0x0c){
-	return -1;
+        return -1;
     }
 
     if(!mf)
-	return 0;
+        return 0;
 
     mf->version = (c >> 3) & 0x3;
     mf->layer = 3 - ((c >> 1) & 0x3);
     bx = mf->version == 3? mf->layer: 3 + (mf->layer > 1);
     br = (d >> 4) & 0xf;
     if(!bitrates[br][bx])
-	return -1;
+        return -1;
 
     sr = (d >> 2) & 3;
     pad = (d >> 1) & 1;
@@ -91,21 +91,21 @@ mp3_header(u_char *head, mp3_frame_t *mf)
     mf->channels = head[3] >> 6 == 3? 1: 2;
     switch(mf->layer){
     case 2:
-	lsf = ~mf->version & 1;
+        lsf = ~mf->version & 1;
     case 1:
-	mf->size = 144 * mf->bitrate / (mf->sample_rate << lsf) + pad;
-	mf->samples = 1152;
-	break;
+        mf->size = 144 * mf->bitrate / (mf->sample_rate << lsf) + pad;
+        mf->samples = 1152;
+        break;
     case 0:
-	mf->size = (12 * mf->bitrate / mf->sample_rate + pad) * 4;
-	mf->samples = 384;
-	break;
+        mf->size = (12 * mf->bitrate / mf->sample_rate + pad) * 4;
+        mf->samples = 384;
+        break;
     }
 
 #ifdef DEBUG
     tc2_print("MP3", TC2_PRINT_DEBUG,
-	      "layer %i, version %i, rate %i, size %i\n",
-	      mf->layer, mf->version, mf->bitrate, mf->size);
+              "layer %i, version %i, rate %i, size %i\n",
+              mf->layer, mf->version, mf->bitrate, mf->size);
 #endif
 
     return 0;

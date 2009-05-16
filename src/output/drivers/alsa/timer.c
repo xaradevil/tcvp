@@ -76,25 +76,25 @@ run_timer(void *p)
     uint64_t rt = 0;
 
     while(at->state == RUN){
-	uint64_t t = 0;
-	int s;
+        uint64_t t = 0;
+        int s;
 
-	s = poll(at->pfd, at->npfd, 100);
-	if(s == 0){
-	    continue;
-	} else if(s < 0){
-	    break;
-	}
+        s = poll(at->pfd, at->npfd, 100);
+        if(s == 0){
+            continue;
+        } else if(s < 0){
+            break;
+        }
 
-	while(snd_timer_read(at->hwtimer, &tr, sizeof(tr)) == sizeof(tr)){
-	    t += tr.resolution * tr.ticks;
-	}
+        while(snd_timer_read(at->hwtimer, &tr, sizeof(tr)) == sizeof(tr)){
+            t += tr.resolution * tr.ticks;
+        }
 
-	if(at->timer){
-	    t *= 27;
-	    at->timer->tick(at->timer, t / 1000 + rt);
-	    rt = t % 1000;
-	}
+        if(at->timer){
+            t *= 27;
+            at->timer->tick(at->timer, t / 1000 + rt);
+            rt = t % 1000;
+        }
     }
 
     return NULL;
@@ -114,7 +114,7 @@ atm_stop(timer_driver_t *t)
     alsa_timer_t *at = t->private;
     sched_yield();
     if(at->class != SND_TIMER_CLASS_PCM)
-	snd_timer_stop(at->hwtimer);
+        snd_timer_stop(at->hwtimer);
     return 0;
 }
 
@@ -142,12 +142,12 @@ new_timer(int res, int class, int sclass, int card, int dev, int subdev)
     snd_timer_info_alloca(&inf);
 
     sprintf(name, "hw:CLASS=%i,SCLASS=%i,CARD=%i,DEV=%i,SUBDEV=%i",
-	    class, sclass, card, dev, subdev);
+            class, sclass, card, dev, subdev);
 
     if((s = snd_timer_open(&timer, name, SND_TIMER_OPEN_NONBLOCK))){
-	tc2_print("ALSA", TC2_PRINT_ERROR, "snd_timer_open(%s): %s\n",
-		  name, snd_strerror(s));
-	return NULL;
+        tc2_print("ALSA", TC2_PRINT_ERROR, "snd_timer_open(%s): %s\n",
+                  name, snd_strerror(s));
+        return NULL;
     }
 
     snd_timer_info(timer, inf);
@@ -177,23 +177,23 @@ open_timer(int res, snd_pcm_t *pcm)
     u_int card, dev, sdev;
 
     if(pcm){
-	snd_pcm_info_alloca(&ifo);
-	snd_pcm_info(pcm, ifo);
+        snd_pcm_info_alloca(&ifo);
+        snd_pcm_info(pcm, ifo);
 
-	card = snd_pcm_info_get_card(ifo);
-	dev = snd_pcm_info_get_device(ifo);
-	sdev = snd_pcm_info_get_subdevice(ifo);
+        card = snd_pcm_info_get_card(ifo);
+        dev = snd_pcm_info_get_device(ifo);
+        sdev = snd_pcm_info_get_subdevice(ifo);
 
-	at = new_timer(res, SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
-		       card, dev, sdev);
+        at = new_timer(res, SND_TIMER_CLASS_PCM, SND_TIMER_SCLASS_NONE,
+                       card, dev, sdev);
     } else {
-	at = new_timer(res, SND_TIMER_CLASS_GLOBAL,
-		       SND_TIMER_SCLASS_NONE,
-		       0, SND_TIMER_GLOBAL_SYSTEM, 0);
+        at = new_timer(res, SND_TIMER_CLASS_GLOBAL,
+                       SND_TIMER_SCLASS_NONE,
+                       0, SND_TIMER_GLOBAL_SYSTEM, 0);
     }
 
     if(!at)
-	return NULL;
+        return NULL;
 
     at->state = RUN;
 

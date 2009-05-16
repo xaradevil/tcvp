@@ -46,89 +46,89 @@ ovl_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     ovl_t *ov = p->private;
 
     if(ov->overlays[pk->stream]){
-	pthread_mutex_lock(&ov->lock);
-	if(pk->data){
-	    tclist_push(ov->next, pk);
-	} else {
-	    tcfree(pk);
-	}
-	pthread_mutex_unlock(&ov->lock);
+        pthread_mutex_lock(&ov->lock);
+        if(pk->data){
+            tclist_push(ov->next, pk);
+        } else {
+            tcfree(pk);
+        }
+        pthread_mutex_unlock(&ov->lock);
     } else {
-	do {
-	    int lock = 0;
-	    pthread_mutex_lock(&ov->lock);
+        do {
+            int lock = 0;
+            pthread_mutex_lock(&ov->lock);
 
-	    if(ov->fifo[ov->fifopos]){
-		tcvp_data_packet_t *vp = ov->fifo[ov->fifopos];
-		tcvp_data_packet_t *next, *opk = NULL;
+            if(ov->fifo[ov->fifopos]){
+                tcvp_data_packet_t *vp = ov->fifo[ov->fifopos];
+                tcvp_data_packet_t *next, *opk = NULL;
 
-		ov->fifo[ov->fifopos] = NULL;
+                ov->fifo[ov->fifopos] = NULL;
 
-		next = tclist_head(ov->next);
-		if(next && next->pts <= vp->pts){
-		    tcfree(ov->current);
-		    ov->current = tclist_shift(ov->next);;
-		    tc2_print("OVERLAY", TC2_PRINT_DEBUG,
-			      "new overlay, pts %lli, end %lli\n",
-			      ov->current->pts, ov->current->dts);
-		}
-		if(ov->current){
-		    if(ov->current->dts < vp->pts){
-			tcfree(ov->current);
-			ov->current = NULL;
-		    } else {
-			opk = tcref(ov->current);
-		    }
-		}
-		pthread_mutex_unlock(&ov->lock);
-		lock = 1;
+                next = tclist_head(ov->next);
+                if(next && next->pts <= vp->pts){
+                    tcfree(ov->current);
+                    ov->current = tclist_shift(ov->next);;
+                    tc2_print("OVERLAY", TC2_PRINT_DEBUG,
+                              "new overlay, pts %lli, end %lli\n",
+                              ov->current->pts, ov->current->dts);
+                }
+                if(ov->current){
+                    if(ov->current->dts < vp->pts){
+                        tcfree(ov->current);
+                        ov->current = NULL;
+                    } else {
+                        opk = tcref(ov->current);
+                    }
+                }
+                pthread_mutex_unlock(&ov->lock);
+                lock = 1;
 
-		if(opk){
-		    uint32_t *ovp = (uint32_t *) opk->data[0];
-		    int x, y;
+                if(opk){
+                    uint32_t *ovp = (uint32_t *) opk->data[0];
+                    int x, y;
 
-		    for(y = 0; y < opk->h; y++){
-			u_char *yp =
-			    vp->data[0] + vp->sizes[0] * (opk->y + y) + opk->x;
-			u_char *u = vp->data[1] +
-			    vp->sizes[1] * (opk->y + y) / 2 + opk->x / 2;
-			u_char *v = vp->data[2] +
-			    vp->sizes[2] * (opk->y + y) / 2 + opk->x / 2;
-			for(x = 0; x < opk->w; x++){
-			    int alpha = *ovp >> 24;
-			    if(alpha){
-				*yp = (*ovp >> 16) & 0xff;
-				if(!(y & 1)){
-				    *u = (*ovp >> 8) & 0xff;
-				    *v = *ovp & 0xff;
-				}
-			    }
-			    ovp++;
-			    yp++;
-			    if(x & 1){
-				u++;
-				v++;
-			    }
-			}
-		    }
-		    tcfree(opk);
-		}
+                    for(y = 0; y < opk->h; y++){
+                        u_char *yp =
+                            vp->data[0] + vp->sizes[0] * (opk->y + y) + opk->x;
+                        u_char *u = vp->data[1] +
+                            vp->sizes[1] * (opk->y + y) / 2 + opk->x / 2;
+                        u_char *v = vp->data[2] +
+                            vp->sizes[2] * (opk->y + y) / 2 + opk->x / 2;
+                        for(x = 0; x < opk->w; x++){
+                            int alpha = *ovp >> 24;
+                            if(alpha){
+                                *yp = (*ovp >> 16) & 0xff;
+                                if(!(y & 1)){
+                                    *u = (*ovp >> 8) & 0xff;
+                                    *v = *ovp & 0xff;
+                                }
+                            }
+                            ovp++;
+                            yp++;
+                            if(x & 1){
+                                u++;
+                                v++;
+                            }
+                        }
+                    }
+                    tcfree(opk);
+                }
 
-		p->next->input(p->next, (tcvp_packet_t *) vp);
-	    }
+                p->next->input(p->next, (tcvp_packet_t *) vp);
+            }
 
-	    if(lock)
-		pthread_mutex_lock(&ov->lock);
-	    ov->fifo[ov->fifopos] = pk->data? pk: NULL;
-	    if(++ov->fifopos == ov->fifosize)
-		ov->fifopos = 0;
-	    pthread_mutex_unlock(&ov->lock);
-	} while(!pk->data && ov->fifo[ov->fifopos]);
+            if(lock)
+                pthread_mutex_lock(&ov->lock);
+            ov->fifo[ov->fifopos] = pk->data? pk: NULL;
+            if(++ov->fifopos == ov->fifosize)
+                ov->fifopos = 0;
+            pthread_mutex_unlock(&ov->lock);
+        } while(!pk->data && ov->fifo[ov->fifopos]);
 
-	if(!pk->data){
-	    tc2_print("OVERLAY", TC2_PRINT_DEBUG, "end of video stream\n");
-	    p->next->input(p->next, (tcvp_packet_t *) pk);
-	}
+        if(!pk->data){
+            tc2_print("OVERLAY", TC2_PRINT_DEBUG, "end of video stream\n");
+            p->next->input(p->next, (tcvp_packet_t *) pk);
+        }
     }
 
     return 0;
@@ -140,19 +140,19 @@ ovl_flush(tcvp_pipe_t *p, int drop)
     ovl_t *ov = p->private;
 
     if(drop){
-	tcvp_data_packet_t *pk;
-	int i;
+        tcvp_data_packet_t *pk;
+        int i;
 
-	pthread_mutex_lock(&ov->lock);
-	while((pk = tclist_shift(ov->next)))
-	    tcfree(pk);
-	tcfree(ov->current);
-	ov->current = NULL;
-	for(i = 0; i < ov->fifosize; i++){
-	    tcfree(ov->fifo[i]);
-	    ov->fifo[i] = NULL;
-	}
-	pthread_mutex_unlock(&ov->lock);
+        pthread_mutex_lock(&ov->lock);
+        while((pk = tclist_shift(ov->next)))
+            tcfree(pk);
+        tcfree(ov->current);
+        ov->current = NULL;
+        for(i = 0; i < ov->fifosize; i++){
+            tcfree(ov->fifo[i]);
+            ov->fifo[i] = NULL;
+        }
+        pthread_mutex_unlock(&ov->lock);
     }
 
     return 0;
@@ -165,20 +165,20 @@ ovl_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     int ret;
 
     if(s->stream_type == STREAM_TYPE_VIDEO){
-	if(ov->video >= 0)
-	    return PROBE_FAIL;
-	ov->video = s->common.index;
-	tc2_print("OVERLAY", TC2_PRINT_DEBUG, "video stream %i\n",
-		  s->common.index);
-	p->format = *s;
-	ret = p->next->probe(p->next, pk, &p->format);
+        if(ov->video >= 0)
+            return PROBE_FAIL;
+        ov->video = s->common.index;
+        tc2_print("OVERLAY", TC2_PRINT_DEBUG, "video stream %i\n",
+                  s->common.index);
+        p->format = *s;
+        ret = p->next->probe(p->next, pk, &p->format);
     } else if(s->stream_type == STREAM_TYPE_SUBTITLE){
-	ov->overlays[s->common.index] = 1;
-	tc2_print("OVERLAY", TC2_PRINT_DEBUG, "overlay stream %i\n",
-		  s->common.index);
-	ret = PROBE_OK;
+        ov->overlays[s->common.index] = 1;
+        tc2_print("OVERLAY", TC2_PRINT_DEBUG, "overlay stream %i\n",
+                  s->common.index);
+        ret = PROBE_OK;
     } else {
-	ret = PROBE_FAIL;
+        ret = PROBE_FAIL;
     }
 
     return ret;
@@ -191,7 +191,7 @@ ovl_free(void *p)
     int i;
 
     for(i = 0; i < ov->fifosize; i++)
-	tcfree(ov->fifo[i]);
+        tcfree(ov->fifo[i]);
     tcfree(ov->current);
     tclist_destroy(ov->next, tcfree);
 
@@ -203,7 +203,7 @@ ovl_free(void *p)
 
 extern int
 ovl_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
-	muxed_stream_t *ms)
+        muxed_stream_t *ms)
 {
     ovl_t *ov;
 

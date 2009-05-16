@@ -48,13 +48,13 @@ oss_read(void *buf, size_t size, size_t count, url_t *u)
     ssize_t r;
 
     if(tcvp_input_oss_conf_timestamp){
-	uint64_t pts;
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	pts = (uint64_t) tv.tv_sec * 27000000LL + tv.tv_usec * 27;
-	memcpy(buf, &pts, sizeof(pts));
-	buf += sizeof(pts);
-	bytes -= sizeof(pts);
+        uint64_t pts;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        pts = (uint64_t) tv.tv_sec * 27000000LL + tv.tv_usec * 27;
+        memcpy(buf, &pts, sizeof(pts));
+        buf += sizeof(pts);
+        bytes -= sizeof(pts);
     }
 
     frames = bytes / oss->bpf;
@@ -62,8 +62,8 @@ oss_read(void *buf, size_t size, size_t count, url_t *u)
 
     r = read(oss->pcm, buf, bytes);
     if(r < 0){
-	tc2_print("OSS", TC2_PRINT_ERROR, "%s\n", strerror(errno));
-	return -1;
+        tc2_print("OSS", TC2_PRINT_ERROR, "%s\n", strerror(errno));
+        return -1;
     }
 
     return ((tcvp_input_oss_conf_timestamp? 8: 0) + r) / size;
@@ -106,47 +106,47 @@ oss_open(char *name, char *mode)
     u_int tmp;
 
     if(*mode != 'r')
-	return NULL;
+        return NULL;
 
     dev = strchr(name, ':');
     if(!dev || !*++dev)
-	dev = tcvp_input_oss_conf_device;
+        dev = tcvp_input_oss_conf_device;
 
     if((pcm = open(dev, O_RDONLY)) < 0){
-	tc2_print("OSS", TC2_PRINT_ERROR, "Can't open '%s' for capture\n",
-		  dev);
-	return NULL;
+        tc2_print("OSS", TC2_PRINT_ERROR, "Can't open '%s' for capture\n",
+                  dev);
+        return NULL;
     }
 
     tmp = AFMT_S16_LE;
     if(ioctl(pcm, SNDCTL_DSP_SETFMT, &tmp) == -1){
-	tc2_print("OSS", TC2_PRINT_ERROR, "SNDCTL_DSP_SETFMT: %s\n",
-		  strerror(errno));
-	goto err;
+        tc2_print("OSS", TC2_PRINT_ERROR, "SNDCTL_DSP_SETFMT: %s\n",
+                  strerror(errno));
+        goto err;
     }
 
     tmp = channels;
     if(ioctl(pcm, SNDCTL_DSP_CHANNELS, &tmp) == -1){
-	tc2_print("OSS", TC2_PRINT_ERROR, "SNDCTL_DSP_CHANNELS: %s\n",
-		  strerror(errno));
-	goto err;
+        tc2_print("OSS", TC2_PRINT_ERROR, "SNDCTL_DSP_CHANNELS: %s\n",
+                  strerror(errno));
+        goto err;
     }
 
     if(tmp != channels)
-	tc2_print("OSS", TC2_PRINT_WARNING,
-		  "%i channels not supported.\n", channels);
+        tc2_print("OSS", TC2_PRINT_WARNING,
+                  "%i channels not supported.\n", channels);
     channels = tmp;
 
     tmp = rate;
     if(ioctl(pcm, SNDCTL_DSP_SPEED, &rate) == -1){
-	tc2_print("OSS", TC2_PRINT_ERROR, "SNDCTL_DSP_SPEED: %s\n",
-		  strerror(errno));
-	goto err;
+        tc2_print("OSS", TC2_PRINT_ERROR, "SNDCTL_DSP_SPEED: %s\n",
+                  strerror(errno));
+        goto err;
     }
 
     if(tmp != rate)
-	tc2_print("OSS", TC2_PRINT_WARNING,
-		  "%i Hz sample rate not supported.\n", rate);
+        tc2_print("OSS", TC2_PRINT_WARNING,
+                  "%i Hz sample rate not supported.\n", rate);
     rate = tmp;
 
     bpf = channels * 2;
@@ -175,7 +175,7 @@ oss_open(char *name, char *mode)
 
     vu = url_vheader_new(u, oss->header, hsize);
     if(tcvp_input_oss_conf_timestamp)
-	tcattr_set(vu, "tcvp/timestamp", "tcvp/timestamp", NULL, NULL);
+        tcattr_set(vu, "tcvp/timestamp", "tcvp/timestamp", NULL, NULL);
     return vu;
 
 err:
