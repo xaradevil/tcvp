@@ -123,7 +123,7 @@ faad_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 extern int
 faad_flush(tcvp_pipe_t *p, int drop)
-{ 
+{
     faad_dec_t *ad = p->private;
 
     if(drop){

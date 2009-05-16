@@ -166,7 +166,7 @@ valid_tag(uint8_t *t, int strict)
 static inline int
 tag2str(uint8_t *tag)
 {
-    return (xval[tag[0]] << 4) + xval[tag[1]];    
+    return (xval[tag[0]] << 4) + xval[tag[1]];
 }
 
 static char *

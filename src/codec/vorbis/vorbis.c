@@ -215,7 +215,7 @@ vorbis_read_header(tcvp_pipe_t *p, stream_t *s)
     }
 
     vorbis_synthesis_init(&vc->vd, &vc->vi);
-    vorbis_block_init(&vc->vd, &vc->vb); 
+    vorbis_block_init(&vc->vd, &vc->vb);
 
     return 0;
 }

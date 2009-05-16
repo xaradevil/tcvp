@@ -138,7 +138,7 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 			char buf[10];
 			sprintf(buf, "%d", s->audio.bit_rate/1000);
 			change_text("audio_bitrate", buf);
-			    
+
 			sprintf(buf, "%.1f",
 				(double)s->audio.sample_rate/1000);
 			change_text("audio_samplerate", buf);
@@ -161,7 +161,7 @@ tcvpx_event(tcvp_module_t *tm, tcvp_event_t *te)
 
 	char **entries = tcallocd((plce->length+1) * sizeof(*entries),
 				  NULL, plarrayfree);
-	char **entries_basename = 
+	char **entries_basename =
 	    tcallocd((plce->length+1) * sizeof(*entries_basename),
 		     NULL, plarrayfree);
 
@@ -403,7 +403,7 @@ tcvp_playlist_remove_selected(xtk_widget_t *w, void *p)
 	num = xtk_widget_list_get_selected(w, &selected);
 
 	for(i=num-1; i>=0; i--) {
-	    tcvp_event_send(qs, TCVP_PL_REMOVE, selected[i], 1);	    
+	    tcvp_event_send(qs, TCVP_PL_REMOVE, selected[i], 1);
 	}
 
 	if(num > 0) free(selected);

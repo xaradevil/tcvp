@@ -217,7 +217,7 @@ save_varcb(xtk_widget_t *w, action_cb_t cb, char *datatype, char *value)
 
     wd->nvalues++;
 
-    wd->values = realloc(wd->values, wd->nvalues * sizeof(*wd->values)); 
+    wd->values = realloc(wd->values, wd->nvalues * sizeof(*wd->values));
     wd->cbs = realloc(wd->cbs, wd->nvalues * sizeof(*wd->cbs));
     wd->datatypes = realloc(wd->datatypes,
 			    wd->nvalues * sizeof(*wd->datatypes));
@@ -292,7 +292,7 @@ load_skin(char *skinconf)
     } else if (tcvp_ui_tcvpx_conf_skinpath_count > 0){
 	int i;
 	for(i=0; i<tcvp_ui_tcvpx_conf_skinpath_count && conf_tmp == NULL; i++){
-	    conf_tmp = malloc(strlen(tcvp_ui_tcvpx_conf_skinpath[i]) + 
+	    conf_tmp = malloc(strlen(tcvp_ui_tcvpx_conf_skinpath[i]) +
 			      strlen(skinconf) + 2);
 	    sprintf(conf_tmp, "%s/%s", tcvp_ui_tcvpx_conf_skinpath[i],
 		    skinconf);
@@ -1027,7 +1027,7 @@ create_skinned_state(xtk_widget_t *win, skin_t *skin, tcconf_section_t *sec,
 
     return s;
 }
-    
+
 
 extern int
 tcvp_close_skin(skin_t *s)
@@ -1139,10 +1139,10 @@ tcvp_open_ui(xtk_widget_t *w, void *p)
 {
     char *buf;
     widget_data_t *wd;
-    
+
     widget_data_t *owd = xtk_widget_get_data(w);
 
-    char *uifile = owd->action_data; 
+    char *uifile = owd->action_data;
     skin_t *s = owd->skin;
 
     buf = malloc(strlen(uifile) + strlen(s->path) + 2);
@@ -1263,14 +1263,14 @@ tcvp_sticky(xtk_widget_t *w, void *p)
     if(!d || strcasecmp(d, "toggle") == 0) {
 	if(s->state & ST_STICKY) {
 	    xtk_window_set_sticky(s->window, 0);
-	    s->state &= ~ST_STICKY;	
+	    s->state &= ~ST_STICKY;
 	} else {
 	    xtk_window_set_sticky(s->window, 1);
 	    s->state |= ST_STICKY;
 	}
     } else if(strcasecmp(d, "set") == 0) {
 	xtk_window_set_sticky(s->window, 1);
-	s->state |= ST_STICKY;	
+	s->state |= ST_STICKY;
     } else if(strcasecmp(d, "unset") == 0) {
 	xtk_window_set_sticky(s->window, 0);
 	s->state &= ~ST_STICKY;
@@ -1296,14 +1296,14 @@ tcvp_on_top(xtk_widget_t *w, void *p)
     if(!d || strcasecmp(d, "toggle") == 0) {
 	if(s->state & ST_ON_TOP) {
 	    xtk_window_set_always_on_top(s->window, 0);
-	    s->state &= ~ST_ON_TOP;	
+	    s->state &= ~ST_ON_TOP;
 	} else {
 	    xtk_window_set_always_on_top(s->window, 1);
 	    s->state |= ST_ON_TOP;
 	}
     } else if(strcasecmp(d, "set") == 0) {
 	xtk_window_set_always_on_top(s->window, 1);
-	s->state |= ST_ON_TOP;	
+	s->state |= ST_ON_TOP;
     } else if(strcasecmp(d, "unset") == 0) {
 	xtk_window_set_always_on_top(s->window, 0);
 	s->state &= ~ST_ON_TOP;
@@ -1365,7 +1365,7 @@ show_widgets(skin_t *skin, char *widgets, int show)
 	    next[0]=0;
 	    next++;
 	}
-	
+
 	tchash_find(skin->id_hash, tmp, -1, &w);
 	if(w) {
 	    if(show) {
@@ -1423,7 +1423,7 @@ on_top_cb(xtk_widget_t *w, int i)
 	s->state &= ~ST_ON_TOP;
 	change_text("on_top", "unset");
     } else {
-	s->state |= ST_ON_TOP;	
+	s->state |= ST_ON_TOP;
 	change_text("on_top", "set");
     }
 
@@ -1440,7 +1440,7 @@ sticky_cb(xtk_widget_t *w, int i)
     if(i == 0) {
 	s->state &= ~ST_STICKY;
     } else {
-	s->state |= ST_STICKY;	
+	s->state |= ST_STICKY;
     }
 
     return 0;

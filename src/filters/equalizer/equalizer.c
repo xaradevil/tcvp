@@ -162,7 +162,7 @@ eq_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 		    o += y * eq->amp[j];
 		}
 		eq->x[ch][1] = eq->x[ch][0];
-		eq->x[ch][0] = x;	
+		eq->x[ch][0] = x;
 		if(eq->flags & S16) {
 		    int16_t v = (int16_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
 		    if(eq->flags & ENDIAN_CONVERT) {
@@ -179,7 +179,7 @@ eq_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 		    }
 		} else if(eq->flags & S8) {
 		    ptrs8[ch] = (int8_t) (eq->preamp * (EQ_IN_FACTOR * x + o));
-		} else if(eq->flags & U8) {	
+		} else if(eq->flags & U8) {
 		    ptru8[ch] = (uint8_t) (eq->preamp * (EQ_IN_FACTOR * x + o))+ 0x80;
 		}
 	    }
@@ -202,7 +202,7 @@ eq_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 extern int
 eq_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
-{ 
+{
     int i;
     eq_config_t eqc;
     equalizer_t *eq = p->private;
@@ -210,12 +210,12 @@ eq_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     if(p->format.audio.channels > EQ_CHANNELS) {
 	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer support a maximum of %d channels\n", EQ_CHANNELS);
 	return PROBE_OK;
-    }	
+    }
 
     if(p->format.audio.sample_rate == 48000) {
 	eqc = eq_config_48000;
     } else if(p->format.audio.sample_rate == 44100) {
-	eqc = eq_config_44100;	
+	eqc = eq_config_44100;
     } else {
 	tc2_print("EQUALIZER", TC2_PRINT_ERROR, "The equalizer only support samplerates of 48000 Hz and 44100 Hz\n");
 	return PROBE_OK;
@@ -243,8 +243,8 @@ eq_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 
     for(i = 0; i < EQ_BANDS; i++) {
 	eq->frequency[i] = eqc.band[i].frequency;
-	eq->alpha[i] = eqc.band[i].alpha;	
-	eq->beta[i]  = eqc.band[i].beta;	
+	eq->alpha[i] = eqc.band[i].alpha;
+	eq->beta[i]  = eqc.band[i].beta;
 	eq->gamma[i] = eqc.band[i].gamma;
     }
 
@@ -325,7 +325,7 @@ eq_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 	if(read_preset(current, eq) < 0) return -1;
     } else if(preset != NULL) {
 	char prname[256];
-	
+
 	tc2_print("EQUALIZER", TC2_PRINT_DEBUG,
 		  "Using equalizer preset '%s'\n", preset);
 	snprintf(prname, 256, "TCVP/filter/equalizer/preset/%s", preset);
@@ -370,9 +370,9 @@ eq_flush(tcvp_pipe_t *p, int drop)
 	for(j = 0; j < EQ_BANDS; j++) {
 	    eq->y[ch][j][0] = 0.0;
 	    eq->y[ch][j][1] = 0.0;
-	}	
+	}
     }
-    
+
     return 0;
 }
 
@@ -413,12 +413,12 @@ eq_save(equalizer_t *eq)
     tc2_print("EQUALIZER", TC2_PRINT_DEBUG, "Saving preset\n");
 
     current = tcconf_new("current");
-    
+
     tcconf_setvalue(current, "values", "%f %f %f %f %f %f %f %f %f %f",
-		    eq->ampdb[0], eq->ampdb[1], 
-		    eq->ampdb[2], eq->ampdb[3], 
-		    eq->ampdb[4], eq->ampdb[5], 
-		    eq->ampdb[6], eq->ampdb[7], 
+		    eq->ampdb[0], eq->ampdb[1],
+		    eq->ampdb[2], eq->ampdb[3],
+		    eq->ampdb[4], eq->ampdb[5],
+		    eq->ampdb[6], eq->ampdb[7],
 		    eq->ampdb[8], eq->ampdb[9]);
     tcconf_setvalue(current, "preamp", "%f", eq->preampdb);
     tcconf_setvalue(current, "eq_on", "%d", eq->eq_on);

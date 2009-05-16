@@ -223,7 +223,7 @@ s_open(char *name, tcconf_section_t *cs, tcvp_timer_t *t)
 
     if(!(sopen = tc2_get_symbol(m, "open")))
 	return NULL;
-    
+
     free(m);
 
     ms = sopen(name, u, cs, t);

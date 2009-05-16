@@ -259,7 +259,7 @@ track_open(char *url, char *mode, char *options)
 	return NULL;
     }
 
-    if(track > cdda_tracks(cdt->drive) || 
+    if(track > cdda_tracks(cdt->drive) ||
        !cdda_track_audiop(cdt->drive, track)) {
 	free(cdt);
 	return NULL;
@@ -357,7 +357,7 @@ list_open(char *url, char *mode, char *options)
 	if(cdda_track_audiop(cdt->drive, i)) {
 	    if(!options)
 		p += sprintf(p, "cdda:/%d.wav\n", i);
-	    else 
+	    else
 		p += sprintf(p, "cdda:/%d.wav?%s\n", i, options);
 	}
     }

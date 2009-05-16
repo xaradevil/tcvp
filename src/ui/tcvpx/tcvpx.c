@@ -146,7 +146,7 @@ tcvpx_free(void *p)
     tcvpx_t *tx = p;
 
     xtk_shutdown();
-    
+
     cleanup_skins();
     free_dynamic();
     free_ctl();

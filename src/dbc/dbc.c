@@ -113,7 +113,7 @@ db_reply_free(void *p)
 extern tcdb_reply_t *
 db_query(tcvp_module_t *m, char *q)
 {
-    tcvp_dbc_t *tdbc = m->private;    
+    tcvp_dbc_t *tdbc = m->private;
 
     if(!tcconf_getvalue(tdbc->conf, "features/local/database", "")) {
 	tc2_print("dbc", TC2_PRINT_DEBUG+8, "Local connection\n");
@@ -175,7 +175,7 @@ tcvp_db_reply_free(void *p)
 extern int
 db_reply(tcvp_module_t *m, tcvp_event_t *e)
 {
-    tcvp_dbc_t *tdbc = m->private;    
+    tcvp_dbc_t *tdbc = m->private;
     tcvp_db_reply_event_t *dbr = (tcvp_db_reply_event_t *)e;
 
     tc2_print("dbc", TC2_PRINT_DEBUG+5, "Database reply '%s' '%s' '%i'\n",

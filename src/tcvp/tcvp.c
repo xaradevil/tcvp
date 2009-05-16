@@ -318,7 +318,7 @@ t_seek(tcvp_module_t *pl, int64_t time, int how)
 	t_start(pl, NULL);
     }
 
-    return 0;    
+    return 0;
 }
 
 extern int

@@ -99,7 +99,7 @@ flac_write(const FLAC__StreamDecoder *fsd, const FLAC__Frame *fr,
     fp->pk.data = &fp->data;
     fp->pk.sizes = &fp->size;
     fp->pk.samples = samples;
-    
+
     p->next->input(p->next, (tcvp_packet_t *) fp);
 
     return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;

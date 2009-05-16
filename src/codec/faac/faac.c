@@ -125,7 +125,7 @@ faac_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 extern int
 faac_flush(tcvp_pipe_t *p, int drop)
-{ 
+{
     faac_enc_t *ae = p->private;
 
     if(drop)

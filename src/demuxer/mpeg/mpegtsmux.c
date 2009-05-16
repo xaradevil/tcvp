@@ -172,7 +172,7 @@ init_pmt(struct mpegts_mux *tsm, int pid, int pcr_pid)
     u_char *pmt = malloc(TS_PACKET_SIZE);
     tsm->pmt = pmt;
     memset(pmt, 0xff, TS_PACKET_SIZE);
-    
+
     /* Transport packet header */
     pmt[0] = 0x47;
     st_unaligned16(htob_16(0x4000 | pid), pmt + 1);
@@ -197,7 +197,7 @@ init_pmt(struct mpegts_mux *tsm, int pid, int pcr_pid)
 }
 
 static int
-write_ts_packet(struct mpegts_mux *tsm, int str, u_char *data, size_t size, 
+write_ts_packet(struct mpegts_mux *tsm, int str, u_char *data, size_t size,
 		int ustart, uint64_t pts, uint64_t dts)
 {
     struct mpegts_output_stream *os = tsm->streams + str;
@@ -339,7 +339,7 @@ mpegts_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 		os->sts = dts + tsm->pcr_offset;
 		os->tailtime = os->sts;
-		
+
 		tc2_print("MPEGTS", TC2_PRINT_DEBUG, "[%i] start %lli\n",
 			  pk->stream, os->sts);
 	    }

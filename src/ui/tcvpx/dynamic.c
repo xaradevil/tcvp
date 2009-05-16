@@ -146,7 +146,7 @@ change_variable(char *key, char *datatype, void *data)
 		    }
 		} else {
 		    cb(w, data);
-		}		
+		}
 	    } else {
 		cb(w, data);
 	    }
@@ -208,7 +208,7 @@ get_keys(char *text, char ***keysp, char ***defaultsp)
     int n = 0;
 
     foo = src = strdup(text);
-    
+
     for(;;) {
 	char *tmp;
 	char *key;
@@ -416,7 +416,7 @@ parse_variable(char *datatype, char *text, void **result, void **def)
     if(tmp) {
 	*tmp = 0;
 	attr = tmp+1;
-    }    
+    }
 
     tmp = strchr(key, ':');
     if(tmp && attr == NULL) {
@@ -446,7 +446,7 @@ parse_variable(char *datatype, char *text, void **result, void **def)
 	char **list = (char **)*result;
 	for(n=0; list[n] != NULL; n++);
 
-	char **entries_formatted = 
+	char **entries_formatted =
 	    tcallocd((n+1) * sizeof(*entries_formatted), NULL, plarrayfree);
 	for(i=0; i<n; i++) {
 	    entries_formatted[i] = tcstrexp(attr, "{", "}", ':',

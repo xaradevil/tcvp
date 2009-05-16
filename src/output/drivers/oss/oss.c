@@ -129,7 +129,7 @@ oss_write(audio_driver_t *ad, void *data, int samples)
 
 static int
 oss_delay(audio_driver_t *ad)
-{ 
+{
 /*     oss_out_t *oo = ad->private; */
     int d = 0;
     /* Sync seems to be better without this.  Why? */

@@ -222,7 +222,7 @@ tcl_intr(void *p)
 
 	gettimeofday(&tv, NULL);
 	t = 1000000LL * tv.tv_sec + tv.tv_usec;
-	
+
 	if(t - lt < 500000)
 	    ic++;
 
@@ -530,10 +530,10 @@ parse_options(int argc, char **argv)
     for(;;){
 	int c, opt_index = 0, s;
 	char *ot;
-     
+
 	c = getopt_long(argc, argv, "hA:a:V:v:Cs:u:zZ@:fo:P:t:px:X:DrRS:i:",
 			long_options, &opt_index);
-	
+
 	if(c == -1)
 	    break;
 

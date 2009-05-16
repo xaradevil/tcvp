@@ -120,7 +120,7 @@ v_play(void *p)
 	}
     }
 
-    vo->state = STOP;  
+    vo->state = STOP;
     vo->head = vo->tail = 0;
     vo->frames = 0;
     pthread_cond_broadcast(&vo->scd);

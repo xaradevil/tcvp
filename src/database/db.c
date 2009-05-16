@@ -110,7 +110,7 @@ db_init(tcvp_module_t *m)
     dbname = get_dbname(tdb->conf);
     db_create(dbname);
     free(dbname);
-    
+
     return 0;
 }
 
@@ -191,7 +191,7 @@ db_query(tcdb_t *db, char *query)
 	    do {
 		q = strchr(q+1, '\'');
 	    } while(q[-1]=='\\');
-		
+
 	    if(k && q) {
 		*q=0;
 		v = strchr(q+1, '\'');
@@ -240,7 +240,7 @@ db_query(tcdb_t *db, char *query)
 	    do {
 		q = strchr(q+1, '\'');
 	    } while(q[-1]=='\\');
-		
+
 	    if(k && q) {
 		*q=0;
 	    }
@@ -264,7 +264,7 @@ db_query(tcdb_t *db, char *query)
 	    r->rtype = p?TCDB_STRING:TCDB_FAIL;
 	}
 
-	free(t);	
+	free(t);
     } else {
 	tc2_print("database", TC2_PRINT_WARNING, "error in query '%s'\n",
 		  query);

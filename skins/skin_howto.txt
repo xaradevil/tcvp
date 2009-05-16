@@ -92,7 +92,7 @@ scroll_style If the text is bigger than the widget size, the text can
 	     2  - Ordinary scrolling
 	     4  - Scroll back and forward in a pingpong way
 	     No scroll_style parameter means "Do not scroll".
-text	     The text on the label. 
+text	     The text on the label.
 
 example:
 label [

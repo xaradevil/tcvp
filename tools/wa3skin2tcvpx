@@ -508,7 +508,7 @@ sub tag_end {
     } elsif($tag eq 'layout'){
 	undef $lc;
 	undef $group;
-    }	
+    }
 }
 
 sub print_group {
@@ -517,7 +517,7 @@ sub print_group {
     my $tx = $$gr{text};
     my $wd;
     for $wd (@{$$gr{widgets}}){
-	my($x, $y, $w, $h, $rx, $ry, $rw, $rh) = 
+	my($x, $y, $w, $h, $rx, $ry, $rw, $rh) =
 	  @$wd{'x', 'y', 'width', 'height', 'rx', 'ry', 'rw', 'rh'};
 	$x += $$gr{width} if $rx;
 	$y += $$gr{height} if $ry;

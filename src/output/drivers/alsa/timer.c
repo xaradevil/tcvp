@@ -143,7 +143,7 @@ new_timer(int res, int class, int sclass, int card, int dev, int subdev)
 
     sprintf(name, "hw:CLASS=%i,SCLASS=%i,CARD=%i,DEV=%i,SUBDEV=%i",
 	    class, sclass, card, dev, subdev);
-    
+
     if((s = snd_timer_open(&timer, name, SND_TIMER_OPEN_NONBLOCK))){
 	tc2_print("ALSA", TC2_PRINT_ERROR, "snd_timer_open(%s): %s\n",
 		  name, snd_strerror(s));

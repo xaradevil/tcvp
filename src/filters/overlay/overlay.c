@@ -218,6 +218,6 @@ ovl_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
 
     p->probe = ovl_probe;
     p->private = ov;
-    
+
     return 0;
 }

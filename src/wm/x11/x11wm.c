@@ -307,8 +307,8 @@ x11_hidecursor(void *p)
 
     XAllocNamedColor(xwm->dpy,
 		     DefaultColormap(xwm->dpy, DefaultScreen(xwm->dpy)),
-		     "black", &black, &black);	
-    pm = XCreateBitmapFromData(xwm->dpy, xwm->win, data, 8, 8);    
+		     "black", &black, &black);
+    pm = XCreateBitmapFromData(xwm->dpy, xwm->win, data, 8, 8);
     crs = XCreatePixmapCursor(xwm->dpy, pm, pm, &black, &black, 0, 0);
     XFreePixmap(xwm->dpy, pm);
 

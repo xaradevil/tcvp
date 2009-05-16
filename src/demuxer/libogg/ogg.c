@@ -36,7 +36,7 @@
 
 typedef struct {
     ogg_sync_state oy;
-    ogg_stream_state os;    
+    ogg_stream_state os;
     url_t *f;
     uint64_t end;
     uint64_t grp, lgp;
