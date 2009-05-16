@@ -27,7 +27,7 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
-#include <ffmpeg/avformat.h>
+#include <libavformat/avformat.h>
 #include <avf.h>
 #include <avformat_tc2.h>
 

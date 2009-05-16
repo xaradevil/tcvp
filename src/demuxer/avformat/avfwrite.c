@@ -26,7 +26,7 @@
 #include <tcstring.h>
 #include <tctypes.h>
 #include <tcalloc.h>
-#include <ffmpeg/avformat.h>
+#include <libavformat/avformat.h>
 #include <avf.h>
 #include <avformat_tc2.h>
 
@@ -117,7 +117,7 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     }
 
     cname = avf_codec_avname(s->common.codec);
-    avc = first_avcodec;
+    avc = av_codec_next(NULL);
     while(avc && strcmp(cname, avc->name))
 	avc = avc->next;
     free(cname);

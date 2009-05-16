@@ -25,7 +25,7 @@
 #ifndef _AVF_H
 #define _AVF_H
 
-#include <ffmpeg/avformat.h>
+#include <libavformat/avformat.h>
 
 #if LIBAVFORMAT_BUILD < 4629
 #define AVCODEC(s,f) ((s)->codec.f)
