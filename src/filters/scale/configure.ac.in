@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS([ffmpeg, swscale, sws_getContext,, ffmpeg/swscale.h])
+TC2_CHECK_LIBS([ffmpeg, swscale, sws_getContext,, libswscale/swscale.h])

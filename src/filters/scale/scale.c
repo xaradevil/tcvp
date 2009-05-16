@@ -26,7 +26,7 @@
 #include <tcmath.h>
 #include <tcalloc.h>
 #include <tcvp_types.h>
-#include <ffmpeg/swscale.h>
+#include <libswscale/swscale.h>
 #include <scale_tc2.h>
 
 typedef struct scale {
