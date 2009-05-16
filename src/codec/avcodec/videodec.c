@@ -150,12 +150,12 @@ avc_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 
 static char *pixel_fmts[] = {
     [PIX_FMT_YUV420P] = "video/raw-i420",
-    [PIX_FMT_YUV422] = "video/raw-yuy2",
+    [PIX_FMT_YUYV422] = "video/raw-yuy2",
     [PIX_FMT_RGB24] = 0,
     [PIX_FMT_BGR24] = 0,
     [PIX_FMT_YUV422P] = "video/raw-yuv422p",
     [PIX_FMT_YUV444P] = 0,
-    [PIX_FMT_RGBA32] = 0,
+    [PIX_FMT_RGB32] = 0,
     [PIX_FMT_YUV410P] = "video/raw-yvu9",
     [PIX_FMT_YUV411P] = 0,
     [PIX_FMT_RGB565] = "video/raw-rgb565",

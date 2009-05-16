@@ -36,6 +36,7 @@ typedef struct avc_codec {
 
     /* audio */
     char *buf;
+    int audio_buf_size;
 
     /* video */
     uint64_t pts;

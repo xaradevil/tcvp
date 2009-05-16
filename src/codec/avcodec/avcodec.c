@@ -108,7 +108,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
 #define ctx_conf(n, f) tcconf_getvalue(cs, #n, "%"#f, &avctx->n)
     ctx_conf(workaround_bugs, i);
-    ctx_conf(error_resilience, i);
+    ctx_conf(error_recognition, i);
     ctx_conf(error_concealment, i);
     ctx_conf(idct_algo, i);
     ctx_conf(debug, i);
@@ -124,7 +124,8 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 	avctx->channels = s->audio.channels;
 	avctx->bit_rate = s->audio.bit_rate;
 	avctx->block_align = s->audio.block_align;
-	ac->buf = malloc(10 * 1048576);
+        ac->audio_buf_size = 10 * 1048576;
+	ac->buf = malloc(ac->audio_buf_size);
 	p->format.common.codec = "audio/pcm-s16" TCVP_ENDIAN;
 	break;
 
@@ -234,7 +235,7 @@ avc_setup(void)
     AVCodec *avc;
     avcodec_register_all();
 
-    for(avc = first_avcodec; avc; avc = avc->next){
+    for(avc = av_codec_next(NULL); avc; avc = avc->next){
 	char *type, *enc, *dec, *name;
 	if(avc->type == CODEC_TYPE_VIDEO){
 	    type = "video";

@@ -297,7 +297,6 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     ctx_flag(gmc, GMC);
     ctx_flag(interlaced_dct, INTERLACED_DCT);
     ctx_flag(alt_scan, ALT_SCAN);
-    ctx_flag(trellis_quant, TRELLIS_QUANT);
     ctx_flag(cbp_rd, CBP_RD);
     ctx_flag(ac_pred, AC_PRED);
     ctx_flag(mv0, MV0);
