@@ -43,6 +43,7 @@ typedef struct a52_decode {
     int ptsf;
     int downmix;
     int dynrange;
+    int skip;
 } a52_decode_t;
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -316,7 +317,7 @@ a52_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 	    break;
     }
 
-    if(!size)
+    if(!size || ad->skip--)
 	return PROBE_AGAIN;
 
     s->common.bit_rate = bitrate;
@@ -404,8 +405,10 @@ a52_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     ad->flags = 0;
     ad->downmix = tcvp_codec_a52_conf_downmix;
     ad->dynrange = tcvp_codec_a52_conf_dynrange;
+    ad->skip = tcvp_codec_a52_conf_skippackets;
     tcconf_getvalue(cs, "downmix", "%i", &ad->downmix);
     tcconf_getvalue(cs, "dynrange", "%i", &ad->dynrange);
+    tcconf_getvalue(cs, "skippackets", "%i", &ad->skip);
     if(ad->downmix)
 	ad->flags |= A52_STEREO;
 

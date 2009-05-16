@@ -17,3 +17,6 @@ Downmix to two channels
 
 option dynrange%i=0
 Dynamic range compression
+
+option skippackets%i=0
+Number of initial frames to skip before decoding.
