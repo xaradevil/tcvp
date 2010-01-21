@@ -121,6 +121,7 @@ avf_free_packet(void *v)
 {
     avf_packet_t *ap = v;
     av_free_packet(&ap->apk);
+    free(ap->data);
 }
 
 extern tcvp_packet_t *
@@ -155,9 +156,10 @@ avf_next_packet(muxed_stream_t *ms, int stream)
     pk->pk.stream = sx;
     pk->pk.sizes = &pk->size;
     pk->pk.data = &pk->data;
-    pk->data = malloc(pk->apk.size);
+    pk->data = malloc(pk->apk.size + 16);
     pk->size = pk->apk.size;
     memcpy(pk->data, pk->apk.data, pk->size);
+    memset(pk->data + pk->size, 0, 16);
     pk->pk.planes = 1;
     pk->pk.flags = 0;
     if(pk->apk.pts != AV_NOPTS_VALUE){
