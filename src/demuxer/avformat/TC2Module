@@ -8,6 +8,7 @@ implement	"video/mpeg"		"open"	avf_open
 implement	"video/quicktime"	"open"	avf_open
 implement	"video/x-asf"		"open"	avf_open
 implement	"video/x-msvideo"	"open"	avf_open
+implement	"video/x-matroska"	"open"	avf_open
 implement	"audio/mpeg"		"open"	avf_open
 implement	"audio/mp4"		"open"	avf_open
 
