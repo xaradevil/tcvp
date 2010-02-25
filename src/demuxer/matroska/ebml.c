@@ -176,7 +176,7 @@ ebml_element(url_t *u, uint64_t *id, uint64_t *size, uint64_t *psize)
     if(psize)
         *psize -= ss;
 
-    tc2_print("EBML", TC2_PRINT_DEBUG+1, "id %llx, size %lli\n", *id, *size);
+    tc2_print("EBML", TC2_PRINT_DEBUG+1, "id %8llx, size %4lli\n", *id, *size);
 
     if(psize && *size > *psize){
         tc2_print("EBML", TC2_PRINT_WARNING,
