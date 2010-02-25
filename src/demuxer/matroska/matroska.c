@@ -796,6 +796,10 @@ msk_packet(muxed_stream_t *ms, int str)
             if(!ms->used_streams[msk->map[msk->block.track]])
                 msk_free_block(&msk->block);
             break;
+        case MATROSKA_ID_SIMPLEBLOCK:
+            if(msk_block(msk, size) < 0)
+                return NULL;
+            break;
         default:
             msk->u->seek(msk->u, size, SEEK_CUR);
             break;
