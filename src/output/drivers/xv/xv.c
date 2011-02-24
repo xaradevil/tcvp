@@ -144,6 +144,7 @@ xv_close(video_driver_t *vd)
     }
 
     xvw->wm->close(xvw->wm);
+    XCloseDisplay(xvw->dpy);
 
     pthread_mutex_destroy(&xvw->flock);
     free(xvw->images);
@@ -360,8 +361,8 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     }
 
     XFree(xvattr);
-    XCloseDisplay(dpy);
 
+    xvw->dpy = dpy;
     xvw->mod = driver_video_xv_new(cs);
     xvw->mod->private = xvw;
     xvw->mod->init(xvw->mod);
@@ -373,7 +374,6 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
     }
     wm_x11_getwindow(wm, &dpy, &win);
 
-    xvw->dpy = dpy;
     xvw->win = win;
     xvw->gc = DefaultGC(xvw->dpy, DefaultScreen(xvw->dpy));
     xvw->wm = wm;
@@ -382,7 +382,7 @@ xv_open(video_stream_t *vs, tcconf_section_t *cs)
         XvImage *xvi;
         XShmSegmentInfo *shm = &xvw->shm[i];
 
-        xvi = XvShmCreateImage(dpy, xvw->port, fmtid, NULL,
+        xvi = XvShmCreateImage(xvw->dpy, xvw->port, fmtid, NULL,
                                vs->width, vs->height, shm);
         shm->shmid = shmget(IPC_PRIVATE, xvi->data_size, IPC_CREAT | 0777);
         shm->shmaddr = shmat(shm->shmid, 0, 0);
