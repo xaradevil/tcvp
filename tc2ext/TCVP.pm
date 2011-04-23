@@ -231,7 +231,7 @@ $$_{w}init(tcvp_module_t *m)
     int r = 0;
 END_C
         print $fh "    $$_{wtype}_t *p = ($$_{wtype}_t *) m;\n"
-          if %{$$_{events}} or %{$$_{features}};
+          if %{$$_{events}} or defined $$_{features};
 
         for my $f (keys %{$$_{ufeatures}}) {
             print $fh <<END_C;
@@ -249,7 +249,7 @@ END_C
 END_C
         }
         print $fh "    r = $$_{init}(m);\n" if $$_{init};
-        if (%{$$_{features}}) {
+        if (defined $$_{features}) {
             print $fh "    if(!r){\n";
             for my $f (keys %{$$_{features}}) {
                 print $fh <<END_C;
