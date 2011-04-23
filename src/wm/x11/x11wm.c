@@ -295,6 +295,7 @@ static void *
 x11_hidecursor(void *p)
 {
     x11_wm_t *xwm = p;
+    Display *dpy;
     Cursor crs;
     Pixmap pm;
     XColor black;
@@ -305,12 +306,15 @@ x11_hidecursor(void *p)
 
     tc2_print("X11", TC2_PRINT_DEBUG, "cursor hider starting\n");
 
-    XAllocNamedColor(xwm->dpy,
-                     DefaultColormap(xwm->dpy, DefaultScreen(xwm->dpy)),
+    dpy = XOpenDisplay(xwm->dpyname);
+    if (!dpy)
+        return NULL;
+
+    XAllocNamedColor(dpy, DefaultColormap(dpy, DefaultScreen(dpy)),
                      "black", &black, &black);
-    pm = XCreateBitmapFromData(xwm->dpy, xwm->win, data, 8, 8);
-    crs = XCreatePixmapCursor(xwm->dpy, pm, pm, &black, &black, 0, 0);
-    XFreePixmap(xwm->dpy, pm);
+    pm = XCreateBitmapFromData(dpy, xwm->win, data, 8, 8);
+    crs = XCreatePixmapCursor(dpy, pm, pm, &black, &black, 0, 0);
+    XFreePixmap(dpy, pm);
 
     pthread_mutex_lock(&xwm->mouse_lock);
 
@@ -334,12 +338,12 @@ x11_hidecursor(void *p)
         if(hide != hidden){
             if(hide){
                 tc2_print("X11", TC2_PRINT_DEBUG, "hiding cursor\n");
-                XDefineCursor(xwm->dpy, xwm->win, crs);
+                XDefineCursor(dpy, xwm->win, crs);
             } else {
                 tc2_print("X11", TC2_PRINT_DEBUG, "unhiding cursor\n");
-                XUndefineCursor(xwm->dpy, xwm->win);
+                XUndefineCursor(dpy, xwm->win);
             }
-            XSync(xwm->dpy, False);
+            XSync(dpy, False);
             hidden = hide;
         }
 
@@ -348,7 +352,7 @@ x11_hidecursor(void *p)
 
     pthread_mutex_unlock(&xwm->mouse_lock);
 
-    XFreeCursor(xwm->dpy, crs);
+    XFreeCursor(dpy, crs);
 
     tc2_print("X11", TC2_PRINT_DEBUG, "cursor hider done\n");
 
