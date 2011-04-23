@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <tcalloc.h>
 #include <dvdnav/dvdnav.h>
-#include <dvdnav/ifo_read.h>
+#include <dvdread/ifo_read.h>
 #include <dvdnav_tc2.h>
 
 #define DVD_SECTOR_SIZE 2048
