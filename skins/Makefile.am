@@ -1,5 +1,4 @@
 skindir = $(pkgdatadir)/skins
-install_sh_DATA = echo "  INSTALL $$p" && true " >/dev/null " && $(install_sh) -c -m 644
 nobase_dist_skin_DATA = \
 	big_blue/background.png \
 	big_blue/big_audio.png \
