@@ -54,6 +54,7 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
             vc->ctx->coded_frame->coded_picture_number + 1 + !vc->complete;
         cpn &= PTSQSIZE - 1;
         vc->ptsq[cpn] = pk->pts;
+        vc->ctx->reordered_opaque = pk->pts;
         tc2_print("AVCODEC", TC2_PRINT_DEBUG+1, "set pts %lli @%i\n",
                   pk->pts, cpn);
     } else if(pk->flags & TCVP_PKT_FLAG_DTS){
@@ -88,6 +89,7 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
             pkt.size = bufsize;
 
             s = avcodec_decode_video2(vc->ctx, vc->frame, &vc->complete, &pkt);
+            vc->ctx->reordered_opaque = AV_NOPTS_VALUE;
             if(s < 0)
                 return probe? s: 0;
             if(!vc->pctx){
@@ -121,7 +123,10 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
             out->planes = i;
 
             out->flags = TCVP_PKT_FLAG_PTS;
-            if(vc->ptsq[cpn] != -1LL){
+            if (vc->frame->reordered_opaque != AV_NOPTS_VALUE) {
+                out->pts = vc->frame->reordered_opaque;
+                vc->pts = out->pts * vc->ptsd;
+            } else if(vc->ptsq[cpn] != -1LL){
                 out->pts = vc->ptsq[cpn];
                 vc->ptsq[cpn] = -1LL;
                 vc->pts = out->pts * vc->ptsd;

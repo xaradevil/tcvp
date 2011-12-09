@@ -152,6 +152,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
     avctx->extradata = s->common.codec_data;
     avctx->extradata_size = s->common.codec_data_size;
+    avctx->reordered_opaque = AV_NOPTS_VALUE;
 
     pthread_mutex_lock(&avc_lock);
     err = avcodec_open2(avctx, avc, NULL);
