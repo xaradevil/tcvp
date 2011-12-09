@@ -204,6 +204,8 @@ ebml_read_elements(url_t *u, uint64_t psize, ebml_element_callback_t cb,
         case EBML_CB_UNKNOWN:
             u->seek(u, size, SEEK_CUR);
             break;
+        case EBML_CB_BREAK:
+            return 0;
         case EBML_CB_ERROR:
             return -1;
         }

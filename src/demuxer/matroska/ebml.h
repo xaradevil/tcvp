@@ -53,6 +53,7 @@ typedef int (*ebml_element_callback_t)(uint64_t id, uint64_t size, void *);
 
 #define EBML_CB_SUCCESS 0
 #define EBML_CB_UNKNOWN 1
+#define EBML_CB_BREAK   2
 #define EBML_CB_ERROR   -1
 
 extern uint64_t ebml_get_vint(url_t *u, int *s);

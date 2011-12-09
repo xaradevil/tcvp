@@ -102,8 +102,6 @@ typedef struct matroska_block {
     u_int frames;
     u_int size;
     u_int *fsizes;
-    u_char *data;
-    u_char *framedata;
     int frame;
     uint64_t duration;
 } matroska_block_t;
@@ -140,7 +138,7 @@ typedef struct matroska {
 
 typedef struct matroska_packet {
     tcvp_data_packet_t pk;
-    u_char *data, *buf;
+    u_char *data;
     int size;
 } matroska_packet_t;
 
@@ -668,10 +666,6 @@ msk_block(matroska_t *msk, uint64_t size)
     matroska_block_t *mb = &msk->block;
     int ss;
 
-    mb->data = tcalloc(size);
-    if(!mb->data)
-        return -1;
-
     mb->size = size;
     mb->track = ebml_get_vint(msk->u, &ss);
     mb->size -= ss;
@@ -717,11 +711,7 @@ msk_block(matroska_t *msk, uint64_t size)
         mb->fsizes[0] = mb->size;
     }
 
-    mb->framedata = mb->data;
     mb->frame = 0;
-
-    if(msk->u->read(mb->data, 1, mb->size, msk->u) < mb->size)
-        return -1;
 
     return 0;
 }
@@ -731,8 +721,6 @@ msk_free_block(matroska_block_t *mb)
 {
     free(mb->fsizes);
     mb->fsizes = NULL;
-    tcfree(mb->data);
-    mb->data = NULL;
     mb->frames = 0;
     mb->frame = 0;
     mb->duration = 0;
@@ -742,7 +730,7 @@ static void
 msk_free_pk(void *p)
 {
     matroska_packet_t *mp = p;
-    tcfree(mp->buf);
+    free(mp->data);
 }
 
 static int
@@ -754,7 +742,7 @@ msk_cb_blockgroup(uint64_t id, uint64_t size, void *p)
     case MATROSKA_ID_BLOCK:
         if(msk_block(msk, size) < 0)
             return EBML_CB_ERROR;
-        break;
+        return EBML_CB_BREAK;
     case MATROSKA_ID_BLOCKDURATION:
         msk->block.duration = ebml_get_int(msk->u, size);
         tc2_print("MATROSKA", TC2_PRINT_DEBUG+3, "  duration %lli\n",
@@ -793,8 +781,10 @@ msk_packet(muxed_stream_t *ms, int str)
         case MATROSKA_ID_BLOCKGROUP:
             if(ebml_read_elements(msk->u, size, msk_cb_blockgroup, msk))
                 return NULL;
-            if(!ms->used_streams[msk->map[msk->block.track]])
+            if(!ms->used_streams[msk->map[msk->block.track]]){
+                msk->u->seek(msk->u, msk->block.size, SEEK_CUR);
                 msk_free_block(&msk->block);
+            }
             break;
         case MATROSKA_ID_SIMPLEBLOCK:
             if(msk_block(msk, size) < 0)
@@ -836,11 +826,14 @@ msk_packet(muxed_stream_t *ms, int str)
         pk->pk.samples = duration * 27 / (mt->audio.samplingfrequency * 1000);
     }
 
-    pk->buf = tcref(msk->block.data);
-    pk->data = msk->block.framedata;
     pk->size = msk->block.fsizes[msk->block.frame];
+    pk->data = malloc(pk->size + 32);
+    if (!pk->data)
+        return NULL;
 
-    msk->block.framedata += pk->size;
+    msk->u->read(pk->data, 1, pk->size, msk->u);
+    memset(pk->data + pk->size, 0, 32);
+
     msk->block.frame++;
 
     if(msk->block.frame == msk->block.frames)
