@@ -100,7 +100,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
         return -1;
     }
 
-    avctx = avcodec_alloc_context();
+    avctx = avcodec_alloc_context3(avc);
 
     if(s->common.flags & TCVP_STREAM_FLAG_TRUNCATED){
         pctx = av_parser_init(avc->id);
@@ -112,6 +112,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     ctx_conf(error_concealment, i);
     ctx_conf(idct_algo, i);
     ctx_conf(debug, i);
+    ctx_conf(request_channels, i);
 
     ac = tcallocdz(sizeof(*ac), NULL, avc_free_pipe);
     ac->ctx = avctx;
@@ -153,7 +154,7 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
     avctx->extradata_size = s->common.codec_data_size;
 
     pthread_mutex_lock(&avc_lock);
-    err = avcodec_open(avctx, avc);
+    err = avcodec_open2(avctx, avc, NULL);
     pthread_mutex_unlock(&avc_lock);
 
     return err;
@@ -237,11 +238,11 @@ avc_setup(void)
 
     for(avc = av_codec_next(NULL); avc; avc = avc->next){
         char *type, *enc, *dec, *name;
-        if(avc->type == CODEC_TYPE_VIDEO){
+        if(avc->type == AVMEDIA_TYPE_VIDEO){
             type = "video";
             dec = "_tcvp_decoder_video_mpeg_new";
             enc = "_tcvp_encoder_video_mpeg_new";
-        } else if(avc->type == CODEC_TYPE_AUDIO){
+        } else if(avc->type == AVMEDIA_TYPE_AUDIO){
             type = "audio";
             dec = "_tcvp_decoder_audio_mpeg_new";
             enc = "_tcvp_encoder_audio_mpeg_new";

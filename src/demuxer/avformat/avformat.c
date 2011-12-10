@@ -94,7 +94,7 @@ avf_codec_name(int codec)
     if(!cn)
         return NULL;
 
-    sprintf(cn, "%s/%s", avc->type == CODEC_TYPE_AUDIO? "audio": "video",
+    sprintf(cn, "%s/%s", avc->type == AVMEDIA_TYPE_AUDIO? "audio": "video",
             avc->name);
 
     for(i = 6; cn[i]; i++)
@@ -223,17 +223,17 @@ avf_seek(muxed_stream_t *ms, uint64_t time)
 extern muxed_stream_t *
 avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
 {
-    AVFormatContext *afc;
+    AVFormatContext *afc = NULL;
     muxed_stream_t *ms;
     avf_stream_t *as;
     int i;
 
-    if(av_open_input_file(&afc, name, NULL, 0, NULL) != 0){
+    if(avformat_open_input(&afc, name, NULL, NULL) != 0){
         tc2_print("AVFORMAT", TC2_PRINT_ERROR, "Error opening %s\n", name);
         return NULL;
     }
 
-    if(av_find_stream_info(afc) < 0){
+    if(avformat_find_stream_info(afc, NULL) < 0){
         tc2_print("AVFORMAT", TC2_PRINT_ERROR,
                   "Can't find stream info for %s\n", name);
         return NULL;
@@ -251,7 +251,7 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
             continue;
 
         switch(AVCODEC(afc->streams[i], codec_type)){
-        case CODEC_TYPE_VIDEO:
+        case AVMEDIA_TYPE_VIDEO:
             st->stream_type = STREAM_TYPE_VIDEO;
 #if LIBAVFORMAT_BUILD > 4623
             st->video.frame_rate.num = avs->r_frame_rate.num;
@@ -270,7 +270,7 @@ avf_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
                       i, AVCODEC(avs, stream_codec_tag));
             break;
 
-        case CODEC_TYPE_AUDIO:
+        case AVMEDIA_TYPE_AUDIO:
             st->stream_type = STREAM_TYPE_AUDIO;
             st->audio.sample_rate = AVCODEC(avs, sample_rate);
             st->audio.channels = AVCODEC(avs, channels);

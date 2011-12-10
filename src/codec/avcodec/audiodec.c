@@ -54,8 +54,8 @@ do_decaudio(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
         int l, outsize = ac->audio_buf_size;
 
         if(ac->pctx){
-            l = av_parser_parse(ac->pctx, ac->ctx, &buf, &bufsize,
-                                inbuf, insize, 0, 0);
+            l = av_parser_parse2(ac->pctx, ac->ctx, &buf, &bufsize,
+                                 inbuf, insize, 0, 0, 0);
             if(l < 0)
                 return probe? l: 0;
             inbuf += l;

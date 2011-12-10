@@ -153,7 +153,7 @@ avc_encvideo_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 
 /*     if(s->common.flags & TCVP_STREAM_FLAG_INTERLACED) */
 /*      ctx->flags |= CODEC_FLAG_INTERLACED_DCT; */
-    if(avcodec_open(ctx, enc->avc) < 0){
+    if(avcodec_open2(ctx, enc->avc, NULL) < 0){
         ctx->codec = NULL;
         return PROBE_FAIL;
     }
@@ -222,8 +222,7 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
         return -1;
     }
 
-    ctx = avcodec_alloc_context();
-    avcodec_get_context_defaults(ctx);
+    ctx = avcodec_alloc_context3(avc);
 
 #define ctx_conf(n, f) tcconf_getvalue(cf, #n, "%"#f, &ctx->n)
     ctx_conf(bit_rate, i);
@@ -260,8 +259,6 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     ctx_conf(dark_masking, f);
     ctx_conf(slice_count, i);
     ctx_conf(debug, i);
-    ctx_conf(mb_qmin, i);
-    ctx_conf(mb_qmax, i);
     ctx_conf(me_cmp, i);
     ctx_conf(me_sub_cmp, i);
     ctx_conf(mb_cmp, i);

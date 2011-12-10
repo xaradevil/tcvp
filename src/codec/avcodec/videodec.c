@@ -67,8 +67,8 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
         int s;
 
         if(vc->pctx){
-            s = av_parser_parse(vc->pctx, vc->ctx, &buf, &bufsize,
-                                inbuf, insize, 0, 0);
+            s = av_parser_parse2(vc->pctx, vc->ctx, &buf, &bufsize,
+                                 inbuf, insize, 0, 0, 0);
             if(s < 0)
                 return probe? s: 0;
             inbuf += s;
@@ -81,8 +81,13 @@ do_decvideo(tcvp_pipe_t *p, tcvp_data_packet_t *pk, int probe)
         }
 
         if(bufsize){
-            s = avcodec_decode_video(vc->ctx, vc->frame, &vc->complete,
-                                     buf, bufsize);
+            AVPacket pkt;
+
+            av_init_packet(&pkt);
+            pkt.data = buf;
+            pkt.size = bufsize;
+
+            s = avcodec_decode_video2(vc->ctx, vc->frame, &vc->complete, &pkt);
             if(s < 0)
                 return probe? s: 0;
             if(!vc->pctx){
@@ -210,7 +215,8 @@ avc_probe_video(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 
         if(vc->ctx->time_base.num && !p->format.video.frame_rate.num){
             p->format.video.frame_rate.num = vc->ctx->time_base.den;
-            p->format.video.frame_rate.den = vc->ctx->time_base.num;
+            p->format.video.frame_rate.den =
+                vc->ctx->time_base.num * vc->ctx->ticks_per_frame;
         }
         if(!p->format.video.frame_rate.num){
             p->format.video.frame_rate.num = 25;

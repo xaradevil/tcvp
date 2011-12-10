@@ -27,6 +27,7 @@
 #include <tctypes.h>
 #include <tcalloc.h>
 #include <libavformat/avformat.h>
+#include <libavformat/avio.h>
 #include <avf.h>
 #include <avformat_tc2.h>
 
@@ -47,6 +48,7 @@ avfw_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
 {
     avf_write_t *avf = p->private;
     AVStream *avs;
+    AVPacket ap;
     int ai;
 
     if(!pk->data){
@@ -57,40 +59,27 @@ avfw_input(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     }
 
     if(!avf->header){
-        av_write_header(&avf->fc);
+        avformat_write_header(&avf->fc, NULL);
         avf->header = 1;
     }
 
     ai = avf->streams[pk->stream].avidx;
     avs = avf->fc.streams[ai];
 
-#if LIBAVFORMAT_BUILD < 4615
-    if(pk->flags & TCVP_PKT_FLAG_DTS){
-        avf->streams[pk->stream].dts = pk->dts;
-    } else if(pk->flags & TCVP_PKT_FLAG_PTS){
-        avf->streams[pk->stream].dts = pk->pts;
-    }
-    AVCODEC(avs, coded_frame)->key_frame = pk->flags & TCVP_PKT_FLAG_KEY;
-    av_write_frame(&avf->fc, ai, pk->data[0], pk->sizes[0]);
-#else
-    {
-        AVPacket ap;
-        av_init_packet(&ap);
-        if(pk->flags & TCVP_PKT_FLAG_PTS)
-            ap.pts = pk->pts * avs->time_base.den /
-                (27000000 * avs->time_base.num);
-        if(pk->flags & TCVP_PKT_FLAG_DTS)
-            ap.dts = pk->dts * avs->time_base.den /
-                (27000000 * avs->time_base.num);
-        ap.data = pk->data[0];
-        ap.size = pk->sizes[0];
-        ap.stream_index = ai;
-        if(pk->flags & TCVP_PKT_FLAG_KEY)
-            ap.flags |= PKT_FLAG_KEY;
-        ap.destruct = NULL;
-        av_write_frame(&avf->fc, &ap);
-    }
-#endif
+    av_init_packet(&ap);
+    if(pk->flags & TCVP_PKT_FLAG_PTS)
+        ap.pts = pk->pts * avs->time_base.den /
+            (27000000 * avs->time_base.num);
+    if(pk->flags & TCVP_PKT_FLAG_DTS)
+        ap.dts = pk->dts * avs->time_base.den /
+            (27000000 * avs->time_base.num);
+    ap.data = pk->data[0];
+    ap.size = pk->sizes[0];
+    ap.stream_index = ai;
+    if(pk->flags & TCVP_PKT_FLAG_KEY)
+        ap.flags |= AV_PKT_FLAG_KEY;
+    ap.destruct = NULL;
+    av_write_frame(&avf->fc, &ap);
 
 out:
     tcfree(pk);
@@ -134,7 +123,7 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     AVCODEC(as, coded_frame) = avcodec_alloc_frame();
     AVCODEC(as, bit_rate) = s->common.bit_rate;
     if(s->stream_type == STREAM_TYPE_VIDEO){
-        AVCODEC(as, codec_type) = CODEC_TYPE_VIDEO;
+        AVCODEC(as, codec_type) = AVMEDIA_TYPE_VIDEO;
 #if LIBAVCODEC_BUILD > 4753
         AVCODEC(as, time_base).den = s->video.frame_rate.num;
         AVCODEC(as, time_base).num = s->video.frame_rate.den;
@@ -145,7 +134,7 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
         AVCODEC(as, width) = s->video.width;
         AVCODEC(as, height) = s->video.height;
     } else if(s->stream_type == STREAM_TYPE_AUDIO){
-        AVCODEC(as, codec_type) = CODEC_TYPE_AUDIO;
+        AVCODEC(as, codec_type) = AVMEDIA_TYPE_AUDIO;
         AVCODEC(as, sample_rate) = s->audio.sample_rate;
         AVCODEC(as, channels) = s->audio.channels;
     }
@@ -159,7 +148,7 @@ avfw_free(void *p)
     avf_write_t *avf = p;
     int i;
 
-    url_fclose(avf->fc.pb);
+    avio_close(avf->fc.pb);
     free(avf->streams);
 
     for(i = 0; i < avf->fc.nb_streams; i++){
@@ -179,17 +168,16 @@ avfw_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     if(tcconf_getvalue(cs, "mux/url", "%s", &ofn) <= 0)
         return -1;
 
-    if(!(of = guess_format(NULL, ofn, NULL)))
+    if(!(of = av_guess_format(NULL, ofn, NULL)))
         return -1;
 
     avf = tcallocdz(sizeof(*avf), NULL, avfw_free);
     avf->fc.oformat = of;
 
-    if(url_fopen(&avf->fc.pb, ofn, URL_WRONLY)){
+    if(avio_open(&avf->fc.pb, ofn, URL_WRONLY)){
         free(avf);
         return -1;
     }
-    av_set_parameters(&avf->fc, NULL);
 
     p->private = avf;
 

@@ -169,7 +169,7 @@ avc_audioenc_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     ctx->channels = s->audio.channels;
     ctx->sample_fmt = SAMPLE_FMT_S16;
 
-    if(avcodec_open(ctx, enc->avc) < 0){
+    if(avcodec_open2(ctx, enc->avc, NULL) < 0){
         ctx->codec = NULL;
         return PROBE_FAIL;
     }
@@ -242,8 +242,7 @@ avc_audioenc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
         return -1;
     }
 
-    ctx = avcodec_alloc_context();
-    avcodec_get_context_defaults(ctx);
+    ctx = avcodec_alloc_context3(avc);
 
 #define ctx_conf(n, f) tcconf_getvalue(cf, #n, "%"#f, &ctx->n)
     ctx_conf(bit_rate, i);
