@@ -69,6 +69,14 @@ typedef struct matroska_audio {
     u_int bitdepth;
 } matroska_audio_t;
 
+typedef struct matroska_compr {
+    int type;
+#define MATROSKA_COMPR_ZLIB   0
+#define MATROSKA_COMPR_HEADER 3
+    int data_size;
+    uint8_t *data;
+} matroska_compr;
+
 typedef struct matroska_track {
     u_int number;
     u_int type;
@@ -93,6 +101,7 @@ typedef struct matroska_track {
     char *codecsettings;
     matroska_video_t video;
     matroska_audio_t audio;
+    matroska_compr compr;
 } matroska_track_t;
 
 typedef struct matroska_block {
@@ -451,6 +460,25 @@ msk_cb_trackentry(uint64_t id, uint64_t size, void *p)
         if(ebml_read_elements(msk->u, size, msk_cb_audio, mp))
             return EBML_CB_ERROR;
         break;
+    case MATROSKA_ID_CONTENTENCODINGS:
+        if (ebml_read_elements(msk->u, size, msk_cb_trackentry, mp))
+            return EBML_CB_ERROR;
+        break;
+    case MATROSKA_ID_CONTENTENCODING:
+        if (ebml_read_elements(msk->u, size, msk_cb_trackentry, mp))
+            return EBML_CB_ERROR;
+        break;
+    case MATROSKA_ID_CONTENTCOMPRESSION:
+        if (ebml_read_elements(msk->u, size, msk_cb_trackentry, mp))
+            return EBML_CB_ERROR;
+        break;
+    case MATROSKA_ID_CONTENTCOMPALGO:
+        mt->compr.type = ebml_get_int(msk->u, size);
+        break;
+    case MATROSKA_ID_CONTENTCOMPSETTINGS:
+        mt->compr.data = ebml_get_binary(msk->u, size, 0);
+        mt->compr.data_size = size;
+        break;
     default:
         return EBML_CB_UNKNOWN;
     }
@@ -765,6 +793,7 @@ msk_packet(muxed_stream_t *ms, int str)
     matroska_t *msk = ms->private;
     matroska_packet_t *pk;
     matroska_track_t *mt;
+    int data_size;
     int trackidx;
 
     while(!msk->block.frames){
@@ -826,12 +855,15 @@ msk_packet(muxed_stream_t *ms, int str)
         pk->pk.samples = duration * 27 / (mt->audio.samplingfrequency * 1000);
     }
 
-    pk->size = msk->block.fsizes[msk->block.frame];
+    data_size = msk->block.fsizes[msk->block.frame];
+    pk->size = data_size + mt->compr.data_size;
     pk->data = malloc(pk->size + 32);
     if (!pk->data)
         return NULL;
 
-    msk->u->read(pk->data, 1, pk->size, msk->u);
+    if (mt->compr.data)
+        memcpy(pk->data, mt->compr.data, mt->compr.data_size);
+    msk->u->read(pk->data + mt->compr.data_size, 1, data_size, msk->u);
     memset(pk->data + pk->size, 0, 32);
 
     msk->block.frame++;
