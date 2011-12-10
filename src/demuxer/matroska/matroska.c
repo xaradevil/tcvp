@@ -434,7 +434,7 @@ msk_cb_trackentry(uint64_t id, uint64_t size, void *p)
         mt->codecid = ebml_get_string(msk->u, size);
         break;
     case MATROSKA_ID_CODECPRIVATE:
-        mt->codecprivate = ebml_get_binary(msk->u, size);
+        mt->codecprivate = ebml_get_binary(msk->u, size, 32);
         mt->codecprivate_size = size;
         break;
     case MATROSKA_ID_CODECNAME:

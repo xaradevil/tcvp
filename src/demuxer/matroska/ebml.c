@@ -110,9 +110,9 @@ ebml_get_string(url_t *u, int size)
 }
 
 extern uint8_t *
-ebml_get_binary(url_t *u, int size)
+ebml_get_binary(url_t *u, int size, int padding)
 {
-    uint8_t *s = calloc(1, size);
+    uint8_t *s = calloc(1, size + padding);
 
     if(!s)
         return NULL;
