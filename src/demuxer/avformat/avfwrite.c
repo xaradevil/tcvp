@@ -114,7 +114,7 @@ avfw_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
     if(!avc)
         return PROBE_FAIL;
 
-    av_new_stream(&avf->fc, s->common.index);
+    avformat_new_stream(&avf->fc, NULL);
     ai = avf->nstreams++;
     avf->streams[s->common.index].avidx = ai;
     avf->streams[s->common.index].used = 1;
@@ -174,7 +174,7 @@ avfw_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs, tcvp_timer_t *t,
     avf = tcallocdz(sizeof(*avf), NULL, avfw_free);
     avf->fc.oformat = of;
 
-    if(avio_open(&avf->fc.pb, ofn, URL_WRONLY)){
+    if(avio_open(&avf->fc.pb, ofn, AVIO_FLAG_WRITE)){
         free(avf);
         return -1;
     }

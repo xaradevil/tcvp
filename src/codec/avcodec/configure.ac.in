@@ -1,1 +1,1 @@
-TC2_CHECK_LIBS([ffmpeg, avcodec, avcodec_find_decoder,, libavcodec/avcodec.h])
+TC2_CHECK_LIBS([libav, avcodec, avcodec_find_decoder,, libavcodec/avcodec.h])

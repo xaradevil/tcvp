@@ -167,7 +167,7 @@ avc_audioenc_probe(tcvp_pipe_t *p, tcvp_data_packet_t *pk, stream_t *s)
 
     ctx->sample_rate = s->audio.sample_rate;
     ctx->channels = s->audio.channels;
-    ctx->sample_fmt = SAMPLE_FMT_S16;
+    ctx->sample_fmt = AV_SAMPLE_FMT_S16;
 
     if(avcodec_open2(ctx, enc->avc, NULL) < 0){
         ctx->codec = NULL;

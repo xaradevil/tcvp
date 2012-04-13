@@ -75,7 +75,7 @@ avc_encvid(tcvp_pipe_t *p, tcvp_data_packet_t *pk)
     if(pk->flags & TCVP_PKT_FLAG_PTS)
         f->pts = pk->pts;
     if(pk->flags & TCVP_PKT_FLAG_DISCONT)
-        f->pict_type = FF_I_TYPE;
+        f->pict_type = AV_PICTURE_TYPE_I;
     else
         f->pict_type = 0;
 
@@ -293,12 +293,10 @@ avc_encvideo_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cf,
     ctx_flag(qpel, QPEL);
     ctx_flag(gmc, GMC);
     ctx_flag(interlaced_dct, INTERLACED_DCT);
-    ctx_flag(alt_scan, ALT_SCAN);
     ctx_flag(cbp_rd, CBP_RD);
     ctx_flag(ac_pred, AC_PRED);
     ctx_flag(mv0, MV0);
     ctx_flag(qp_rd, QP_RD);
-    ctx_flag(obmc, OBMC);
     ctx_flag(loop_filter, LOOP_FILTER);
     ctx_flag(interlaced_me, INTERLACED_ME);
     ctx_flag(closed_gop, CLOSED_GOP);

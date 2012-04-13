@@ -37,7 +37,6 @@ static pthread_mutex_t avc_lock = PTHREAD_MUTEX_INITIALIZER;
 extern int
 avc_init(char *arg)
 {
-    avcodec_init();
     avcodec_register_all();
     return 0;
 }
@@ -108,7 +107,6 @@ avc_new(tcvp_pipe_t *p, stream_t *s, tcconf_section_t *cs,
 
 #define ctx_conf(n, f) tcconf_getvalue(cs, #n, "%"#f, &avctx->n)
     ctx_conf(workaround_bugs, i);
-    ctx_conf(error_recognition, i);
     ctx_conf(error_concealment, i);
     ctx_conf(idct_algo, i);
     ctx_conf(debug, i);
