@@ -1020,7 +1020,7 @@ msk_open(char *name, url_t *u, tcconf_section_t *cs, tcvp_timer_t *tm)
         goto err;
     }
 
-    if(strcmp(eh.doctype, "matroska")){
+    if(strcmp(eh.doctype, "matroska") && strcmp(eh.doctype, "webm")){
         tc2_print("MATROSKA", TC2_PRINT_ERROR, "unknown doctype '%s'\n",
                   eh.doctype);
         goto err;
@@ -1247,6 +1247,8 @@ static matroska_codec_t msk_codecs[] = {
       .setup   = msk_codec_qt_video },
     { .codecid = "V_MS/VFW/FOURCC",
       .setup   = msk_codec_msfcc },
+    { .codecid = "V_VP8",
+      .codec   = "video/vp8" },
 
     { .codecid = "A_MPEG/L3",
       .codec   = "audio/mp3" },
